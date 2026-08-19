@@ -41,7 +41,7 @@ class AgentApi {
     final data = await _client.postPublic('/auth/agent/login', {
       'phone': phone,
       'password': password,
-    }) as Map<String, dynamic>;
+    });
     final user = data['user'] as Map<String, dynamic>;
     return LoginResult(
       userId: user['id'] as String,
