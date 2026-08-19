@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Page } from '../components/Page';
 import { IntegrationPanel } from '../components/IntegrationPanel';
+import { WinwinConfirmationForm } from '../components/WinwinConfirmationForm';
 
 type Tab = 'evc_plus' | 'mobcash_winwin';
 
@@ -26,7 +27,12 @@ export function PaymentIntegrations() {
       </div>
 
       {tab === 'evc_plus' && <IntegrationPanel provider="evc_plus" label="EVC Plus" />}
-      {tab === 'mobcash_winwin' && <IntegrationPanel provider="mobcash_winwin" label="MobCash / WinWin" />}
+      {tab === 'mobcash_winwin' && (
+        <>
+          <IntegrationPanel provider="mobcash_winwin" label="MobCash / WinWin" />
+          <WinwinConfirmationForm />
+        </>
+      )}
     </Page>
   );
 }

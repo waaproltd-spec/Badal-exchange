@@ -20,6 +20,8 @@ import type {
   WithdrawalLimit,
   IntegrationProvider,
   OrderMethod,
+  WinwinConfirmationInput,
+  WinwinConfirmationResult,
 } from './types';
 
 export function adminLogin(phone: string, password: string) {
@@ -139,4 +141,17 @@ export function setIntegrationStatus(provider: IntegrationProvider, status: 'act
 
 export function testIntegrationConnection(provider: IntegrationProvider) {
   return api.post<PaymentIntegration>(`/admin/payment-integrations/${provider}/test-connection`);
+}
+
+/**
+ * Manual WinWin/MobCash confirmation: an admin has personally observed a
+ * real, completed "Top up WebUser" deposit in the WinWin manager app and
+ * keys the result in here. Requires a fresh Idempotency-Key per submission
+ * so a retried request never double-credits a wallet.
+ */
+export function submitWinwinConfirmation(input: WinwinConfirmationInput) {
+  const idempotencyKey = crypto.randomUUID();
+  return api.post<WinwinConfirmationResult>('/admin/winwin-transactions', input, {
+    'Idempotency-Key': idempotencyKey,
+  });
 }

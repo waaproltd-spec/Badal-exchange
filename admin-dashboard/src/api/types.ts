@@ -191,6 +191,19 @@ export interface PaymentIntegration {
   updatedAt: string;
 }
 
+export interface WinwinConfirmationInput {
+  winwinId: string;
+  depositCode?: string;
+  amount: string;
+  mobcashRef: string;
+  occurredAt: string;
+}
+
+export interface WinwinConfirmationResult {
+  status: 'matched' | 'unmatched' | 'duplicate';
+  orderId?: string;
+}
+
 export interface ApiErrorBody {
   error: {
     code: string;

@@ -76,6 +76,7 @@ interface RequestOptions {
   method?: string;
   body?: unknown;
   query?: Record<string, string | undefined>;
+  headers?: Record<string, string>;
 }
 
 async function rawRequest(path: string, options: RequestOptions): Promise<Response> {
@@ -85,7 +86,7 @@ async function rawRequest(path: string, options: RequestOptions): Promise<Respon
       if (v !== undefined && v !== '') url.searchParams.set(k, v);
     }
   }
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...options.headers };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
 
@@ -132,7 +133,8 @@ async function request<T>(path: string, options: RequestOptions = {}, isRetry = 
 
 export const api = {
   get: <T>(path: string, query?: Record<string, string | undefined>) => request<T>(path, { method: 'GET', query }),
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ?? {} }),
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
+    request<T>(path, { method: 'POST', body: body ?? {}, headers }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body: body ?? {} }),
 };
 
