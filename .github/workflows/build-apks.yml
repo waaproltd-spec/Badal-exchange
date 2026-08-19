@@ -31,15 +31,20 @@ jobs:
           flutter build apk --release
 
       - name: Build agent app APK
+        # Independent of the customer app build -- one app's build failure
+        # must not prevent uploading the other app's already-built APK.
+        if: always()
         working-directory: agent-app
         run: |
           flutter pub get
           flutter build apk --release
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: badal-exchange-apks
           path: |
             customer-app/build/app/outputs/flutter-apk/app-release.apk
             agent-app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: warn
           retention-days: 14
