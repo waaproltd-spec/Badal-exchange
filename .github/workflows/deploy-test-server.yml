@@ -70,6 +70,15 @@ jobs:
           echo "== Install, build, migrate, seed =="
           npm ci
           npm run build
+
+          echo "== Playwright Chromium (for MobCash browser automation) =="
+          AVAIL_KB2=$(df --output=avail / | tail -1 | tr -d ' ')
+          if [ "$AVAIL_KB2" -lt 524288 ]; then
+            echo "Only $((AVAIL_KB2/1024))MB free -- skipping Chromium download (automation features needing a browser will keep failing until space is freed)." >&2
+          else
+            npx playwright install chromium || echo "Playwright Chromium install failed -- MobCash browser automation will not work until this succeeds." >&2
+          fi
+
           npm run migrate
           npm run seed || true
           npm prune --omit=dev
