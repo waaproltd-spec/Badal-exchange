@@ -68,10 +68,11 @@ jobs:
           fi
 
           echo "== Install, build, migrate, seed =="
-          npm ci --omit=dev
+          npm ci
           npm run build
           npm run migrate
           npm run seed || true
+          npm prune --omit=dev
 
           echo "== PM2: backend =="
           pm2 describe badal-backend >/dev/null 2>&1 && pm2 restart badal-backend || \
