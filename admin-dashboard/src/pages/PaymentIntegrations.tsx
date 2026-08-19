@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Page } from '../components/Page';
 import { IntegrationPanel } from '../components/IntegrationPanel';
 import { WinwinConfirmationForm } from '../components/WinwinConfirmationForm';
+import { MobCashLoginCheck } from '../components/MobCashLoginCheck';
 
 type Tab = 'evc_plus' | 'mobcash_winwin';
 
 export function PaymentIntegrations() {
   const [tab, setTab] = useState<Tab>('evc_plus');
+  const [mobcashRefreshKey, setMobcashRefreshKey] = useState(0);
 
   return (
     <Page title="Payment Integrations" subtitle="Manager-account credentials and connection status for EVC Plus and MobCash / WinWin">
@@ -29,7 +31,8 @@ export function PaymentIntegrations() {
       {tab === 'evc_plus' && <IntegrationPanel provider="evc_plus" label="EVC Plus" />}
       {tab === 'mobcash_winwin' && (
         <>
-          <IntegrationPanel provider="mobcash_winwin" label="MobCash Manager" />
+          <IntegrationPanel key={mobcashRefreshKey} provider="mobcash_winwin" label="MobCash Manager" />
+          <MobCashLoginCheck onSaved={() => setMobcashRefreshKey((k) => k + 1)} />
           <WinwinConfirmationForm />
         </>
       )}

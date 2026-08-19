@@ -66,7 +66,7 @@ async function withAdvisoryLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function logRun(entry: {
-  runType: 'deposit_poll' | 'withdrawal_submit';
+  runType: 'deposit_poll' | 'withdrawal_submit' | 'login_check';
   orderId?: string | null;
   status: 'success' | 'failed' | 'dry_run';
   message: string;
@@ -89,8 +89,10 @@ async function captureFailureScreenshot(page: Page): Promise<string | null> {
   }
 }
 
-async function launchAndLogin(): Promise<{ browser: Browser; page: Page }> {
-  const creds = await getDecryptedCredentialsForAdapter(PROVIDER);
+async function launchAndLogin(
+  overrideCreds?: { username: string; password: string }
+): Promise<{ browser: Browser; page: Page }> {
+  const creds = overrideCreds ?? (await getDecryptedCredentialsForAdapter(PROVIDER));
   if (!creds) throw new Error('No MobCash credentials saved');
   const config = await loadConfig();
 
@@ -187,6 +189,104 @@ export async function pollMobCashDeposits(): Promise<{ found: number; matched: n
 
 /** Placeholder actor id: a real seeded "MobCash Automation" system user (see seed.ts). */
 export const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000001';
+
+export interface LoginCheckResult {
+  success: boolean;
+  message: string;
+  eposList: string[];
+}
+
+/**
+ * On-demand admin action: attempts a real login to MobCash Business Web
+ * with the given (not-yet-saved) credentials and, on success, reads the
+ * "Select your EPOS" screen MobCash shows after login. Never fabricates an
+ * EPOS list -- an empty array here means the real portal reported none
+ * ("No available EPOSes" in the product screenshot), same as an admin
+ * would see logging in by hand. Independent of automation_mode/dry_run
+ * (those govern the *recurring* deposit-poll/withdrawal automation only);
+ * this is a one-off verification a human explicitly triggered.
+ */
+export async function checkMobCashLogin(username: string, password: string): Promise<LoginCheckResult> {
+  const startedAt = new Date();
+  let browser: Browser | null = null;
+  try {
+    const result = await withAdvisoryLock(async () => {
+      const config = await loadConfig();
+      browser = await chromium.launch({
+        executablePath: chromiumExecutablePath(),
+        headless: true,
+        args: ['--no-sandbox'],
+      });
+      const page = await browser.newPage();
+      const CHECK_TIMEOUT_MS = 20000;
+      page.setDefaultTimeout(CHECK_TIMEOUT_MS);
+
+      await page.goto(config.businessWebUrl, { waitUntil: 'domcontentloaded' });
+      await page.getByPlaceholder('Enter username').fill(username);
+      await page.getByPlaceholder('Enter password').fill(password);
+      await page.getByRole('button', { name: 'Log in' }).click();
+
+      // Race the two outcomes MobCash's own screens show us: the login form
+      // disappearing (success) vs. a visible error staying on it (failure).
+      // Neither selector is confirmed live -- both are inferred from the
+      // product's own screenshots, so this still falls back to the
+      // CHECK_TIMEOUT_MS ceiling if neither element ever appears/detaches.
+      const outcome = await Promise.race([
+        page
+          .getByPlaceholder('Enter username')
+          .waitFor({ state: 'detached', timeout: CHECK_TIMEOUT_MS })
+          .then(() => 'success' as const)
+          .catch(() => 'timeout' as const),
+        page
+          .getByText(/invalid|incorrect|failed|error/i)
+          .first()
+          .waitFor({ state: 'visible', timeout: CHECK_TIMEOUT_MS })
+          .then(() => 'error' as const)
+          .catch(() => 'timeout' as const),
+      ]);
+
+      if (outcome !== 'success') {
+        const errorText = await page
+          .getByText(/invalid|incorrect|failed|error/i)
+          .first()
+          .textContent()
+          .catch(() => null);
+        return { success: false, message: errorText?.trim() || 'Login did not succeed (unrecognized response from MobCash).', eposList: [] };
+      }
+
+      // Post-login: MobCash shows "Select your EPOS" with either a list of
+      // named EPOS entries or the empty state "No available EPOSes".
+      const emptyState = await page.getByText('No available EPOSes').isVisible().catch(() => false);
+      if (emptyState) {
+        return { success: true, message: 'Login succeeded. No EPOS accounts are available on this MobCash account.', eposList: [] };
+      }
+
+      const eposList = await page
+        .getByText('List of EPOSes')
+        .locator('xpath=following::li | following::*[contains(@class,"epos")]')
+        .allTextContents()
+        .catch(() => [] as string[]);
+      const cleaned = eposList.map((t) => t.trim()).filter(Boolean);
+
+      return {
+        success: true,
+        message: cleaned.length > 0 ? `Login succeeded. ${cleaned.length} EPOS account(s) found.` : 'Login succeeded.',
+        eposList: cleaned,
+      };
+    });
+
+    await recordAutomationOutcome(PROVIDER, result.success);
+    await logRun({ runType: 'login_check', status: result.success ? 'success' : 'failed', message: result.message, startedAt });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await recordAutomationOutcome(PROVIDER, false);
+    await logRun({ runType: 'login_check', status: 'failed', message, startedAt });
+    return { success: false, message, eposList: [] };
+  } finally {
+    if (browser) await (browser as Browser).close().catch(() => {});
+  }
+}
 
 function parseTransactionRow(text: string): { winwinId: string; amountCents: number; reference: string } | null {
   // Example target shape (from the product screenshot): "№…383  ID 1772416375  +1.50 $  19.08.2026 / 18:38:27"

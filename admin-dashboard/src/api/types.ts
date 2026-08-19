@@ -198,13 +198,19 @@ export interface PaymentIntegration {
 
 export interface AutomationRun {
   id: string;
-  run_type: 'deposit_poll' | 'withdrawal_submit';
+  run_type: 'deposit_poll' | 'withdrawal_submit' | 'login_check';
   order_id: string | null;
   status: 'success' | 'failed' | 'dry_run';
   message: string | null;
   has_screenshot: boolean;
   started_at: string;
   finished_at: string;
+}
+
+export interface MobCashLoginCheckResult {
+  success: boolean;
+  message: string;
+  eposList: string[];
 }
 
 export interface WinwinConfirmationInput {

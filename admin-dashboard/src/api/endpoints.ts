@@ -23,6 +23,7 @@ import type {
   WinwinConfirmationInput,
   WinwinConfirmationResult,
   AutomationRun,
+  MobCashLoginCheckResult,
 } from './types';
 
 export function adminLogin(phone: string, password: string) {
@@ -173,4 +174,16 @@ export function resetCircuitBreaker(provider: IntegrationProvider) {
 
 export function listAutomationRuns(provider: IntegrationProvider) {
   return api.get<AutomationRun[]>(`/admin/payment-integrations/${provider}/automation-runs`);
+}
+
+/**
+ * Real browser-automation login attempt against MobCash Business Web with
+ * credentials the admin just typed (not yet saved). On success returns
+ * whatever EPOS accounts the real portal reports -- never fabricated.
+ */
+export function checkMobCashLogin(username: string, password: string) {
+  return api.post<MobCashLoginCheckResult>('/admin/payment-integrations/mobcash_winwin/login-check', {
+    username,
+    password,
+  });
 }

@@ -18,6 +18,7 @@ import {
   IntegrationProvider,
 } from '../services/paymentIntegrationService';
 import { submitWinwinTransaction } from '../services/matchingService';
+import { checkMobCashLogin } from '../services/mobcashAutomation';
 import { moneyLimiter } from '../auth/rateLimit';
 import { requireIdempotencyKey } from '../lib/idempotency';
 import { toCents } from '../lib/money';
@@ -525,6 +526,36 @@ adminRouter.post(
   asyncHandler(async (req, res) => {
     const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
     const result = await testIntegrationConnection(provider, req.user!.id, 'admin');
+    res.json(result);
+  })
+);
+
+// ---------------------------------------------------------------------------
+// MobCash login + EPOS-list check: an on-demand, real browser-automation
+// login attempt with credentials the admin just typed (not yet saved),
+// used to verify they work and see what EPOS accounts the account has
+// before committing to save them. Never fabricates the EPOS list -- an
+// empty array means the real MobCash portal reported none.
+// ---------------------------------------------------------------------------
+const loginCheckSchema = z.object({
+  username: z.string().min(1).max(200),
+  password: z.string().min(1).max(200),
+});
+
+adminRouter.post(
+  '/payment-integrations/mobcash_winwin/login-check',
+  moneyLimiter,
+  asyncHandler(async (req, res) => {
+    const body = loginCheckSchema.parse(req.body);
+    const result = await checkMobCashLogin(body.username, body.password);
+    await writeAudit({
+      actorId: req.user!.id,
+      actorRole: 'admin',
+      action: 'payment_integration.mobcash_login_check',
+      entityType: 'payment_integration',
+      entityId: 'mobcash_winwin',
+      after: { success: result.success, eposCount: result.eposList.length },
+    });
     res.json(result);
   })
 );
