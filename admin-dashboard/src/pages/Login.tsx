@@ -41,7 +41,7 @@ export function Login() {
               id="phone"
               type="text"
               inputMode="tel"
-              autoComplete="username"
+              autoComplete="tel"
               placeholder="2526XXXXXXXX"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
