@@ -14,11 +14,14 @@ jobs:
     steps:
       - name: SSH recon
         env:
-          SSH_KEY: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          # Stored as base64 -- avoids multi-line paste corruption (mobile
+          # browsers/clipboards can mangle PEM line breaks, which produces
+          # "error in libcrypto" when OpenSSH tries to parse the key).
+          SSH_KEY_B64: ${{ secrets.TEST_SERVER_SSH_KEY }}
         run: |
           set -e
           mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@203.161.38.33 '
             echo "== OS =="; cat /etc/os-release | head -3
