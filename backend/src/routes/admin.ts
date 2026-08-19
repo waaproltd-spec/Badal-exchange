@@ -15,6 +15,10 @@ import {
   testIntegrationConnection,
   IntegrationProvider,
 } from '../services/paymentIntegrationService';
+import { submitWinwinTransaction } from '../services/matchingService';
+import { moneyLimiter } from '../auth/rateLimit';
+import { requireIdempotencyKey } from '../lib/idempotency';
+import { toCents } from '../lib/money';
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth, requireRole('admin'));
@@ -169,6 +173,8 @@ adminRouter.post(
   '/agents',
   asyncHandler(async (req, res) => {
     const body = createAgentSchema.parse(req.body);
+    const existing = await pool.query('SELECT 1 FROM users WHERE phone = $1', [body.phone]);
+    if (existing.rows[0]) throw ApiError.conflict('Phone number already registered', 'PHONE_TAKEN');
     const passwordHash = await hashPassword(body.password);
     const { rows } = await pool.query(
       `INSERT INTO users (role, phone, name, password_hash) VALUES ('agent', $1, $2, $3) RETURNING id, name, phone, status`,
@@ -518,5 +524,39 @@ adminRouter.post(
     const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
     const result = await testIntegrationConnection(provider, req.user!.id, 'admin');
     res.json(result);
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Manual WinWin/MobCash confirmation (admin/manager oversight path). Same
+// verified-match semantics as the agent endpoint: the admin has observed a
+// real, completed transaction in the actual WinWin manager app and keys the
+// result in here; the backend matches it against the pending order by
+// deposit code + WinWin ID + amount and dedupes by MobCash reference before
+// crediting the wallet. Never auto-generated, never trusted from the app.
+// ---------------------------------------------------------------------------
+const winwinSchema = z.object({
+  winwinId: z.string().min(3).max(30),
+  depositCode: z.string().min(3).max(10).optional(),
+  amount: z.string().or(z.number()),
+  mobcashRef: z.string().min(3).max(100),
+  occurredAt: z.string(),
+});
+
+adminRouter.post(
+  '/winwin-transactions',
+  moneyLimiter,
+  requireIdempotencyKey('admin.winwin_transactions'),
+  asyncHandler(async (req, res) => {
+    const body = winwinSchema.parse(req.body);
+    const result = await submitWinwinTransaction({
+      submittedBy: req.user!.id,
+      winwinId: body.winwinId,
+      depositCode: body.depositCode,
+      amountCents: toCents(body.amount),
+      mobcashRef: body.mobcashRef,
+      occurredAt: body.occurredAt,
+    });
+    res.status(result.status === 'duplicate' ? 200 : 201).json(result);
   })
 );
