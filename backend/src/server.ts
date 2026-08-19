@@ -50,3 +50,14 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 app.listen(config.port, () => {
   console.log(`Badal Exchange backend listening on :${config.port}`);
 });
+
+// Periodic MobCash automation sweep (deposit-feed poll + retry of any
+// pending WinWin withdrawals). No-ops immediately unless an admin has
+// explicitly turned automation_mode to 'automatic' -- see
+// automationOrchestrator.ts.
+const MOBCASH_SWEEP_INTERVAL_MS = 60_000;
+setInterval(() => {
+  import('./services/automationOrchestrator')
+    .then((m) => m.runAutomationSweep())
+    .catch((err) => console.error('MobCash automation sweep failed', err instanceof Error ? err.message : err));
+}, MOBCASH_SWEEP_INTERVAL_MS);

@@ -1,5 +1,29 @@
+import crypto from 'crypto';
 import { pool } from './pool';
 import { hashPassword } from '../lib/crypto';
+
+/**
+ * Fixed id used by automationOrchestrator.ts / mobcashAutomation.ts as the
+ * actor for orders and audit entries the MobCash automation itself
+ * completes (as opposed to a human agent/admin). Disabled so it can never
+ * actually be logged into -- it exists only to satisfy foreign keys and
+ * make automated actions clearly attributable in the audit log.
+ */
+const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000001';
+
+async function seedSystemActor() {
+  const passwordHash = await hashPassword(crypto.randomBytes(32).toString('hex'));
+  await pool.query(
+    `INSERT INTO users (id, role, email, name, password_hash, status)
+     VALUES ($1, 'admin', 'system-automation@badal.internal', 'MobCash Automation (system)', $2, 'disabled')
+     ON CONFLICT (id) DO NOTHING`,
+    [SYSTEM_ACTOR_ID, passwordHash]
+  );
+  await pool.query(
+    `INSERT INTO admin_profiles (user_id, admin_role) VALUES ($1, 'system') ON CONFLICT (user_id) DO NOTHING`,
+    [SYSTEM_ACTOR_ID]
+  );
+}
 
 async function upsertUser(role: string, phone: string, name: string, password: string) {
   const passwordHash = await hashPassword(password);
@@ -14,6 +38,8 @@ async function upsertUser(role: string, phone: string, name: string, password: s
 
 async function main() {
   console.log('Seeding Badal Exchange demo data...');
+
+  await seedSystemActor();
 
   const adminId = await upsertUser('admin', '252610000001', 'Super Admin', 'ChangeMe123!');
   await pool.query(

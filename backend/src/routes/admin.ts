@@ -13,6 +13,8 @@ import {
   upsertIntegrationCredentials,
   setIntegrationStatus,
   testIntegrationConnection,
+  setAutomationMode,
+  resetCircuitBreaker,
   IntegrationProvider,
 } from '../services/paymentIntegrationService';
 import { submitWinwinTransaction } from '../services/matchingService';
@@ -558,5 +560,62 @@ adminRouter.post(
       occurredAt: body.occurredAt,
     });
     res.status(result.status === 'duplicate' ? 200 : 201).json(result);
+  })
+);
+
+// ---------------------------------------------------------------------------
+// MobCash browser-automation controls. No official MobCash/WinWin API is
+// confirmed to exist -- "automatic" here means backend-driven browser
+// automation of the real MobCash Business Web portal, explicitly
+// authorized in place of the default manual-confirmation flow. See
+// mobcashAutomation.ts for the full safety-rail rationale.
+// ---------------------------------------------------------------------------
+const automationSchema = z.object({
+  mode: z.enum(['manual', 'automatic']),
+  dryRun: z.boolean(),
+});
+
+adminRouter.put(
+  '/payment-integrations/:provider/automation',
+  asyncHandler(async (req, res) => {
+    const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
+    const body = automationSchema.parse(req.body);
+    const result = await setAutomationMode(provider, body.mode, body.dryRun, req.user!.id, 'admin');
+    res.json(result);
+  })
+);
+
+adminRouter.post(
+  '/payment-integrations/:provider/reset-circuit-breaker',
+  asyncHandler(async (req, res) => {
+    const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
+    const result = await resetCircuitBreaker(provider, req.user!.id, 'admin');
+    res.json(result);
+  })
+);
+
+adminRouter.get(
+  '/payment-integrations/:provider/automation-runs',
+  asyncHandler(async (req, res) => {
+    const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
+    const { rows } = await pool.query(
+      `SELECT id, run_type, order_id, status, message, (screenshot_base64 IS NOT NULL) AS has_screenshot, started_at, finished_at
+       FROM automation_runs WHERE provider = $1 ORDER BY finished_at DESC LIMIT 100`,
+      [provider]
+    );
+    res.json(rows);
+  })
+);
+
+adminRouter.get(
+  '/payment-integrations/:provider/automation-runs/:runId/screenshot',
+  asyncHandler(async (req, res) => {
+    const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
+    const { rows } = await pool.query(
+      `SELECT screenshot_base64 FROM automation_runs WHERE id = $1 AND provider = $2`,
+      [req.params.runId, provider]
+    );
+    if (!rows[0]?.screenshot_base64) throw ApiError.notFound('No screenshot for this run');
+    res.json({ screenshotBase64: rows[0].screenshot_base64 });
   })
 );

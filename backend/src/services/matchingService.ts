@@ -86,12 +86,20 @@ export async function submitWinwinTransaction(input: WinwinSubmission): Promise<
   }
   const txnId = inserted.rows[0].id;
 
+  // A human-typed confirmation usually carries our deposit code (stronger
+  // match); an automated feed scrape of "recent transactions" typically
+  // does not, since the code is something we display to the customer, not
+  // something WinWin/MobCash echoes back in a transaction row. When no
+  // code is given, fall back to matching by WinWin ID + amount alone --
+  // still safe because it's scoped to this specific customer's pending
+  // order, not a blind amount match across all customers.
   const candidate = await pool.query(
     `SELECT id FROM orders
      WHERE direction = 'deposit' AND method = 'winwin' AND status = 'pending'
-       AND winwin_id = $1 AND deposit_code = $2 AND amount_cents = $3
+       AND winwin_id = $1 AND amount_cents = $2
+       AND ($3::text IS NULL OR deposit_code = $3)
      ORDER BY created_at ASC LIMIT 1`,
-    [input.winwinId, input.depositCode ?? null, input.amountCents]
+    [input.winwinId, input.amountCents, input.depositCode ?? null]
   );
 
   if (!candidate.rows[0]) {

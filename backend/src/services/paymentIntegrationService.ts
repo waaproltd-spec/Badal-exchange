@@ -18,6 +18,14 @@ export interface IntegrationSummary {
   lastSuccessfulConnectionAt: string | null;
   lastTransactionAt: string | null;
   updatedAt: string;
+  // Browser-automation state (MobCash Business Web). No official API is
+  // confirmed to exist, so "automatic" here means backend-driven browser
+  // automation against the real portal -- see mobcashAutomation.ts.
+  automationMode: 'manual' | 'automatic';
+  dryRun: boolean;
+  consecutiveFailures: number;
+  circuitBreakerTrippedAt: string | null;
+  circuitBreakerReason: string | null;
 }
 
 function toSummary(row: any): IntegrationSummary {
@@ -45,6 +53,11 @@ function toSummary(row: any): IntegrationSummary {
     lastSuccessfulConnectionAt: row.last_successful_connection_at,
     lastTransactionAt: row.last_transaction_at,
     updatedAt: row.updated_at,
+    automationMode: row.automation_mode ?? 'manual',
+    dryRun: row.dry_run ?? true,
+    consecutiveFailures: row.consecutive_failures ?? 0,
+    circuitBreakerTrippedAt: row.circuit_breaker_tripped_at ?? null,
+    circuitBreakerReason: row.circuit_breaker_reason ?? null,
   };
 }
 
@@ -145,6 +158,113 @@ export async function setIntegrationStatus(
     after: { status },
   });
   return toSummary(rows[0]);
+}
+
+/**
+ * Turns backend-driven automation on/off and sets dry-run. Enabling
+ * "automatic" requires credentials to already be on file. Dry-run cannot
+ * be turned off in the same call that enables automation for the first
+ * time -- an admin must do that as a separate, deliberate step after
+ * reviewing dry-run output, so real money is never moved by an accidental
+ * single click.
+ */
+export async function setAutomationMode(
+  provider: IntegrationProvider,
+  mode: 'manual' | 'automatic',
+  dryRun: boolean,
+  actorId: string,
+  actorRole: Role
+): Promise<IntegrationSummary> {
+  const existing = await pool.query('SELECT * FROM payment_integrations WHERE provider = $1', [provider]);
+  const row = existing.rows[0];
+  if (!row) throw ApiError.notFound('Integration not configured yet');
+  if (mode === 'automatic' && !row.has_credentials) {
+    throw ApiError.badRequest('Save manager credentials before enabling automatic processing', 'CREDENTIALS_REQUIRED');
+  }
+  if (mode === 'automatic' && row.circuit_breaker_tripped_at && dryRun === false) {
+    throw ApiError.conflict('Circuit breaker is tripped -- reset it before enabling live (non-dry-run) automation', 'CIRCUIT_BREAKER_TRIPPED');
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE payment_integrations
+     SET automation_mode = $1, dry_run = $2, updated_by = $3, updated_at = now()
+     WHERE provider = $4
+     RETURNING *`,
+    [mode, dryRun, actorId, provider]
+  );
+
+  await writeAudit({
+    actorId,
+    actorRole,
+    action: 'payment_integration.set_automation_mode',
+    entityType: 'payment_integration',
+    entityId: provider,
+    before: { automationMode: row.automation_mode, dryRun: row.dry_run },
+    after: { automationMode: mode, dryRun },
+  });
+
+  return toSummary(rows[0]);
+}
+
+export async function resetCircuitBreaker(
+  provider: IntegrationProvider,
+  actorId: string,
+  actorRole: Role
+): Promise<IntegrationSummary> {
+  const { rows } = await pool.query(
+    `UPDATE payment_integrations
+     SET circuit_breaker_tripped_at = NULL, circuit_breaker_reason = NULL, consecutive_failures = 0,
+         updated_by = $1, updated_at = now()
+     WHERE provider = $2
+     RETURNING *`,
+    [actorId, provider]
+  );
+  if (!rows[0]) throw ApiError.notFound('Integration not configured yet');
+  await writeAudit({
+    actorId,
+    actorRole,
+    action: 'payment_integration.reset_circuit_breaker',
+    entityType: 'payment_integration',
+    entityId: provider,
+  });
+  return toSummary(rows[0]);
+}
+
+/** Internal bookkeeping called by the automation orchestrator after each run. */
+export async function recordAutomationOutcome(provider: IntegrationProvider, success: boolean): Promise<{ tripped: boolean }> {
+  if (success) {
+    await pool.query(
+      `UPDATE payment_integrations SET consecutive_failures = 0, last_successful_connection_at = now() WHERE provider = $1`,
+      [provider]
+    );
+    return { tripped: false };
+  }
+
+  const MAX_CONSECUTIVE_FAILURES = 3;
+  const { rows } = await pool.query(
+    `UPDATE payment_integrations SET consecutive_failures = consecutive_failures + 1 WHERE provider = $1 RETURNING consecutive_failures`,
+    [provider]
+  );
+  const failures = rows[0]?.consecutive_failures ?? 0;
+  if (failures >= MAX_CONSECUTIVE_FAILURES) {
+    await pool.query(
+      `UPDATE payment_integrations
+       SET circuit_breaker_tripped_at = now(),
+           circuit_breaker_reason = $1
+       WHERE provider = $2 AND circuit_breaker_tripped_at IS NULL`,
+      [`${MAX_CONSECUTIVE_FAILURES} consecutive automation failures`, provider]
+    );
+    await writeAudit({
+      actorId: null,
+      actorRole: null,
+      action: 'payment_integration.circuit_breaker_tripped',
+      entityType: 'payment_integration',
+      entityId: provider,
+      after: { consecutiveFailures: failures },
+    });
+    return { tripped: true };
+  }
+  return { tripped: false };
 }
 
 /**

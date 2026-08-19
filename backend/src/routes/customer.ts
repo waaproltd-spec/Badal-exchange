@@ -172,6 +172,14 @@ customerRouter.post(
       idempotencyKey: req.header('Idempotency-Key') ?? null,
     });
     res.status(201).json(serializeOrder(order));
+
+    // Fire-and-forget: if MobCash automation is on, try to process this
+    // withdrawal immediately instead of waiting for the periodic sweep.
+    // Never blocks or affects the customer's response either way -- the
+    // response above already reflects the real, currently-pending state.
+    import('../services/automationOrchestrator')
+      .then((m) => m.runAutomatedWithdrawal(order.id))
+      .catch((err) => console.error('Automated withdrawal trigger failed', order.id, err instanceof Error ? err.message : err));
   })
 );
 

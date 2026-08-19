@@ -43,12 +43,28 @@ charged for a withdrawal that didn't happen.
 
 ## MobCash / WinWin integration note
 
-WinWin/MobCash has no published public API today — only a manager-role
-login inside the WinWin app itself, used to manually top up a WebUser ID
-(deposit) or pay out against a withdrawal code (withdrawal). Badal Exchange
-does **not** automate or screen-scrape that login — this system stores the
-manager account credentials encrypted at rest (Admin &rarr; Payment
-Integrations) for record-keeping, wired through a pluggable adapter
-interface, but production confirmation always goes through a human
-operator keying the real result into the backend. If WinWin ever publishes
-an official API, only the adapter implementation needs to change.
+WinWin/MobCash has no published public API — only a manager-role login on
+the real MobCash Business Web portal (`businessweb-mobi.com`), used to
+manually top up a WebUser ID (deposit) or pay out against a withdrawal
+code (withdrawal). Two integration modes exist, both behind
+Admin &rarr; Payment Integrations &rarr; MobCash Manager:
+
+- **Manual (default)**: an admin/agent operates the real portal directly
+  and keys the confirmed result into Badal Exchange, which verifies and
+  matches it before crediting/debiting the wallet.
+- **Automatic (opt-in, explicitly authorized)**: `backend/src/services/mobcashAutomation.ts`
+  drives the same portal via backend-side Playwright browser automation —
+  not an official API, since none is confirmed to exist. It defaults to
+  **off**, and once turned on, defaults to **dry-run** (drafts every
+  withdrawal but stops before the final confirmation) until an admin
+  explicitly disables dry-run after reviewing the automation run log. A
+  circuit breaker auto-disables live automation after 3 consecutive
+  failures rather than retrying blindly. This was built without the
+  ability to test against the real portal (network-blocked in the build
+  environment) except for the login step, which was verified against a
+  real screenshot — everything past login needs live calibration before
+  being trusted with real money. See the comment at the top of
+  `mobcashAutomation.ts` for the full rationale.
+- If MobCash ever publishes an official API, only the adapter functions
+  in `mobcashAutomation.ts` need to change — the credential vault, order
+  lifecycle, and safety rails around it stay the same.

@@ -22,6 +22,7 @@ import type {
   OrderMethod,
   WinwinConfirmationInput,
   WinwinConfirmationResult,
+  AutomationRun,
 } from './types';
 
 export function adminLogin(phone: string, password: string) {
@@ -154,4 +155,22 @@ export function submitWinwinConfirmation(input: WinwinConfirmationInput) {
   return api.post<WinwinConfirmationResult>('/admin/winwin-transactions', input, {
     'Idempotency-Key': idempotencyKey,
   });
+}
+
+/**
+ * Backend-driven browser automation of MobCash Business Web (no official
+ * API is confirmed to exist -- see the note on the MobCash Manager page).
+ * Enabling 'automatic' requires credentials to already be saved; dryRun
+ * defaults true and must be turned off as a separate, deliberate step.
+ */
+export function setAutomationMode(provider: IntegrationProvider, mode: 'manual' | 'automatic', dryRun: boolean) {
+  return api.put<PaymentIntegration>(`/admin/payment-integrations/${provider}/automation`, { mode, dryRun });
+}
+
+export function resetCircuitBreaker(provider: IntegrationProvider) {
+  return api.post<PaymentIntegration>(`/admin/payment-integrations/${provider}/reset-circuit-breaker`);
+}
+
+export function listAutomationRuns(provider: IntegrationProvider) {
+  return api.get<AutomationRun[]>(`/admin/payment-integrations/${provider}/automation-runs`);
 }

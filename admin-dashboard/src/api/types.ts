@@ -189,6 +189,22 @@ export interface PaymentIntegration {
   lastSuccessfulConnectionAt: string | null;
   lastTransactionAt: string | null;
   updatedAt: string;
+  automationMode: 'manual' | 'automatic';
+  dryRun: boolean;
+  consecutiveFailures: number;
+  circuitBreakerTrippedAt: string | null;
+  circuitBreakerReason: string | null;
+}
+
+export interface AutomationRun {
+  id: string;
+  run_type: 'deposit_poll' | 'withdrawal_submit';
+  order_id: string | null;
+  status: 'success' | 'failed' | 'dry_run';
+  message: string | null;
+  has_screenshot: boolean;
+  started_at: string;
+  finished_at: string;
 }
 
 export interface WinwinConfirmationInput {
