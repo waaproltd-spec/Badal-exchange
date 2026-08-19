@@ -68,7 +68,7 @@ jobs:
           fi
 
           echo "== Install, build, migrate, seed =="
-          npm ci
+          npm install
           npm run build
 
           echo "== Playwright Chromium (for MobCash browser automation) =="
