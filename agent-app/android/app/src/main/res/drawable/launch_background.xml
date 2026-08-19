@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solid dark background matching the app's dark theme, shown briefly
+     during Flutter engine startup. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/black" />
+</layer-list>

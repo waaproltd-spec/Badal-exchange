@@ -1,0 +1,28 @@
+name: badal_agent_app
+description: Badal Exchange Agent app — verify EVC Plus deposits and process withdrawals.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  http: ^1.2.1
+  flutter_secure_storage: ^9.2.2
+  provider: ^6.1.2
+  intl: ^0.19.0
+  uuid: ^4.4.0
+  device_info_plus: ^10.1.0
+  permission_handler: ^11.3.1
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,61 @@
+// See the note in ../settings.gradle — regenerate/verify via
+// `flutter create .` in an SDK-equipped environment before building.
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0.0"
+
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "com.badalexchange.agent"
+    compileSdk 34
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        // Agent-only build — never publish this applicationId as the
+        // customer-facing app.
+        applicationId "com.badalexchange.agent"
+        minSdk 23
+        targetSdk 34
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    buildTypes {
+        release {
+            // TODO: wire a real release signing config before shipping;
+            // debug signing is used here only so a local debug build is
+            // legible/runnable during development.
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
+}

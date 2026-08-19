@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Badal Exchange — Agent app manifest.
+
+  RECEIVE_SMS / READ_SMS are runtime-dangerous permissions on Android 6+:
+  declaring them here only makes the app *eligible* to request them — the
+  actual grant happens via a runtime permission prompt (see
+  lib/sms/sms_bridge.dart, which uses permission_handler to request
+  Permission.sms). These permissions — and the SmsReceiver below — must
+  only ever be exercised on a device that has been registered as an
+  authorized agent device via POST /agent/devices/register. This is the
+  agent-only build of Badal Exchange; the customer app must never declare
+  or request these permissions.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+
+    <application
+        android:label="Badal Exchange Agent"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <!--
+          Receives android.provider.Telephony.SMS_RECEIVED broadcasts.
+          High priority so this app sees the SMS promptly; it never
+          aborts the broadcast, so other SMS apps (including the default
+          messaging app) still receive and display it normally — this app
+          only reads it to detect authorized EVC Plus payment
+          notifications, it does not intercept or hide SMS from the agent.
+          See SmsReceiver.kt for the sender allow-list pre-filter — every
+          other SMS is dropped immediately and never leaves the receiver.
+        -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+    <!-- Required to query text processing activities on Android 11+ (Flutter default). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
+</manifest>

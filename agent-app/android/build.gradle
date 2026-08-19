@@ -1,0 +1,21 @@
+// See the note in settings.gradle — regenerate/verify via `flutter create .`
+// in an SDK-equipped environment before building.
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
