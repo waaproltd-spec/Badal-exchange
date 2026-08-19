@@ -1,0 +1,99 @@
+name: Deploy to Test Server
+
+# Manual-only. Deploys/updates Badal Exchange on the existing shared test
+# server (203.161.38.33) WITHOUT touching anything belonging to the other
+# apps already running there (dalab-internet, jirwanaag, sahal-data,
+# fududeeye-data): uses its own directory (/srv/badal-exchange), its own
+# Postgres role/database (badal_exchange_app / badal_exchange), its own
+# ports (4010 backend, 4011 dashboard -- clear of the 4000-4003 already in
+# use), and does not modify Caddy or any other service's config.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY_B64: ${{ secrets.TEST_SERVER_SSH_KEY }}
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@203.161.38.33 'bash -s' <<'REMOTE_SCRIPT'
+          set -e
+          echo "== Disk space safety check =="
+          AVAIL_KB=$(df --output=avail / | tail -1 | tr -d ' ')
+          if [ "$AVAIL_KB" -lt 1048576 ]; then
+            echo "Only $((AVAIL_KB/1024))MB free on / -- refusing to proceed (would risk the other apps on this box). Free up space first." >&2
+            exit 1
+          fi
+          echo "$((AVAIL_KB/1024))MB free, proceeding."
+
+          echo "== Fetch/update code =="
+          if [ -d /srv/badal-exchange/.git ]; then
+            cd /srv/badal-exchange && git fetch origin main && git reset --hard origin/main
+          else
+            git clone https://github.com/waaproltd-spec/badal-exchange.git /srv/badal-exchange
+            cd /srv/badal-exchange
+          fi
+
+          echo "== Postgres role + database (isolated from existing DBs) =="
+          sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='badal_exchange_app'" | grep -q 1 || \
+            sudo -u postgres psql -c "CREATE ROLE badal_exchange_app LOGIN PASSWORD '$(openssl rand -hex 24)';"
+          sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='badal_exchange'" | grep -q 1 || \
+            sudo -u postgres psql -c "CREATE DATABASE badal_exchange OWNER badal_exchange_app;"
+
+          echo "== Backend env (generated once, kept across redeploys) =="
+          cd /srv/badal-exchange/backend
+          if [ ! -f .env ]; then
+            NEW_DB_PASS=$(openssl rand -hex 24)
+            sudo -u postgres psql -c "ALTER ROLE badal_exchange_app WITH PASSWORD '${NEW_DB_PASS}';"
+            cat > .env <<EOF
+          PORT=4010
+          NODE_ENV=production
+          DATABASE_URL=postgres://badal_exchange_app:${NEW_DB_PASS}@localhost:5432/badal_exchange
+          JWT_ACCESS_SECRET=$(openssl rand -hex 32)
+          JWT_REFRESH_SECRET=$(openssl rand -hex 32)
+          JWT_ACCESS_TTL=15m
+          JWT_REFRESH_TTL=30d
+          CREDENTIAL_ENCRYPTION_KEY=$(openssl rand -hex 32)
+          ADMIN_DASHBOARD_ORIGIN=http://203.161.38.33:4011
+          EOF
+            echo "Generated new backend/.env"
+          else
+            echo "backend/.env already exists, leaving it as-is"
+          fi
+
+          echo "== Install, build, migrate, seed =="
+          npm ci --omit=dev
+          npm run build
+          npm run migrate
+          npm run seed || true
+
+          echo "== PM2: backend =="
+          pm2 describe badal-backend >/dev/null 2>&1 && pm2 restart badal-backend || \
+            (cd /srv/badal-exchange/backend && pm2 start dist/server.js --name badal-backend)
+
+          echo "== Admin dashboard: build + serve on 4011 =="
+          cd /srv/badal-exchange/admin-dashboard
+          npm ci
+          VITE_API_BASE_URL=http://203.161.38.33:4010 npm run build
+          pm2 describe badal-dashboard >/dev/null 2>&1 && pm2 restart badal-dashboard || \
+            pm2 serve dist 4011 --name badal-dashboard --spa
+
+          pm2 save
+
+          echo "== Firewall (only adds, never removes existing rules) =="
+          if systemctl is-active --quiet firewalld; then
+            firewall-cmd --permanent --add-port=4010/tcp --add-port=4011/tcp
+            firewall-cmd --reload
+          fi
+
+          echo "== Done =="
+          echo "Backend:   http://203.161.38.33:4010/health"
+          echo "Dashboard: http://203.161.38.33:4011"
+          curl -s http://localhost:4010/health || echo "backend health check failed"
+          REMOTE_SCRIPT
