@@ -1,0 +1,38 @@
+name: Check Server (read-only)
+
+# Manual-only, read-only reconnaissance of the existing test server. Runs no
+# deploy or write commands -- it only reports what's already there so a
+# deploy plan can be written to match reality instead of guessing. Never
+# add automatic triggers (push/schedule) to this file: it stays an
+# explicit, human-initiated action.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH recon
+        env:
+          SSH_KEY: ${{ secrets.TEST_SERVER_SSH_KEY }}
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@203.161.38.33 '
+            echo "== OS =="; cat /etc/os-release | head -3
+            echo; echo "== Uptime / load =="; uptime
+            echo; echo "== Disk =="; df -h /
+            echo; echo "== Memory =="; free -h
+            echo; echo "== Node.js =="; (node -v 2>/dev/null || echo "not found"); (npm -v 2>/dev/null || echo "npm not found")
+            echo; echo "== PostgreSQL =="; (psql --version 2>/dev/null || echo "psql not found"); (systemctl is-active postgresql 2>/dev/null || echo "postgresql service: unknown/inactive")
+            echo; echo "== nginx =="; (nginx -v 2>&1 || echo "nginx not found")
+            echo; echo "== pm2 =="; (pm2 list 2>/dev/null || echo "pm2 not found")
+            echo; echo "== Docker =="; (docker ps -a 2>/dev/null || echo "docker not found")
+            echo; echo "== Listening ports =="; (ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo "no ss/netstat")
+            echo; echo "== Relevant processes =="; ps aux | grep -Ei "node|postgres|nginx|pm2" | grep -v grep
+            echo; echo "== Systemd units mentioning badal/node/backend =="; systemctl list-units --all 2>/dev/null | grep -Ei "badal|node|backend|dashboard" || echo "none found"
+            echo; echo "== Home / var/www contents =="; ls -la /root 2>/dev/null; ls -la /var/www 2>/dev/null || echo "/var/www not found"; ls -la /opt 2>/dev/null
+            echo; echo "== Existing badal-exchange checkout? =="; find / -maxdepth 4 -iname "*badal*" 2>/dev/null
+          '
