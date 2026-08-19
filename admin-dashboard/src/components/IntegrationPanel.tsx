@@ -18,8 +18,15 @@ const TEST_RESULT_LABEL: Record<string, string> = {
   not_configured: 'Not configured',
 };
 
+const MOBCASH_BUSINESS_WEB_URL = 'https://businessweb-mobi.com/auth/login';
+
 export function IntegrationPanel({ provider, label }: { provider: IntegrationProvider; label: string }) {
   const { data, loading, error, reload } = useFetch(() => getPaymentIntegration(provider), [provider]);
+  const isMobCash = provider === 'mobcash_winwin';
+  // Automatic API integration exists only once a verified adapter has been
+  // implemented server-side and a successful connection has been recorded.
+  // Until then this is always false -- never inferred as "probably working".
+  const hasAutomaticApi = data?.lastTestResult === 'success';
 
   return (
     <div className="stack">
@@ -27,6 +34,14 @@ export function IntegrationPanel({ provider, label }: { provider: IntegrationPro
       {error && <ErrorState message={error} />}
       {data && (
         <>
+          {isMobCash && (
+            <div className={hasAutomaticApi ? 'success-banner' : 'warning-banner'}>
+              {hasAutomaticApi
+                ? 'Automatic API integration is configured and was last verified successfully.'
+                : 'Automatic API integration is NOT configured. WinWin deposits and withdrawals are confirmed manually: an authorized admin/agent operates the MobCash Business Web portal directly and keys the confirmed result into the form below.'}
+            </div>
+          )}
+
           <div className="card card-pad">
             <div className="row-between" style={{ marginBottom: 16 }}>
               <div>
@@ -40,6 +55,18 @@ export function IntegrationPanel({ provider, label }: { provider: IntegrationPro
                 <StatusToggle provider={provider} status={data.status} onChanged={reload} />
               </div>
             </div>
+
+            {isMobCash && (
+              <a
+                href={MOBCASH_BUSINESS_WEB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-sm"
+                style={{ marginBottom: 16, display: 'inline-flex' }}
+              >
+                Open MobCash Business Web ↗
+              </a>
+            )}
 
             <div className="detail-grid">
               <div className="detail-item">

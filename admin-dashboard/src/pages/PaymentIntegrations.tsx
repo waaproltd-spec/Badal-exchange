@@ -22,14 +22,14 @@ export function PaymentIntegrations() {
           EVC Plus
         </button>
         <button className={`tab ${tab === 'mobcash_winwin' ? 'active' : ''}`} onClick={() => setTab('mobcash_winwin')}>
-          MobCash / WinWin
+          MobCash Manager
         </button>
       </div>
 
       {tab === 'evc_plus' && <IntegrationPanel provider="evc_plus" label="EVC Plus" />}
       {tab === 'mobcash_winwin' && (
         <>
-          <IntegrationPanel provider="mobcash_winwin" label="MobCash / WinWin" />
+          <IntegrationPanel provider="mobcash_winwin" label="MobCash Manager" />
           <WinwinConfirmationForm />
         </>
       )}
