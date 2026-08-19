@@ -38,4 +38,5 @@ jobs:
             echo; echo "== Systemd units mentioning badal/node/backend =="; systemctl list-units --all 2>/dev/null | grep -Ei "badal|node|backend|dashboard" || echo "none found"
             echo; echo "== Home / var/www contents =="; ls -la /root 2>/dev/null; ls -la /var/www 2>/dev/null || echo "/var/www not found"; ls -la /opt 2>/dev/null
             echo; echo "== Existing badal-exchange checkout? =="; find / -maxdepth 4 -iname "*badal*" 2>/dev/null
+            echo; echo "== Latest automation_runs (read-only) =="; sudo -u postgres psql -d badal_exchange -c "SELECT run_type, status, message, started_at, finished_at FROM automation_runs ORDER BY finished_at DESC LIMIT 5;" 2>&1 || echo "query failed"
           '
