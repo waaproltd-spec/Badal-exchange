@@ -105,7 +105,7 @@ function AutomationStatusBanner({ data }: { data: PaymentIntegration }) {
   if (data.circuitBreakerTrippedAt) {
     return (
       <div className="error-banner">
-        Automation circuit breaker TRIPPED ({data.circuitBreakerReason ?? 'repeated failures'}) at{' '}
+        Unofficial automation circuit breaker TRIPPED ({data.circuitBreakerReason ?? 'repeated failures'}) at{' '}
         {dateTime(data.circuitBreakerTrippedAt)}. Automatic processing has stopped. Review the run log below, fix the
         underlying issue, then reset the circuit breaker to resume.
       </div>
@@ -114,24 +114,27 @@ function AutomationStatusBanner({ data }: { data: PaymentIntegration }) {
   if (data.automationMode !== 'automatic') {
     return (
       <div className="warning-banner">
-        Automatic processing is OFF. WinWin deposits and withdrawals are confirmed manually: an authorized admin/agent
-        operates the MobCash Business Web portal directly and keys the confirmed result into the form below.
+        Unofficial automatic processing is OFF. WinWin deposits and withdrawals are confirmed manually: an authorized
+        admin/agent operates the real MobCash Business Web portal directly and keys the confirmed result into the
+        form below. This is the only officially-supported flow -- MobCash has no API.
       </div>
     );
   }
   if (data.dryRun) {
     return (
       <div className="warning-banner">
-        Automatic processing is ON in DRY RUN mode: withdrawals are filled out but stopped before the final
-        confirmation, and deposits are still only matched (never anything sent). No real money moves yet. Review the
+        Unofficial automatic processing is ON in DRY RUN mode: withdrawals are filled out but stopped before the
+        final confirmation, and deposits are still only matched (never anything sent). No real money moves yet. This
+        is Badal Exchange's own browser automation of the real portal, not a MobCash-provided integration. Review the
         run log below, then turn dry run off when you're confident it's working correctly.
       </div>
     );
   }
   return (
     <div className="success-banner">
-      Automatic processing is LIVE. Backend-driven browser automation of MobCash Business Web is submitting real
-      withdrawals and matching deposits without manual confirmation.
+      Unofficial automatic processing is LIVE. Backend-driven browser automation of MobCash Business Web is
+      submitting real withdrawals and matching deposits without manual confirmation. This is not a MobCash-certified
+      integration -- it can break if MobCash changes their site.
     </div>
   );
 }
@@ -176,13 +179,13 @@ function AutomationControls({
 
   return (
     <div className="card card-pad">
-      <h3 style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Automatic processing (browser automation)</h3>
+      <h3 style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Unofficial automatic processing (browser automation)</h3>
       <p className="text-muted" style={{ fontSize: 12.5, marginBottom: 16 }}>
-        No official MobCash/WinWin API is confirmed to exist. "Automatic" here means the backend logs into MobCash
-        Business Web itself and drives the same deposit-matching and "Top up WebUser" withdrawal flow a human admin
-        would otherwise operate by hand -- explicitly authorized in place of manual confirmation. This was never
-        tested against the real portal (this environment cannot reach it), so it must be run in dry run and reviewed
-        before going live.
+        MobCash/WinWin provides no public API, SDK, or partner integration. "Automatic" here means the backend logs
+        into the real MobCash Business Web itself and drives the same deposit-matching and "Top up WebUser"
+        withdrawal flow a human admin would otherwise operate by hand -- explicitly authorized in place of manual
+        confirmation, and clearly not an official MobCash integration. It can break if MobCash changes their site, so
+        it must be run in dry run and reviewed before going live.
       </p>
 
       <div className="detail-grid" style={{ marginBottom: 16 }}>

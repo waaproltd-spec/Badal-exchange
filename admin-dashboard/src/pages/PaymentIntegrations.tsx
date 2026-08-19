@@ -13,10 +13,12 @@ export function PaymentIntegrations() {
   return (
     <Page title="Payment Integrations" subtitle="Manager-account credentials and connection status for EVC Plus and MobCash / WinWin">
       <div className="note-banner">
-        MobCash/WinWin has no public API -- only a manager-role login inside the WinWin mobile app, used by a human to
-        manually top up or pay out. Badal Exchange does not automate that login. "Test connection" honestly reports
-        whether credentials are on file and whether a verified provider adapter exists (it does not yet), rather than
-        faking a success.
+        MobCash/WinWin provides no public API, SDK, or partner integration -- confirmed by direct research, not
+        assumed. The only real interface is a manager-role login on MobCash Business Web (businessweb-mobi.com),
+        normally operated by hand. Anything below labeled "unofficial automation" is Badal Exchange's own
+        backend-driven browser automation of that real portal -- not a certified MobCash integration, and not
+        something MobCash provides or endorses. "Test connection" honestly reports whether credentials are on file,
+        rather than faking a success.
       </div>
 
       <div className="tabs">

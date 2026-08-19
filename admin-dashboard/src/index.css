@@ -857,143 +857,10 @@ tbody tr.clickable:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* MobCash login/EPOS verification screen -- styled to resemble MobCash's
-   own app (dark near-black, indigo/blue brand mark) so it's visually
-   recognizable as "the MobCash screen", while staying inside the
-   dashboard's existing dark theme. */
-.mobcash-shell {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.mobcash-card {
-  width: 100%;
-  max-width: 380px;
-  background: #0e0f14;
-  border: 1px solid #23252f;
-  border-radius: 16px;
-  padding: 28px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.mobcash-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.mobcash-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: #5b6cf6;
-  color: #5b6cf6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-}
-
-.mobcash-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #f4f4f7;
-}
-
-.mobcash-sub {
-  font-size: 13px;
-  color: #8b8d9a;
-}
-
-.mobcash-password-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.mobcash-password-row input {
-  flex: 1;
-  padding-right: 40px;
-}
-
-.mobcash-eye {
-  position: absolute;
-  right: 10px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 15px;
-  line-height: 1;
-  padding: 4px;
-}
-
-.mobcash-remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  color: #c7c8d1;
-  cursor: pointer;
-}
-
-.mobcash-login-btn {
-  width: 100%;
-  justify-content: center;
-  height: 46px;
-  border-radius: 12px;
-  background: #5b6cf6;
-  border: none;
-}
-
-.mobcash-login-btn:hover {
-  background: #4a5aef;
-}
-
-.mobcash-epos-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #f4f4f7;
-  margin-bottom: 8px;
-}
-
-.mobcash-epos-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 36px 0;
-  text-align: center;
-}
-
-.mobcash-epos-empty-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: #23252f;
-  color: #8b8d9a;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mobcash-epos-empty-title {
-  font-size: 16px;
-  font-weight: 650;
-  color: #f4f4f7;
-}
-
-.mobcash-epos-empty-sub {
-  font-size: 13.5px;
-  color: #8b8d9a;
-}
-
-.mobcash-epos-list {
+/* Unofficial-automation credential check: deliberately plain and styled
+   like the rest of this dashboard, NOT like MobCash's own app -- this is
+   Badal Exchange's own tool, not a MobCash-branded screen. */
+.automation-check-list {
   list-style: none;
   padding: 0;
   margin: 0 0 8px;
@@ -1002,11 +869,10 @@ tbody tr.clickable:hover {
   gap: 8px;
 }
 
-.mobcash-epos-list li {
-  background: #181a22;
-  border: 1px solid #23252f;
+.automation-check-list li {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
   font-size: 14px;
-  color: #e7e8ee;
 }
