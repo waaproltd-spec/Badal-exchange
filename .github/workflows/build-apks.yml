@@ -1,0 +1,45 @@
+name: Build Customer & Agent APKs
+
+# Manual-only. This sandbox's own network policy blocks dl.google.com (the
+# Android SDK download host), so real APK builds have to happen on a
+# GitHub-hosted runner instead, which has full internet access. Builds
+# release APKs for both Flutter apps and uploads them as workflow
+# artifacts to download.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+
+      - name: Build customer app APK
+        working-directory: customer-app
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: Build agent app APK
+        working-directory: agent-app
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: badal-exchange-apks
+          path: |
+            customer-app/build/app/outputs/flutter-apk/app-release.apk
+            agent-app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
