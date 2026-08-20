@@ -11,13 +11,22 @@ import '../widgets/order_card.dart';
 import '../widgets/state_views.dart';
 import '../widgets/withdrawal_action_sheets.dart';
 
-/// Pending Withdrawals: pending/processing withdrawal orders. The agent
-/// moves each one through: Start Processing -> (agent actually sends the
-/// payout via EVC Plus USSD/agent line -- "Dial to Pay" auto-dials this
-/// from the agent's own phone using the customer's number + payout amount,
-/// but the agent still enters their own PIN in the native EVC Plus USSD
-/// prompt, never inside this app -- or the WinWin manager app) -> Complete
-/// (with the real transaction reference) or Mark Failed.
+/// Pending Withdrawals: pending/processing withdrawal orders. The customer
+/// always requests the withdrawal first (see the customer app) -- the agent
+/// only ever processes/pays a request that already exists here.
+///
+/// For EVC Plus, "Pay / Confirm Payment" claims the order (same
+/// startProcessingWithdraw the manual flow always used, so two agents can
+/// never both claim it) and auto-dials *712*{customer's number}*{amount}#
+/// from the agent's own phone in one tap; "Dial to Pay" on an
+/// already-processing order re-dials if the call was dropped or needs a
+/// retry. The agent enters their own PIN in the native EVC Plus USSD prompt
+/// this opens -- it is never captured, stored, or entered by this app. Once
+/// the agent has actually sent the money (or confirmed it failed/was
+/// cancelled in that native prompt), Complete finalizes the customer's
+/// reserved balance with the real transaction reference, or Mark Failed
+/// releases it back to the customer. WinWin orders (no dial step) still use
+/// plain Start Processing.
 class PendingWithdrawalsScreen extends StatefulWidget {
   const PendingWithdrawalsScreen({super.key});
 
@@ -101,6 +110,27 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> {
     }
   }
 
+  /// Claims the withdrawal (startWithdrawal) and immediately auto-dials the
+  /// EVC Plus payout USSD in one tap. The agent still has to confirm the
+  /// real outcome afterwards via Complete/Mark Failed below -- dialing never
+  /// finalizes anything on its own.
+  Future<void> _payAndDial(Order order) async {
+    await _runAction(order.id, () async {
+      await context.read<Session>().api.startWithdrawal(order.id);
+      final dialUri = buildPayoutUssdDialUri(_evcPayoutTemplate, order.phoneNumber ?? '', order.netAmount);
+      if (dialUri != null) {
+        try {
+          await launchUrl(Uri.parse(dialUri));
+          _showSnack('Dialing EVC Plus -- confirm below once the payment is done.', color: AppColors.statusProcessing);
+        } catch (_) {
+          _showSnack('Could not open the dialer -- use Dial to Pay below to retry.', color: AppColors.statusFailed);
+        }
+      } else {
+        _showSnack('Marked as processing.', color: AppColors.statusProcessing);
+      }
+    });
+  }
+
   Future<void> _complete(Order order) async {
     final ref = await showCompleteWithdrawalSheet(context);
     if (ref == null || ref.isEmpty || !mounted) return;
@@ -134,6 +164,17 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> {
       ];
     }
     if (order.status == 'pending') {
+      final canDial = order.method == 'evc_plus' &&
+          buildPayoutUssdDialUri(_evcPayoutTemplate, order.phoneNumber ?? '', order.netAmount) != null;
+      if (canDial) {
+        return [
+          ElevatedButton.icon(
+            onPressed: () => _payAndDial(order),
+            icon: const Icon(Icons.dialpad_rounded, size: 18),
+            label: const Text('Pay / Confirm Payment'),
+          ),
+        ];
+      }
       return [
         ElevatedButton(onPressed: () => _startProcessing(order), child: const Text('Start Processing')),
       ];
