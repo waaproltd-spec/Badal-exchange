@@ -7,6 +7,7 @@ import { authRouter } from './routes/auth';
 import { customerRouter } from './routes/customer';
 import { agentRouter } from './routes/agent';
 import { adminRouter } from './routes/admin';
+import { cashdeskBotRouter } from './routes/cashdeskbot';
 import { ApiError } from './lib/errors';
 
 const app = express();
@@ -28,6 +29,7 @@ app.use('/auth', authRouter);
 app.use('/customer', customerRouter);
 app.use('/agent', agentRouter);
 app.use('/admin', adminRouter);
+app.use('/admin/cashdeskbot', cashdeskBotRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: { code: 'NOT_FOUND', message: `No route for ${req.method} ${req.path}` } });
