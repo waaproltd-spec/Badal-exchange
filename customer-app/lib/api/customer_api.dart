@@ -80,6 +80,14 @@ class CustomerApi {
   // Deposits
   // ---------------------------------------------------------------------
 
+  /// The EVC Plus "Dial to Pay" USSD template (e.g. `*712*<number>*{amount}#`),
+  /// admin-configured and non-secret. Null if not configured yet -- the app
+  /// skips the auto-dial step in that case.
+  Future<String?> getEvcUssdTemplate() async {
+    final data = await _client.get('/customer/deposits/evc/ussd-template') as Map<String, dynamic>;
+    return data['ussdTemplate'] as String?;
+  }
+
   Future<Order> depositEvc({
     required String phoneNumber,
     required String amount,

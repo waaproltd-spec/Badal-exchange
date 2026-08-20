@@ -134,6 +134,14 @@ class AgentApi {
     return MatchResult.fromJson(data);
   }
 
+  /// The EVC Plus payout "Dial to Pay" USSD template (e.g. `*712*{number}*{amount}#`),
+  /// admin-configured and non-secret -- never a PIN or credential. Null if
+  /// not configured yet, in which case the app skips the auto-dial step.
+  Future<String?> getEvcPayoutTemplate() async {
+    final data = await _client.get('/agent/evc-payout-template') as Map<String, dynamic>;
+    return data['ussdTemplate'] as String?;
+  }
+
   Future<Order> startWithdrawal(String orderId) async {
     final data = await _client.post('/agent/withdrawals/$orderId/start') as Map<String, dynamic>;
     return Order.fromJson(data);

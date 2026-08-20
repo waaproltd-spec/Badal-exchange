@@ -8,6 +8,7 @@ import { requireIdempotencyKey } from '../lib/idempotency';
 import { fromCents, toCents } from '../lib/money';
 import { submitSmsTransaction, submitWinwinTransaction } from '../services/matchingService';
 import { startProcessingWithdraw, completeWithdrawOrder, failOrder } from '../services/orderService';
+import { getIntegration } from '../services/paymentIntegrationService';
 import { ApiError } from '../lib/errors';
 
 export const agentRouter = Router();
@@ -163,6 +164,22 @@ agentRouter.post(
 // ---------------------------------------------------------------------------
 // Withdrawal processing
 // ---------------------------------------------------------------------------
+
+/**
+ * Non-secret: just the "Dial to Pay" payout USSD template (e.g.
+ * "*712*{number}*{amount}#"), never credentials or a PIN -- the agent enters
+ * their own PIN in the native EVC Plus USSD prompt the dial opens, never
+ * inside this app. Null if an admin hasn't configured one yet.
+ */
+agentRouter.get(
+  '/evc-payout-template',
+  asyncHandler(async (_req, res) => {
+    const integration = await getIntegration('evc_plus');
+    const template = (integration?.configJson?.payout_ussd_template as string | undefined) ?? null;
+    res.json({ ussdTemplate: template });
+  })
+);
+
 agentRouter.post(
   '/withdrawals/:orderId/start',
   asyncHandler(async (req, res) => {

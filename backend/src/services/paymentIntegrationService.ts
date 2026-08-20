@@ -138,6 +138,40 @@ export async function upsertIntegrationCredentials(
   return toSummary(rows[0]);
 }
 
+/**
+ * Updates only the non-secret config_json (e.g. EVC Plus's ussd_template)
+ * without touching stored credentials -- merged into whatever's already
+ * there so an admin editing one key never clobbers another.
+ */
+export async function updateIntegrationConfig(
+  provider: IntegrationProvider,
+  config: Record<string, unknown>,
+  actorId: string,
+  actorRole: Role
+): Promise<IntegrationSummary> {
+  const before = await pool.query('SELECT config_json FROM payment_integrations WHERE provider = $1', [provider]);
+
+  const { rows } = await pool.query(
+    `INSERT INTO payment_integrations (provider, status, config_json)
+     VALUES ($1, 'inactive', $2::jsonb)
+     ON CONFLICT (provider) DO UPDATE SET config_json = payment_integrations.config_json || $2::jsonb
+     RETURNING *`,
+    [provider, JSON.stringify(config ?? {})]
+  );
+
+  await writeAudit({
+    actorId,
+    actorRole,
+    action: 'payment_integration.update_config',
+    entityType: 'payment_integration',
+    entityId: provider,
+    before: before.rows[0] ?? null,
+    after: { configJson: rows[0].config_json },
+  });
+
+  return toSummary(rows[0]);
+}
+
 export async function setIntegrationStatus(
   provider: IntegrationProvider,
   status: 'active' | 'inactive',

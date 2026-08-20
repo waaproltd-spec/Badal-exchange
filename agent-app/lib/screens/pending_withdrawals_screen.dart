@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api_exception.dart';
 import '../models/order.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../utils/ussd.dart';
 import '../widgets/order_card.dart';
 import '../widgets/state_views.dart';
 import '../widgets/withdrawal_action_sheets.dart';
 
 /// Pending Withdrawals: pending/processing withdrawal orders. The agent
 /// moves each one through: Start Processing -> (agent actually sends the
-/// payout via EVC Plus USSD/agent line or the WinWin manager app) ->
-/// Complete (with the real transaction reference) or Mark Failed.
+/// payout via EVC Plus USSD/agent line -- "Dial to Pay" auto-dials this
+/// from the agent's own phone using the customer's number + payout amount,
+/// but the agent still enters their own PIN in the native EVC Plus USSD
+/// prompt, never inside this app -- or the WinWin manager app) -> Complete
+/// (with the real transaction reference) or Mark Failed.
 class PendingWithdrawalsScreen extends StatefulWidget {
   const PendingWithdrawalsScreen({super.key});
 
@@ -25,11 +30,15 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> {
   String? _error;
   bool _loading = true;
   final Set<String> _busyOrderIds = {};
+  String? _evcPayoutTemplate;
 
   @override
   void initState() {
     super.initState();
     _load();
+    context.read<Session>().api.getEvcPayoutTemplate().then((template) {
+      if (mounted) setState(() => _evcPayoutTemplate = template);
+    }).catchError((_) {});
   }
 
   Future<void> _load() async {
@@ -82,6 +91,16 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> {
     });
   }
 
+  Future<void> _dialToPay(Order order) async {
+    final dialUri = buildPayoutUssdDialUri(_evcPayoutTemplate, order.phoneNumber ?? '', order.netAmount);
+    if (dialUri == null) return;
+    try {
+      await launchUrl(Uri.parse(dialUri));
+    } catch (_) {
+      _showSnack('Could not open the dialer.', color: AppColors.statusFailed);
+    }
+  }
+
   Future<void> _complete(Order order) async {
     final ref = await showCompleteWithdrawalSheet(context);
     if (ref == null || ref.isEmpty || !mounted) return;
@@ -120,7 +139,15 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> {
       ];
     }
     if (order.status == 'processing') {
+      final canDial = order.method == 'evc_plus' &&
+          buildPayoutUssdDialUri(_evcPayoutTemplate, order.phoneNumber ?? '', order.netAmount) != null;
       return [
+        if (canDial)
+          OutlinedButton.icon(
+            onPressed: () => _dialToPay(order),
+            icon: const Icon(Icons.dialpad_rounded, size: 18),
+            label: const Text('Dial to Pay'),
+          ),
         ElevatedButton(onPressed: () => _complete(order), child: const Text('Complete')),
         OutlinedButton(
           onPressed: () => _fail(order),

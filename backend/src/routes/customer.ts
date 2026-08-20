@@ -9,6 +9,7 @@ import { toCents, fromCents } from '../lib/money';
 import { computeQuote, Method, Direction } from '../services/rateFeeService';
 import { createDepositOrder, createWithdrawOrder } from '../services/orderService';
 import { redeemCashdeskBotPayout } from '../services/automationOrchestrator';
+import { getIntegration } from '../services/paymentIntegrationService';
 import { lockWallet } from '../services/walletService';
 import { ApiError } from '../lib/errors';
 
@@ -108,6 +109,20 @@ const winwinPayoutRedeemSchema = z.object({
   winwinId: z.string().min(3).max(30),
   code: z.string().regex(/^\d{4}$/, 'Enter the 4-digit code from 888STARZ'),
 });
+
+/**
+ * Non-secret: just the "Dial to Pay" USSD template (e.g. "*712*<number>*{amount}#"),
+ * never credentials. Returns null if an admin hasn't configured one yet --
+ * the app hides the auto-dial step in that case rather than dialing nothing.
+ */
+customerRouter.get(
+  '/deposits/evc/ussd-template',
+  asyncHandler(async (_req, res) => {
+    const integration = await getIntegration('evc_plus');
+    const template = (integration?.configJson?.ussd_template as string | undefined) ?? null;
+    res.json({ ussdTemplate: template });
+  })
+);
 
 customerRouter.post(
   '/deposits/evc',

@@ -137,6 +137,11 @@ export function updateIntegrationCredentials(
   return api.put<PaymentIntegration>(`/admin/payment-integrations/${provider}/credentials`, input);
 }
 
+/** Updates only non-secret config (e.g. EVC Plus's Dial-to-Pay USSD template) -- never touches stored credentials. */
+export function updateIntegrationConfig(provider: IntegrationProvider, config: Record<string, unknown>) {
+  return api.put<PaymentIntegration>(`/admin/payment-integrations/${provider}/config`, { config });
+}
+
 export function setIntegrationStatus(provider: IntegrationProvider, status: 'active' | 'inactive') {
   return api.put<PaymentIntegration>(`/admin/payment-integrations/${provider}/status`, { status });
 }

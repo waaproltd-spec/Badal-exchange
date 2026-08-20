@@ -7,6 +7,7 @@ import {
   setIntegrationStatus,
   testIntegrationConnection,
   updateIntegrationCredentials,
+  updateIntegrationConfig,
   setAutomationMode,
   resetCircuitBreaker,
   listAutomationRuns,
@@ -93,6 +94,8 @@ export function IntegrationPanel({ provider, label }: { provider: IntegrationPro
 
           {isMobCash && <AutomationControls provider={provider} data={data} onChanged={reload} />}
           {isMobCash && <AutomationRunLog provider={provider} />}
+          {provider === 'evc_plus' && <EvcUssdTemplateForm data={data} onSaved={reload} />}
+          {provider === 'evc_plus' && <EvcPayoutUssdTemplateForm data={data} onSaved={reload} />}
 
           <CredentialsForm provider={provider} label={label} onSaved={reload} />
         </>
@@ -286,6 +289,115 @@ function AutomationRunLog({ provider }: { provider: IntegrationProvider }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function EvcUssdTemplateForm({ data, onSaved }: { data: PaymentIntegration; onSaved: () => void }) {
+  const [template, setTemplate] = useState((data.configJson.ussd_template as string | undefined) ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSuccess(false);
+    setBusy(true);
+    try {
+      await updateIntegrationConfig('evc_plus', { ussd_template: template.trim() || null });
+      setSuccess(true);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Failed to update the USSD template.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card card-pad">
+      <h3 style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Deposit Dial-to-Pay USSD template</h3>
+      <p className="text-muted" style={{ fontSize: 12.5, marginBottom: 16 }}>
+        The customer app dials this automatically right after a deposit order is created. Use <code>{'{amount}'}</code> where
+        the deposit amount should go, e.g. <code>*712*610346060*{'{amount}'}#</code>. Leave blank to disable auto-dial --
+        the customer will still be able to pay manually, and deposits are only ever credited after the agent app's real
+        SMS verification confirms the payment.
+      </p>
+      <form onSubmit={handleSubmit} className="stack" style={{ gap: 14 }}>
+        <div className="field">
+          <label htmlFor="evc-ussd-template">USSD template</label>
+          <input
+            id="evc-ussd-template"
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            placeholder="*712*610346060*{amount}#"
+          />
+        </div>
+        {error && <div className="error-banner">{error}</div>}
+        {success && <div className="note-banner">Saved.</div>}
+        <div>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? 'Saving…' : 'Save template'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function EvcPayoutUssdTemplateForm({ data, onSaved }: { data: PaymentIntegration; onSaved: () => void }) {
+  const [template, setTemplate] = useState((data.configJson.payout_ussd_template as string | undefined) ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSuccess(false);
+    setBusy(true);
+    try {
+      await updateIntegrationConfig('evc_plus', { payout_ussd_template: template.trim() || null });
+      setSuccess(true);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Failed to update the payout USSD template.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card card-pad">
+      <h3 style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Withdrawal payout Dial-to-Pay USSD template</h3>
+      <p className="text-muted" style={{ fontSize: 12.5, marginBottom: 16 }}>
+        The agent app dials this from the agent's own phone when sending an EVC Plus withdrawal payout -- never the
+        customer app, and never a PIN: the agent enters their own PIN in the native EVC Plus USSD prompt this opens,
+        outside Badal Exchange entirely. Use <code>{'{number}'}</code> for the customer's EVC Plus number and{' '}
+        <code>{'{amount}'}</code> for the payout amount, e.g. <code>*712*{'{number}'}*{'{amount}'}#</code>. Leave blank to
+        disable auto-dial -- the agent can still dial manually. The wallet is only ever debited after the agent marks
+        the withdrawal Complete with the real transaction reference; a failed payout releases the customer's reserved
+        balance.
+      </p>
+      <form onSubmit={handleSubmit} className="stack" style={{ gap: 14 }}>
+        <div className="field">
+          <label htmlFor="evc-payout-ussd-template">Payout USSD template</label>
+          <input
+            id="evc-payout-ussd-template"
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            placeholder="*712*{number}*{amount}#"
+          />
+        </div>
+        {error && <div className="error-banner">{error}</div>}
+        {success && <div className="note-banner">Saved.</div>}
+        <div>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? 'Saving…' : 'Save template'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

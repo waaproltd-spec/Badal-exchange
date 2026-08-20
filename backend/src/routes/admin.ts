@@ -11,6 +11,7 @@ import {
   getIntegration,
   listIntegrations,
   upsertIntegrationCredentials,
+  updateIntegrationConfig,
   setIntegrationStatus,
   testIntegrationConnection,
   setAutomationMode,
@@ -505,6 +506,18 @@ adminRouter.put(
       req.user!.id,
       'admin'
     );
+    res.json(result);
+  })
+);
+
+const configSchema = z.object({ config: z.record(z.unknown()) });
+
+adminRouter.put(
+  '/payment-integrations/:provider/config',
+  asyncHandler(async (req, res) => {
+    const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
+    const body = configSchema.parse(req.body);
+    const result = await updateIntegrationConfig(provider, body.config, req.user!.id, 'admin');
     res.json(result);
   })
 );
