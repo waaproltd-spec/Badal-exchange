@@ -34,7 +34,6 @@ android {
             // debug signing is used here only so a local debug build is
             // legible/runnable during development.
             signingConfig signingConfigs.debug
-            minifyEnabled false
         }
     }
 }
