@@ -8,6 +8,9 @@ name: Build Customer & Agent APKs
 on:
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -48,3 +51,30 @@ jobs:
             agent-app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Publish as a GitHub Release
+        # Workflow-artifact storage (blob.core.windows.net) isn't reachable
+        # from the environment that needs to fetch these files, so also
+        # publish whichever APK(s) built successfully as release assets,
+        # which are fetchable over plain github.com.
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="apk-build-${{ github.run_id }}"
+          FILES=()
+          if [ -f customer-app/build/app/outputs/flutter-apk/app-release.apk ]; then
+            FILES+=("customer-app/build/app/outputs/flutter-apk/app-release.apk#customer-app-release.apk")
+          fi
+          if [ -f agent-app/build/app/outputs/flutter-apk/app-release.apk ]; then
+            FILES+=("agent-app/build/app/outputs/flutter-apk/app-release.apk#agent-app-release.apk")
+          fi
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "No APKs were built successfully -- nothing to publish."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --title "APK build ${{ github.run_number }}" \
+            --notes "Debug-signed release APKs for sideloaded testing -- not signed for Play Store publishing." \
+            "${FILES[@]}"
