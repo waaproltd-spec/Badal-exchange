@@ -1,7 +1,7 @@
 import { pool } from '../db/pool';
 import { getIntegration } from './paymentIntegrationService';
 import { startProcessingWithdraw, completeWithdrawOrder, failOrder, createDepositOrder, completeDepositOrder } from './orderService';
-import { pollMobCashDeposits, submitMobCashWithdrawal, SYSTEM_ACTOR_ID } from './mobcashAutomation';
+import { submitMobCashWithdrawal, SYSTEM_ACTOR_ID } from './mobcashAutomation';
 import { cashdeskBotDeposit, cashdeskBotPayout, isCashdeskBotConfigured } from './cashdeskBotService';
 import { computeQuote } from './rateFeeService';
 import { fromCents, toCents } from '../lib/money';
@@ -237,28 +237,25 @@ export async function redeemCashdeskBotPayout(input: RedeemCashdeskBotPayoutInpu
  * failOrder), so the wallet-affecting guarantees (row locking, reserve/
  * release, idempotent transitions) are identical -- automation is just a
  * different *caller* of the same trusted machinery, never a shortcut around
- * it. CashdeskBot (the official partner API) is preferred whenever it's
- * configured; MobCash browser automation remains only as a fallback.
+ * it.
+ *
+ * WinWin/MobCash browser automation (runMobCashWithdrawal, below) is
+ * deliberately never called from here -- it has no official API or
+ * credentials, and per product decision it stays OFF until it does. The
+ * function itself is left in place (not deleted) so it's a one-line change
+ * to bring back once that changes; until then the only automated path is
+ * CashdeskBot's official partner API, and any order it can't process (not
+ * configured, or method isn't 'winwin') just stays pending for manual/admin
+ * review -- it is never picked up by MobCash automation as a fallback.
  */
 export async function runAutomatedWithdrawal(orderId: string): Promise<void> {
-  if (isCashdeskBotConfigured()) {
-    await runCashdeskBotWithdrawal(orderId);
-    return;
-  }
-  await runMobCashWithdrawal(orderId);
+  if (!isCashdeskBotConfigured()) return;
+  await runCashdeskBotWithdrawal(orderId);
 }
 
-/** Periodic poll for new WinWin deposits, plus a sweep for stuck pending withdrawals. */
+/** Sweep for stuck pending withdrawals that CashdeskBot can retry. MobCash's deposit poll is not run -- see runAutomatedWithdrawal. */
 export async function runAutomationSweep(): Promise<void> {
-  const mobCashUsable = await mobCashAutomationIsUsable();
-  const cashdeskUsable = isCashdeskBotConfigured();
-  if (!mobCashUsable && !cashdeskUsable) return;
-
-  if (mobCashUsable) {
-    await pollMobCashDeposits().catch((err) => {
-      console.error('MobCash deposit poll failed', err instanceof Error ? err.message : err);
-    });
-  }
+  if (!isCashdeskBotConfigured()) return;
 
   const { rows } = await pool.query(
     `SELECT id FROM orders WHERE direction = 'withdraw' AND method = 'winwin' AND status = 'pending'
