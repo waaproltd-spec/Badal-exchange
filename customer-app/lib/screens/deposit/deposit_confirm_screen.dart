@@ -15,19 +15,21 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/summary_row.dart';
 import 'deposit_processing_screen.dart';
 
-/// Shows exactly what the backend quoted -- phone/WinWin ID, amount, rate,
+/// EVC Plus only -- 888STARZ deposits redeem a CashdeskBot payout code
+/// directly from [DepositDetailsScreen] and never see a quote preview,
+/// since the amount is only known once CashdeskBot confirms the code.
+///
+/// Shows exactly what the backend quoted -- phone number, amount, rate,
 /// fee, net amount to be credited -- and submits the deposit on confirm.
 class DepositConfirmScreen extends StatefulWidget {
   const DepositConfirmScreen({
     super.key,
     required this.quote,
-    this.phoneNumber,
-    this.winwinId,
+    required this.phoneNumber,
   });
 
   final Quote quote;
-  final String? phoneNumber;
-  final String? winwinId;
+  final String phoneNumber;
 
   @override
   State<DepositConfirmScreen> createState() => _DepositConfirmScreenState();
@@ -41,19 +43,12 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    _idempotencyKey = Uuid().v4();
+    _idempotencyKey = const Uuid().v4();
   }
 
   Future<Order> _submit(CustomerApi api) {
-    if (widget.quote.method == 'evc_plus') {
-      return api.depositEvc(
-        phoneNumber: widget.phoneNumber!,
-        amount: widget.quote.amount,
-        idempotencyKey: _idempotencyKey,
-      );
-    }
-    return api.depositWinwin(
-      winwinId: widget.winwinId!,
+    return api.depositEvc(
+      phoneNumber: widget.phoneNumber,
       amount: widget.quote.amount,
       idempotencyKey: _idempotencyKey,
     );
@@ -62,7 +57,6 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final quote = widget.quote;
-    final isEvc = quote.method == 'evc_plus';
 
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
@@ -74,16 +68,13 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
             Center(child: MethodIcon(method: quote.method, size: 56)),
             const SizedBox(height: 16),
             Center(
-              child: Text(isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.title),
+              child: Text(AppStrings.evcPlus, style: AppTextStyles.title),
             ),
             const SizedBox(height: 24),
             AppCard(
               child: Column(
                 children: [
-                  SummaryRow(
-                    label: isEvc ? 'Phone Number' : '888STARZ Player ID',
-                    value: (isEvc ? widget.phoneNumber : widget.winwinId) ?? '',
-                  ),
+                  SummaryRow(label: 'Phone Number', value: widget.phoneNumber),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
                   const SummaryDivider(),

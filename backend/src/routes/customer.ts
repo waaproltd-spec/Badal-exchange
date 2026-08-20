@@ -8,6 +8,7 @@ import { requireIdempotencyKey } from '../lib/idempotency';
 import { toCents, fromCents } from '../lib/money';
 import { computeQuote, Method, Direction } from '../services/rateFeeService';
 import { createDepositOrder, createWithdrawOrder } from '../services/orderService';
+import { redeemCashdeskBotPayout } from '../services/automationOrchestrator';
 import { lockWallet } from '../services/walletService';
 import { ApiError } from '../lib/errors';
 
@@ -99,6 +100,14 @@ const STATUS_MESSAGES: Record<string, string> = {
 // ---------------------------------------------------------------------------
 const evcDepositSchema = z.object({ phoneNumber: z.string().min(6).max(20), amount: z.string().or(z.number()) });
 const winwinDepositSchema = z.object({ winwinId: z.string().min(3).max(30), amount: z.string().or(z.number()) });
+// Badal Deposit -> 888STARZ -> CashdeskBot Payout -> Badal Wallet. The
+// customer types the 4-digit withdrawal code 888STARZ generated for them --
+// never an amount; the wallet is credited with exactly what CashdeskBot
+// confirms once the code is redeemed.
+const winwinPayoutRedeemSchema = z.object({
+  winwinId: z.string().min(3).max(30),
+  code: z.string().regex(/^\d{4}$/, 'Enter the 4-digit code from 888STARZ'),
+});
 
 customerRouter.post(
   '/deposits/evc',
@@ -123,14 +132,11 @@ customerRouter.post(
   moneyLimiter,
   requireIdempotencyKey('customer.deposits.winwin'),
   asyncHandler(async (req, res) => {
-    const body = winwinDepositSchema.parse(req.body);
-    const amountCents = toCents(body.amount);
-    const quote = await computeQuote(pool, 'winwin', 'deposit', amountCents);
-    const order = await createDepositOrder({
+    const body = winwinPayoutRedeemSchema.parse(req.body);
+    const order = await redeemCashdeskBotPayout({
       customerId: req.user!.id,
-      quote,
       winwinId: body.winwinId,
-      idempotencyKey: req.header('Idempotency-Key') ?? null,
+      code: body.code,
     });
     res.status(201).json(serializeOrder(order));
   })

@@ -13,6 +13,14 @@ export interface CreateDepositInput {
   phoneNumber?: string;
   winwinId?: string;
   idempotencyKey?: string | null;
+  /**
+   * Skips generating the Badal-side "pay via WinWin using this code"
+   * deposit_code. Only meaningful for a deposit that's already confirmed by
+   * the time the order is created (e.g. a CashdeskBot payout redemption) --
+   * there's nothing left for the customer to go pay, so a reference code to
+   * pay with would be actively misleading.
+   */
+  skipDepositCode?: boolean;
 }
 
 export interface CreateWithdrawInput {
@@ -45,7 +53,8 @@ async function uniqueDepositCode(client: PoolClient): Promise<string> {
 export async function createDepositOrder(input: CreateDepositInput) {
   return withTransaction(async (client) => {
     const orderCode = await uniqueOrderCode(client);
-    const depositCode = input.quote.method === 'winwin' ? await uniqueDepositCode(client) : null;
+    const depositCode =
+      input.quote.method === 'winwin' && !input.skipDepositCode ? await uniqueDepositCode(client) : null;
 
     const { rows } = await client.query(
       `INSERT INTO orders (

@@ -93,14 +93,18 @@ class CustomerApi {
     return Order.fromJson(data);
   }
 
+  /// Redeems the 4-digit withdrawal code 888STARZ generated for the
+  /// customer. There's no amount to send -- CashdeskBot's Payout
+  /// confirmation is the only source of the credited amount, reflected in
+  /// the returned [Order].
   Future<Order> depositWinwin({
     required String winwinId,
-    required String amount,
+    required String code,
     required String idempotencyKey,
   }) async {
     final data = await _client.post(
       '/customer/deposits/winwin',
-      body: {'winwinId': winwinId, 'amount': amount},
+      body: {'winwinId': winwinId, 'code': code},
       idempotencyKey: idempotencyKey,
     ) as Map<String, dynamic>;
     return Order.fromJson(data);

@@ -1,11 +1,31 @@
 import { pool } from '../db/pool';
 import { getIntegration } from './paymentIntegrationService';
-import { startProcessingWithdraw, completeWithdrawOrder, failOrder } from './orderService';
+import { startProcessingWithdraw, completeWithdrawOrder, failOrder, createDepositOrder, completeDepositOrder } from './orderService';
 import { pollMobCashDeposits, submitMobCashWithdrawal, SYSTEM_ACTOR_ID } from './mobcashAutomation';
-import { cashdeskBotDeposit, isCashdeskBotConfigured } from './cashdeskBotService';
-import { fromCents } from '../lib/money';
+import { cashdeskBotDeposit, cashdeskBotPayout, isCashdeskBotConfigured } from './cashdeskBotService';
+import { computeQuote } from './rateFeeService';
+import { fromCents, toCents } from '../lib/money';
+import { ApiError } from '../lib/errors';
 
 const MAX_ATTEMPTS_PER_ORDER = 3;
+
+/**
+ * Serializes redemption attempts for the same (winwinId, code) pair on this
+ * backend, so two near-simultaneous requests (double-tap, retry) can't both
+ * race past the "already redeemed?" check before either has written a row.
+ * Held for the life of the whole external-call-plus-DB-write below; released
+ * automatically when the dedicated connection closes.
+ */
+async function withCodeLock<T>(winwinId: string, code: string, fn: () => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock(hashtext($1)::bigint)', [`cashdeskbot_payout:${winwinId}:${code}`]);
+    return await fn();
+  } finally {
+    await client.query('SELECT pg_advisory_unlock(hashtext($1)::bigint)', [`cashdeskbot_payout:${winwinId}:${code}`]).catch(() => {});
+    client.release();
+  }
+}
 
 async function mobCashAutomationIsUsable(): Promise<boolean> {
   const integration = await getIntegration('mobcash_winwin');
@@ -56,11 +76,15 @@ async function runCashdeskBotWithdrawal(orderId: string): Promise<void> {
   if (!order) return;
 
   try {
-    await cashdeskBotDeposit(order.winwin_id, {
+    const response = await cashdeskBotDeposit(order.winwin_id, {
       lng: 'en',
       summa: Number(fromCents(order.wallet_delta_cents)),
     });
-    await completeWithdrawOrder(orderId, `888starz-deposit:${orderId}`, SYSTEM_ACTOR_ID, 'admin');
+    // Response schema is undocumented (see cashdeskBotService.ts) -- opportunistically
+    // capture whatever reference/message id it hands back for the audit trail;
+    // fall back to a synthetic reference if it returns none.
+    const reference = response?.messageId ?? response?.id ?? response?.transactionId ?? `888starz-deposit:${orderId}`;
+    await completeWithdrawOrder(orderId, String(reference), SYSTEM_ACTOR_ID, 'admin');
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('CashdeskBot withdrawal failed', orderId, message);
@@ -95,6 +119,114 @@ async function runMobCashWithdrawal(orderId: string): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     await failOrder(orderId, `Automated MobCash submission failed: ${message}`, SYSTEM_ACTOR_ID, 'admin');
   }
+}
+
+export interface RedeemCashdeskBotPayoutInput {
+  customerId: string;
+  winwinId: string;
+  code: string;
+}
+
+async function logPayoutAttempt(input: {
+  customerId: string;
+  winwinId: string;
+  code: string;
+  success: boolean;
+  amountCents: number | null;
+  messageId: string | null;
+  message: string | null;
+  orderId: string | null;
+}): Promise<void> {
+  await pool.query(
+    `INSERT INTO cashdeskbot_payouts (customer_id, winwin_id, code, success, amount_cents, cashdeskbot_message_id, message, order_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [input.customerId, input.winwinId, input.code, input.success, input.amountCents, input.messageId, input.message, input.orderId]
+  );
+}
+
+/**
+ * Badal Deposit -> 888STARZ -> CashdeskBot Payout -> Badal Wallet.
+ *
+ * The customer redeems a one-time withdrawal code 888STARZ generated on its
+ * side. CashdeskBot's POST /Deposit/{userId}/Payout is the only source of
+ * truth for both whether the code is good *and* how much it's worth -- the
+ * wallet is credited with exactly what CashdeskBot confirms, never a
+ * customer-typed amount. A failed or already-used code never creates an
+ * order and never touches the wallet.
+ */
+export async function redeemCashdeskBotPayout(input: RedeemCashdeskBotPayoutInput) {
+  if (!isCashdeskBotConfigured()) {
+    throw ApiError.badRequest('888STARZ deposit is not available right now. Please try again later.', 'CASHDESKBOT_NOT_CONFIGURED');
+  }
+
+  const winwinId = input.winwinId.trim();
+  const code = input.code.trim();
+
+  return withCodeLock(winwinId, code, async () => {
+    const dup = await pool.query(
+      `SELECT 1 FROM cashdeskbot_payouts WHERE winwin_id = $1 AND code = $2 AND success = true LIMIT 1`,
+      [winwinId, code]
+    );
+    if (dup.rows[0]) {
+      throw ApiError.conflict('This 888STARZ code has already been used.', 'DUPLICATE_CODE');
+    }
+
+    let result: Awaited<ReturnType<typeof cashdeskBotPayout>>;
+    try {
+      result = await cashdeskBotPayout(winwinId, { lng: 'en', code });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('CashdeskBot payout call failed', winwinId, message);
+      throw ApiError.badRequest('Could not confirm your 888STARZ code. Please try again or contact support.', 'CASHDESKBOT_PAYOUT_ERROR');
+    }
+
+    if (!result.success) {
+      await logPayoutAttempt({
+        customerId: input.customerId,
+        winwinId,
+        code,
+        success: false,
+        amountCents: null,
+        messageId: result.messageId,
+        message: result.message,
+        orderId: null,
+      });
+      throw ApiError.badRequest('That 888STARZ code could not be confirmed. Please check the code and try again.', 'CASHDESKBOT_PAYOUT_FAILED');
+    }
+
+    const amountCents = result.summa != null ? toCents(result.summa) : 0;
+    if (amountCents <= 0) {
+      await logPayoutAttempt({
+        customerId: input.customerId,
+        winwinId,
+        code,
+        success: false,
+        amountCents: null,
+        messageId: result.messageId,
+        message: result.message ?? 'CashdeskBot returned no confirmed amount',
+        orderId: null,
+      });
+      throw ApiError.badRequest('That 888STARZ code could not be confirmed. Please try again or contact support.', 'CASHDESKBOT_INVALID_AMOUNT');
+    }
+
+    const quote = await computeQuote(pool, 'winwin', 'deposit', amountCents);
+    const order = await createDepositOrder({ customerId: input.customerId, quote, winwinId, skipDepositCode: true });
+    const reference = result.messageId ?? `888starz-payout:${order.id}`;
+    const completed = await completeDepositOrder(order.id, String(reference), SYSTEM_ACTOR_ID, 'admin');
+
+    await logPayoutAttempt({
+      customerId: input.customerId,
+      winwinId,
+      code,
+      success: true,
+      amountCents,
+      messageId: result.messageId,
+      message: result.message,
+      orderId: order.id,
+    });
+
+    return completed;
+  });
 }
 
 /**
