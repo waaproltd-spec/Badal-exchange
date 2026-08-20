@@ -76,5 +76,16 @@ jobs:
           fi
           gh release create "$TAG" \
             --title "APK build ${{ github.run_number }}" \
-            --notes "Debug-signed release APKs for sideloaded testing -- not signed for Play Store publishing." \
-            "${FILES[@]}"
+            --notes "Debug-signed release APKs for sideloaded testing -- not signed for Play Store publishing."
+          # Uploading assets in the same command as release creation can
+          # 404 if GitHub hasn't finished propagating the new release yet
+          # -- upload separately with a short retry.
+          for f in "${FILES[@]}"; do
+            for attempt in 1 2 3 4 5; do
+              if gh release upload "$TAG" "$f" --clobber; then
+                break
+              fi
+              echo "Upload attempt $attempt for $f failed, retrying in 5s..."
+              sleep 5
+            done
+          done
