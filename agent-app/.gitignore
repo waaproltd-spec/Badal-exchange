@@ -14,7 +14,6 @@ android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 # Android
 android/local.properties
 android/.gradle/
-android/gradle/
 android/gradlew
 android/gradlew.bat
 android/**/gradle-wrapper.jar
