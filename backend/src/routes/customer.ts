@@ -173,8 +173,9 @@ customerRouter.post(
     });
     res.status(201).json(serializeOrder(order));
 
-    // Fire-and-forget: if MobCash automation is on, try to process this
-    // withdrawal immediately instead of waiting for the periodic sweep.
+    // Fire-and-forget: try to process this withdrawal immediately instead of
+    // waiting for the periodic sweep -- CashdeskBot's official partner API
+    // when configured, MobCash browser automation as a fallback otherwise.
     // Never blocks or affects the customer's response either way -- the
     // response above already reflects the real, currently-pending state.
     import('../services/automationOrchestrator')

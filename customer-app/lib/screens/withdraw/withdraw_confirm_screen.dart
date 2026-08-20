@@ -82,7 +82,7 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
               child: Column(
                 children: [
                   SummaryRow(
-                    label: isEvc ? 'Phone Number' : 'WinWin ID',
+                    label: isEvc ? 'Phone Number' : '888STARZ Player ID',
                     value: (isEvc ? widget.phoneNumber : widget.winwinId) ?? '',
                   ),
                   const SummaryDivider(),

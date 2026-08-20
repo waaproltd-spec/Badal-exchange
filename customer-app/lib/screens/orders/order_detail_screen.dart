@@ -130,7 +130,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ],
               if (order.winwinId != null) ...[
                 const SummaryDivider(),
-                SummaryRow(label: 'WinWin ID', value: order.winwinId!),
+                SummaryRow(label: '888STARZ Player ID', value: order.winwinId!),
               ],
               const SummaryDivider(),
               SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),

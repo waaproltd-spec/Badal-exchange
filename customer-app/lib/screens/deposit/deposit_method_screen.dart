@@ -36,7 +36,7 @@ class DepositMethodScreen extends StatelessWidget {
               _MethodTile(
                 method: 'winwin',
                 title: AppStrings.winwin,
-                subtitle: 'Deposit using your WinWin account',
+                subtitle: 'Deposit using your 888STARZ account',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const DepositDetailsScreen(method: 'winwin'),

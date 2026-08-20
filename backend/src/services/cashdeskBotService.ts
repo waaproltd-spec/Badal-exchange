@@ -56,6 +56,16 @@ function getCredentials(): CashdeskBotCredentials {
   return cashdeskBot as CashdeskBotCredentials;
 }
 
+/** Non-throwing check for whether CashdeskBot credentials are on file, so callers can pick a fallback path. */
+export function isCashdeskBotConfigured(): boolean {
+  try {
+    getCredentials();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Formats a Date as "yyyy.MM.dd HH:mm:ss" in UTC+0, per the Balance endpoint's `dt` spec. */
 export function formatCashdeskBotDate(date: Date): string {
   const p = (n: number, len = 2) => String(n).padStart(len, '0');

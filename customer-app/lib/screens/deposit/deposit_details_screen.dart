@@ -88,19 +88,19 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
               Text(
                 _isEvc
                     ? 'Enter the EVC Plus number you will pay from.'
-                    : 'Enter your WinWin ID and the amount to deposit.',
+                    : 'Enter your 888STARZ Player ID and the amount to deposit.',
                 style: AppTextStyles.muted,
               ),
               const SizedBox(height: 28),
               AppTextField(
-                label: _isEvc ? 'EVC Plus Phone Number' : 'WinWin ID',
+                label: _isEvc ? 'EVC Plus Phone Number' : '888STARZ Player ID',
                 controller: _identifierController,
                 keyboardType: _isEvc ? TextInputType.phone : TextInputType.text,
                 hint: _isEvc ? 'e.g. 2526XXXXXXX' : 'e.g. 7841228',
                 textInputAction: TextInputAction.next,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return _isEvc ? 'Enter a phone number' : 'Enter your WinWin ID';
+                    return _isEvc ? 'Enter a phone number' : 'Enter your 888STARZ Player ID';
                   }
                   return null;
                 },
