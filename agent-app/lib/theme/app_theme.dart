@@ -82,7 +82,7 @@ class AppTheme {
           fontWeight: FontWeight.w700,
         ),
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: AppColors.surface,
         elevation: 0,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -157,7 +157,7 @@ class AppTheme {
         iconColor: AppColors.textSecondary,
         textColor: AppColors.textPrimary,
       ),
-      dialogTheme: DialogThemeData(
+      dialogTheme: DialogTheme(
         backgroundColor: AppColors.surfaceRaised,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
