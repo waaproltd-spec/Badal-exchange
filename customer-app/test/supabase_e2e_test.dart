@@ -42,8 +42,19 @@ void main() {
 
     final changes = <String>[];
     final sub = api.liveChanges.listen(changes.add);
-    client.startLive();
-    await Future<void>.delayed(const Duration(seconds: 3));
+    // Realtime can still be starting on a fresh stack: retry until connected.
+    var connected = false;
+    for (var attempt = 0; attempt < 15 && !connected; attempt++) {
+      connected = await client.startLive().timeout(const Duration(seconds: 10), onTimeout: () => false);
+      if (!connected) {
+        client.stopLive();
+        await Future<void>.delayed(const Duration(seconds: 2));
+      }
+    }
+    expect(connected, isTrue, reason: 'Realtime channel connected');
+    // On a freshly started stack Realtime begins streaming a few seconds
+    // after the first channel connects.
+    await Future<void>.delayed(const Duration(seconds: 10));
 
     final order = await api.deposit(
       method: 'evc_plus', phoneNumber: phone, amount: '12', idempotencyKey: 'k-${DateTime.now().microsecondsSinceEpoch}');
@@ -63,7 +74,8 @@ void main() {
     expect(match['status'], 'matched');
 
     final deadline = DateTime.now().add(const Duration(seconds: 15));
-    while (DateTime.now().isBefore(deadline) && !changes.contains('wallets')) {
+    // Order and wallet events can arrive in either order.
+    while (DateTime.now().isBefore(deadline) && !(changes.contains('wallets') && changes.contains('orders'))) {
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
     expect(changes, containsAll(<String>['orders', 'wallets']));
