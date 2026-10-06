@@ -13,6 +13,15 @@ export const config = {
   port: parseInt(process.env.PORT || '4000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl: required('DATABASE_URL'),
+  // 'auto' turns SSL on for hosted Postgres (e.g. Supabase) and off for
+  // localhost. 'require' encrypts without verifying the server certificate;
+  // 'verify' also verifies it (set DATABASE_SSL_CA to the provider's CA
+  // certificate, e.g. Supabase's prod-ca-2021.crt). 'disable' turns SSL off.
+  databaseSsl: (process.env.DATABASE_SSL || 'auto') as 'auto' | 'disable' | 'require' | 'verify',
+  databaseSslCa: process.env.DATABASE_SSL_CA,
+  // Supabase's poolers cap client connections per project, so keep this
+  // within the plan's limit.
+  databasePoolMax: parseInt(process.env.DATABASE_POOL_MAX || '20', 10),
   jwtAccessSecret: required('JWT_ACCESS_SECRET'),
   jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
   jwtAccessTtl: process.env.JWT_ACCESS_TTL || '15m',
