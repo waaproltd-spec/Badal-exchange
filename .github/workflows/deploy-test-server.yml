@@ -83,9 +83,12 @@ jobs:
           fi
 
           if [ -n "$SUPABASE_DATABASE_URL" ]; then
-            # Keep the rest of .env (JWT secrets etc.) and only swap the DB URL.
-            grep -v '^DATABASE_URL=' .env > .env.tmp || true
+            # Keep the rest of .env (JWT secrets etc.) and only swap the DB
+            # settings. Supabase's smallest plans cap pooler connections at
+            # ~15 per project, so stay well under that.
+            grep -v -e '^DATABASE_URL=' -e '^DATABASE_POOL_MAX=' .env > .env.tmp || true
             printf 'DATABASE_URL=%s\n' "$SUPABASE_DATABASE_URL" >> .env.tmp
+            printf 'DATABASE_POOL_MAX=10\n' >> .env.tmp
             mv .env.tmp .env
             chmod 600 .env
             echo "backend/.env DATABASE_URL now points at Supabase"
