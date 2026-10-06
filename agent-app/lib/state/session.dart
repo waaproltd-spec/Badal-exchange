@@ -47,6 +47,8 @@ class Session extends ChangeNotifier {
 
   /// Restores a previously persisted session on app startup.
   Future<void> bootstrap() async {
+    // The shared payment-method catalog is public: load it before anything else.
+    unawaited(_api.loadMethodCatalog());
     final hasSession = await _tokens.hasSession;
     if (!hasSession) {
       status = AuthStatus.loggedOut;
@@ -91,6 +93,7 @@ class Session extends ChangeNotifier {
       isBusy = false;
       notifyListeners();
 
+      unawaited(_api.loadMethodCatalog());
       unawaited(_loadProfile());
       unawaited(_maybeAutoStartSmsBridge());
       return true;

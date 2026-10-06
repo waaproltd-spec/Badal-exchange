@@ -7,6 +7,7 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import 'admin/system_screens.dart';
 
 /// Read-only view of one customer: profile, wallet, totals, recent orders and
 /// recent wallet transactions. Agents cannot change customer data here.
@@ -130,7 +131,13 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
             const SizedBox(height: 8),
           ],
         const SizedBox(height: 8),
-        const SectionHeader(title: 'Recent Transactions'),
+        SectionHeader(
+          title: 'Recent Transactions',
+          actionLabel: 'View all',
+          onAction: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => CustomerLedgerScreen(customerId: c.id, name: c.name)),
+          ),
+        ),
         if (d.recentTransactions.isEmpty)
           const ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary)))
         else

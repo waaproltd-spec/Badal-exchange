@@ -104,6 +104,10 @@ class CustomerSummary {
   final String status; // 'active' | 'blocked'
   final String walletBalance;
   final DateTime? registeredAt;
+  final int orders;
+  final int deposits;
+  final int withdrawals;
+  final int transactions;
 
   const CustomerSummary({
     required this.id,
@@ -112,6 +116,10 @@ class CustomerSummary {
     required this.status,
     required this.walletBalance,
     this.registeredAt,
+    this.orders = 0,
+    this.deposits = 0,
+    this.withdrawals = 0,
+    this.transactions = 0,
   });
 
   bool get isActive => status == 'active';
@@ -123,6 +131,10 @@ class CustomerSummary {
         status: j['status'] as String? ?? 'active',
         walletBalance: _money(j['walletBalance']),
         registeredAt: _date(j['registeredAt']),
+        orders: j['orders'] as int? ?? 0,
+        deposits: j['deposits'] as int? ?? 0,
+        withdrawals: j['withdrawals'] as int? ?? 0,
+        transactions: j['transactions'] as int? ?? 0,
       );
 }
 
@@ -301,21 +313,6 @@ class AgentAccount {
         responsibilities: (j['responsibilities'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
         canManageSettings: j['canManageSettings'] as bool? ?? false,
         contacts: Contacts.fromJson(j['contacts']),
-      );
-}
-
-class ManagedMethod {
-  final String method;
-  final String label;
-  final String kind; // 'mobile_money' | 'platform'
-  final bool enabled;
-  const ManagedMethod(this.method, this.label, this.kind, this.enabled);
-
-  factory ManagedMethod.fromJson(Map<String, dynamic> j) => ManagedMethod(
-        j['method'] as String,
-        j['label'] as String? ?? j['method'] as String,
-        j['kind'] as String? ?? 'mobile_money',
-        j['enabled'] as bool? ?? true,
       );
 }
 

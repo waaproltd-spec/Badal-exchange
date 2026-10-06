@@ -14,13 +14,13 @@ import 'login_screen.dart';
 /// Screens opened from the Account tab. The admin features need the
 /// 'manage_settings' responsibility; the backend enforces it on every call.
 
-String _errorText(Object e, String fallback) => e is ApiException ? e.message : fallback;
+String errorText(Object e, String fallback) => e is ApiException ? e.message : fallback;
 
-void _snack(BuildContext context, String text) =>
+void showSnack(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
 /// Loads a list, shows loading/error/empty states, and reloads on demand.
-abstract class _ListScreenState<W extends StatefulWidget, T> extends State<W> {
+abstract class ListScreenState<W extends StatefulWidget, T> extends State<W> {
   List<T>? items;
   String? error;
 
@@ -39,7 +39,7 @@ abstract class _ListScreenState<W extends StatefulWidget, T> extends State<W> {
       final result = await fetch();
       if (mounted) setState(() => items = result);
     } catch (e) {
-      if (mounted) setState(() => error = _errorText(e, 'Failed to load.'));
+      if (mounted) setState(() => error = errorText(e, 'Failed to load.'));
     }
   }
 
@@ -47,9 +47,9 @@ abstract class _ListScreenState<W extends StatefulWidget, T> extends State<W> {
   Future<void> run(Future<void> Function() action, {String? success}) async {
     try {
       await action();
-      if (mounted && success != null) _snack(context, success);
+      if (mounted && success != null) showSnack(context, success);
     } catch (e) {
-      if (mounted) _snack(context, _errorText(e, 'Something went wrong.'));
+      if (mounted) showSnack(context, errorText(e, 'Something went wrong.'));
     }
     if (mounted) load();
   }
@@ -59,67 +59,6 @@ abstract class _ListScreenState<W extends StatefulWidget, T> extends State<W> {
       return error != null ? ErrorStateView(message: error!, onRetry: load) : const LoadingView();
     }
     return RefreshIndicator(onRefresh: load, child: builder(items!));
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Payment method switches
-// ---------------------------------------------------------------------------
-
-/// ON/OFF for each method of one [kind]: 'mobile_money' (Manage Platforms)
-/// or 'platform' (betting platforms).
-class ManageMethodsScreen extends StatefulWidget {
-  final String kind;
-  const ManageMethodsScreen({super.key, required this.kind});
-
-  @override
-  State<ManageMethodsScreen> createState() => _ManageMethodsScreenState();
-}
-
-class _ManageMethodsScreenState extends _ListScreenState<ManageMethodsScreen, ManagedMethod> {
-  @override
-  Future<List<ManagedMethod>> fetch() async =>
-      (await api.getManagedMethods()).where((m) => m.kind == widget.kind).toList();
-
-  @override
-  Widget build(BuildContext context) {
-    final isPlatform = widget.kind == 'platform';
-    return Scaffold(
-      appBar: AppBar(title: Text(isPlatform ? 'Bet Payment Methods' : 'Manage Platforms')),
-      body: body(
-        builder: (methods) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text(
-              isPlatform
-                  ? 'Turn a betting platform OFF to hide it from customers and stop new orders.'
-                  : 'Turn a payment platform OFF to hide it from customers and stop new orders. '
-                      'Orders already in progress still complete.',
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 12),
-            ConsoleCard(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                children: [
-                  for (final m in methods)
-                    SwitchListTile(
-                      secondary: MethodBadge(method: m.method, size: 36),
-                      title: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text(m.enabled ? 'ON' : 'OFF'),
-                      value: m.enabled,
-                      onChanged: (v) => run(
-                        () => api.setMethodEnabled(m.method, v),
-                        success: '${m.label} turned ${v ? 'ON' : 'OFF'}.',
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -134,7 +73,7 @@ class ManageHomeAdsScreen extends StatefulWidget {
   State<ManageHomeAdsScreen> createState() => _ManageHomeAdsScreenState();
 }
 
-class _ManageHomeAdsScreenState extends _ListScreenState<ManageHomeAdsScreen, HomeAd> {
+class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, HomeAd> {
   @override
   Future<List<HomeAd>> fetch() => api.getHomeAds();
 
@@ -146,7 +85,7 @@ class _ManageHomeAdsScreenState extends _ListScreenState<ManageHomeAdsScreen, Ho
   }
 
   Future<void> _delete(HomeAd ad) async {
-    final ok = await _confirm(context, 'Delete "${ad.title}"?', 'Customers will no longer see this ad.');
+    final ok = await confirmDialog(context, 'Delete "${ad.title}"?', 'Customers will no longer see this ad.');
     if (ok) run(() => api.deleteHomeAd(ad.id), success: 'Ad deleted.');
   }
 
@@ -273,7 +212,7 @@ class _HomeAdFormState extends State<_HomeAdForm> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      _snack(context, _errorText(e, 'Could not save the ad.'));
+      showSnack(context, errorText(e, 'Could not save the ad.'));
     }
   }
 
@@ -344,7 +283,7 @@ class ManageDepositNumbersScreen extends StatefulWidget {
   State<ManageDepositNumbersScreen> createState() => _ManageDepositNumbersScreenState();
 }
 
-class _ManageDepositNumbersScreenState extends _ListScreenState<ManageDepositNumbersScreen, DepositNumber> {
+class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumbersScreen, DepositNumber> {
   @override
   Future<List<DepositNumber>> fetch() => api.getDepositNumbers();
 
@@ -354,7 +293,7 @@ class _ManageDepositNumbersScreenState extends _ListScreenState<ManageDepositNum
   }
 
   Future<void> _delete(DepositNumber n) async {
-    final ok = await _confirm(context, 'Remove ${n.number}?', 'Customers will no longer see this number.');
+    final ok = await confirmDialog(context, 'Remove ${n.number}?', 'Customers will no longer see this number.');
     if (ok) run(() => api.deleteDepositNumber(n.id), success: 'Number removed.');
   }
 
@@ -463,7 +402,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      _snack(context, _errorText(e, 'Could not save the number.'));
+      showSnack(context, errorText(e, 'Could not save the number.'));
     }
   }
 
@@ -525,7 +464,7 @@ class SendNotificationScreen extends StatefulWidget {
   State<SendNotificationScreen> createState() => _SendNotificationScreenState();
 }
 
-class _SendNotificationScreenState extends _ListScreenState<SendNotificationScreen, AppNotification> {
+class _SendNotificationScreenState extends ListScreenState<SendNotificationScreen, AppNotification> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _body = TextEditingController();
@@ -543,7 +482,7 @@ class _SendNotificationScreenState extends _ListScreenState<SendNotificationScre
 
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await _confirm(context, 'Send to all customers?', 'Every Customer App user will see this message.');
+    final ok = await confirmDialog(context, 'Send to all customers?', 'Every Customer App user will see this message.');
     if (!ok) return;
     setState(() => _sending = true);
     await run(() => api.sendNotification(title: _title.text.trim(), body: _body.text.trim()), success: 'Notification sent.');
@@ -651,7 +590,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      _snack(context, _errorText(e, 'Could not change the password.'));
+      showSnack(context, errorText(e, 'Could not change the password.'));
       return;
     }
     // Every session was signed out on the server; log in with the new password.
@@ -710,7 +649,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 }
 
-Future<bool> _confirm(BuildContext context, String title, String message) async {
+Future<bool> confirmDialog(BuildContext context, String title, String message) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(

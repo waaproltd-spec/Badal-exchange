@@ -55,6 +55,12 @@ class ApiClient {
     return _decodeOrThrow(res);
   }
 
+  /// Unauthenticated GET (e.g. the public payment-method catalog).
+  Future<dynamic> getPublic(String path) async {
+    final res = await _send(() => _http.get(_uri(path), headers: _jsonHeaders()).timeout(ApiConfig.requestTimeout));
+    return _decodeOrThrow(res);
+  }
+
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     return _authedRequest((bearer) => _http
         .get(_uri(path, query), headers: _jsonHeaders(bearer: bearer))

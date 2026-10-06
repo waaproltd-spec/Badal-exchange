@@ -22,6 +22,7 @@ class _UsersScreenState extends State<UsersScreen> {
   static const _pageSize = 50;
   final _search = TextEditingController();
   String _status = 'all';
+  String _sort = 'newest';
   List<CustomerSummary> _customers = [];
   bool _loading = true;
   bool _loadingMore = false;
@@ -53,6 +54,7 @@ class _UsersScreenState extends State<UsersScreen> {
       final page = await context.read<Session>().api.getCustomers(
             query: _search.text,
             status: _status,
+            sort: _sort,
             offset: more ? _customers.length : 0,
           );
       if (!mounted) return;
@@ -85,13 +87,34 @@ class _UsersScreenState extends State<UsersScreen> {
             onSubmitted: (_) => _load(),
           ),
           const SizedBox(height: 12),
-          ChoiceChipsRow<String>(
-            options: const [('all', 'All'), ('active', 'Active'), ('blocked', 'Blocked')],
-            selected: _status,
-            onSelected: (v) {
-              setState(() => _status = v);
-              _load();
-            },
+          Row(
+            children: [
+              Expanded(
+                child: ChoiceChipsRow<String>(
+                  options: const [('all', 'All'), ('active', 'Active'), ('blocked', 'Blocked')],
+                  selected: _status,
+                  onSelected: (v) {
+                    setState(() => _status = v);
+                    _load();
+                  },
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Sort',
+                initialValue: _sort,
+                icon: const Icon(Icons.sort_rounded),
+                onSelected: (v) {
+                  setState(() => _sort = v);
+                  _load();
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'newest', child: Text('Newest first')),
+                  PopupMenuItem(value: 'oldest', child: Text('Oldest first')),
+                  PopupMenuItem(value: 'balance', child: Text('Highest balance')),
+                  PopupMenuItem(value: 'name', child: Text('Name A–Z')),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (_loading)
@@ -159,6 +182,12 @@ class _CustomerTile extends StatelessWidget {
                     'Joined ${formatDate(customer.registeredAt!)}',
                     style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                   ),
+                const SizedBox(height: 4),
+                Text(
+                  '${customer.orders} orders • ${customer.deposits} deposits • '
+                  '${customer.withdrawals} withdrawals • ${customer.transactions} transactions',
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                ),
               ],
             ),
           ),

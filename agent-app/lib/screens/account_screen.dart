@@ -4,16 +4,19 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api_exception.dart';
 import '../models/console.dart';
-import '../models/payment_methods.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
+import 'admin/agents_screens.dart';
+import 'admin/integrations_screens.dart';
+import 'admin/method_settings_screens.dart';
+import 'admin/system_screens.dart';
 import 'manage_screens.dart';
 
-/// Account: agent profile, admin features (only for agents an admin granted
-/// 'manage_settings'), bet payment method switches, contact links and
+/// Account: profile, admin features (everything the old admin dashboard
+/// managed; only for agents granted 'manage_settings'), contact links and
 /// security (password, logout).
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -24,8 +27,6 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   AgentAccount? _account;
-  List<ManagedMethod>? _methods;
-  final Set<String> _toggling = {};
   String? _error;
   bool _loggingOut = false;
 
@@ -37,34 +38,11 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _load() async {
     setState(() => _error = null);
-    final api = context.read<Session>().api;
     try {
-      final account = await api.getAccount();
-      final methods = account.canManageSettings ? await api.getManagedMethods() : null;
-      if (!mounted) return;
-      setState(() {
-        _account = account;
-        _methods = methods;
-      });
+      final account = await context.read<Session>().api.getAccount();
+      if (mounted) setState(() => _account = account);
     } catch (e) {
       if (mounted) setState(() => _error = e is ApiException ? e.message : 'Failed to load account.');
-    }
-  }
-
-  Future<void> _toggleMethod(ManagedMethod m, bool enabled) async {
-    setState(() => _toggling.add(m.method));
-    try {
-      await context.read<Session>().api.setMethodEnabled(m.method, enabled);
-      if (!mounted) return;
-      setState(() {
-        _methods = [
-          for (final x in _methods!) x.method == m.method ? ManagedMethod(x.method, x.label, x.kind, enabled) : x,
-        ];
-      });
-    } catch (e) {
-      if (mounted) _snack(e is ApiException ? e.message : 'Could not update ${m.label}.');
-    } finally {
-      if (mounted) setState(() => _toggling.remove(m.method));
     }
   }
 
@@ -83,18 +61,6 @@ class _AccountScreenState extends State<AccountScreen> {
     }
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) _snack('Could not open $label.');
-  }
-
-  Future<void> _editContacts(Contacts current) async {
-    final updated = await showDialog<Contacts>(context: context, builder: (_) => _ContactsDialog(initial: current));
-    if (updated == null || !mounted) return;
-    try {
-      await context.read<Session>().api.saveContacts(updated);
-      _snack('Contact links saved.');
-      _load();
-    } catch (e) {
-      _snack(e is ApiException ? e.message : 'Could not save contact links.');
-    }
   }
 
   Future<void> _confirmLogout() async {
@@ -126,7 +92,6 @@ class _AccountScreenState extends State<AccountScreen> {
       return _error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView();
     }
     final canManage = account.canManageSettings;
-    final betMethods = _methods?.where((m) => m.kind == 'platform').toList() ?? const <ManagedMethod>[];
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -136,18 +101,45 @@ class _AccountScreenState extends State<AccountScreen> {
           _ProfileCard(account: account),
 
           const GroupLabel('Admin features'),
-          if (canManage) ...[
+          if (!canManage)
+            const _LockedNote()
+          else ...[
+            const _SubLabel('Payments'),
             _NavRow(
               icon: Icons.toggle_on_rounded,
               color: AppColors.purple,
               label: 'Manage Platforms (ON/OFF)',
-              onTap: () => _open(const ManageMethodsScreen(kind: 'mobile_money')),
+              onTap: () => _open(const ManageMethodsScreen()),
             ),
             _NavRow(
-              icon: Icons.campaign_rounded,
+              icon: Icons.account_balance_wallet_rounded,
+              color: AppColors.statusCompleted,
+              label: 'Payment Methods',
+              onTap: () => _open(const MethodSettingsListScreen(title: 'Payment Methods', kind: 'mobile_money')),
+            ),
+            _NavRow(
+              icon: Icons.sports_soccer_rounded,
               color: AppColors.accentOrange,
-              label: 'Manage Home Ads',
-              onTap: () => _open(const ManageHomeAdsScreen()),
+              label: 'Bet Payment Methods',
+              onTap: () => _open(const MethodSettingsListScreen(title: 'Bet Payment Methods', kind: 'platform')),
+            ),
+            _NavRow(
+              icon: Icons.currency_exchange_rounded,
+              color: AppColors.statusProcessing,
+              label: 'Rates',
+              onTap: () => _open(const MethodSettingsListScreen(title: 'Rates', focus: MethodFocus.rates)),
+            ),
+            _NavRow(
+              icon: Icons.percent_rounded,
+              color: AppColors.purple,
+              label: 'Fees',
+              onTap: () => _open(const MethodSettingsListScreen(title: 'Fees', focus: MethodFocus.fees)),
+            ),
+            _NavRow(
+              icon: Icons.straighten_rounded,
+              color: AppColors.statusPending,
+              label: 'Minimum & Maximum Limits',
+              onTap: () => _open(const MethodSettingsListScreen(title: 'Withdrawal Limits', focus: MethodFocus.limits)),
             ),
             _NavRow(
               icon: Icons.phone_in_talk_rounded,
@@ -156,46 +148,52 @@ class _AccountScreenState extends State<AccountScreen> {
               onTap: () => _open(const ManageDepositNumbersScreen()),
             ),
             _NavRow(
+              icon: Icons.hub_rounded,
+              color: AppColors.statusProcessing,
+              label: 'Payment Integrations',
+              onTap: () => _open(const IntegrationsScreen()),
+            ),
+            const _SubLabel('Customer App'),
+            _NavRow(
+              icon: Icons.campaign_rounded,
+              color: AppColors.accentOrange,
+              label: 'Manage Home Ads',
+              onTap: () => _open(const ManageHomeAdsScreen()),
+            ),
+            _NavRow(
               icon: Icons.notifications_active_rounded,
               color: AppColors.statusProcessing,
-              label: 'Send Notification',
+              label: 'Send Notifications',
               onTap: () => _open(const SendNotificationScreen()),
             ),
-          ] else
-            const _LockedNote(),
+            _NavRow(
+              icon: Icons.settings_rounded,
+              color: AppColors.textSecondary,
+              label: 'Customer & App Settings',
+              onTap: () => _open(AppSettingsScreen(contacts: account.contacts)),
+            ),
+            const _SubLabel('Team & system'),
+            _NavRow(
+              icon: Icons.groups_rounded,
+              color: AppColors.purple,
+              label: 'Agents',
+              onTap: () => _open(const AgentsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.receipt_long_rounded,
+              color: AppColors.statusCompleted,
+              label: 'Wallet Transactions',
+              onTap: () => _open(const AllWalletTransactionsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.fact_check_rounded,
+              color: AppColors.textSecondary,
+              label: 'Audit Logs',
+              onTap: () => _open(const AuditLogsScreen()),
+            ),
+          ],
 
-          const GroupLabel('Bet payment methods'),
-          if (canManage)
-            ConsoleCard(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                children: [
-                  for (final m in betMethods)
-                    ListTile(
-                      leading: MethodBadge(method: m.method, size: 36),
-                      title: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text(m.enabled ? 'ON — customers can use it' : 'OFF — hidden from customers'),
-                      trailing: _toggling.contains(m.method)
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Switch(value: m.enabled, onChanged: (v) => _toggleMethod(m, v)),
-                    ),
-                ],
-              ),
-            )
-          else
-            const _LockedNote(),
-
-          Row(
-            children: [
-              const Expanded(child: GroupLabel('Contact')),
-              if (canManage)
-                TextButton.icon(
-                  onPressed: () => _editContacts(account.contacts),
-                  icon: const Icon(Icons.edit_rounded, size: 16),
-                  label: const Text('Edit'),
-                ),
-            ],
-          ),
+          const GroupLabel('Contact'),
           _NavRow(
             icon: Icons.chat_rounded,
             color: const Color(0xFF25D366),
@@ -355,66 +353,15 @@ class _LockedNote extends StatelessWidget {
   }
 }
 
-class _ContactsDialog extends StatefulWidget {
-  final Contacts initial;
-  const _ContactsDialog({required this.initial});
-
-  @override
-  State<_ContactsDialog> createState() => _ContactsDialogState();
-}
-
-class _ContactsDialogState extends State<_ContactsDialog> {
-  late final _whatsapp = TextEditingController(text: widget.initial.whatsapp);
-  late final _facebook = TextEditingController(text: widget.initial.facebook);
-  late final _telegram = TextEditingController(text: widget.initial.telegram);
-
-  @override
-  void dispose() {
-    _whatsapp.dispose();
-    _facebook.dispose();
-    _telegram.dispose();
-    super.dispose();
-  }
+class _SubLabel extends StatelessWidget {
+  final String text;
+  const _SubLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Contact links'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _whatsapp,
-              decoration: const InputDecoration(labelText: 'WhatsApp', hintText: 'https://wa.me/2526...'),
-              keyboardType: TextInputType.url,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _facebook,
-              decoration: const InputDecoration(labelText: 'Facebook', hintText: 'https://facebook.com/...'),
-              keyboardType: TextInputType.url,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _telegram,
-              decoration: const InputDecoration(labelText: 'Telegram', hintText: 'https://t.me/...'),
-              keyboardType: TextInputType.url,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(Contacts(
-            whatsapp: _whatsapp.text.trim(),
-            facebook: _facebook.text.trim(),
-            telegram: _telegram.text.trim(),
-          )),
-          child: const Text('Save'),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.purple)),
     );
   }
 }

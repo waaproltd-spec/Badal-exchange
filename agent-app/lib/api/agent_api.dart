@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 import '../models/agent_profile.dart';
 import '../models/match_result.dart';
 import '../models/console.dart';
+import '../models/management.dart';
+import '../models/payment_methods.dart';
 import '../models/order.dart';
 import 'api_client.dart';
 import 'token_storage.dart';
@@ -192,10 +194,16 @@ class AgentApi {
     return DashboardSummary.fromJson(data);
   }
 
-  Future<List<CustomerSummary>> getCustomers({String? query, String status = 'all', int offset = 0}) async {
+  Future<List<CustomerSummary>> getCustomers({
+    String? query,
+    String status = 'all',
+    String sort = 'newest',
+    int offset = 0,
+  }) async {
     final data = await _client.get('/agent/customers', query: {
       if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
       'status': status,
+      'sort': sort,
       'offset': '$offset',
     }) as List<dynamic>;
     return data.map((e) => CustomerSummary.fromJson(e as Map<String, dynamic>)).toList();
@@ -204,6 +212,11 @@ class AgentApi {
   Future<CustomerDetail> getCustomer(String id) async {
     final data = await _client.get('/agent/customers/$id') as Map<String, dynamic>;
     return CustomerDetail.fromJson(data);
+  }
+
+  Future<List<LedgerEntry>> getCustomerLedger(String id) async {
+    final data = await _client.get('/agent/customers/$id/ledger') as List<dynamic>;
+    return data.map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<ReportSummary> getReport({required String period, String? from, String? to}) async {
@@ -254,13 +267,152 @@ class AgentApi {
 
   // Admin features (require the 'manage_settings' responsibility).
 
-  Future<List<ManagedMethod>> getManagedMethods() async {
+  /// Loads the shared payment-method catalog from the backend (public
+  /// endpoint). Keeps the bundled list if the backend can't be reached.
+  Future<void> loadMethodCatalog() async {
+    try {
+      final data = await _client.getPublic('/meta/payment-methods');
+      if (data is List<dynamic>) applyPaymentMethodCatalog(data);
+    } catch (_) {}
+  }
+
+  /// Every method with ON/OFF, rates, fees and withdrawal limits.
+  Future<List<MethodSettings>> getMethodSettings() async {
     final data = await _client.get('/agent/manage/payment-methods') as List<dynamic>;
-    return data.map((e) => ManagedMethod.fromJson(e as Map<String, dynamic>)).toList();
+    return data.map((e) => MethodSettings.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> setMethodEnabled(String method, bool enabled) async {
     await _client.put('/agent/manage/payment-methods/$method', body: {'enabled': enabled});
+  }
+
+  /// New exchange rate for one method/direction (past orders keep theirs).
+  Future<void> setRate(String method, String direction, double rate) async {
+    await _client.put('/admin/exchange-rates', body: {'method': method, 'direction': direction, 'rate': rate});
+  }
+
+  /// [value] is dollars for a flat fee (sent as cents) or 0-100 for percent.
+  Future<void> setFee(String method, String direction, {required String type, required double value}) async {
+    await _client.put('/admin/fees', body: {
+      'method': method,
+      'direction': direction,
+      'feeType': type,
+      'value': type == 'flat' ? (value * 100).round() : value,
+    });
+  }
+
+  /// Withdrawal limits in dollars.
+  Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
+    await _client.put('/admin/withdrawal-limits', body: {'method': method, 'minAmount': min, 'maxAmount': max});
+  }
+
+  // Agents
+
+  Future<List<AgentListItem>> getAgents() async {
+    final data = await _client.get('/admin/agents') as List<dynamic>;
+    return data.map((e) => AgentListItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> createAgent({
+    required String name,
+    required String phone,
+    required String password,
+    required List<String> responsibilities,
+  }) async {
+    await _client.post('/admin/agents', body: {
+      'name': name,
+      'phone': phone,
+      'password': password,
+      'responsibilities': responsibilities,
+    });
+  }
+
+  Future<void> setAgentEnabled(String id, bool enabled) async {
+    await _client.post('/admin/agents/$id/${enabled ? 'enable' : 'disable'}');
+  }
+
+  Future<void> setAgentResponsibilities(String id, List<String> responsibilities) async {
+    await _client.put('/admin/agents/$id/responsibilities', body: {'responsibilities': responsibilities});
+  }
+
+  Future<List<AgentDevice>> getAgentDevices(String id) async {
+    final data = await _client.get('/admin/agents/$id/devices') as List<dynamic>;
+    return data.map((e) => AgentDevice.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Orders this agent verified or processed.
+  Future<List<Order>> getAgentOrders(String id) async {
+    final data = await _client.get('/admin/agents/$id/transactions') as List<dynamic>;
+    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // Payment integrations (EVC Plus, MobCash/WinWin)
+
+  Future<List<PaymentIntegration>> getIntegrations() async {
+    final data = await _client.get('/admin/payment-integrations') as List<dynamic>;
+    return data.map((e) => PaymentIntegration.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<PaymentIntegration> getIntegration(String provider) async {
+    final data = await _client.get('/admin/payment-integrations/$provider') as Map<String, dynamic>;
+    return PaymentIntegration.fromJson(data);
+  }
+
+  Future<void> saveIntegrationCredentials(String provider, {required String username, required String password}) async {
+    await _client.put('/admin/payment-integrations/$provider/credentials', body: {
+      'username': username,
+      'password': password,
+    });
+  }
+
+  Future<void> setIntegrationActive(String provider, bool active) async {
+    await _client.put('/admin/payment-integrations/$provider/status', body: {'status': active ? 'active' : 'inactive'});
+  }
+
+  Future<void> testIntegration(String provider) async {
+    await _client.post('/admin/payment-integrations/$provider/test-connection');
+  }
+
+  /// Real login attempt on MobCash with credentials that aren't saved yet.
+  Future<MobCashLoginCheck> checkMobCashLogin({required String username, required String password}) async {
+    final data = await _client.post('/admin/payment-integrations/mobcash_winwin/login-check', body: {
+      'username': username,
+      'password': password,
+    }) as Map<String, dynamic>;
+    return MobCashLoginCheck.fromJson(data);
+  }
+
+  Future<void> setAutomationMode(String provider, {required String mode, required bool dryRun}) async {
+    await _client.put('/admin/payment-integrations/$provider/automation', body: {'mode': mode, 'dryRun': dryRun});
+  }
+
+  Future<void> resetCircuitBreaker(String provider) async {
+    await _client.post('/admin/payment-integrations/$provider/reset-circuit-breaker');
+  }
+
+  Future<List<AutomationRun>> getAutomationRuns(String provider) async {
+    final data = await _client.get('/admin/payment-integrations/$provider/automation-runs') as List<dynamic>;
+    return data.map((e) => AutomationRun.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Base64 PNG of the portal at the end of an automation run, if kept.
+  Future<String> getAutomationRunScreenshot(String provider, String runId) async {
+    final data = await _client.get('/admin/payment-integrations/$provider/automation-runs/$runId/screenshot')
+        as Map<String, dynamic>;
+    return data['screenshotBase64'] as String;
+  }
+
+  /// Latest wallet ledger entries across all customers.
+  Future<List<WalletTransaction>> getAllWalletTransactions() async {
+    final data = await _client.get('/admin/transactions') as List<dynamic>;
+    return data.map((e) => WalletTransaction.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // Audit
+
+  Future<List<AuditLog>> getAuditLogs() async {
+    final data = await _client.get('/admin/audit-logs') as List<dynamic>;
+    return data.map((e) => AuditLog.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<List<HomeAd>> getHomeAds() async {
