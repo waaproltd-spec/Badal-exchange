@@ -25,6 +25,9 @@ class AppTextStyles {
         color: AppColors.textPrimary,
       );
 
+  /// App bar titles, on the dark purple header.
+  static TextStyle get appBarTitle => title.copyWith(color: AppColors.textOnPrimary);
+
   /// Large emphasized numbers (balances, deposit codes).
   static TextStyle get amountLarge => _base.copyWith(
         fontSize: 40,

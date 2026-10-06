@@ -33,7 +33,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(title: Text(AppStrings.orders, style: AppTextStyles.title)),
+      appBar: AppBar(title: Text(AppStrings.orders, style: AppTextStyles.appBarTitle)),
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.primary,

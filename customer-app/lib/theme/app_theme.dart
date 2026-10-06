@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'colors.dart';
@@ -23,38 +24,39 @@ class AppTheme {
         displayColor: AppColors.textPrimary,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.screenBackground,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.header,
+        foregroundColor: AppColors.textOnPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
-        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: AppColors.textOnPrimary),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
       dividerColor: AppColors.fieldBorder,
       splashFactory: InkRipple.splashFactory,
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        indicatorColor: AppColors.primaryTint,
+        indicatorColor: AppColors.lightGold,
         surfaceTintColor: Colors.transparent,
         elevation: 8,
         shadowColor: AppColors.primaryDeep.withOpacity(0.12),
         iconTheme: MaterialStateProperty.resolveWith((states) {
           final selected = states.contains(MaterialState.selected);
-          return IconThemeData(color: selected ? AppColors.primary : AppColors.textMuted);
+          return IconThemeData(color: selected ? AppColors.purpleDark : AppColors.textMuted);
         }),
         labelTextStyle: MaterialStateProperty.resolveWith((states) {
           final selected = states.contains(MaterialState.selected);
           return GoogleFonts.plusJakartaSans(
             fontSize: 12,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? AppColors.primary : AppColors.textMuted,
+            color: selected ? AppColors.purpleDark : AppColors.textMuted,
           );
         }),
       ),
       textSelectionTheme: const TextSelectionThemeData(
         cursorColor: AppColors.primary,
-        selectionColor: AppColors.primaryTint,
+        selectionColor: AppColors.lightGold,
         selectionHandleColor: AppColors.primary,
       ),
     );

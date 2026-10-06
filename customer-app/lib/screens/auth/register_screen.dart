@@ -65,7 +65,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(title: Text(AppStrings.register, style: AppTextStyles.title)),
+      appBar: AppBar(title: Text(AppStrings.register, style: AppTextStyles.appBarTitle)),
       body: SafeArea(
         child: Form(
           key: _formKey,

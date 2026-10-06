@@ -2,51 +2,75 @@ import 'package:flutter/material.dart';
 
 /// Design tokens for BAARI.
 ///
-/// Brand palette: a deep "Baari green" paired with a warm gold, inspired by
-/// Somali colours and tuned for a clean fintech / wallet look.
+/// Palette: deep purple headers, purple card gradients, light gold for
+/// deposit / highlights, orange for withdraw / important accents, on a
+/// warm cream background.
 class AppColors {
   AppColors._();
 
-  // Brand
-  static const Color primary = Color(0xFF0A8F4E);
-  static const Color primaryDark = Color(0xFF056B39);
-  static const Color primaryDeep = Color(0xFF033D21);
-  static const Color primaryTint = Color(0xFFE6F5EC);
+  // Brand palette
+  static const Color purpleDark = Color(0xFF3A0353);
+  static const Color purple = Color(0xFF804A8A);
+  static const Color purpleSecondary = Color(0xFF8B5FA3);
+  static const Color lightGold = Color(0xFFF8D299);
+  static const Color accentOrange = Color(0xFFF59E51);
+  static const Color cream = Color(0xFFFFF4E6);
 
-  static const Color gold = Color(0xFFF7B500);
-  static const Color goldDark = Color(0xFFD99A00);
-  static const Color goldTint = Color(0xFFFFF6DC);
+  // Roles
+  static const Color primary = purple;
+  static const Color primaryDark = purpleDark;
+  static const Color primaryDeep = purpleDark;
+  static const Color primaryTint = Color(0xFFF3E8F5);
+  static const Color header = purpleDark;
 
-  /// Hero gradient used behind the wallet header and on the logo mark.
+  static const Color gold = lightGold;
+  static const Color goldDark = accentOrange;
+  static const Color goldTint = Color(0xFFFDF0DA);
+
+  /// Header sections (home wallet header).
+  static const LinearGradient headerGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [purpleDark, Color(0xFF4A0D66)],
+  );
+
+  /// Main cards (balance card).
+  static const LinearGradient cardGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [purple, purpleSecondary],
+  );
+
+  /// Logo tile.
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF0FA65C), primaryDark, primaryDeep],
-    stops: [0.0, 0.55, 1.0],
+    colors: [purpleSecondary, purple, purpleDark],
+    stops: [0.0, 0.5, 1.0],
   );
 
   // Screen / surface backgrounds
-  static const Color screenBackground = Color(0xFFFFFFFF);
-  static const Color appBackground = Color(0xFFF4F7F5);
+  static const Color screenBackground = cream;
+  static const Color appBackground = cream;
 
   // Cards
-  static const Color cardBorder = Color(0xFFE3ECE6);
-  static const Color cardBorderSoft = Color(0xFFEAF0EC);
+  static const Color cardBorder = Color(0xFFF0DFC8);
+  static const Color cardBorderSoft = Color(0xFFF5E8D6);
 
   // Fields
-  static const Color fieldBackground = Color(0xFFF8FAF9);
-  static const Color fieldBorder = Color(0xFFE3ECE6);
+  static const Color fieldBackground = Color(0xFFFFFFFF);
+  static const Color fieldBorder = Color(0xFFF0DFC8);
 
   // Text
-  static const Color textPrimary = Color(0xFF0F1F17);
-  static const Color textMuted = Color(0xFF66756D);
+  static const Color textPrimary = Color(0xFF24062F);
+  static const Color textMuted = Color(0xFF7B6683);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 
-  // Method brand colors
-  static const Color evcGreen = Color(0xFF149954);
-  static const Color winwinGreen = Color(0xFF0FA968);
+  // Payment method icons
+  static const Color evcMethod = purple;
+  static const Color winwinMethod = accentOrange;
 
-  // Status
+  // Status (semantic, independent of the brand palette)
   static const Color statusPending = Color(0xFFF59E0B);
   static const Color statusProcessing = Color(0xFF3B82F6);
   static const Color statusCompleted = Color(0xFF16A34A);

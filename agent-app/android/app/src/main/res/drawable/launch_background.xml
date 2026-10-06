@@ -2,5 +2,5 @@
 <!-- Solid dark background matching the app's dark theme, shown briefly
      during Flutter engine startup. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/black" />
+    <item android:drawable="@color/baari_cream" />
 </layer-list>

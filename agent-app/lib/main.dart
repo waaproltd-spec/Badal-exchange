@@ -21,9 +21,7 @@ class BadalAgentApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Badal Exchange Agent',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
+        theme: AppTheme.light,
         home: const _RootRouter(),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/strings.dart';
@@ -63,50 +64,54 @@ class _HomeScreenState extends State<HomeScreen> {
     final ordersState = context.watch<OrdersProvider>();
     final topInset = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
-      backgroundColor: AppColors.appBackground,
-      body: RefreshIndicator(
-        color: AppColors.primary,
-        onRefresh: _refresh,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            _WalletHeader(
-              topInset: topInset,
-              walletState: walletState,
-              onDeposit: _goDeposit,
-              onWithdraw: _goWithdraw,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(AppStrings.recentOrders, style: AppTextStyles.title)),
-                      if (widget.onViewAllOrders != null)
-                        TextButton(
-                          onPressed: widget.onViewAllOrders,
-                          child: Text(
-                            AppStrings.viewAll,
-                            style: AppTextStyles.body.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
+    // Light status-bar icons over the dark purple header.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: AppColors.appBackground,
+        body: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: _refresh,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              _WalletHeader(
+                topInset: topInset,
+                walletState: walletState,
+                onDeposit: _goDeposit,
+                onWithdraw: _goWithdraw,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text(AppStrings.recentOrders, style: AppTextStyles.title)),
+                        if (widget.onViewAllOrders != null)
+                          TextButton(
+                            onPressed: widget.onViewAllOrders,
+                            child: Text(
+                              AppStrings.viewAll,
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _RecentOrders(
-                    state: ordersState,
-                    orders: ordersState.orders.take(_recentOrdersCount).toList(),
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _RecentOrders(
+                      state: ordersState,
+                      orders: ordersState.orders.take(_recentOrdersCount).toList(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -131,7 +136,7 @@ class _WalletHeader extends StatelessWidget {
     return Container(
       padding: EdgeInsets.fromLTRB(20, topInset + 20, 20, 24),
       decoration: const BoxDecoration(
-        gradient: AppColors.brandGradient,
+        gradient: AppColors.headerGradient,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
       child: Stack(
@@ -146,7 +151,10 @@ class _WalletHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [AppColors.gold.withOpacity(0.22), AppColors.gold.withOpacity(0)],
+                  colors: [
+                    AppColors.accentOrange.withOpacity(0.18),
+                    AppColors.accentOrange.withOpacity(0)
+                  ],
                 ),
               ),
             ),
@@ -167,7 +175,9 @@ class _WalletHeader extends StatelessWidget {
                     child: _ActionTile(
                       label: AppStrings.deposit,
                       icon: Icons.south_west_rounded,
-                      iconBackground: AppColors.primary,
+                      background: AppColors.lightGold,
+                      iconBackground: AppColors.purpleDark,
+                      iconColor: AppColors.lightGold,
                       onTap: onDeposit,
                     ),
                   ),
@@ -176,8 +186,9 @@ class _WalletHeader extends StatelessWidget {
                     child: _ActionTile(
                       label: AppStrings.withdraw,
                       icon: Icons.north_east_rounded,
-                      iconBackground: AppColors.gold,
-                      iconColor: AppColors.primaryDeep,
+                      background: AppColors.accentOrange,
+                      iconBackground: AppColors.purpleDark,
+                      iconColor: AppColors.accentOrange,
                       onTap: onWithdraw,
                     ),
                   ),
@@ -202,9 +213,16 @@ class _BalanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.10),
+        gradient: AppColors.cardGradient,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.18), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.purpleDark.withOpacity(0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,6 +339,7 @@ class _ActionTile extends StatelessWidget {
   const _ActionTile({
     required this.label,
     required this.icon,
+    required this.background,
     required this.iconBackground,
     required this.onTap,
     this.iconColor = Colors.white,
@@ -328,6 +347,7 @@ class _ActionTile extends StatelessWidget {
 
   final String label;
   final IconData icon;
+  final Color background;
   final Color iconBackground;
   final Color iconColor;
   final VoidCallback onTap;
@@ -335,7 +355,7 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: background,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -361,11 +381,15 @@ class _ActionTile extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     label,
-                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 16),
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: AppColors.purpleDark,
+                    ),
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.purpleDark, size: 20),
             ],
           ),
         ),

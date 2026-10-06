@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// Dark, high-contrast theme for the Badal Exchange agent app.
+/// Theme for the Badal Exchange agent app, using the BAARI palette shared
+/// with the customer app: dark purple headers, purple primary actions,
+/// light gold / orange accents on a warm cream background.
 ///
 /// This is a field-operations tool for trained agents: the palette favors
 /// clarity and fast scanning (large tap targets, unambiguous status colors)
@@ -8,16 +11,27 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color background = Color(0xFF0B0F14);
-  static const Color surface = Color(0xFF141A21);
-  static const Color surfaceRaised = Color(0xFF1C242D);
-  static const Color border = Color(0xFF2A333D);
-  static const Color textPrimary = Color(0xFFF3F6F9);
-  static const Color textSecondary = Color(0xFF9AA7B2);
-  static const Color textFaint = Color(0xFF6B7885);
+  // BAARI palette
+  static const Color purpleDark = Color(0xFF3A0353);
+  static const Color purple = Color(0xFF804A8A);
+  static const Color purpleSecondary = Color(0xFF8B5FA3);
+  static const Color lightGold = Color(0xFFF8D299);
+  static const Color accentOrange = Color(0xFFF59E51);
+  static const Color cream = Color(0xFFFFF4E6);
 
-  static const Color primary = Color(0xFF2FB8A5);
-  static const Color primaryDark = Color(0xFF1F8C7D);
+  static const Color background = cream;
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceRaised = Color(0xFFFFFAF3);
+  static const Color border = Color(0xFFF0DFC8);
+  static const Color textPrimary = Color(0xFF24062F);
+  static const Color textSecondary = Color(0xFF6E5876);
+  static const Color textFaint = Color(0xFF9C8AA2);
+
+  static const Color header = purpleDark;
+  static const Color onHeader = Color(0xFFFFFFFF);
+  static const Color primary = purple;
+  static const Color primaryDark = purpleDark;
+  static const Color onPrimary = Color(0xFFFFFFFF);
 
   // Status colors — kept consistent across the whole app.
   static const Color statusPending = Color(0xFFE0A63A); // amber
@@ -51,12 +65,18 @@ class AppColors {
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get dark {
-    final base = ThemeData.dark(useMaterial3: true);
-    final colorScheme = base.colorScheme.copyWith(
-      brightness: Brightness.dark,
+  static ThemeData get light {
+    final base = ThemeData.light(useMaterial3: true);
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.light,
+    ).copyWith(
+      brightness: Brightness.light,
       primary: AppColors.primary,
-      onPrimary: Colors.black,
+      onPrimary: AppColors.onPrimary,
+      secondary: AppColors.accentOrange,
+      onSecondary: AppColors.purpleDark,
+      tertiary: AppColors.lightGold,
       surface: AppColors.surface,
       onSurface: AppColors.textPrimary,
       error: AppColors.statusFailed,
@@ -72,12 +92,13 @@ class AppTheme {
         displayColor: AppColors.textPrimary,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.header,
+        foregroundColor: AppColors.onHeader,
         elevation: 0,
         centerTitle: false,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         titleTextStyle: TextStyle(
-          color: AppColors.textPrimary,
+          color: AppColors.onHeader,
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
@@ -117,7 +138,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.black,
+          foregroundColor: AppColors.onPrimary,
           minimumSize: const Size.fromHeight(52),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -125,9 +146,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
+          foregroundColor: AppColors.purpleDark,
           minimumSize: const Size.fromHeight(48),
-          side: const BorderSide(color: AppColors.border),
+          side: const BorderSide(color: AppColors.purple),
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -139,8 +160,8 @@ class AppTheme {
         ),
       ),
       snackBarTheme: const SnackBarThemeData(
-        backgroundColor: AppColors.surfaceRaised,
-        contentTextStyle: TextStyle(color: AppColors.textPrimary),
+        backgroundColor: AppColors.purpleDark,
+        contentTextStyle: TextStyle(color: AppColors.onHeader),
         behavior: SnackBarBehavior.floating,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
@@ -160,6 +181,15 @@ class AppTheme {
       dialogTheme: DialogTheme(
         backgroundColor: AppColors.surfaceRaised,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.accentOrange,
+        foregroundColor: AppColors.purpleDark,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? AppColors.onPrimary : null,
+        ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,

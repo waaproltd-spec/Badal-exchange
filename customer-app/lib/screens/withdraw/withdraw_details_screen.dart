@@ -75,7 +75,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       appBar: AppBar(
-        title: Text(_isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.title),
+        title: Text(_isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.appBarTitle),
       ),
       body: SafeArea(
         child: Form(

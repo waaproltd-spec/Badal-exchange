@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/colors.dart';
 
-/// The BAARI logo mark: a green gradient squircle carrying a geometric
+/// The BAARI logo mark: a purple gradient squircle carrying a geometric
 /// white "B" monogram, with a gold five-pointed star (a nod to the Somali
 /// star) at its top right. Mirrors the Android launcher icon.
 class BaariLogoMark extends StatelessWidget {
@@ -13,7 +13,7 @@ class BaariLogoMark extends StatelessWidget {
 
   final double size;
 
-  /// On a green background the tile gets a thin light outline so it does
+  /// On a dark purple header the tile gets a thin light outline so it does
   /// not dissolve into the header.
   final bool onDark;
 
@@ -97,7 +97,7 @@ class _BaariMarkPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// "BAARI" wordmark with a short gold accent bar underneath.
+/// "BAARI" wordmark with a short orange accent bar underneath.
 class BaariWordmark extends StatelessWidget {
   const BaariWordmark({super.key, this.fontSize = 26, this.color = AppColors.primaryDark});
 
@@ -125,7 +125,7 @@ class BaariWordmark extends StatelessWidget {
           width: fontSize * 1.1,
           height: math.max(3, fontSize * 0.13),
           decoration: BoxDecoration(
-            color: AppColors.gold,
+            color: AppColors.accentOrange,
             borderRadius: BorderRadius.circular(fontSize),
           ),
         ),
