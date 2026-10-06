@@ -84,7 +84,7 @@ class _MethodTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTextStyles.appBarTitle),
+                  Text(title, style: AppTextStyles.title),
                   const SizedBox(height: 4),
                   Text(subtitle, style: AppTextStyles.muted),
                 ],

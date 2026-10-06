@@ -74,7 +74,7 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
             Center(child: MethodIcon(method: quote.method, size: 56)),
             const SizedBox(height: 16),
             Center(
-              child: Text(isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.appBarTitle),
+              child: Text(isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.title),
             ),
             const SizedBox(height: 24),
             AppCard(
