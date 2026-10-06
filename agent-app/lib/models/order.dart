@@ -1,3 +1,5 @@
+import 'payment_methods.dart';
+
 /// Mirrors the `serializeOrder` shape returned by the backend's
 /// `/agent/*` order endpoints (see backend/src/routes/agent.ts).
 ///
@@ -10,11 +12,12 @@ class Order {
   final String id;
   final String orderCode;
   final String direction; // 'deposit' | 'withdraw'
-  final String method; // 'evc_plus' | 'winwin'
+  final String method; // see lib/models/payment_methods.dart
   final String status; // 'pending' | 'processing' | 'completed' | 'failed'
   final String customerId;
   final String? phoneNumber;
-  final String? winwinId;
+  /// The customer's account ID on a betting platform (any platform method).
+  final String? accountId;
   final String? depositCode;
   final String amount;
   final String fee;
@@ -32,7 +35,7 @@ class Order {
     required this.status,
     required this.customerId,
     this.phoneNumber,
-    this.winwinId,
+    this.accountId,
     this.depositCode,
     required this.amount,
     required this.fee,
@@ -52,7 +55,7 @@ class Order {
       status: json['status'] as String? ?? '',
       customerId: json['customerId'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String?,
-      winwinId: json['winwinId'] as String?,
+      accountId: (json['accountId'] ?? json['winwinId']) as String?,
       depositCode: json['depositCode'] as String?,
       amount: (json['amount'] ?? '0.00').toString(),
       fee: (json['fee'] ?? '0.00').toString(),
@@ -64,20 +67,18 @@ class Order {
     );
   }
 
-  /// The identifier the agent recognizes for this order: the EVC Plus phone
-  /// number for evc_plus orders, or the WinWin ID for winwin orders.
+  /// The identifier the agent recognizes for this order: the customer's
+  /// phone number for mobile money, or their account ID on a platform.
   String get counterpartyLabel {
-    if (method == 'evc_plus') {
-      return phoneNumber ?? '—';
-    }
-    if (method == 'winwin') {
-      return winwinId ?? '—';
-    }
-    return phoneNumber ?? winwinId ?? '—';
+    if (methodInfo(method).isPlatform) return accountId ?? '—';
+    return phoneNumber ?? accountId ?? '—';
   }
+
+  String get methodLabel => methodInfo(method).label;
 
   bool get isDeposit => direction == 'deposit';
   bool get isWithdraw => direction == 'withdraw';
   bool get isEvcPlus => method == 'evc_plus';
   bool get isWinwin => method == 'winwin';
+  bool get isPlatform => methodInfo(method).isPlatform;
 }

@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/agent_profile.dart';
 import '../models/match_result.dart';
+import '../models/console.dart';
 import '../models/order.dart';
 import 'api_client.dart';
 import 'token_storage.dart';
@@ -132,6 +133,201 @@ class AgentApi {
       },
     ) as Map<String, dynamic>;
     return MatchResult.fromJson(data);
+  }
+
+  /// Mobile-money payment (EVC Plus, Golis, Telesom, eDahab) the agent saw
+  /// arrive and keys in by hand. Deduped with SMS-reported payments.
+  Future<MatchResult> submitMobileMoneyTransaction({
+    required String method,
+    required String senderPhone,
+    required String amount,
+    required String transactionRef,
+    required DateTime occurredAt,
+  }) async {
+    final data = await _client.post(
+      '/agent/mobile-money-transactions',
+      idempotencyKey: _uuid.v4(),
+      body: {
+        'method': method,
+        'senderPhone': senderPhone,
+        'amount': amount,
+        'transactionRef': transactionRef,
+        'occurredAt': occurredAt.toUtc().toIso8601String(),
+      },
+    ) as Map<String, dynamic>;
+    return MatchResult.fromJson(data);
+  }
+
+  /// Betting-platform deposit (WinWin, 1XBET, MELBET, ...) the agent
+  /// confirmed in that platform's cashier tools.
+  Future<MatchResult> submitPlatformTransaction({
+    required String method,
+    required String accountId,
+    String? depositCode,
+    required String amount,
+    required String reference,
+    required DateTime occurredAt,
+  }) async {
+    final data = await _client.post(
+      '/agent/platform-transactions',
+      idempotencyKey: _uuid.v4(),
+      body: {
+        'method': method,
+        'accountId': accountId,
+        if (depositCode != null && depositCode.isNotEmpty) 'depositCode': depositCode,
+        'amount': amount,
+        'reference': reference,
+        'occurredAt': occurredAt.toUtc().toIso8601String(),
+      },
+    ) as Map<String, dynamic>;
+    return MatchResult.fromJson(data);
+  }
+
+  // ---------------------------------------------------------------------
+  // Console: Dashboard, Users, Reports, History, Account
+  // ---------------------------------------------------------------------
+
+  Future<DashboardSummary> getDashboard() async {
+    final data = await _client.get('/agent/dashboard') as Map<String, dynamic>;
+    return DashboardSummary.fromJson(data);
+  }
+
+  Future<List<CustomerSummary>> getCustomers({String? query, String status = 'all', int offset = 0}) async {
+    final data = await _client.get('/agent/customers', query: {
+      if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+      'status': status,
+      'offset': '$offset',
+    }) as List<dynamic>;
+    return data.map((e) => CustomerSummary.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<CustomerDetail> getCustomer(String id) async {
+    final data = await _client.get('/agent/customers/$id') as Map<String, dynamic>;
+    return CustomerDetail.fromJson(data);
+  }
+
+  Future<ReportSummary> getReport({required String period, String? from, String? to}) async {
+    final data = await _client.get('/agent/reports', query: {
+      'period': period,
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+    }) as Map<String, dynamic>;
+    return ReportSummary.fromJson(data);
+  }
+
+  Future<List<HistoryItem>> getHistory({
+    String? query,
+    String type = 'all',
+    String? status,
+    String? method,
+    String? customerId,
+    String? from,
+    String? to,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    final data = await _client.get('/agent/history', query: {
+      if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+      'type': type,
+      if (status != null) 'status': status,
+      if (method != null) 'method': method,
+      if (customerId != null) 'customerId': customerId,
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+      'offset': '$offset',
+      'limit': '$limit',
+    }) as List<dynamic>;
+    return data.map((e) => HistoryItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<AgentAccount> getAccount() async {
+    final data = await _client.get('/agent/account') as Map<String, dynamic>;
+    return AgentAccount.fromJson(data);
+  }
+
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await _client.post('/agent/account/password', body: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
+  // Admin features (require the 'manage_settings' responsibility).
+
+  Future<List<ManagedMethod>> getManagedMethods() async {
+    final data = await _client.get('/agent/manage/payment-methods') as List<dynamic>;
+    return data.map((e) => ManagedMethod.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> setMethodEnabled(String method, bool enabled) async {
+    await _client.put('/agent/manage/payment-methods/$method', body: {'enabled': enabled});
+  }
+
+  Future<List<HomeAd>> getHomeAds() async {
+    final data = await _client.get('/agent/manage/home-ads') as List<dynamic>;
+    return data.map((e) => HomeAd.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> saveHomeAd({
+    String? id,
+    required String title,
+    String? body,
+    String? imageUrl,
+    String? linkUrl,
+    required bool enabled,
+    int sortOrder = 0,
+  }) async {
+    final payload = {
+      'title': title,
+      'body': body,
+      'imageUrl': imageUrl,
+      'linkUrl': linkUrl,
+      'enabled': enabled,
+      'sortOrder': sortOrder,
+    };
+    if (id == null) {
+      await _client.post('/agent/manage/home-ads', body: payload);
+    } else {
+      await _client.put('/agent/manage/home-ads/$id', body: payload);
+    }
+  }
+
+  Future<void> deleteHomeAd(String id) => _client.delete('/agent/manage/home-ads/$id');
+
+  Future<List<DepositNumber>> getDepositNumbers() async {
+    final data = await _client.get('/agent/manage/deposit-numbers') as List<dynamic>;
+    return data.map((e) => DepositNumber.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> saveDepositNumber({
+    String? id,
+    required String method,
+    required String number,
+    String? label,
+    required bool enabled,
+  }) async {
+    final payload = {'method': method, 'number': number, 'label': label, 'enabled': enabled};
+    if (id == null) {
+      await _client.post('/agent/manage/deposit-numbers', body: payload);
+    } else {
+      await _client.put('/agent/manage/deposit-numbers/$id', body: payload);
+    }
+  }
+
+  Future<void> deleteDepositNumber(String id) => _client.delete('/agent/manage/deposit-numbers/$id');
+
+  Future<List<AppNotification>> getSentNotifications() async {
+    final data = await _client.get('/agent/manage/notifications') as List<dynamic>;
+    return data.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> sendNotification({required String title, required String body}) async {
+    await _client.post('/agent/manage/notifications', body: {'title': title, 'body': body});
+  }
+
+  Future<Contacts> saveContacts(Contacts contacts) async {
+    final data = await _client.put('/agent/manage/contacts', body: contacts.toJson());
+    return Contacts.fromJson(data);
   }
 
   Future<Order> startWithdrawal(String orderId) async {

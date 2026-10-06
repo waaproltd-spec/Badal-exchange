@@ -4,24 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
+import '../models/console.dart';
+import '../state/history_filter.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import 'pending_deposits_screen.dart';
+import 'pending_withdrawals_screen.dart';
+import 'sms_transactions_screen.dart';
 
-/// Dashboard: quick pending counts + shortcuts into the other sections, and
-/// the control for enabling automatic EVC Plus SMS matching on this device.
+/// Dashboard: the agent's overview. Pending counts open the screens where
+/// those orders are actioned; the other counts open History filtered. Also
+/// hosts the automatic EVC Plus SMS matching control and recent activity.
 class DashboardScreen extends StatefulWidget {
-  final ValueChanged<int> onNavigate;
+  final ValueChanged<HistoryFilter> onOpenHistory;
 
-  const DashboardScreen({super.key, required this.onNavigate});
+  const DashboardScreen({super.key, required this.onOpenHistory});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int? _pendingDepositsCount;
-  int? _pendingWithdrawalsCount;
+  DashboardSummary? _summary;
   String? _error;
   bool _loading = true;
   bool _smsBusy = false;
@@ -34,19 +40,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      _loading = _summary == null;
       _error = null;
     });
-    final session = context.read<Session>();
     try {
-      final results = await Future.wait([
-        session.api.getPendingDeposits(),
-        session.api.getPendingWithdrawals(),
-      ]);
+      final summary = await context.read<Session>().api.getDashboard();
       if (!mounted) return;
       setState(() {
-        _pendingDepositsCount = results[0].length;
-        _pendingWithdrawalsCount = results[1].length;
+        _summary = summary;
         _loading = false;
       });
     } catch (e) {
@@ -58,15 +59,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _push(String title, Widget body) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(appBar: AppBar(title: Text(title)), body: body),
+    ));
+    if (mounted) _load();
+  }
+
   Future<void> _toggleSmsMatching(Session session, bool enable) async {
     setState(() => _smsBusy = true);
     if (enable) {
       final started = await session.enableSmsAutoMatching();
       if (!started && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('SMS permission is required to enable automatic matching.'),
-          ),
+          const SnackBar(content: Text('SMS permission is required to enable automatic matching.')),
         );
       }
     } else {
@@ -77,167 +83,105 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) return const LoadingView();
+    if (_error != null && _summary == null) return ErrorStateView(message: _error!, onRetry: _load);
+
     final session = context.watch<Session>();
-    final isAndroid = Platform.isAndroid;
+    final s = _summary!;
 
     return RefreshIndicator(
       onRefresh: _load,
-      child: _loading
-          ? const LoadingView()
-          : (_error != null
-              ? ErrorStateView(message: _error!, onRetry: _load)
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Text(
-                      'Welcome, ${session.agentDisplayName}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CountCard(
-                            label: 'Pending Deposits',
-                            count: _pendingDepositsCount ?? 0,
-                            color: AppColors.statusPending,
-                            icon: Icons.arrow_circle_down_rounded,
-                            onTap: () => widget.onNavigate(1),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _CountCard(
-                            label: 'Pending Withdrawals',
-                            count: _pendingWithdrawalsCount ?? 0,
-                            color: AppColors.statusProcessing,
-                            icon: Icons.arrow_circle_up_rounded,
-                            onTap: () => widget.onNavigate(2),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    if (isAndroid) _SmsMatchingCard(
-                      isListening: session.smsBridge.isListening,
-                      deviceRegistrationError: session.deviceRegistrationError,
-                      busy: _smsBusy,
-                      onToggle: (enable) => _toggleSmsMatching(session, enable),
-                      onRetryDeviceRegistration: () async {
-                        setState(() => _smsBusy = true);
-                        await session.retryDeviceRegistration();
-                        if (mounted) setState(() => _smsBusy = false);
-                      },
-                    ) else
-                      const Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text(
-                            'Automatic SMS matching is only available on Android agent devices.',
-                            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Shortcuts',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    _ShortcutTile(
-                      icon: Icons.sms_rounded,
-                      label: 'SMS Transactions',
-                      onTap: () => widget.onNavigate(3),
-                    ),
-                    _ShortcutTile(
-                      icon: Icons.check_circle_rounded,
-                      label: 'Completed orders',
-                      onTap: () => widget.onNavigate(4),
-                    ),
-                    _ShortcutTile(
-                      icon: Icons.cancel_rounded,
-                      label: 'Failed orders',
-                      onTap: () => widget.onNavigate(5),
-                    ),
-                    _ShortcutTile(
-                      icon: Icons.person_rounded,
-                      label: 'Profile',
-                      onTap: () => widget.onNavigate(6),
-                    ),
-                  ],
-                )),
-    );
-  }
-}
-
-class _CountCard extends StatelessWidget {
-  final String label;
-  final int count;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _CountCard({
-    required this.label,
-    required this.count,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 12),
-            Text(
-              '$count',
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          Text(
+            'Welcome, ${session.agentDisplayName}',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 2),
+          const Text('Manage your transactions', style: TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: 16),
+          TwoColumnGrid(children: [
+            StatCard(
+              icon: Icons.south_rounded,
+              color: AppColors.statusPending,
+              value: '${s.pendingDeposits}',
+              label: 'Pending Deposits',
+              onTap: () => _push('Pending Deposits', const PendingDepositsScreen()),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            StatCard(
+              icon: Icons.north_rounded,
+              color: AppColors.statusProcessing,
+              value: '${s.pendingWithdrawals}',
+              label: 'Pending Withdrawals',
+              onTap: () => _push('Pending Withdrawals', const PendingWithdrawalsScreen()),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ShortcutTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ShortcutTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.primary),
-        title: Text(label),
-        trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
-        onTap: onTap,
+            StatCard(
+              icon: Icons.autorenew_rounded,
+              color: AppColors.purple,
+              value: '${s.processing}',
+              label: 'Processing',
+              onTap: () => widget.onOpenHistory(const HistoryFilter(status: 'processing')),
+            ),
+            StatCard(
+              icon: Icons.check_rounded,
+              color: AppColors.statusCompleted,
+              value: '${s.completed}',
+              label: 'Completed',
+              onTap: () => widget.onOpenHistory(const HistoryFilter(status: 'completed')),
+            ),
+            StatCard(
+              icon: Icons.close_rounded,
+              color: AppColors.statusFailed,
+              value: '${s.failed}',
+              label: 'Failed',
+              onTap: () => widget.onOpenHistory(const HistoryFilter(status: 'failed')),
+            ),
+            StatCard(
+              icon: Icons.receipt_long_rounded,
+              color: AppColors.textSecondary,
+              value: '${s.totalTransactions}',
+              label: 'Total Transactions',
+              onTap: () => widget.onOpenHistory(const HistoryFilter(type: 'order')),
+            ),
+          ]),
+          const SizedBox(height: 16),
+          if (Platform.isAndroid)
+            _SmsMatchingCard(
+              isListening: session.smsBridge.isListening,
+              deviceRegistrationError: session.deviceRegistrationError,
+              busy: _smsBusy,
+              onToggle: (enable) => _toggleSmsMatching(session, enable),
+              onRetryDeviceRegistration: () async {
+                setState(() => _smsBusy = true);
+                await session.retryDeviceRegistration();
+                if (mounted) setState(() => _smsBusy = false);
+              },
+              onOpenLog: () => _push('SMS Transactions', const SmsTransactionsScreen()),
+            )
+          else
+            const ConsoleCard(
+              child: Text(
+                'Automatic EVC Plus SMS matching is only available on Android agent devices.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ),
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: 'Recent Activity',
+            actionLabel: 'See all',
+            onAction: () => widget.onOpenHistory(const HistoryFilter()),
+          ),
+          if (s.recentActivity.isEmpty)
+            const ConsoleCard(
+              child: Text('No activity yet.', style: TextStyle(color: AppColors.textSecondary)),
+            )
+          else
+            for (final item in s.recentActivity) ...[
+              ActivityTile(item: item, onTap: () => showActivityDetails(context, item)),
+              const SizedBox(height: 8),
+            ],
+        ],
       ),
     );
   }
@@ -249,6 +193,7 @@ class _SmsMatchingCard extends StatelessWidget {
   final bool busy;
   final ValueChanged<bool> onToggle;
   final VoidCallback onRetryDeviceRegistration;
+  final VoidCallback onOpenLog;
 
   const _SmsMatchingCard({
     required this.isListening,
@@ -256,54 +201,56 @@ class _SmsMatchingCard extends StatelessWidget {
     required this.busy,
     required this.onToggle,
     required this.onRetryDeviceRegistration,
+    required this.onOpenLog,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.sms_rounded, color: AppColors.primary),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'Automatic EVC Plus SMS matching',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                  ),
+    final online = isListening && deviceRegistrationError == null;
+    return ConsoleCard(
+      onTap: onOpenLog,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              TintedIcon(
+                icon: Icons.sensors_rounded,
+                color: online ? AppColors.statusCompleted : AppColors.textFaint,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'EVC Plus SMS Matching',
+                  style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
-                if (busy)
-                  const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                else
-                  Switch(
-                    value: isListening,
-                    onChanged: deviceRegistrationError == null ? onToggle : null,
-                    activeTrackColor: AppColors.primary,
-                  ),
-              ],
+              ),
+              if (busy)
+                const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                Switch(
+                  value: isListening,
+                  onChanged: deviceRegistrationError == null ? onToggle : null,
+                  activeTrackColor: AppColors.statusCompleted,
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (deviceRegistrationError != null) ...[
+            Text(
+              'This device is not registered as an authorized agent device: $deviceRegistrationError',
+              style: const TextStyle(fontSize: 12, color: AppColors.statusFailed),
             ),
-            const SizedBox(height: 6),
-            if (deviceRegistrationError != null) ...[
-              Text(
-                'This device is not registered as an authorized agent device: '
-                '$deviceRegistrationError',
-                style: const TextStyle(fontSize: 12, color: AppColors.statusFailed),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(onPressed: onRetryDeviceRegistration, child: const Text('Retry registration')),
-            ] else
-              Text(
-                isListening
-                    ? 'Listening for authorized EVC Plus payment SMS on this device.'
-                    : 'Off. Turn on to automatically submit incoming EVC Plus payment SMS for matching.',
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-          ],
-        ),
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: onRetryDeviceRegistration, child: const Text('Retry registration')),
+          ] else
+            Text(
+              isListening
+                  ? 'Online — listening for authorized EVC Plus payment SMS on this device. Tap to see submissions.'
+                  : 'Off — turn on to automatically match incoming EVC Plus payment SMS. Tap to see submissions.',
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+        ],
       ),
     );
   }

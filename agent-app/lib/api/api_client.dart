@@ -75,6 +75,18 @@ class ApiClient {
         .timeout(ApiConfig.requestTimeout));
   }
 
+  Future<dynamic> put(String path, {Map<String, dynamic>? body}) async {
+    return _authedRequest((bearer) => _http
+        .put(_uri(path), headers: _jsonHeaders(bearer: bearer), body: jsonEncode(body ?? const {}))
+        .timeout(ApiConfig.requestTimeout));
+  }
+
+  Future<dynamic> delete(String path) async {
+    return _authedRequest((bearer) => _http
+        .delete(_uri(path), headers: _jsonHeaders(bearer: bearer))
+        .timeout(ApiConfig.requestTimeout));
+  }
+
   Future<dynamic> _authedRequest(
     Future<http.Response> Function(String bearer) request,
   ) async {
