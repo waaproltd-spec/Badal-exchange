@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// EVC Plus = green rounded-square icon with a checkmark (Hormuud-style
-/// green). WinWin = green circular icon.
+/// EVC Plus = purple rounded-square icon with a checkmark. WinWin = orange
+/// circular icon.
 class MethodIcon extends StatelessWidget {
   const MethodIcon({super.key, required this.method, this.size = 48});
 
@@ -15,7 +15,7 @@ class MethodIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = _isEvc ? AppColors.evcGreen : AppColors.winwinGreen;
+    final background = _isEvc ? AppColors.evcMethod : AppColors.winwinMethod;
     return Container(
       width: size,
       height: size,

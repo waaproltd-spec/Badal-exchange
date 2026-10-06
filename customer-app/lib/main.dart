@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'api/api_client.dart';
 import 'api/customer_api.dart';
 import 'config.dart';
+import 'l10n/strings.dart';
 import 'screens/splash_screen.dart';
 import 'state/auth_provider.dart';
 import 'state/orders_provider.dart';
@@ -12,11 +13,11 @@ import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const BadalExchangeApp());
+  runApp(const BaariApp());
 }
 
-class BadalExchangeApp extends StatelessWidget {
-  const BadalExchangeApp({super.key});
+class BaariApp extends StatelessWidget {
+  const BaariApp({super.key});
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -48,7 +49,7 @@ class BadalExchangeApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'Badal Exchange',
+        title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
         theme: AppTheme.light,

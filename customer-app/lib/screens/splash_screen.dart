@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../state/auth_provider.dart';
 import '../theme/colors.dart';
+import '../widgets/brand/baari_logo.dart';
 import 'auth/login_screen.dart';
 import 'root/root_shell.dart';
 
@@ -56,7 +57,18 @@ class _SplashScreenState extends State<SplashScreen> {
     return const Scaffold(
       backgroundColor: AppColors.screenBackground,
       body: Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            BaariLogo(markSize: 64),
+            SizedBox(height: 40),
+            SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2.5),
+            ),
+          ],
+        ),
       ),
     );
   }

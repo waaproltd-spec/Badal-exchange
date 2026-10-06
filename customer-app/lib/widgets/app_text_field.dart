@@ -4,7 +4,7 @@ import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 
 /// Labeled input matching the mockup: 12px uppercase muted label above a
-/// rounded, light gray-purple field with a 1.5px border.
+/// rounded, white field with a 1.5px border.
 class AppTextField extends StatelessWidget {
   const AppTextField({
     super.key,

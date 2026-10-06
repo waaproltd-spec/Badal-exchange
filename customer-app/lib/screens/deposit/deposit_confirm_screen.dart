@@ -66,7 +66,7 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(title: Text('Confirm Deposit', style: AppTextStyles.title)),
+      appBar: AppBar(title: Text('Confirm Deposit', style: AppTextStyles.appBarTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -74,7 +74,7 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
             Center(child: MethodIcon(method: quote.method, size: 56)),
             const SizedBox(height: 16),
             Center(
-              child: Text(isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.title),
+              child: Text(isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.appBarTitle),
             ),
             const SizedBox(height: 24),
             AppCard(

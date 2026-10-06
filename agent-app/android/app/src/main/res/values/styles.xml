@@ -7,6 +7,6 @@
 
     <!-- Theme applied once Flutter takes over rendering. -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowBackground">@color/baari_cream</item>
     </style>
 </resources>

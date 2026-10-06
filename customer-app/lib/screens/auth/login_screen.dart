@@ -7,6 +7,7 @@ import '../../state/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/brand/baari_logo.dart';
 import '../../widgets/primary_button.dart';
 import '../root/root_shell.dart';
 import 'register_screen.dart';
@@ -67,12 +68,14 @@ class _LoginScreenState extends State<LoginScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
             children: [
-              Text(
-                AppStrings.appName,
-                style: AppTextStyles.headline.copyWith(color: AppColors.primaryDark),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: BaariLogo(markSize: 56),
               ),
+              const SizedBox(height: 32),
+              Text('Welcome back', style: AppTextStyles.headline),
               const SizedBox(height: 8),
-              Text('Log in to continue', style: AppTextStyles.muted),
+              Text('Log in to your BAARI wallet', style: AppTextStyles.muted),
               const SizedBox(height: 36),
               AppTextField(
                 label: AppStrings.phoneNumber,

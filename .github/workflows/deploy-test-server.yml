@@ -7,6 +7,11 @@ name: Deploy to Test Server
 # Postgres role/database (badal_exchange_app / badal_exchange), its own
 # ports (4010 backend, 4011 dashboard -- clear of the 4000-4003 already in
 # use), and does not modify Caddy or any other service's config.
+#
+# Database: if the SUPABASE_DATABASE_URL repository secret is set, the
+# backend uses that Supabase Postgres database (written into backend/.env
+# on every deploy) and the local Postgres role/database are left alone.
+# Otherwise it uses the local badal_exchange database as before.
 on:
   workflow_dispatch: {}
 
@@ -17,12 +22,16 @@ jobs:
       - name: Deploy over SSH
         env:
           SSH_KEY_B64: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
           set -e
           mkdir -p ~/.ssh
           echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@203.161.38.33 'bash -s' <<'REMOTE_SCRIPT'
+          # The DB URL goes over stdin, ahead of the script, so its password
+          # never shows up in the shared server's process list.
+          { printf 'SUPABASE_DATABASE_URL=%q\n' "$SUPABASE_DATABASE_URL"; cat; } <<'REMOTE_SCRIPT' | \
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@203.161.38.33 'bash -s'
           set -e
           echo "== Disk space safety check =="
           AVAIL_KB=$(df --output=avail / | tail -1 | tr -d ' ')
@@ -40,17 +49,23 @@ jobs:
             cd /srv/badal-exchange
           fi
 
+          if [ -n "$SUPABASE_DATABASE_URL" ]; then
+            echo "== Database: Supabase (skipping local Postgres setup) =="
+          else
           echo "== Postgres role + database (isolated from existing DBs) =="
           sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='badal_exchange_app'" | grep -q 1 || \
             sudo -u postgres psql -c "CREATE ROLE badal_exchange_app LOGIN PASSWORD '$(openssl rand -hex 24)';"
           sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='badal_exchange'" | grep -q 1 || \
             sudo -u postgres psql -c "CREATE DATABASE badal_exchange OWNER badal_exchange_app;"
+          fi
 
           echo "== Backend env (generated once, kept across redeploys) =="
           cd /srv/badal-exchange/backend
           if [ ! -f .env ]; then
             NEW_DB_PASS=$(openssl rand -hex 24)
-            sudo -u postgres psql -c "ALTER ROLE badal_exchange_app WITH PASSWORD '${NEW_DB_PASS}';"
+            if [ -z "$SUPABASE_DATABASE_URL" ]; then
+              sudo -u postgres psql -c "ALTER ROLE badal_exchange_app WITH PASSWORD '${NEW_DB_PASS}';"
+            fi
             cat > .env <<EOF
           PORT=4010
           NODE_ENV=production
@@ -65,6 +80,18 @@ jobs:
             echo "Generated new backend/.env"
           else
             echo "backend/.env already exists, leaving it as-is"
+          fi
+
+          if [ -n "$SUPABASE_DATABASE_URL" ]; then
+            # Keep the rest of .env (JWT secrets etc.) and only swap the DB
+            # settings. Supabase's smallest plans cap pooler connections at
+            # ~15 per project, so stay well under that.
+            grep -v -e '^DATABASE_URL=' -e '^DATABASE_POOL_MAX=' .env > .env.tmp || true
+            printf 'DATABASE_URL=%s\n' "$SUPABASE_DATABASE_URL" >> .env.tmp
+            printf 'DATABASE_POOL_MAX=10\n' >> .env.tmp
+            mv .env.tmp .env
+            chmod 600 .env
+            echo "backend/.env DATABASE_URL now points at Supabase"
           fi
 
           echo "== Install, build, migrate, seed =="

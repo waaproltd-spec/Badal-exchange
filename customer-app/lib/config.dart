@@ -2,7 +2,7 @@
 class AppConfig {
   AppConfig._();
 
-  /// Base URL of the Badal Exchange backend.
+  /// Base URL of the BAARI backend.
   ///
   /// Override at build/run time with:
   ///   flutter run --dart-define=API_BASE_URL=http://YOUR_HOST:4000

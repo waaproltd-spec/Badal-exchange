@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.currency_exchange_rounded, color: Colors.black, size: 36),
+                    child: const Icon(Icons.currency_exchange_rounded, color: AppColors.onPrimary, size: 36),
                   ),
                   const SizedBox(height: 20),
                   const Text(
@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? const SizedBox(
                             height: 22,
                             width: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.onPrimary),
                           )
                         : const Text('Log in'),
                   ),

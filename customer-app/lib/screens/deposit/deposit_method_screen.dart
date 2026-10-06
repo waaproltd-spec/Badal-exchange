@@ -13,7 +13,7 @@ class DepositMethodScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(title: Text(AppStrings.deposit, style: AppTextStyles.title)),
+      appBar: AppBar(title: Text(AppStrings.deposit, style: AppTextStyles.appBarTitle)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -84,7 +84,7 @@ class _MethodTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTextStyles.title),
+                  Text(title, style: AppTextStyles.appBarTitle),
                   const SizedBox(height: 4),
                   Text(subtitle, style: AppTextStyles.muted),
                 ],

@@ -162,7 +162,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> {
             ? const SizedBox(
                 height: 18,
                 width: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.purpleDark),
               )
             : const Icon(Icons.add_rounded),
         label: const Text('Enter WinWin confirmation'),

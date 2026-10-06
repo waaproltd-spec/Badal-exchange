@@ -57,7 +57,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(title: Text(AppStrings.orderDetails, style: AppTextStyles.title)),
+      appBar: AppBar(title: Text(AppStrings.orderDetails, style: AppTextStyles.appBarTitle)),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
