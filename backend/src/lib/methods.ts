@@ -34,6 +34,35 @@ export const METHOD_LABELS: Record<Method, string> = {
   '888starz': '888STARZ',
 };
 
+/** Brand color and short mark the apps draw for each method. */
+export const METHOD_STYLE: Record<Method, { color: string; initials: string }> = {
+  evc_plus: { color: '#16A34A', initials: 'EVC' },
+  golis: { color: '#0EA5E9', initials: 'GO' },
+  telesom: { color: '#2563EB', initials: 'TE' },
+  edahab: { color: '#D97706', initials: 'eD' },
+  winwin: { color: '#059669', initials: 'WW' },
+  onexbet: { color: '#1D4ED8', initials: '1X' },
+  melbet: { color: '#CA8A04', initials: 'MB' },
+  betwinner: { color: '#15803D', initials: 'BW' },
+  dbbet: { color: '#DC2626', initials: 'DB' },
+  '888starz': { color: '#7C3AED', initials: '888' },
+};
+
+/**
+ * The single source of truth both apps load at startup (GET
+ * /meta/payment-methods): id, label, kind, display order and styling.
+ */
+export function methodCatalog() {
+  return METHODS.map((m, order) => ({
+    method: m,
+    label: METHOD_LABELS[m],
+    kind: isPlatform(m) ? ('platform' as const) : ('mobile_money' as const),
+    color: METHOD_STYLE[m].color,
+    initials: METHOD_STYLE[m].initials,
+    order,
+  }));
+}
+
 export function isMethod(value: unknown): value is Method {
   return typeof value === 'string' && (METHODS as readonly string[]).includes(value);
 }

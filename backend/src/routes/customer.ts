@@ -198,6 +198,8 @@ customerRouter.get(
           method: m.method,
           label: m.label,
           kind: m.kind,
+          color: m.color,
+          initials: m.initials,
           depositNumbers: numbers.filter((n) => n.method === m.method).map((n) => ({ number: n.number, label: n.label })),
         }))
     );

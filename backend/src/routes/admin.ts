@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/pool';
 import { asyncHandler } from '../lib/asyncHandler';
-import { requireAuth, requireRole } from '../auth/middleware';
+import { MANAGE_SETTINGS, requireAuth, requireManagement } from '../auth/middleware';
 import { fromCents } from '../lib/money';
 import { hashPassword } from '../lib/crypto';
 import { writeAudit } from '../lib/audit';
@@ -25,7 +25,7 @@ import { requireIdempotencyKey } from '../lib/idempotency';
 import { toCents } from '../lib/money';
 
 export const adminRouter = Router();
-adminRouter.use(requireAuth, requireRole('admin'));
+adminRouter.use(requireAuth, requireManagement);
 
 function serializeOrder(o: any) {
   return {
@@ -190,12 +190,15 @@ adminRouter.post(
       agent.id,
       body.responsibilities ?? [],
     ]);
-    await writeAudit({ actorId: req.user!.id, actorRole: 'admin', action: 'agent.create', entityType: 'user', entityId: agent.id, after: agent });
+    await writeAudit({ actorId: req.user!.id, actorRole: req.user!.role, action: 'agent.create', entityType: 'user', entityId: agent.id, after: agent });
     res.status(201).json(agent);
   })
 );
 
 async function setAgentStatus(req: any, res: any, status: 'active' | 'disabled') {
+  if (status === 'disabled' && req.params.id === req.user!.id) {
+    throw ApiError.badRequest('You cannot disable your own account', 'SELF_LOCKOUT');
+  }
   const before = await pool.query(`SELECT id, status FROM users WHERE id = $1 AND role='agent'`, [req.params.id]);
   if (!before.rows[0]) throw ApiError.notFound('Agent not found');
   const { rows } = await pool.query(`UPDATE users SET status = $1, updated_at = now() WHERE id = $2 RETURNING id, status`, [
@@ -204,7 +207,7 @@ async function setAgentStatus(req: any, res: any, status: 'active' | 'disabled')
   ]);
   await writeAudit({
     actorId: req.user!.id,
-    actorRole: 'admin',
+    actorRole: req.user!.role,
     action: `agent.${status === 'active' ? 'enable' : 'disable'}`,
     entityType: 'user',
     entityId: req.params.id,
@@ -216,6 +219,36 @@ async function setAgentStatus(req: any, res: any, status: 'active' | 'disabled')
 
 adminRouter.post('/agents/:id/enable', asyncHandler((req, res) => setAgentStatus(req, res, 'active')));
 adminRouter.post('/agents/:id/disable', asyncHandler((req, res) => setAgentStatus(req, res, 'disabled')));
+
+const responsibilitiesSchema = z.object({ responsibilities: z.array(z.string().min(1).max(50)).max(20) });
+
+adminRouter.put(
+  '/agents/:id/responsibilities',
+  asyncHandler(async (req, res) => {
+    const body = responsibilitiesSchema.parse(req.body);
+    const responsibilities = [...new Set(body.responsibilities.map((r) => r.trim()).filter(Boolean))];
+    // Don't let a manager lock themselves out of management by accident.
+    if (req.params.id === req.user!.id && !responsibilities.includes(MANAGE_SETTINGS)) {
+      throw ApiError.badRequest('You cannot remove manage_settings from your own account', 'SELF_LOCKOUT');
+    }
+    const before = await pool.query('SELECT user_id, responsibilities FROM agent_profiles WHERE user_id = $1', [req.params.id]);
+    if (!before.rows[0]) throw ApiError.notFound('Agent not found');
+    const { rows } = await pool.query(
+      'UPDATE agent_profiles SET responsibilities = $1 WHERE user_id = $2 RETURNING user_id, responsibilities',
+      [responsibilities, req.params.id]
+    );
+    await writeAudit({
+      actorId: req.user!.id,
+      actorRole: req.user!.role,
+      action: 'agent.update_responsibilities',
+      entityType: 'user',
+      entityId: req.params.id,
+      before: before.rows[0],
+      after: rows[0],
+    });
+    res.json(rows[0]);
+  })
+);
 
 adminRouter.get(
   '/agents/:id/transactions',
@@ -375,7 +408,7 @@ adminRouter.put(
       `INSERT INTO exchange_rates (method, direction, rate, created_by) VALUES ($1, $2, $3, $4) RETURNING *`,
       [body.method, body.direction, body.rate, req.user!.id]
     );
-    await writeAudit({ actorId: req.user!.id, actorRole: 'admin', action: 'exchange_rate.update', entityType: 'exchange_rate', entityId: rows[0].id, after: rows[0] });
+    await writeAudit({ actorId: req.user!.id, actorRole: req.user!.role, action: 'exchange_rate.update', entityType: 'exchange_rate', entityId: rows[0].id, after: rows[0] });
     res.status(201).json(rows[0]);
   })
 );
@@ -412,12 +445,20 @@ adminRouter.put(
       `INSERT INTO fees (method, direction, fee_type, value, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [body.method, body.direction, body.feeType, body.value, req.user!.id]
     );
-    await writeAudit({ actorId: req.user!.id, actorRole: 'admin', action: 'fee.update', entityType: 'fee', entityId: rows[0].id, after: rows[0] });
+    await writeAudit({ actorId: req.user!.id, actorRole: req.user!.role, action: 'fee.update', entityType: 'fee', entityId: rows[0].id, after: rows[0] });
     res.status(201).json(rows[0]);
   })
 );
 
 const limitsSchema = z.object({ method: z.enum(METHODS), minAmount: z.number().min(0), maxAmount: z.number().min(0) });
+
+adminRouter.get(
+  '/withdrawal-limits',
+  asyncHandler(async (_req, res) => {
+    const { rows } = await pool.query('SELECT * FROM withdrawal_limits ORDER BY method');
+    res.json(rows);
+  })
+);
 
 adminRouter.put(
   '/withdrawal-limits',
@@ -431,7 +472,7 @@ adminRouter.put(
        RETURNING *`,
       [body.method, minCents, maxCents]
     );
-    await writeAudit({ actorId: req.user!.id, actorRole: 'admin', action: 'withdrawal_limits.update', entityType: 'withdrawal_limits', entityId: body.method, after: rows[0] });
+    await writeAudit({ actorId: req.user!.id, actorRole: req.user!.role, action: 'withdrawal_limits.update', entityType: 'withdrawal_limits', entityId: body.method, after: rows[0] });
     res.json(rows[0]);
   })
 );
@@ -505,7 +546,7 @@ adminRouter.put(
       body.password,
       body.config ?? {},
       req.user!.id,
-      'admin'
+      req.user!.role
     );
     res.json(result);
   })
@@ -518,7 +559,7 @@ adminRouter.put(
   asyncHandler(async (req, res) => {
     const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
     const body = statusSchema.parse(req.body);
-    const result = await setIntegrationStatus(provider, body.status, req.user!.id, 'admin');
+    const result = await setIntegrationStatus(provider, body.status, req.user!.id, req.user!.role);
     res.json(result);
   })
 );
@@ -527,7 +568,7 @@ adminRouter.post(
   '/payment-integrations/:provider/test-connection',
   asyncHandler(async (req, res) => {
     const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
-    const result = await testIntegrationConnection(provider, req.user!.id, 'admin');
+    const result = await testIntegrationConnection(provider, req.user!.id, req.user!.role);
     res.json(result);
   })
 );
@@ -552,7 +593,7 @@ adminRouter.post(
     const result = await checkMobCashLogin(body.username, body.password);
     await writeAudit({
       actorId: req.user!.id,
-      actorRole: 'admin',
+      actorRole: req.user!.role,
       action: 'payment_integration.mobcash_login_check',
       entityType: 'payment_integration',
       entityId: 'mobcash_winwin',
@@ -615,7 +656,7 @@ adminRouter.put(
   asyncHandler(async (req, res) => {
     const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
     const body = automationSchema.parse(req.body);
-    const result = await setAutomationMode(provider, body.mode, body.dryRun, req.user!.id, 'admin');
+    const result = await setAutomationMode(provider, body.mode, body.dryRun, req.user!.id, req.user!.role);
     res.json(result);
   })
 );
@@ -624,7 +665,7 @@ adminRouter.post(
   '/payment-integrations/:provider/reset-circuit-breaker',
   asyncHandler(async (req, res) => {
     const provider = providerParam.parse(req.params.provider) as IntegrationProvider;
-    const result = await resetCircuitBreaker(provider, req.user!.id, 'admin');
+    const result = await resetCircuitBreaker(provider, req.user!.id, req.user!.role);
     res.json(result);
   })
 );

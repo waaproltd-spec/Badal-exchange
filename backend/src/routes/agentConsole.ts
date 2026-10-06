@@ -1,7 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/pool';
 import { asyncHandler } from '../lib/asyncHandler';
+import { MANAGE_SETTINGS, requireManagement } from '../auth/middleware';
 import { ApiError } from '../lib/errors';
 import { fromCents } from '../lib/money';
 import { hashPassword, verifyPassword } from '../lib/crypto';
@@ -71,6 +72,7 @@ export function registerAgentConsoleRoutes(router: Router) {
   const customersQuery = z.object({
     q: z.string().max(100).optional(),
     status: z.enum(['all', 'active', 'blocked']).default('all'),
+    sort: z.enum(['newest', 'oldest', 'balance', 'name']).default('newest'),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).default(0),
   });
@@ -90,11 +92,27 @@ export function registerAgentConsoleRoutes(router: Router) {
         where.push(`u.status = $${params.length}`);
       }
       params.push(query.limit, query.offset);
+      const orderBy = {
+        newest: 'u.created_at DESC',
+        oldest: 'u.created_at ASC',
+        balance: 'available_cents DESC, u.created_at DESC',
+        name: 'u.name ASC NULLS LAST',
+      }[query.sort];
       const { rows } = await pool.query(
-        `SELECT u.id, u.name, u.phone, u.status, u.created_at, COALESCE(w.available_cents, 0) AS available_cents
-         FROM users u LEFT JOIN wallets w ON w.customer_id = u.id
+        `SELECT u.id, u.name, u.phone, u.status, u.created_at, COALESCE(w.available_cents, 0) AS available_cents,
+                COALESCE(o.orders, 0) AS orders, COALESCE(o.deposits, 0) AS deposits,
+                COALESCE(o.withdrawals, 0) AS withdrawals, COALESCE(l.entries, 0) AS transactions
+         FROM users u
+         LEFT JOIN wallets w ON w.customer_id = u.id
+         LEFT JOIN LATERAL (
+           SELECT count(*)::int AS orders,
+                  count(*) FILTER (WHERE direction = 'deposit')::int AS deposits,
+                  count(*) FILTER (WHERE direction = 'withdraw')::int AS withdrawals
+           FROM orders WHERE customer_id = u.id
+         ) o ON true
+         LEFT JOIN LATERAL (SELECT count(*)::int AS entries FROM ledger_entries WHERE wallet_id = w.id) l ON true
          WHERE ${where.join(' AND ')}
-         ORDER BY u.created_at DESC
+         ORDER BY ${orderBy}
          LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params
       );
@@ -106,6 +124,10 @@ export function registerAgentConsoleRoutes(router: Router) {
           status: customerStatus(r.status),
           walletBalance: fromCents(r.available_cents),
           registeredAt: r.created_at,
+          orders: r.orders,
+          deposits: r.deposits,
+          withdrawals: r.withdrawals,
+          transactions: r.transactions,
         }))
       );
     })
@@ -173,6 +195,29 @@ export function registerAgentConsoleRoutes(router: Router) {
           createdAt: l.created_at,
         })),
       });
+    })
+  );
+
+  router.get(
+    '/customers/:id/ledger',
+    asyncHandler(async (req, res) => {
+      const id = z.string().uuid().parse(req.params.id);
+      const { rows } = await pool.query(
+        `SELECT le.id, le.entry_type, le.amount_cents, le.balance_after_cents, le.reason, le.created_at
+         FROM ledger_entries le JOIN wallets w ON w.id = le.wallet_id
+         WHERE w.customer_id = $1 ORDER BY le.created_at DESC LIMIT 300`,
+        [id]
+      );
+      res.json(
+        rows.map((l) => ({
+          id: l.id,
+          type: l.entry_type,
+          amount: fromCents(l.amount_cents),
+          balanceAfter: fromCents(l.balance_after_cents),
+          description: l.reason,
+          createdAt: l.created_at,
+        }))
+      );
     })
   );
 
@@ -417,11 +462,48 @@ export function registerAgentConsoleRoutes(router: Router) {
   // -------------------------------------------------------------------------
   // Account: admin features (require 'manage_settings')
   // -------------------------------------------------------------------------
+  // Every method with its ON/OFF switch and the rate, fee and withdrawal
+  // limits currently in force. Changes go through the /admin/exchange-rates,
+  // /admin/fees and /admin/withdrawal-limits endpoints (same gate).
   router.get(
     '/manage/payment-methods',
     requireManageSettings,
     asyncHandler(async (_req, res) => {
-      res.json(await listPaymentMethods());
+      const [methods, rates, fees, limits] = await Promise.all([
+        listPaymentMethods(),
+        pool.query(
+          `SELECT DISTINCT ON (method, direction) method, direction, rate
+           FROM exchange_rates WHERE active = true ORDER BY method, direction, created_at DESC`
+        ),
+        pool.query(
+          `SELECT DISTINCT ON (method, direction) method, direction, fee_type, value
+           FROM fees WHERE active = true ORDER BY method, direction, created_at DESC`
+        ),
+        pool.query('SELECT method, min_cents, max_cents FROM withdrawal_limits'),
+      ]);
+      const rate = (m: string, d: string) => {
+        const r = rates.rows.find((x) => x.method === m && x.direction === d);
+        return r ? Number(r.rate) : null;
+      };
+      const fee = (m: string, d: string) => {
+        const f = fees.rows.find((x) => x.method === m && x.direction === d);
+        return f ? { type: f.fee_type as 'flat' | 'percent', value: Number(f.value) } : null;
+      };
+      res.json(
+        methods.map((m) => {
+          const limit = limits.rows.find((x) => x.method === m.method);
+          return {
+            ...m,
+            depositRate: rate(m.method, 'deposit'),
+            withdrawRate: rate(m.method, 'withdraw'),
+            // flat fees are stored in cents; percent fees as 0-100.
+            depositFee: fee(m.method, 'deposit'),
+            withdrawFee: fee(m.method, 'withdraw'),
+            minWithdraw: limit ? fromCents(limit.min_cents) : null,
+            maxWithdraw: limit ? fromCents(limit.max_cents) : null,
+          };
+        })
+      );
     })
   );
 
@@ -616,16 +698,8 @@ export function registerAgentConsoleRoutes(router: Router) {
   );
 }
 
-export const MANAGE_SETTINGS = 'manage_settings';
-
-const requireManageSettings = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
-  const { rows } = await pool.query('SELECT responsibilities FROM agent_profiles WHERE user_id = $1', [req.user!.id]);
-  const responsibilities: string[] = rows[0]?.responsibilities ?? [];
-  if (!responsibilities.includes(MANAGE_SETTINGS)) {
-    throw ApiError.forbidden('Your account is not allowed to manage settings. Ask an admin for access.');
-  }
-  next();
-});
+// Same gate as the /admin management routes.
+const requireManageSettings = requireManagement;
 
 function audit(req: Request, action: string, entityType: string, entityId: string, after?: unknown, before?: unknown) {
   return writeAudit({ actorId: req.user!.id, actorRole: 'agent', action, entityType, entityId, after, before });

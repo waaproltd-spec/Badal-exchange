@@ -1,7 +1,7 @@
 import { PoolClient } from 'pg';
 import { pool } from '../db/pool';
 import { ApiError } from '../lib/errors';
-import { METHOD_LABELS, Method, METHODS, isPlatform } from '../lib/methods';
+import { METHOD_LABELS, Method, methodCatalog } from '../lib/methods';
 
 type Db = PoolClient | typeof pool;
 
@@ -10,12 +10,10 @@ export async function listPaymentMethods(db: Db = pool) {
   const byMethod = new Map(rows.map((r) => [r.method, r]));
   // Driven by METHODS so the order is stable and a method missing a row
   // (shouldn't happen after migration 006) still shows, enabled.
-  return METHODS.map((m) => ({
-    method: m,
-    label: METHOD_LABELS[m],
-    kind: isPlatform(m) ? 'platform' : 'mobile_money',
-    enabled: byMethod.get(m)?.enabled ?? true,
-    updatedAt: byMethod.get(m)?.updated_at ?? null,
+  return methodCatalog().map((m) => ({
+    ...m,
+    enabled: byMethod.get(m.method)?.enabled ?? true,
+    updatedAt: byMethod.get(m.method)?.updated_at ?? null,
   }));
 }
 
