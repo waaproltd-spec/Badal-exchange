@@ -2,8 +2,9 @@ import { PoolClient } from 'pg';
 import { pool } from '../db/pool';
 import { ApiError } from '../lib/errors';
 import { applyFee } from '../lib/money';
+import { Method } from '../lib/methods';
 
-export type Method = 'evc_plus' | 'winwin';
+export type { Method } from '../lib/methods';
 export type Direction = 'deposit' | 'withdraw';
 
 export interface ActiveRate {

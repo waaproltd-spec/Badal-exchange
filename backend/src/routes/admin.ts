@@ -18,6 +18,7 @@ import {
   IntegrationProvider,
 } from '../services/paymentIntegrationService';
 import { submitWinwinTransaction } from '../services/matchingService';
+import { METHODS, PLATFORM_METHODS } from '../lib/methods';
 import { checkMobCashLogin } from '../services/mobcashAutomation';
 import { moneyLimiter } from '../auth/rateLimit';
 import { requireIdempotencyKey } from '../lib/idempotency';
@@ -36,6 +37,7 @@ function serializeOrder(o: any) {
     customerId: o.customer_id,
     agentId: o.agent_id,
     phoneNumber: o.phone_number,
+    accountId: o.winwin_id,
     winwinId: o.winwin_id,
     amount: fromCents(o.amount_cents),
     fee: fromCents(o.fee_cents),
@@ -343,7 +345,7 @@ adminRouter.get(
 // Exchange rates
 // ---------------------------------------------------------------------------
 const rateSchema = z.object({
-  method: z.enum(['evc_plus', 'winwin']),
+  method: z.enum(METHODS),
   direction: z.enum(['deposit', 'withdraw']),
   rate: z.number().positive(),
 });
@@ -382,7 +384,7 @@ adminRouter.put(
 // Fees
 // ---------------------------------------------------------------------------
 const feeSchema = z.object({
-  method: z.enum(['evc_plus', 'winwin']),
+  method: z.enum(METHODS),
   direction: z.enum(['deposit', 'withdraw']),
   feeType: z.enum(['flat', 'percent']),
   value: z.number().min(0),
@@ -415,7 +417,7 @@ adminRouter.put(
   })
 );
 
-const limitsSchema = z.object({ method: z.enum(['evc_plus', 'winwin']), minAmount: z.number().min(0), maxAmount: z.number().min(0) });
+const limitsSchema = z.object({ method: z.enum(METHODS), minAmount: z.number().min(0), maxAmount: z.number().min(0) });
 
 adminRouter.put(
   '/withdrawal-limits',
@@ -569,6 +571,7 @@ adminRouter.post(
 // crediting the wallet. Never auto-generated, never trusted from the app.
 // ---------------------------------------------------------------------------
 const winwinSchema = z.object({
+  method: z.enum(PLATFORM_METHODS).optional(),
   winwinId: z.string().min(3).max(30),
   depositCode: z.string().min(3).max(10).optional(),
   amount: z.string().or(z.number()),
@@ -584,6 +587,7 @@ adminRouter.post(
     const body = winwinSchema.parse(req.body);
     const result = await submitWinwinTransaction({
       submittedBy: req.user!.id,
+      method: body.method,
       winwinId: body.winwinId,
       depositCode: body.depositCode,
       amountCents: toCents(body.amount),
