@@ -6,6 +6,7 @@ import '../api/api_exception.dart';
 import '../models/console.dart';
 import '../models/payment_methods.dart';
 import '../state/history_filter.dart';
+import '../state/live_updates.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
@@ -24,7 +25,7 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
   static const _pageSize = 50;
   static final _pretty = DateFormat('MMM d');
 
@@ -45,6 +46,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } else {
       _load();
     }
+    listenForLiveChanges(context.read<Session>().live.changes, () {
+      if (!_loadingMore) _load();
+    });
   }
 
   @override

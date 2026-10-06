@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../api/api_exception.dart';
@@ -5,7 +7,15 @@ import '../api/customer_api.dart';
 import '../models/order.dart';
 
 class OrdersProvider extends ChangeNotifier {
-  OrdersProvider({required this.customerApi});
+  OrdersProvider({required this.customerApi}) {
+    // Realtime: reload in place when the backend reports a change.
+    _liveSub = customerApi.liveChanges.listen((table) {
+      if (_loaded && (table == 'orders' || table == 'wallets')) load(silent: true);
+    });
+  }
+
+  StreamSubscription<String>? _liveSub;
+  bool _loaded = false;
 
   final CustomerApi customerApi;
 
@@ -18,19 +28,30 @@ class OrdersProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  Future<void> load() async {
-    _loading = true;
-    _error = null;
-    notifyListeners();
+  Future<void> load({bool silent = false}) async {
+    _loaded = true;
+    if (!silent) {
+      _loading = true;
+      _error = null;
+      notifyListeners();
+    }
     try {
       _orders = await customerApi.getOrders();
+      _error = null;
     } on ApiException catch (e) {
-      _error = e.message;
+      if (!silent) _error = e.message;
     } catch (_) {
+      if (silent) return;
       _error = 'Could not load your orders. Check your connection and try again.';
     } finally {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _liveSub?.cancel();
+    super.dispose();
   }
 }

@@ -7,28 +7,20 @@ import '../models/management.dart';
 import '../models/payment_methods.dart';
 import '../models/order.dart';
 import 'api_client.dart';
+import 'api_exception.dart';
 import 'token_storage.dart';
 
-/// Result of a login call: the raw fields the backend returns from
-/// POST /auth/agent/login, kept together so main.dart/login screen can
-/// decide what to persist.
+/// Result of a login: who signed in. Supabase Auth keeps the session itself.
 class LoginResult {
   final String userId;
   final String name;
-  final String accessToken;
-  final String refreshToken;
 
-  const LoginResult({
-    required this.userId,
-    required this.name,
-    required this.accessToken,
-    required this.refreshToken,
-  });
+  const LoginResult({required this.userId, required this.name});
 }
 
-/// Typed wrapper around every `/agent` (and the agent-relevant `/auth`)
-/// endpoint the app needs. Keeps request/response shaping in one place so
-/// screens only ever deal with typed models.
+/// Typed wrapper around every backend call the Agent App makes. Each one is
+/// a Supabase RPC (a Postgres function in supabase/migrations) returning the
+/// same JSON the old REST endpoint did, so screens only deal with models.
 class AgentApi {
   AgentApi({ApiClient? client, TokenStorage? tokenStorage})
       : _client = client ?? ApiClient(),
@@ -40,51 +32,45 @@ class AgentApi {
 
   ApiClient get client => _client;
 
+  Future<List<dynamic>> _list(String fn, [Map<String, dynamic>? params]) async =>
+      (await _client.rpc(fn, params) as List<dynamic>?) ?? const [];
+
+  Future<Map<String, dynamic>> _map(String fn, [Map<String, dynamic>? params]) async =>
+      await _client.rpc(fn, params) as Map<String, dynamic>;
+
+  /// Signs in with Supabase Auth, then checks this is an active agent
+  /// account (other roles get the same "Invalid credentials" as before).
   Future<LoginResult> login({required String phone, required String password}) async {
-    final data = await _client.postPublic('/auth/agent/login', {
-      'phone': phone,
-      'password': password,
-    });
-    final user = data['user'] as Map<String, dynamic>;
-    return LoginResult(
-      userId: user['id'] as String,
-      name: user['name'] as String? ?? '',
-      accessToken: data['accessToken'] as String,
-      refreshToken: data['refreshToken'] as String,
-    );
+    await _client.signIn(identifier: phone, password: password);
+    try {
+      final me = await _map('session_profile', {'p_record_login': true});
+      if (me['role'] != 'agent') {
+        throw const ApiException(statusCode: 401, code: 'UNAUTHORIZED', message: 'Invalid credentials');
+      }
+      return LoginResult(userId: me['id'] as String, name: me['name'] as String? ?? '');
+    } catch (_) {
+      await _client.signOut();
+      rethrow;
+    }
   }
 
   Future<void> registerDevice({required String deviceId, String? deviceLabel}) async {
-    await _client.post('/agent/devices/register', body: {
-      'deviceId': deviceId,
-      if (deviceLabel != null) 'deviceLabel': deviceLabel,
-    });
+    await _client.rpc('agent_register_device', {'p_device_id': deviceId, 'p_device_label': deviceLabel});
   }
 
-  Future<List<Order>> getPendingDeposits() async {
-    final data = await _client.get('/agent/deposits/pending') as List<dynamic>;
-    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<Order>> getPendingDeposits() async =>
+      (await _list('agent_pending_deposits')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
 
-  Future<List<Order>> getPendingWithdrawals() async {
-    final data = await _client.get('/agent/withdrawals/pending') as List<dynamic>;
-    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<Order>> getPendingWithdrawals() async =>
+      (await _list('agent_pending_withdrawals')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
 
-  Future<List<Order>> getCompletedOrders() async {
-    final data = await _client.get('/agent/orders/completed') as List<dynamic>;
-    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<Order>> getCompletedOrders() async =>
+      (await _list('agent_completed_orders')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
 
-  Future<List<Order>> getFailedOrders() async {
-    final data = await _client.get('/agent/orders/failed') as List<dynamic>;
-    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<Order>> getFailedOrders() async =>
+      (await _list('agent_failed_orders')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
 
-  Future<AgentProfile> getProfile() async {
-    final data = await _client.get('/agent/profile') as Map<String, dynamic>;
-    return AgentProfile.fromJson(data);
-  }
+  Future<AgentProfile> getProfile() async => AgentProfile.fromJson(await _map('agent_profile'));
 
   /// Submits the minimal fields extracted from an authorized EVC Plus
   /// payment SMS. Never pass the raw SMS body here — only the extracted
@@ -98,19 +84,16 @@ class AgentApi {
     required DateTime occurredAt,
     String? deviceId,
   }) async {
-    final data = await _client.post(
-      '/agent/sms-transactions',
-      idempotencyKey: _uuid.v4(),
-      body: {
-        'provider': provider,
-        if (sender != null) 'sender': sender,
-        if (receiver != null) 'receiver': receiver,
-        'amount': amount,
-        'transactionRef': transactionRef,
-        'occurredAt': occurredAt.toUtc().toIso8601String(),
-        if (deviceId != null) 'deviceId': deviceId,
-      },
-    ) as Map<String, dynamic>;
+    final data = await _map('agent_submit_sms_transaction', {
+      'p_provider': provider,
+      'p_sender': sender,
+      'p_receiver': receiver,
+      'p_amount': amount,
+      'p_transaction_ref': transactionRef,
+      'p_occurred_at': occurredAt.toUtc().toIso8601String(),
+      'p_device_id': deviceId,
+      'p_idempotency_key': _uuid.v4(),
+    });
     return MatchResult.fromJson(data);
   }
 
@@ -122,19 +105,15 @@ class AgentApi {
     required String amount,
     required String mobcashRef,
     required DateTime occurredAt,
-  }) async {
-    final data = await _client.post(
-      '/agent/winwin-transactions',
-      idempotencyKey: _uuid.v4(),
-      body: {
-        'winwinId': winwinId,
-        if (depositCode != null && depositCode.isNotEmpty) 'depositCode': depositCode,
-        'amount': amount,
-        'mobcashRef': mobcashRef,
-        'occurredAt': occurredAt.toUtc().toIso8601String(),
-      },
-    ) as Map<String, dynamic>;
-    return MatchResult.fromJson(data);
+  }) {
+    return submitPlatformTransaction(
+      method: 'winwin',
+      accountId: winwinId,
+      depositCode: depositCode,
+      amount: amount,
+      reference: mobcashRef,
+      occurredAt: occurredAt,
+    );
   }
 
   /// Mobile-money payment (EVC Plus, Golis, Telesom, eDahab) the agent saw
@@ -146,17 +125,14 @@ class AgentApi {
     required String transactionRef,
     required DateTime occurredAt,
   }) async {
-    final data = await _client.post(
-      '/agent/mobile-money-transactions',
-      idempotencyKey: _uuid.v4(),
-      body: {
-        'method': method,
-        'senderPhone': senderPhone,
-        'amount': amount,
-        'transactionRef': transactionRef,
-        'occurredAt': occurredAt.toUtc().toIso8601String(),
-      },
-    ) as Map<String, dynamic>;
+    final data = await _map('agent_submit_mobile_money_transaction', {
+      'p_method': method,
+      'p_sender_phone': senderPhone,
+      'p_amount': amount,
+      'p_transaction_ref': transactionRef,
+      'p_occurred_at': occurredAt.toUtc().toIso8601String(),
+      'p_idempotency_key': _uuid.v4(),
+    });
     return MatchResult.fromJson(data);
   }
 
@@ -170,18 +146,15 @@ class AgentApi {
     required String reference,
     required DateTime occurredAt,
   }) async {
-    final data = await _client.post(
-      '/agent/platform-transactions',
-      idempotencyKey: _uuid.v4(),
-      body: {
-        'method': method,
-        'accountId': accountId,
-        if (depositCode != null && depositCode.isNotEmpty) 'depositCode': depositCode,
-        'amount': amount,
-        'reference': reference,
-        'occurredAt': occurredAt.toUtc().toIso8601String(),
-      },
-    ) as Map<String, dynamic>;
+    final data = await _map('agent_submit_platform_transaction', {
+      'p_method': method,
+      'p_account_id': accountId,
+      'p_deposit_code': (depositCode != null && depositCode.isNotEmpty) ? depositCode : null,
+      'p_amount': amount,
+      'p_reference': reference,
+      'p_occurred_at': occurredAt.toUtc().toIso8601String(),
+      'p_idempotency_key': _uuid.v4(),
+    });
     return MatchResult.fromJson(data);
   }
 
@@ -189,10 +162,7 @@ class AgentApi {
   // Console: Dashboard, Users, Reports, History, Account
   // ---------------------------------------------------------------------
 
-  Future<DashboardSummary> getDashboard() async {
-    final data = await _client.get('/agent/dashboard') as Map<String, dynamic>;
-    return DashboardSummary.fromJson(data);
-  }
+  Future<DashboardSummary> getDashboard() async => DashboardSummary.fromJson(await _map('agent_dashboard'));
 
   Future<List<CustomerSummary>> getCustomers({
     String? query,
@@ -200,33 +170,25 @@ class AgentApi {
     String sort = 'newest',
     int offset = 0,
   }) async {
-    final data = await _client.get('/agent/customers', query: {
-      if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
-      'status': status,
-      'sort': sort,
-      'offset': '$offset',
-    }) as List<dynamic>;
+    final data = await _list('agent_customers', {
+      'p_q': (query != null && query.trim().isNotEmpty) ? query.trim() : null,
+      'p_status': status,
+      'p_sort': sort,
+      'p_offset': offset,
+    });
     return data.map((e) => CustomerSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<CustomerDetail> getCustomer(String id) async {
-    final data = await _client.get('/agent/customers/$id') as Map<String, dynamic>;
-    return CustomerDetail.fromJson(data);
-  }
+  Future<CustomerDetail> getCustomer(String id) async =>
+      CustomerDetail.fromJson(await _map('agent_customer', {'p_id': id}));
 
-  Future<List<LedgerEntry>> getCustomerLedger(String id) async {
-    final data = await _client.get('/agent/customers/$id/ledger') as List<dynamic>;
-    return data.map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<LedgerEntry>> getCustomerLedger(String id) async =>
+      (await _list('agent_customer_ledger', {'p_id': id}))
+          .map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
 
-  Future<ReportSummary> getReport({required String period, String? from, String? to}) async {
-    final data = await _client.get('/agent/reports', query: {
-      'period': period,
-      if (from != null) 'from': from,
-      if (to != null) 'to': to,
-    }) as Map<String, dynamic>;
-    return ReportSummary.fromJson(data);
-  }
+  Future<ReportSummary> getReport({required String period, String? from, String? to}) async =>
+      ReportSummary.fromJson(await _map('agent_reports', {'p_period': period, 'p_from': from, 'p_to': to}));
 
   Future<List<HistoryItem>> getHistory({
     String? query,
@@ -239,79 +201,72 @@ class AgentApi {
     int offset = 0,
     int limit = 50,
   }) async {
-    final data = await _client.get('/agent/history', query: {
-      if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
-      'type': type,
-      if (status != null) 'status': status,
-      if (method != null) 'method': method,
-      if (customerId != null) 'customerId': customerId,
-      if (from != null) 'from': from,
-      if (to != null) 'to': to,
-      'offset': '$offset',
-      'limit': '$limit',
-    }) as List<dynamic>;
+    final data = await _list('agent_history', {
+      'p_q': (query != null && query.trim().isNotEmpty) ? query.trim() : null,
+      'p_type': type,
+      'p_status': status,
+      'p_method': method,
+      'p_customer_id': customerId,
+      'p_from': from,
+      'p_to': to,
+      'p_offset': offset,
+      'p_limit': limit,
+    });
     return data.map((e) => HistoryItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<AgentAccount> getAccount() async {
-    final data = await _client.get('/agent/account') as Map<String, dynamic>;
-    return AgentAccount.fromJson(data);
-  }
+  Future<AgentAccount> getAccount() async => AgentAccount.fromJson(await _map('agent_account'));
 
   Future<void> changePassword({required String currentPassword, required String newPassword}) async {
-    await _client.post('/agent/account/password', body: {
-      'currentPassword': currentPassword,
-      'newPassword': newPassword,
+    await _client.rpc('change_password', {
+      'p_current_password': currentPassword,
+      'p_new_password': newPassword,
     });
   }
 
   // Admin features (require the 'manage_settings' responsibility).
 
-  /// Loads the shared payment-method catalog from the backend (public
-  /// endpoint). Keeps the bundled list if the backend can't be reached.
+  /// Loads the shared payment-method catalog (callable before login). Keeps
+  /// the bundled list if the backend can't be reached.
   Future<void> loadMethodCatalog() async {
     try {
-      final data = await _client.getPublic('/meta/payment-methods');
+      final data = await _client.rpc('payment_method_catalog');
       if (data is List<dynamic>) applyPaymentMethodCatalog(data);
     } catch (_) {}
   }
 
   /// Every method with ON/OFF, rates, fees and withdrawal limits.
-  Future<List<MethodSettings>> getMethodSettings() async {
-    final data = await _client.get('/agent/manage/payment-methods') as List<dynamic>;
-    return data.map((e) => MethodSettings.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<MethodSettings>> getMethodSettings() async =>
+      (await _list('manage_payment_methods')).map((e) => MethodSettings.fromJson(e as Map<String, dynamic>)).toList();
 
   Future<void> setMethodEnabled(String method, bool enabled) async {
-    await _client.put('/agent/manage/payment-methods/$method', body: {'enabled': enabled});
+    await _client.rpc('manage_set_payment_method', {'p_method': method, 'p_enabled': enabled});
   }
 
   /// New exchange rate for one method/direction (past orders keep theirs).
   Future<void> setRate(String method, String direction, double rate) async {
-    await _client.put('/admin/exchange-rates', body: {'method': method, 'direction': direction, 'rate': rate});
+    await _client.rpc('admin_set_exchange_rate', {'p_method': method, 'p_direction': direction, 'p_rate': rate});
   }
 
   /// [value] is dollars for a flat fee (sent as cents) or 0-100 for percent.
   Future<void> setFee(String method, String direction, {required String type, required double value}) async {
-    await _client.put('/admin/fees', body: {
-      'method': method,
-      'direction': direction,
-      'feeType': type,
-      'value': type == 'flat' ? (value * 100).round() : value,
+    await _client.rpc('admin_set_fee', {
+      'p_method': method,
+      'p_direction': direction,
+      'p_fee_type': type,
+      'p_value': type == 'flat' ? (value * 100).round() : value,
     });
   }
 
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
-    await _client.put('/admin/withdrawal-limits', body: {'method': method, 'minAmount': min, 'maxAmount': max});
+    await _client.rpc('admin_set_withdrawal_limits', {'p_method': method, 'p_min_amount': min, 'p_max_amount': max});
   }
 
   // Agents
 
-  Future<List<AgentListItem>> getAgents() async {
-    final data = await _client.get('/admin/agents') as List<dynamic>;
-    return data.map((e) => AgentListItem.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<AgentListItem>> getAgents() async =>
+      (await _list('admin_agents')).map((e) => AgentListItem.fromJson(e as Map<String, dynamic>)).toList();
 
   Future<void> createAgent({
     required String name,
@@ -319,106 +274,97 @@ class AgentApi {
     required String password,
     required List<String> responsibilities,
   }) async {
-    await _client.post('/admin/agents', body: {
-      'name': name,
-      'phone': phone,
-      'password': password,
-      'responsibilities': responsibilities,
+    await _client.rpc('admin_create_agent', {
+      'p_name': name,
+      'p_phone': phone,
+      'p_password': password,
+      'p_responsibilities': responsibilities,
     });
   }
 
   Future<void> setAgentEnabled(String id, bool enabled) async {
-    await _client.post('/admin/agents/$id/${enabled ? 'enable' : 'disable'}');
+    await _client.rpc('admin_set_agent_status', {'p_id': id, 'p_enabled': enabled});
   }
 
   Future<void> setAgentResponsibilities(String id, List<String> responsibilities) async {
-    await _client.put('/admin/agents/$id/responsibilities', body: {'responsibilities': responsibilities});
+    await _client.rpc('admin_set_agent_responsibilities', {'p_id': id, 'p_responsibilities': responsibilities});
   }
 
-  Future<List<AgentDevice>> getAgentDevices(String id) async {
-    final data = await _client.get('/admin/agents/$id/devices') as List<dynamic>;
-    return data.map((e) => AgentDevice.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<AgentDevice>> getAgentDevices(String id) async =>
+      (await _list('admin_agent_devices', {'p_id': id}))
+          .map((e) => AgentDevice.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   /// Orders this agent verified or processed.
-  Future<List<Order>> getAgentOrders(String id) async {
-    final data = await _client.get('/admin/agents/$id/transactions') as List<dynamic>;
-    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<Order>> getAgentOrders(String id) async =>
+      (await _list('admin_agent_transactions', {'p_id': id}))
+          .map((e) => Order.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   // Payment integrations (EVC Plus, MobCash/WinWin)
 
-  Future<List<PaymentIntegration>> getIntegrations() async {
-    final data = await _client.get('/admin/payment-integrations') as List<dynamic>;
-    return data.map((e) => PaymentIntegration.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<PaymentIntegration>> getIntegrations() async =>
+      (await _list('admin_payment_integrations'))
+          .map((e) => PaymentIntegration.fromJson(e as Map<String, dynamic>))
+          .toList();
 
-  Future<PaymentIntegration> getIntegration(String provider) async {
-    final data = await _client.get('/admin/payment-integrations/$provider') as Map<String, dynamic>;
-    return PaymentIntegration.fromJson(data);
-  }
+  Future<PaymentIntegration> getIntegration(String provider) async =>
+      PaymentIntegration.fromJson(await _map('admin_payment_integration', {'p_provider': provider}));
 
   Future<void> saveIntegrationCredentials(String provider, {required String username, required String password}) async {
-    await _client.put('/admin/payment-integrations/$provider/credentials', body: {
-      'username': username,
-      'password': password,
+    await _client.rpc('admin_set_integration_credentials', {
+      'p_provider': provider,
+      'p_username': username,
+      'p_password': password,
+      'p_config': <String, dynamic>{},
     });
   }
 
   Future<void> setIntegrationActive(String provider, bool active) async {
-    await _client.put('/admin/payment-integrations/$provider/status', body: {'status': active ? 'active' : 'inactive'});
+    await _client.rpc('admin_set_integration_status', {'p_provider': provider, 'p_status': active ? 'active' : 'inactive'});
   }
 
   Future<void> testIntegration(String provider) async {
-    await _client.post('/admin/payment-integrations/$provider/test-connection');
+    await _client.rpc('admin_test_integration_connection', {'p_provider': provider});
   }
 
   /// Real login attempt on MobCash with credentials that aren't saved yet.
+  /// Runs on the MobCash automation worker; the backend says so if it can't.
   Future<MobCashLoginCheck> checkMobCashLogin({required String username, required String password}) async {
-    final data = await _client.post('/admin/payment-integrations/mobcash_winwin/login-check', body: {
-      'username': username,
-      'password': password,
-    }) as Map<String, dynamic>;
+    final data = await _map('admin_mobcash_login_check', {'p_username': username, 'p_password': password});
     return MobCashLoginCheck.fromJson(data);
   }
 
   Future<void> setAutomationMode(String provider, {required String mode, required bool dryRun}) async {
-    await _client.put('/admin/payment-integrations/$provider/automation', body: {'mode': mode, 'dryRun': dryRun});
+    await _client.rpc('admin_set_integration_automation', {'p_provider': provider, 'p_mode': mode, 'p_dry_run': dryRun});
   }
 
   Future<void> resetCircuitBreaker(String provider) async {
-    await _client.post('/admin/payment-integrations/$provider/reset-circuit-breaker');
+    await _client.rpc('admin_reset_circuit_breaker', {'p_provider': provider});
   }
 
-  Future<List<AutomationRun>> getAutomationRuns(String provider) async {
-    final data = await _client.get('/admin/payment-integrations/$provider/automation-runs') as List<dynamic>;
-    return data.map((e) => AutomationRun.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<AutomationRun>> getAutomationRuns(String provider) async =>
+      (await _list('admin_automation_runs', {'p_provider': provider}))
+          .map((e) => AutomationRun.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   /// Base64 PNG of the portal at the end of an automation run, if kept.
   Future<String> getAutomationRunScreenshot(String provider, String runId) async {
-    final data = await _client.get('/admin/payment-integrations/$provider/automation-runs/$runId/screenshot')
-        as Map<String, dynamic>;
+    final data = await _map('admin_automation_run_screenshot', {'p_provider': provider, 'p_run_id': runId});
     return data['screenshotBase64'] as String;
   }
 
   /// Latest wallet ledger entries across all customers.
-  Future<List<WalletTransaction>> getAllWalletTransactions() async {
-    final data = await _client.get('/admin/transactions') as List<dynamic>;
-    return data.map((e) => WalletTransaction.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<WalletTransaction>> getAllWalletTransactions() async =>
+      (await _list('admin_transactions')).map((e) => WalletTransaction.fromJson(e as Map<String, dynamic>)).toList();
 
   // Audit
 
-  Future<List<AuditLog>> getAuditLogs() async {
-    final data = await _client.get('/admin/audit-logs') as List<dynamic>;
-    return data.map((e) => AuditLog.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<AuditLog>> getAuditLogs() async =>
+      (await _list('admin_audit_logs')).map((e) => AuditLog.fromJson(e as Map<String, dynamic>)).toList();
 
-  Future<List<HomeAd>> getHomeAds() async {
-    final data = await _client.get('/agent/manage/home-ads') as List<dynamic>;
-    return data.map((e) => HomeAd.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<HomeAd>> getHomeAds() async =>
+      (await _list('manage_home_ads')).map((e) => HomeAd.fromJson(e as Map<String, dynamic>)).toList();
 
   Future<void> saveHomeAd({
     String? id,
@@ -429,27 +375,23 @@ class AgentApi {
     required bool enabled,
     int sortOrder = 0,
   }) async {
-    final payload = {
-      'title': title,
-      'body': body,
-      'imageUrl': imageUrl,
-      'linkUrl': linkUrl,
-      'enabled': enabled,
-      'sortOrder': sortOrder,
-    };
-    if (id == null) {
-      await _client.post('/agent/manage/home-ads', body: payload);
-    } else {
-      await _client.put('/agent/manage/home-ads/$id', body: payload);
-    }
+    await _client.rpc('manage_save_home_ad', {
+      'p_id': id,
+      'p_title': title,
+      'p_body': body,
+      'p_image_url': imageUrl,
+      'p_link_url': linkUrl,
+      'p_enabled': enabled,
+      'p_sort_order': sortOrder,
+    });
   }
 
-  Future<void> deleteHomeAd(String id) => _client.delete('/agent/manage/home-ads/$id');
-
-  Future<List<DepositNumber>> getDepositNumbers() async {
-    final data = await _client.get('/agent/manage/deposit-numbers') as List<dynamic>;
-    return data.map((e) => DepositNumber.fromJson(e as Map<String, dynamic>)).toList();
+  Future<void> deleteHomeAd(String id) async {
+    await _client.rpc('manage_delete_home_ad', {'p_id': id});
   }
+
+  Future<List<DepositNumber>> getDepositNumbers() async =>
+      (await _list('manage_deposit_numbers')).map((e) => DepositNumber.fromJson(e as Map<String, dynamic>)).toList();
 
   Future<void> saveDepositNumber({
     String? id,
@@ -458,62 +400,55 @@ class AgentApi {
     String? label,
     required bool enabled,
   }) async {
-    final payload = {'method': method, 'number': number, 'label': label, 'enabled': enabled};
-    if (id == null) {
-      await _client.post('/agent/manage/deposit-numbers', body: payload);
-    } else {
-      await _client.put('/agent/manage/deposit-numbers/$id', body: payload);
-    }
+    await _client.rpc('manage_save_deposit_number', {
+      'p_id': id,
+      'p_method': method,
+      'p_number': number,
+      'p_label': label,
+      'p_enabled': enabled,
+    });
   }
 
-  Future<void> deleteDepositNumber(String id) => _client.delete('/agent/manage/deposit-numbers/$id');
-
-  Future<List<AppNotification>> getSentNotifications() async {
-    final data = await _client.get('/agent/manage/notifications') as List<dynamic>;
-    return data.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
+  Future<void> deleteDepositNumber(String id) async {
+    await _client.rpc('manage_delete_deposit_number', {'p_id': id});
   }
+
+  Future<List<AppNotification>> getSentNotifications() async =>
+      (await _list('manage_notifications')).map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
 
   Future<void> sendNotification({required String title, required String body}) async {
-    await _client.post('/agent/manage/notifications', body: {'title': title, 'body': body});
+    await _client.rpc('manage_send_notification', {'p_title': title, 'p_body': body});
   }
 
   Future<Contacts> saveContacts(Contacts contacts) async {
-    final data = await _client.put('/agent/manage/contacts', body: contacts.toJson());
+    final json = contacts.toJson();
+    final data = await _map('manage_set_contacts', {
+      'p_whatsapp': json['whatsapp'],
+      'p_facebook': json['facebook'],
+      'p_telegram': json['telegram'],
+    });
     return Contacts.fromJson(data);
   }
 
-  Future<Order> startWithdrawal(String orderId) async {
-    final data = await _client.post('/agent/withdrawals/$orderId/start') as Map<String, dynamic>;
-    return Order.fromJson(data);
-  }
+  Future<Order> startWithdrawal(String orderId) async =>
+      Order.fromJson(await _map('agent_withdrawal_start', {'p_order_id': orderId}));
 
   Future<Order> completeWithdrawal(String orderId, {required String transactionRef}) async {
-    final data = await _client.post(
-      '/agent/withdrawals/$orderId/complete',
-      idempotencyKey: _uuid.v4(),
-      body: {'transactionRef': transactionRef},
-    ) as Map<String, dynamic>;
+    final data = await _map('agent_withdrawal_complete', {
+      'p_order_id': orderId,
+      'p_transaction_ref': transactionRef,
+      'p_idempotency_key': _uuid.v4(),
+    });
     return Order.fromJson(data);
   }
 
-  Future<Order> failWithdrawal(String orderId, {required String reason}) async {
-    final data = await _client.post(
-      '/agent/withdrawals/$orderId/fail',
-      body: {'reason': reason},
-    ) as Map<String, dynamic>;
-    return Order.fromJson(data);
-  }
+  Future<Order> failWithdrawal(String orderId, {required String reason}) async =>
+      Order.fromJson(await _map('agent_withdrawal_fail', {'p_order_id': orderId, 'p_reason': reason}));
 
   Future<void> logout() async {
-    final refreshToken = await _tokens.refreshToken;
-    try {
-      if (refreshToken != null) {
-        await _client.postPublic('/auth/logout', {'refreshToken': refreshToken});
-      }
-    } catch (_) {
-      // Best-effort server-side revoke; local session clear happens
-      // regardless so the agent is always able to log out.
-    }
+    // Ends this session on the server too; the local session is cleared
+    // regardless so the agent is always able to log out.
+    await _client.signOut();
     await _tokens.clear();
   }
 }

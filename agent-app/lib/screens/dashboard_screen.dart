@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../api/api_exception.dart';
 import '../models/console.dart';
 import '../state/history_filter.dart';
+import '../state/live_updates.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
@@ -26,7 +27,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
   DashboardSummary? _summary;
   String? _error;
   bool _loading = true;
@@ -36,6 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _load();
+    listenForLiveChanges(context.read<Session>().live.changes, _load);
   }
 
   Future<void> _load() async {

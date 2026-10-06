@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import 'api/api_client.dart';
 import 'api/customer_api.dart';
-import 'config.dart';
 import 'l10n/strings.dart';
 import 'screens/splash_screen.dart';
 import 'state/auth_provider.dart';
@@ -11,8 +10,9 @@ import 'state/orders_provider.dart';
 import 'state/wallet_provider.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ApiClient.initialize();
   runApp(const BaariApp());
 }
 
@@ -26,7 +26,7 @@ class BaariApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<ApiClient>(
-          create: (_) => ApiClient(baseUrl: AppConfig.apiBaseUrl),
+          create: (_) => ApiClient(),
         ),
         ProxyProvider<ApiClient, CustomerApi>(
           update: (_, apiClient, __) => CustomerApi(apiClient),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../api/api_exception.dart';
 import '../models/match_result.dart';
 import '../models/order.dart';
+import '../state/live_updates.dart';
 import '../state/session.dart';
 import '../widgets/order_card.dart';
 import '../widgets/state_views.dart';
@@ -22,7 +23,7 @@ class PendingDepositsScreen extends StatefulWidget {
   State<PendingDepositsScreen> createState() => _PendingDepositsScreenState();
 }
 
-class _PendingDepositsScreenState extends State<PendingDepositsScreen> {
+class _PendingDepositsScreenState extends State<PendingDepositsScreen> with LiveRefresh {
   List<Order>? _orders;
   String? _error;
   bool _loading = true;
@@ -31,11 +32,12 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> {
   void initState() {
     super.initState();
     _load();
+    listenForLiveChanges(context.read<Session>().live.changes, _load);
   }
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      _loading = _orders == null;
       _error = null;
     });
     try {
