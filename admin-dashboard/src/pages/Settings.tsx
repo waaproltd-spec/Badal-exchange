@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Page } from '../components/Page';
 import { updateWithdrawalLimits } from '../api/endpoints';
 import { ApiRequestError } from '../auth/AuthContext';
+import { METHODS } from '../lib/methods';
 import type { OrderMethod } from '../api/types';
 
 export function Settings() {
@@ -13,8 +14,9 @@ export function Settings() {
         limits, only to set new ones, so no current value is shown below.
       </div>
       <div className="rate-grid">
-        <LimitForm method="evc_plus" label="EVC Plus" />
-        <LimitForm method="winwin" label="WinWin" />
+        {METHODS.map(({ method, label }) => (
+          <LimitForm key={method} method={method} label={label} />
+        ))}
       </div>
     </Page>
   );

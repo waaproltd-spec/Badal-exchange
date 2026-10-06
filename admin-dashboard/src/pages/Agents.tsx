@@ -146,10 +146,13 @@ function CreateAgentForm({ onCreated }: { onCreated: () => void }) {
             />
           </div>
           <div className="field">
-            <label htmlFor="agent-resp">Responsibilities (comma separated)</label>
+            <label htmlFor="agent-resp">
+              Responsibilities (comma separated; add manage_settings to let this agent manage payment methods, home
+              ads, deposit numbers and notifications from the Agent App)
+            </label>
             <input
               id="agent-resp"
-              placeholder="evc_deposit, evc_withdraw"
+              placeholder="evc_deposit, evc_withdraw, manage_settings"
               value={responsibilities}
               onChange={(e) => setResponsibilities(e.target.value)}
             />

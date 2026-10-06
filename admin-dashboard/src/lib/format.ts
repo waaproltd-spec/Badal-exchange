@@ -1,3 +1,5 @@
+import { METHODS } from './methods';
+
 // Amounts arrive from the API as already-formatted decimal strings
 // (e.g. "12.55"); we only prefix a currency symbol for display, never
 // re-parse or do cents math on the frontend.
@@ -27,7 +29,7 @@ export function dateOnly(value: string | null | undefined): string {
 }
 
 export function methodLabel(method: string): string {
-  return method === 'evc_plus' ? 'EVC Plus' : method === 'winwin' ? 'WinWin' : method;
+  return METHODS.find((m) => m.method === method)?.label ?? method;
 }
 
 export function titleCase(value: string): string {

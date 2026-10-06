@@ -4,15 +4,14 @@ import { Loading, ErrorState } from '../components/AsyncState';
 import { useFetch } from '../hooks/useFetch';
 import { getExchangeRates, updateExchangeRate } from '../api/endpoints';
 import { ApiRequestError } from '../auth/AuthContext';
+import { METHODS } from '../lib/methods';
 import { dateTime, methodLabel } from '../lib/format';
 import type { ExchangeRate, OrderDirection, OrderMethod } from '../api/types';
 
-const COMBOS: { method: OrderMethod; direction: OrderDirection }[] = [
-  { method: 'evc_plus', direction: 'deposit' },
-  { method: 'evc_plus', direction: 'withdraw' },
-  { method: 'winwin', direction: 'deposit' },
-  { method: 'winwin', direction: 'withdraw' },
-];
+const COMBOS: { method: OrderMethod; direction: OrderDirection }[] = METHODS.flatMap(({ method }) => [
+  { method, direction: 'deposit' as const },
+  { method, direction: 'withdraw' as const },
+]);
 
 export function ExchangeRates() {
   const { data, loading, error, reload } = useFetch(() => getExchangeRates(), []);

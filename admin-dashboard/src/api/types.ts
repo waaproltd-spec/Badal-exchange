@@ -3,7 +3,17 @@
 // strings (e.g. "12.55") server-side -- never re-parsed as cents here.
 
 export type OrderDirection = 'deposit' | 'withdraw';
-export type OrderMethod = 'evc_plus' | 'winwin';
+export type OrderMethod =
+  | 'evc_plus'
+  | 'golis'
+  | 'telesom'
+  | 'edahab'
+  | 'winwin'
+  | 'onexbet'
+  | 'melbet'
+  | 'betwinner'
+  | 'dbbet'
+  | '888starz';
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'expired';
 export type UserStatus = 'active' | 'disabled';
 
