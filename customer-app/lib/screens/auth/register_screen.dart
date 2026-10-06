@@ -74,7 +74,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               Text('Create your account', style: AppTextStyles.headline),
               const SizedBox(height: 8),
-              Text('Start exchanging with Badal Exchange', style: AppTextStyles.muted),
+              Text('Your wallet, made simple with BAARI', style: AppTextStyles.muted),
               const SizedBox(height: 32),
               AppTextField(
                 label: AppStrings.fullName,

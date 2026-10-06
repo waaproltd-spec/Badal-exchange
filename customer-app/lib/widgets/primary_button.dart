@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 
-/// Full-width, ~58px tall, solid purple call-to-action. This is the
+/// Full-width, ~58px tall, solid BAARI-green call-to-action. This is the
 /// dominant, obvious action on every screen it appears on.
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({

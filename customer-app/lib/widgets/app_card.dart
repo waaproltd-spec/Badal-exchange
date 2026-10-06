@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 
 /// White card with a soft rounded border, matching the mockup (20-24px
-/// radius, 1-1.5px light purple-gray border, no heavy shadow).
+/// radius, 1-1.5px light green-gray border, no heavy shadow).
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,

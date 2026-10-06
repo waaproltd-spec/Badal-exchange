@@ -8,7 +8,7 @@
 class AppStrings {
   AppStrings._();
 
-  static const String appName = 'Badal Exchange';
+  static const String appName = 'BAARI';
 
   // Auth
   static const String login = 'Log In';
@@ -26,6 +26,10 @@ class AppStrings {
   static const String availableBalance = 'Available Balance';
   static const String deposit = 'Deposit';
   static const String withdraw = 'Withdraw';
+  static const String xiran = 'Xiran';
+  static const String bonus = 'Bonus';
+  static const String recentOrders = 'Recent Orders';
+  static const String viewAll = 'View all';
 
   // Method picker
   static const String chooseMethod = 'Choose a method';
@@ -36,7 +40,7 @@ class AppStrings {
   static const String amount = 'Amount (USD)';
   static const String continueLabel = 'Continue';
   static const String confirm = 'Confirm';
-  static const String rate = 'Exchange Rate';
+  static const String rate = 'Rate';
   static const String fee = 'Fee';
   static const String netAmount = 'You will receive';
   static const String totalDeducted = 'Total Deducted';
@@ -52,6 +56,7 @@ class AppStrings {
   // Orders
   static const String orders = 'Orders';
   static const String noOrders = 'No transactions yet';
+  static const String noOrdersHint = 'Your deposits and withdrawals will show up here.';
   static const String orderDetails = 'Order Details';
   static const String method = 'Method';
   static const String transactionRef = 'Transaction Reference';

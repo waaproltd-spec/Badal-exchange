@@ -37,12 +37,18 @@ class AppTheme {
         backgroundColor: Colors.white,
         indicatorColor: AppColors.primaryTint,
         surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shadowColor: AppColors.primaryDeep.withOpacity(0.12),
+        iconTheme: MaterialStateProperty.resolveWith((states) {
+          final selected = states.contains(MaterialState.selected);
+          return IconThemeData(color: selected ? AppColors.primary : AppColors.textMuted);
+        }),
         labelTextStyle: MaterialStateProperty.resolveWith((states) {
           final selected = states.contains(MaterialState.selected);
           return GoogleFonts.plusJakartaSans(
             fontSize: 12,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? AppColors.primaryDark : AppColors.textMuted,
+            color: selected ? AppColors.primary : AppColors.textMuted,
           );
         }),
       ),

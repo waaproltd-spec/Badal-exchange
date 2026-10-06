@@ -6,6 +6,7 @@ class Wallet {
     required this.pendingBalance,
     required this.totalDeposit,
     required this.totalWithdraw,
+    this.bonusBalance = '0.00',
   });
 
   final String availableBalance;
@@ -13,12 +14,16 @@ class Wallet {
   final String totalDeposit;
   final String totalWithdraw;
 
+  /// Not served by the backend yet; shown as "0.00" until it is.
+  final String bonusBalance;
+
   factory Wallet.fromJson(Map<String, dynamic> json) {
     return Wallet(
       availableBalance: json['availableBalance'] as String,
       pendingBalance: json['pendingBalance'] as String,
       totalDeposit: json['totalDeposit'] as String,
       totalWithdraw: json['totalWithdraw'] as String,
+      bonusBalance: json['bonusBalance'] as String? ?? '0.00',
     );
   }
 }

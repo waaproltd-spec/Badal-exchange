@@ -16,10 +16,10 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   int _index = 0;
 
-  static const List<Widget> _tabs = [
-    HomeScreen(),
-    OrdersListScreen(),
-    ProfileScreen(),
+  late final List<Widget> _tabs = [
+    HomeScreen(onViewAllOrders: () => setState(() => _index = 1)),
+    const OrdersListScreen(),
+    const ProfileScreen(),
   ];
 
   @override
