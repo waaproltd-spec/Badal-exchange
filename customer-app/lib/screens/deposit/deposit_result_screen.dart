@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../api/customer_api.dart';
+import '../../models/payment_method.dart';
+import '../../widgets/deposit_numbers_card.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
@@ -10,9 +15,10 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/summary_row.dart';
 
-/// Purple circular checkmark + restated amount for a normal outcome. For
-/// WinWin deposits, prominently surfaces the `depositCode` the customer
-/// must reference when paying.
+/// Circular checkmark + restated amount for a normal outcome. For betting
+/// platform deposits, prominently surfaces the `depositCode` the customer
+/// must reference when paying, and for every method shows where to send the
+/// payment (deposit numbers set up in the Agent App).
 class DepositResultScreen extends StatelessWidget {
   const DepositResultScreen({super.key, required this.order});
 
@@ -54,7 +60,7 @@ class DepositResultScreen extends StatelessWidget {
               child: Text(order.statusMessage, style: AppTextStyles.muted, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 28),
-            if (order.method == 'winwin' && order.depositCode != null) ...[
+            if (order.methodInfo.isPlatform && order.depositCode != null) ...[
               AppCard(
                 color: AppColors.primaryTint,
                 child: Column(
@@ -69,12 +75,17 @@ class DepositResultScreen extends StatelessWidget {
                       style: AppTextStyles.amountLarge.copyWith(color: AppColors.primaryDark, letterSpacing: 4),
                     ),
                     const SizedBox(height: 10),
-                    Text(AppStrings.depositCodeHelp, style: AppTextStyles.muted, textAlign: TextAlign.center),
+                    Text(
+                      'Use this code as the reference when you pay via ${order.methodLabel}.',
+                      style: AppTextStyles.muted,
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
             ],
+            if (_isSuccessLike) _DepositNumbers(method: order.method),
             AppCard(
               child: Column(
                 children: [
@@ -105,6 +116,32 @@ class DepositResultScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Deposit numbers for [method], fetched fresh; nothing shown if none are set.
+class _DepositNumbers extends StatelessWidget {
+  const _DepositNumbers({required this.method});
+
+  final String method;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<PaymentMethodOption>>(
+      future: context.read<CustomerApi>().getPaymentMethods(),
+      builder: (context, snapshot) {
+        final numbers = snapshot.data
+                ?.where((m) => m.info.id == method)
+                .expand((m) => m.depositNumbers)
+                .toList() ??
+            const [];
+        if (numbers.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: DepositNumbersCard(numbers: numbers),
+        );
+      },
     );
   }
 }

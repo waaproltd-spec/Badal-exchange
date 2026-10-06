@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
+import '../../models/payment_method.dart';
 import '../../models/quote.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
@@ -15,7 +16,7 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/summary_row.dart';
 import 'withdraw_processing_screen.dart';
 
-/// Shows exactly what the backend quoted -- phone/WinWin ID, amount, fee,
+/// Shows exactly what the backend quoted -- phone/account ID, amount, fee,
 /// total deducted from the wallet, and amount to receive -- and submits
 /// the withdrawal on confirm.
 class WithdrawConfirmScreen extends StatefulWidget {
@@ -23,12 +24,12 @@ class WithdrawConfirmScreen extends StatefulWidget {
     super.key,
     required this.quote,
     this.phoneNumber,
-    this.winwinId,
+    this.accountId,
   });
 
   final Quote quote;
   final String? phoneNumber;
-  final String? winwinId;
+  final String? accountId;
 
   @override
   State<WithdrawConfirmScreen> createState() => _WithdrawConfirmScreenState();
@@ -46,15 +47,10 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   }
 
   Future<Order> _submit(CustomerApi api) {
-    if (widget.quote.method == 'evc_plus') {
-      return api.withdrawEvc(
-        phoneNumber: widget.phoneNumber!,
-        amount: widget.quote.amount,
-        idempotencyKey: _idempotencyKey,
-      );
-    }
-    return api.withdrawWinwin(
-      winwinId: widget.winwinId!,
+    return api.withdraw(
+      method: widget.quote.method,
+      phoneNumber: widget.phoneNumber,
+      accountId: widget.accountId,
       amount: widget.quote.amount,
       idempotencyKey: _idempotencyKey,
     );
@@ -63,7 +59,7 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final quote = widget.quote;
-    final isEvc = quote.method == 'evc_plus';
+    final info = methodInfo(quote.method);
 
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
@@ -75,15 +71,15 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
             Center(child: MethodIcon(method: quote.method, size: 56)),
             const SizedBox(height: 16),
             Center(
-              child: Text(isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.title),
+              child: Text(info.label, style: AppTextStyles.title),
             ),
             const SizedBox(height: 24),
             AppCard(
               child: Column(
                 children: [
                   SummaryRow(
-                    label: isEvc ? 'Phone Number' : 'WinWin ID',
-                    value: (isEvc ? widget.phoneNumber : widget.winwinId) ?? '',
+                    label: info.isPlatform ? 'Account ID' : 'Phone Number',
+                    value: (info.isPlatform ? widget.accountId : widget.phoneNumber) ?? '',
                   ),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),

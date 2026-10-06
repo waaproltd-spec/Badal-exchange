@@ -14,7 +14,7 @@ class Quote {
   });
 
   final String quoteId;
-  final String method; // 'evc_plus' | 'winwin'
+  final String method; // see payment_method.dart
   final String direction; // 'deposit' | 'withdraw'
   final String amount;
   final num rate;

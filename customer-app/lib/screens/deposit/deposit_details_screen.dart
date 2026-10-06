@@ -4,20 +4,22 @@ import 'package:provider/provider.dart';
 import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
+import '../../models/payment_method.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/deposit_numbers_card.dart';
 import '../../widgets/primary_button.dart';
 import 'deposit_confirm_screen.dart';
 
-/// Collects the phone number (EVC Plus) or WinWin ID + amount, then fetches
-/// a quote before moving to confirmation. The app never computes the
+/// Collects the phone number (mobile money) or account ID (betting platform)
+/// + amount, then fetches a quote before moving to confirmation. The app never computes the
 /// rate/fee itself -- it always asks the backend via /customer/quotes.
 class DepositDetailsScreen extends StatefulWidget {
-  const DepositDetailsScreen({super.key, required this.method});
+  const DepositDetailsScreen({super.key, required this.option});
 
-  /// 'evc_plus' | 'winwin'
-  final String method;
+  /// The chosen method, with the numbers customers send payments to.
+  final PaymentMethodOption option;
 
   @override
   State<DepositDetailsScreen> createState() => _DepositDetailsScreenState();
@@ -30,7 +32,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   bool _submitting = false;
   String? _error;
 
-  bool get _isEvc => widget.method == 'evc_plus';
+  PaymentMethodInfo get _info => widget.option.info;
 
   @override
   void dispose() {
@@ -48,7 +50,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     try {
       final quote = await context.read<CustomerApi>().createQuote(
             direction: 'deposit',
-            method: widget.method,
+            method: _info.id,
             amount: _amountController.text.trim(),
           );
       if (!mounted) return;
@@ -56,8 +58,8 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
         MaterialPageRoute(
           builder: (_) => DepositConfirmScreen(
             quote: quote,
-            phoneNumber: _isEvc ? _identifierController.text.trim() : null,
-            winwinId: _isEvc ? null : _identifierController.text.trim(),
+            phoneNumber: _info.isPlatform ? null : _identifierController.text.trim(),
+            accountId: _info.isPlatform ? _identifierController.text.trim() : null,
           ),
         ),
       );
@@ -75,7 +77,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       appBar: AppBar(
-        title: Text(_isEvc ? AppStrings.evcPlus : AppStrings.winwin, style: AppTextStyles.appBarTitle),
+        title: Text(_info.label, style: AppTextStyles.appBarTitle),
       ),
       body: SafeArea(
         child: Form(
@@ -86,21 +88,25 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
               Text('Deposit details', style: AppTextStyles.headline),
               const SizedBox(height: 8),
               Text(
-                _isEvc
-                    ? 'Enter the EVC Plus number you will pay from.'
-                    : 'Enter your WinWin ID and the amount to deposit.',
+                _info.isPlatform
+                    ? 'Enter your ${_info.label} account ID and the amount to deposit.'
+                    : 'Enter the ${_info.label} number you will pay from.',
                 style: AppTextStyles.muted,
               ),
+              if (widget.option.depositNumbers.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                DepositNumbersCard(numbers: widget.option.depositNumbers),
+              ],
               const SizedBox(height: 28),
               AppTextField(
-                label: _isEvc ? 'EVC Plus Phone Number' : 'WinWin ID',
+                label: _info.identifierLabel,
                 controller: _identifierController,
-                keyboardType: _isEvc ? TextInputType.phone : TextInputType.text,
-                hint: _isEvc ? 'e.g. 2526XXXXXXX' : 'e.g. 7841228',
+                keyboardType: _info.isPlatform ? TextInputType.text : TextInputType.phone,
+                hint: _info.identifierHint,
                 textInputAction: TextInputAction.next,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return _isEvc ? 'Enter a phone number' : 'Enter your WinWin ID';
+                    return _info.isPlatform ? 'Enter your account ID' : 'Enter a phone number';
                   }
                   return null;
                 },

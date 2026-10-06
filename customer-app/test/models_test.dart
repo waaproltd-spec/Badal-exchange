@@ -77,7 +77,8 @@ void main() {
       });
 
       expect(order.isDeposit, isTrue);
-      expect(order.isEvc, isTrue);
+      expect(order.methodLabel, 'EVC Plus');
+      expect(order.methodInfo.isPlatform, isFalse);
       expect(order.status, 'completed');
       expect(order.completedAt, isNotNull);
     });
@@ -103,9 +104,36 @@ void main() {
       });
 
       expect(order.isDeposit, isTrue);
-      expect(order.isEvc, isFalse);
+      expect(order.methodInfo.isPlatform, isTrue);
+      expect(order.accountId, '7841228'); // older responses only carry winwinId
       expect(order.depositCode, 'X4H9');
       expect(order.completedAt, isNull);
+    });
+
+    test('parses a betting-platform order with accountId', () {
+      final order = Order.fromJson(const {
+        'id': 'p1',
+        'orderCode': 'EXPLAT01',
+        'direction': 'deposit',
+        'method': 'onexbet',
+        'status': 'pending',
+        'statusMessage': '',
+        'phoneNumber': null,
+        'accountId': '55667788',
+        'winwinId': '55667788',
+        'depositCode': 'ZTR6',
+        'amount': '7.00',
+        'fee': '0.20',
+        'netAmount': '6.80',
+        'transactionRef': null,
+        'failureReason': null,
+        'createdAt': '2026-10-06T01:00:00.000Z',
+        'completedAt': null,
+      });
+
+      expect(order.methodLabel, '1XBET');
+      expect(order.methodInfo.isPlatform, isTrue);
+      expect(order.accountId, '55667788');
     });
 
     test('parses a failed withdrawal order with a failure reason', () {

@@ -1,4 +1,6 @@
+import '../models/app_content.dart';
 import '../models/order.dart';
+import '../models/payment_method.dart';
 import '../models/quote.dart';
 import '../models/wallet.dart';
 import 'api_client.dart';
@@ -77,63 +79,67 @@ class CustomerApi {
   }
 
   // ---------------------------------------------------------------------
-  // Deposits
+  // Deposits & withdrawals (any payment method)
   // ---------------------------------------------------------------------
 
-  Future<Order> depositEvc({
-    required String phoneNumber,
+  /// Mobile-money methods take [phoneNumber]; betting platforms take
+  /// [accountId].
+  Future<Order> deposit({
+    required String method,
+    String? phoneNumber,
+    String? accountId,
     required String amount,
     required String idempotencyKey,
-  }) async {
+  }) =>
+      _createOrder('deposits', method, phoneNumber, accountId, amount, idempotencyKey);
+
+  Future<Order> withdraw({
+    required String method,
+    String? phoneNumber,
+    String? accountId,
+    required String amount,
+    required String idempotencyKey,
+  }) =>
+      _createOrder('withdrawals', method, phoneNumber, accountId, amount, idempotencyKey);
+
+  Future<Order> _createOrder(
+    String kind,
+    String method,
+    String? phoneNumber,
+    String? accountId,
+    String amount,
+    String idempotencyKey,
+  ) async {
     final data = await _client.post(
-      '/customer/deposits/evc',
-      body: {'phoneNumber': phoneNumber, 'amount': amount},
+      '/customer/$kind/$method',
+      body: {
+        if (phoneNumber != null) 'phoneNumber': phoneNumber,
+        if (accountId != null) 'accountId': accountId,
+        'amount': amount,
+      },
       idempotencyKey: idempotencyKey,
     ) as Map<String, dynamic>;
     return Order.fromJson(data);
   }
 
-  Future<Order> depositWinwin({
-    required String winwinId,
-    required String amount,
-    required String idempotencyKey,
-  }) async {
-    final data = await _client.post(
-      '/customer/deposits/winwin',
-      body: {'winwinId': winwinId, 'amount': amount},
-      idempotencyKey: idempotencyKey,
-    ) as Map<String, dynamic>;
-    return Order.fromJson(data);
-  }
-
   // ---------------------------------------------------------------------
-  // Withdrawals
+  // App content (managed from the Agent App)
   // ---------------------------------------------------------------------
 
-  Future<Order> withdrawEvc({
-    required String phoneNumber,
-    required String amount,
-    required String idempotencyKey,
-  }) async {
-    final data = await _client.post(
-      '/customer/withdrawals/evc',
-      body: {'phoneNumber': phoneNumber, 'amount': amount},
-      idempotencyKey: idempotencyKey,
-    ) as Map<String, dynamic>;
-    return Order.fromJson(data);
+  /// Enabled payment methods, in display order, with deposit numbers.
+  Future<List<PaymentMethodOption>> getPaymentMethods() async {
+    final data = await _client.get('/customer/payment-methods') as List<dynamic>;
+    return data.map((e) => PaymentMethodOption.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<Order> withdrawWinwin({
-    required String winwinId,
-    required String amount,
-    required String idempotencyKey,
-  }) async {
-    final data = await _client.post(
-      '/customer/withdrawals/winwin',
-      body: {'winwinId': winwinId, 'amount': amount},
-      idempotencyKey: idempotencyKey,
-    ) as Map<String, dynamic>;
-    return Order.fromJson(data);
+  Future<List<HomeAd>> getHomeAds() async {
+    final data = await _client.get('/customer/home-ads') as List<dynamic>;
+    return data.map((e) => HomeAd.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<AppNotification>> getNotifications() async {
+    final data = await _client.get('/customer/notifications') as List<dynamic>;
+    return data.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // ---------------------------------------------------------------------

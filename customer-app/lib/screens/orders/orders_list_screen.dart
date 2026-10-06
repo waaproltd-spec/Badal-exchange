@@ -86,7 +86,7 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDeposit = order.isDeposit;
-    final methodLabel = order.isEvc ? AppStrings.evcPlus : AppStrings.winwin;
+    final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
 
     return InkWell(
