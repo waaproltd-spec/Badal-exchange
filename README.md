@@ -10,52 +10,44 @@ computed and confirmed.
 
 ## Structure
 
-- `backend/` — Node.js + TypeScript + Express + PostgreSQL API. Source of
-  truth for auth, the wallet ledger, orders, exchange rates/fees, SMS and
-  WinWin/MobCash transaction matching, and payment-integration credentials.
-  See `backend/README.md` (and inline comments in `src/db/migrations/001_init.sql`)
-  for the schema and flows.
-- `customer-app/` — Flutter app for customers (deposit/withdraw/orders/profile).
-- `agent-app/` — Flutter app for agents, and the management interface
+- `supabase/`: **the backend.** Postgres schema, Supabase Auth, the API as
+  Postgres functions, row level security, Realtime and the `cashdeskbot`
+  Edge Function. Includes end-to-end tests. Start with `supabase/README.md`:
+  it has the architecture, the endpoint-by-endpoint migration map and the
+  deploy steps.
+- `customer-app/`: Flutter app for customers (deposit, withdraw, orders,
+  profile). Talks to Supabase.
+- `agent-app/`: Flutter app for agents, and the management interface
   (there is no separate admin dashboard). Tabs: Dashboard, Users
   (customers), Reports, History, Account. Agents with the `manage_settings`
-  responsibility get Account → Admin features: payment methods (ON/OFF,
-  rates, fees, limits), deposit numbers, payment integrations, home ads,
-  notifications, app settings, agents and audit logs.
-- `docs/` — architecture notes.
+  responsibility also get Account → Admin features:
+  - payment methods (ON/OFF, rates, fees, limits);
+  - deposit numbers and payment integrations;
+  - home ads, notifications and app settings;
+  - agents and audit logs.
+- `backend/`: the original Node.js + Express API.
+  - Kept as a fallback while the Supabase backend settles in. It works
+    against the same schema.
+  - Hosts the optional MobCash automation worker (`npm run worker`), the
+    one piece that needs a headless browser.
+- `docs/`: architecture notes.
 
-## Database on Supabase
+## Backend: Supabase
 
-The backend works with any Postgres, including a [Supabase](https://supabase.com)
-project's database. Customers, agents and admins are still created and logged
-in by the backend (the apps don't talk to Supabase directly), so nothing
-changes in the customer or agent apps.
+The apps sign in with Supabase Auth and call the backend through
+`supabase.rpc(...)`. Every REST endpoint has a Postgres function returning
+the same JSON. Order and wallet changes reach the apps live through
+Supabase Realtime. Existing accounts keep their passwords. The old server
+(203.161.38.33) and its local database are no longer used.
 
-1. In Supabase: **Project Settings → Database → Connection string**. Copy the
-   **Session pooler** string (port 5432) or the **Direct connection** string.
-   Avoid the Transaction pooler (port 6543). The backend holds transactions
-   and row locks across several queries, which needs a session connection.
-2. Set it as `DATABASE_URL` in `backend/.env` (see `backend/.env.example`).
-   SSL is switched on automatically for non-localhost hosts.
-3. `cd backend && npm run migrate && npm run seed`. This creates the tables
-   and the demo admin, agent and customer logins. The demo agent has
-   `manage_settings`, so it can use every management screen in the Agent App.
+To deploy:
 
-Migration `003_lock_public_schema.sql` turns on row level security, with no
-policies, for every table, and revokes Supabase's `anon` and `authenticated`
-grants. The project's public anon key and Data API then can't read or write
-wallets, users or orders. Only the backend can, because it connects as the
-tables' owner. Keep the Data API off for this schema, or leave it on: either
-way it returns nothing.
+1. Run the *Deploy to Supabase* action, or merge to `main` and let the
+   Supabase GitHub integration apply `supabase/migrations`.
+2. Add the `SUPABASE_ANON_KEY` repository secret.
+3. Run *Build Customer & Agent APKs*.
 
-**Test server deploy:** add a `SUPABASE_DATABASE_URL` repository secret
-(GitHub → Settings → Secrets and variables → Actions) and run
-*Deploy to Test Server*. The workflow writes it into the server's
-`backend/.env`, runs the migrations against Supabase, and stops using the
-local Postgres. Existing data in the local database is **not** copied over.
-Copying it means dumping the local `badal_exchange` data into the migrated
-Supabase database **before** the first seed runs there, because the seed's
-demo users would clash with the dumped ones.
+Details are in `supabase/README.md`.
 
 ## Core flows
 

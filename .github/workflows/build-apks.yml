@@ -1,5 +1,8 @@
 name: Build Customer & Agent APKs
 
+# Both apps talk to the Supabase project (SUPABASE_URL, default below) with
+# its publishable/anon key (secret or variable SUPABASE_ANON_KEY).
+#
 # Manual-only. This sandbox's own network policy blocks dl.google.com (the
 # Android SDK download host), so real APK builds have to happen on a
 # GitHub-hosted runner instead, which has full internet access. Builds
@@ -22,6 +25,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Check Supabase settings
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add the Supabase publishable (anon) key as a repository secret or variable named SUPABASE_ANON_KEY (Supabase dashboard -> Project Settings -> API Keys)."
+            exit 1
+          fi
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
@@ -29,18 +41,28 @@ jobs:
 
       - name: Build customer app APK
         working-directory: customer-app
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://onbezsojnpsrtuxzwsjr.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
         run: |
           flutter pub get
-          flutter build apk --release --dart-define=API_BASE_URL=http://203.161.38.33:4010
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
       - name: Build agent app APK
         # Independent of the customer app build -- one app's build failure
         # must not prevent uploading the other app's already-built APK.
         if: always()
         working-directory: agent-app
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://onbezsojnpsrtuxzwsjr.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
         run: |
           flutter pub get
-          flutter build apk --release --dart-define=API_BASE_URL=http://203.161.38.33:4010
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
       - uses: actions/upload-artifact@v4
         if: always()
