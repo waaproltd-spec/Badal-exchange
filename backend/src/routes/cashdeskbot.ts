@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../lib/asyncHandler';
-import { requireAuth, requireRole } from '../auth/middleware';
+import { requireAuth, requireManagement } from '../auth/middleware';
 import { moneyLimiter } from '../auth/rateLimit';
 import { requireIdempotencyKey } from '../lib/idempotency';
 import { writeAudit } from '../lib/audit';
@@ -13,13 +13,13 @@ import {
 } from '../services/cashdeskBotService';
 
 /**
- * Admin-only. The mobile apps never call CashdeskBot directly and never
+ * Management-only (admins and agents with 'manage_settings'). The mobile apps never call CashdeskBot directly and never
  * see these credentials -- they talk to Badal Exchange's backend, which
  * holds the CashdeskBot login/cashierpass/hash/cashdeskid as server-side
  * environment variables and does all signing here.
  */
 export const cashdeskBotRouter = Router();
-cashdeskBotRouter.use(requireAuth, requireRole('admin'));
+cashdeskBotRouter.use(requireAuth, requireManagement);
 
 const depositSchema = z.object({
   lng: z.string().min(1),
@@ -40,7 +40,7 @@ cashdeskBotRouter.post(
     const result = await cashdeskBotDeposit(req.params.userId, input);
     await writeAudit({
       actorId: req.user!.id,
-      actorRole: 'admin',
+      actorRole: req.user!.role,
       action: 'cashdeskbot.deposit',
       entityType: 'cashdeskbot_user',
       entityId: req.params.userId,
@@ -60,7 +60,7 @@ cashdeskBotRouter.post(
     const result = await cashdeskBotPayout(req.params.userId, input);
     await writeAudit({
       actorId: req.user!.id,
-      actorRole: 'admin',
+      actorRole: req.user!.role,
       action: 'cashdeskbot.payout',
       entityType: 'cashdeskbot_user',
       entityId: req.params.userId,
@@ -68,7 +68,7 @@ cashdeskBotRouter.post(
       ip: req.ip,
     });
     // success:false is a real, non-exceptional outcome (e.g. insufficient
-    // balance) -- returned as-is with HTTP 200 so the admin dashboard can
+    // balance) -- returned as-is with HTTP 200 so the Agent App can
     // show CashdeskBot's own message rather than a generic error.
     res.json(result);
   })

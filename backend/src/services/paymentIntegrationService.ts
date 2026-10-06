@@ -279,6 +279,17 @@ export async function getDecryptedCredentialsForAdapter(
   const { rows } = await pool.query('SELECT * FROM payment_integrations WHERE provider = $1', [provider]);
   const row = rows[0];
   if (!row || !row.has_credentials) return null;
+  // Saved from the Agent App on Supabase: kept in Supabase Vault.
+  if (row.username_secret_id && row.password_secret_id) {
+    const secrets = await pool.query(
+      'SELECT id, decrypted_secret FROM vault.decrypted_secrets WHERE id = ANY($1::uuid[])',
+      [[row.username_secret_id, row.password_secret_id]]
+    );
+    const byId = new Map(secrets.rows.map((s) => [s.id, s.decrypted_secret as string]));
+    const username = byId.get(row.username_secret_id);
+    const password = byId.get(row.password_secret_id);
+    return username !== undefined && password !== undefined ? { username, password } : null;
+  }
   return {
     username: decryptSecret({ ciphertext: row.encrypted_username, iv: row.username_iv, authTag: row.username_auth_tag }),
     password: decryptSecret({ ciphertext: row.encrypted_password, iv: row.password_iv, authTag: row.password_auth_tag }),

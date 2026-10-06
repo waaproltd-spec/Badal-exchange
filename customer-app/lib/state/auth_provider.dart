@@ -3,13 +3,14 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../models/auth_user.dart';
 import '../screens/auth/login_screen.dart';
 
 /// Session state: current user, and the login/register/logout flows.
-/// Tokens themselves live only in secure storage (via [ApiClient]) -- this
-/// class never holds a raw token in memory beyond the moment it's written.
+/// The session tokens are held by Supabase Auth (in secure storage); this
+/// class never handles a raw token.
 class AuthProvider extends ChangeNotifier {
   AuthProvider({required this.apiClient, required this.customerApi, this.navigatorKey}) {
     apiClient.onSessionExpired = _handleSessionExpired;
@@ -36,11 +37,14 @@ class AuthProvider extends ChangeNotifier {
     _initializing = true;
     notifyListeners();
     try {
-      final token = await apiClient.secureStorage.read(key: SecureStorageKeys.accessToken);
       final phone = await apiClient.secureStorage.read(key: SecureStorageKeys.userPhone);
       final name = await apiClient.secureStorage.read(key: SecureStorageKeys.userName);
-      if (token != null && phone != null) {
+      if (apiClient.hasSession && phone != null) {
         _user = AuthUser(phone: phone, name: name ?? '');
+        apiClient.startLive();
+        unawaited(_verifyRestoredSession());
+      } else if (apiClient.hasSession) {
+        await apiClient.signOut();
       }
     } finally {
       _initializing = false;
@@ -48,15 +52,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// A restored session whose account was disabled is signed out.
+  Future<void> _verifyRestoredSession() async {
+    try {
+      if (!await customerApi.verifySession()) await logout();
+    } on ApiException catch (e) {
+      if (e.status == 401 || e.status == 403) await logout();
+    } catch (_) {
+      // Offline: keep the session; calls retry when back online.
+    }
+  }
+
   Future<void> login({required String phone, required String password}) async {
     final result = await customerApi.login(phone: phone, password: password);
     final resolvedName = result.name.isNotEmpty ? result.name : phone;
-    await _persistSession(
-      phone: phone,
-      name: resolvedName,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    );
+    await _persistSession(phone: phone, name: resolvedName);
   }
 
   Future<void> register({
@@ -64,44 +74,29 @@ class AuthProvider extends ChangeNotifier {
     required String name,
     required String password,
   }) async {
-    final result = await customerApi.register(phone: phone, name: name, password: password);
-    await _persistSession(
-      phone: phone,
-      name: name,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    );
+    await customerApi.register(phone: phone, name: name, password: password);
+    await _persistSession(phone: phone, name: name);
   }
 
   Future<void> logout() async {
-    final refreshToken = await apiClient.secureStorage.read(key: SecureStorageKeys.refreshToken);
-    if (refreshToken != null) {
-      try {
-        await customerApi.logout(refreshToken: refreshToken);
-      } catch (_) {
-        // Best-effort: still clear the local session even if the network
-        // call fails.
-      }
-    }
+    await customerApi.logout();
     await _clearSession();
   }
 
-  Future<void> _persistSession({
-    required String phone,
-    required String name,
-    required String accessToken,
-    required String refreshToken,
-  }) async {
-    await apiClient.secureStorage.write(key: SecureStorageKeys.accessToken, value: accessToken);
-    await apiClient.secureStorage.write(key: SecureStorageKeys.refreshToken, value: refreshToken);
+  Future<void> _persistSession({required String phone, required String name}) async {
     await apiClient.secureStorage.write(key: SecureStorageKeys.userPhone, value: phone);
     await apiClient.secureStorage.write(key: SecureStorageKeys.userName, value: name);
+    apiClient.startLive();
     _user = AuthUser(phone: phone, name: name);
     notifyListeners();
   }
 
   Future<void> _clearSession() async {
-    await apiClient.secureStorage.deleteAll();
+    await apiClient.secureStorage.delete(key: SecureStorageKeys.userPhone);
+    await apiClient.secureStorage.delete(key: SecureStorageKeys.userName);
+    // Tokens written by app versions that used the old REST backend.
+    await apiClient.secureStorage.delete(key: 'accessToken');
+    await apiClient.secureStorage.delete(key: 'refreshToken');
     _user = null;
     notifyListeners();
   }

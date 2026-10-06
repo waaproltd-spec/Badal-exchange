@@ -6,10 +6,19 @@ import { requireAuth, requireRole } from '../auth/middleware';
 import { moneyLimiter } from '../auth/rateLimit';
 import { requireIdempotencyKey } from '../lib/idempotency';
 import { toCents, fromCents } from '../lib/money';
-import { computeQuote, Method, Direction } from '../services/rateFeeService';
+import { computeQuote, Direction } from '../services/rateFeeService';
 import { createDepositOrder, createWithdrawOrder } from '../services/orderService';
 import { lockWallet } from '../services/walletService';
 import { ApiError } from '../lib/errors';
+import { METHODS, Method, isMethod, isMobileMoney } from '../lib/methods';
+import {
+  assertMethodEnabled,
+  getContacts,
+  listDepositNumbers,
+  listHomeAds,
+  listNotifications,
+  listPaymentMethods,
+} from '../services/settingsService';
 
 export const customerRouter = Router();
 customerRouter.use(requireAuth, requireRole('customer'));
@@ -41,7 +50,7 @@ customerRouter.get(
 // ---------------------------------------------------------------------------
 const quoteSchema = z.object({
   direction: z.enum(['deposit', 'withdraw']),
-  method: z.enum(['evc_plus', 'winwin']),
+  method: z.enum(METHODS),
   amount: z.string().or(z.number()),
 });
 
@@ -73,7 +82,8 @@ function serializeOrder(o: any) {
     status: o.status,
     statusMessage: STATUS_MESSAGES[o.status] ?? '',
     phoneNumber: o.phone_number,
-    winwinId: o.winwin_id,
+    accountId: o.winwin_id,
+    winwinId: o.winwin_id, // kept for app versions before multi-method support
     depositCode: o.deposit_code,
     amount: fromCents(o.amount_cents),
     fee: fromCents(o.fee_cents),
@@ -95,23 +105,50 @@ const STATUS_MESSAGES: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Deposits
+// Deposits & withdrawals, for every payment method.
+//
+// Mobile-money methods take the customer's `phoneNumber` on that service;
+// betting platforms take the customer's `accountId` there (`winwinId` is
+// accepted as an alias for older app versions).
 // ---------------------------------------------------------------------------
-const evcDepositSchema = z.object({ phoneNumber: z.string().min(6).max(20), amount: z.string().or(z.number()) });
-const winwinDepositSchema = z.object({ winwinId: z.string().min(3).max(30), amount: z.string().or(z.number()) });
+const orderBodySchema = z.object({
+  phoneNumber: z.string().min(6).max(20).optional(),
+  accountId: z.string().min(3).max(30).optional(),
+  winwinId: z.string().min(3).max(30).optional(),
+  amount: z.string().or(z.number()),
+});
+
+function parseOrderBody(method: Method, raw: unknown) {
+  const body = orderBodySchema.parse(raw);
+  if (isMobileMoney(method)) {
+    if (!body.phoneNumber) throw ApiError.badRequest('phoneNumber is required', 'VALIDATION_ERROR');
+    return { phoneNumber: body.phoneNumber, amountCents: toCents(body.amount) };
+  }
+  const accountId = body.accountId ?? body.winwinId;
+  if (!accountId) throw ApiError.badRequest('accountId is required', 'VALIDATION_ERROR');
+  return { accountId, amountCents: toCents(body.amount) };
+}
+
+function methodParam(raw: string): Method {
+  // 'evc' is the original EVC Plus route name.
+  const method = raw === 'evc' ? 'evc_plus' : raw;
+  if (!isMethod(method)) throw ApiError.notFound('Unknown payment method');
+  return method;
+}
 
 customerRouter.post(
-  '/deposits/evc',
+  '/deposits/:method',
   moneyLimiter,
-  requireIdempotencyKey('customer.deposits.evc'),
+  (req, res, next) => requireIdempotencyKey(`customer.deposits.${req.params.method}`)(req, res, next),
   asyncHandler(async (req, res) => {
-    const body = evcDepositSchema.parse(req.body);
-    const amountCents = toCents(body.amount);
-    const quote = await computeQuote(pool, 'evc_plus', 'deposit', amountCents);
+    const method = methodParam(req.params.method);
+    const { amountCents, ...counterparty } = parseOrderBody(method, req.body);
+    await assertMethodEnabled(method);
+    const quote = await computeQuote(pool, method, 'deposit', amountCents);
     const order = await createDepositOrder({
       customerId: req.user!.id,
       quote,
-      phoneNumber: body.phoneNumber,
+      ...counterparty,
       idempotencyKey: req.header('Idempotency-Key') ?? null,
     });
     res.status(201).json(serializeOrder(order));
@@ -119,67 +156,74 @@ customerRouter.post(
 );
 
 customerRouter.post(
-  '/deposits/winwin',
+  '/withdrawals/:method',
   moneyLimiter,
-  requireIdempotencyKey('customer.deposits.winwin'),
+  (req, res, next) => requireIdempotencyKey(`customer.withdrawals.${req.params.method}`)(req, res, next),
   asyncHandler(async (req, res) => {
-    const body = winwinDepositSchema.parse(req.body);
-    const amountCents = toCents(body.amount);
-    const quote = await computeQuote(pool, 'winwin', 'deposit', amountCents);
-    const order = await createDepositOrder({
+    const method = methodParam(req.params.method);
+    const { amountCents, ...counterparty } = parseOrderBody(method, req.body);
+    await assertMethodEnabled(method);
+    const quote = await computeQuote(pool, method, 'withdraw', amountCents);
+    const order = await createWithdrawOrder({
       customerId: req.user!.id,
       quote,
-      winwinId: body.winwinId,
+      ...counterparty,
       idempotencyKey: req.header('Idempotency-Key') ?? null,
     });
     res.status(201).json(serializeOrder(order));
+
+    if (method === 'winwin') {
+      // Fire-and-forget: if MobCash automation is on, try to process this
+      // withdrawal immediately instead of waiting for the periodic sweep.
+      // Never blocks or affects the customer's response either way -- the
+      // response above already reflects the real, currently-pending state.
+      import('../services/automationOrchestrator')
+        .then((m) => m.runAutomatedWithdrawal(order.id))
+        .catch((err) => console.error('Automated withdrawal trigger failed', order.id, err instanceof Error ? err.message : err));
+    }
   })
 );
 
 // ---------------------------------------------------------------------------
-// Withdrawals
+// App content managed from the Agent App (read-only here).
 // ---------------------------------------------------------------------------
-customerRouter.post(
-  '/withdrawals/evc',
-  moneyLimiter,
-  requireIdempotencyKey('customer.withdrawals.evc'),
-  asyncHandler(async (req, res) => {
-    const body = evcDepositSchema.parse(req.body);
-    const amountCents = toCents(body.amount);
-    const quote = await computeQuote(pool, 'evc_plus', 'withdraw', amountCents);
-    const order = await createWithdrawOrder({
-      customerId: req.user!.id,
-      quote,
-      phoneNumber: body.phoneNumber,
-      idempotencyKey: req.header('Idempotency-Key') ?? null,
-    });
-    res.status(201).json(serializeOrder(order));
+customerRouter.get(
+  '/payment-methods',
+  asyncHandler(async (_req, res) => {
+    const [methods, numbers] = await Promise.all([listPaymentMethods(), listDepositNumbers({ enabledOnly: true })]);
+    res.json(
+      methods
+        .filter((m) => m.enabled)
+        .map((m) => ({
+          method: m.method,
+          label: m.label,
+          kind: m.kind,
+          color: m.color,
+          initials: m.initials,
+          depositNumbers: numbers.filter((n) => n.method === m.method).map((n) => ({ number: n.number, label: n.label })),
+        }))
+    );
   })
 );
 
-customerRouter.post(
-  '/withdrawals/winwin',
-  moneyLimiter,
-  requireIdempotencyKey('customer.withdrawals.winwin'),
-  asyncHandler(async (req, res) => {
-    const body = winwinDepositSchema.parse(req.body);
-    const amountCents = toCents(body.amount);
-    const quote = await computeQuote(pool, 'winwin', 'withdraw', amountCents);
-    const order = await createWithdrawOrder({
-      customerId: req.user!.id,
-      quote,
-      winwinId: body.winwinId,
-      idempotencyKey: req.header('Idempotency-Key') ?? null,
-    });
-    res.status(201).json(serializeOrder(order));
+customerRouter.get(
+  '/home-ads',
+  asyncHandler(async (_req, res) => {
+    res.json(await listHomeAds({ enabledOnly: true }));
+  })
+);
 
-    // Fire-and-forget: if MobCash automation is on, try to process this
-    // withdrawal immediately instead of waiting for the periodic sweep.
-    // Never blocks or affects the customer's response either way -- the
-    // response above already reflects the real, currently-pending state.
-    import('../services/automationOrchestrator')
-      .then((m) => m.runAutomatedWithdrawal(order.id))
-      .catch((err) => console.error('Automated withdrawal trigger failed', order.id, err instanceof Error ? err.message : err));
+customerRouter.get(
+  '/notifications',
+  asyncHandler(async (_req, res) => {
+    res.json(await listNotifications(50));
+  })
+);
+
+customerRouter.get(
+  '/contacts',
+  asyncHandler(async (_req, res) => {
+    res.json(await getContacts());
   })
 );
 

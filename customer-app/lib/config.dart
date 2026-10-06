@@ -1,17 +1,23 @@
-/// App-wide configuration.
+/// App-wide configuration: the Supabase project BAARI's backend runs on.
+///
+/// Set at build time:
+///   flutter build apk --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
+///                     --dart-define=SUPABASE_ANON_KEY=<publishable/anon key>
+///
+/// The publishable (anon) key only identifies the project and is meant to
+/// ship inside apps; what a user can see and do is decided by their login
+/// and the database's own permission checks and row level security. For a
+/// local stack (`supabase start`) an Android emulator reaches the host at
+/// http://10.0.2.2:54321.
 class AppConfig {
   AppConfig._();
 
-  /// Base URL of the BAARI backend.
-  ///
-  /// Override at build/run time with:
-  ///   flutter run --dart-define=API_BASE_URL=http://YOUR_HOST:4000
-  ///
-  /// Defaults to 10.0.2.2, which is how the Android emulator reaches the
-  /// host machine's localhost. Point this at a real deployed backend URL
-  /// for a physical device or production build.
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:4000',
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://onbezsojnpsrtuxzwsjr.supabase.co',
   );
+
+  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+  static const Duration requestTimeout = Duration(seconds: 20);
 }

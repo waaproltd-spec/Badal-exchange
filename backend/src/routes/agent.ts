@@ -9,9 +9,12 @@ import { fromCents, toCents } from '../lib/money';
 import { submitSmsTransaction, submitWinwinTransaction } from '../services/matchingService';
 import { startProcessingWithdraw, completeWithdrawOrder, failOrder } from '../services/orderService';
 import { ApiError } from '../lib/errors';
+import { MOBILE_MONEY_METHODS, PLATFORM_METHODS } from '../lib/methods';
+import { registerAgentConsoleRoutes } from './agentConsole';
 
 export const agentRouter = Router();
 agentRouter.use(requireAuth, requireRole('agent'));
+registerAgentConsoleRoutes(agentRouter);
 
 function serializeOrder(o: any) {
   return {
@@ -22,7 +25,8 @@ function serializeOrder(o: any) {
     status: o.status,
     customerId: o.customer_id,
     phoneNumber: o.phone_number,
-    winwinId: o.winwin_id,
+    accountId: o.winwin_id,
+    winwinId: o.winwin_id, // kept for app versions before multi-method support
     depositCode: o.deposit_code,
     amount: fromCents(o.amount_cents),
     fee: fromCents(o.fee_cents),
@@ -154,6 +158,71 @@ agentRouter.post(
       depositCode: body.depositCode,
       amountCents: toCents(body.amount),
       mobcashRef: body.mobcashRef,
+      occurredAt: body.occurredAt,
+    });
+    res.status(result.status === 'duplicate' ? 200 : 201).json(result);
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Manual mobile-money confirmation (EVC Plus, Golis, Telesom, eDahab): the
+// agent saw a real incoming payment (on the receiving phone/statement) and
+// keys in the facts. Goes through the same dedupe + match path as SMS, keyed
+// by the method, so a payment already reported by SMS can't count twice.
+// ---------------------------------------------------------------------------
+const mobileMoneySchema = z.object({
+  method: z.enum(MOBILE_MONEY_METHODS),
+  senderPhone: z.string().min(4).max(20),
+  amount: z.string().or(z.number()),
+  transactionRef: z.string().min(3).max(100),
+  occurredAt: z.string(),
+});
+
+agentRouter.post(
+  '/mobile-money-transactions',
+  moneyLimiter,
+  requireIdempotencyKey('agent.mobile_money_transactions'),
+  asyncHandler(async (req, res) => {
+    const body = mobileMoneySchema.parse(req.body);
+    const result = await submitSmsTransaction({
+      agentId: req.user!.id,
+      provider: body.method,
+      sender: body.senderPhone,
+      amountCents: toCents(body.amount),
+      transactionRef: body.transactionRef,
+      occurredAt: body.occurredAt,
+    });
+    res.status(result.status === 'duplicate' ? 200 : 201).json(result);
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Betting-platform deposit confirmation (WinWin, 1XBET, MELBET, Betwinner,
+// DBbet, 888STARZ): the agent topped up / observed the real transaction in
+// that platform's cashier tools and keys the result in here.
+// ---------------------------------------------------------------------------
+const platformSchema = z.object({
+  method: z.enum(PLATFORM_METHODS),
+  accountId: z.string().min(3).max(30),
+  depositCode: z.string().min(3).max(10).optional(),
+  amount: z.string().or(z.number()),
+  reference: z.string().min(3).max(100),
+  occurredAt: z.string(),
+});
+
+agentRouter.post(
+  '/platform-transactions',
+  moneyLimiter,
+  requireIdempotencyKey('agent.platform_transactions'),
+  asyncHandler(async (req, res) => {
+    const body = platformSchema.parse(req.body);
+    const result = await submitWinwinTransaction({
+      submittedBy: req.user!.id,
+      method: body.method,
+      winwinId: body.accountId,
+      depositCode: body.depositCode,
+      amountCents: toCents(body.amount),
+      mobcashRef: body.reference,
       occurredAt: body.occurredAt,
     });
     res.status(result.status === 'duplicate' ? 200 : 201).json(result);

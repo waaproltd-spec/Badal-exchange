@@ -91,7 +91,7 @@ class SmsBridge {
   ///
   /// [deviceId] is the id this device was registered with via
   /// POST /agent/devices/register — it is attached to every submitted
-  /// transaction so the backend/admin dashboard can trace which device
+  /// transaction so the backend and managers can trace which device
   /// captured it.
   Future<void> start({required String deviceId}) async {
     if (_subscription != null) return;

@@ -1,5 +1,6 @@
 import { pool } from '../db/pool';
 import { completeDepositOrder } from './orderService';
+import { methodForSmsProvider, PlatformMethod } from '../lib/methods';
 
 export interface SmsSubmission {
   agentId: string;
@@ -18,10 +19,12 @@ export type MatchResult =
   | { status: 'unmatched' };
 
 /**
- * EVC Plus deposit verification. The agent app extracts only the minimal
- * fields from an authorized payment SMS (never the raw message body) and
- * posts them here. The provider transaction ref is the dedupe key -- the
- * same SMS/payment can never credit a wallet twice.
+ * Mobile-money deposit verification (EVC Plus, Golis, Telesom, eDahab). The
+ * agent app extracts only the minimal fields from an authorized payment SMS
+ * (never the raw message body), or an agent keys in a payment they saw, and
+ * posts them here. `provider` names the mobile-money method. The provider
+ * transaction ref is the dedupe key -- the same payment can never credit a
+ * wallet twice, whether it arrived by SMS or was entered by hand.
  */
 export async function submitSmsTransaction(input: SmsSubmission): Promise<MatchResult> {
   const inserted = await pool.query(
@@ -35,13 +38,14 @@ export async function submitSmsTransaction(input: SmsSubmission): Promise<MatchR
     return { status: 'duplicate' };
   }
   const smsId = inserted.rows[0].id;
+  const method = methodForSmsProvider(input.provider);
 
   const candidate = await pool.query(
     `SELECT id FROM orders
-     WHERE direction = 'deposit' AND method = 'evc_plus' AND status = 'pending'
+     WHERE direction = 'deposit' AND method = $3 AND status = 'pending'
        AND phone_number = $1 AND amount_cents = $2
      ORDER BY created_at ASC LIMIT 1`,
-    [input.sender, input.amountCents]
+    [input.sender, input.amountCents, method]
   );
 
   if (!candidate.rows[0]) {
@@ -60,6 +64,9 @@ export async function submitSmsTransaction(input: SmsSubmission): Promise<MatchR
 
 export interface WinwinSubmission {
   submittedBy: string;
+  /** Betting platform the top-up happened on. Defaults to WinWin. */
+  method?: PlatformMethod;
+  /** The customer's account ID on that platform. */
   winwinId: string;
   depositCode?: string;
   amountCents: number;
@@ -68,18 +75,19 @@ export interface WinwinSubmission {
 }
 
 /**
- * WinWin/MobCash deposit confirmation. Submitted by an authorized agent or
- * admin after observing the real, completed transaction in the WinWin
- * manager app -- never generated automatically and never trusted from the
- * customer app.
+ * Betting-platform deposit confirmation (WinWin/MobCash, 1XBET, MELBET, ...).
+ * Submitted by an authorized agent or admin after observing the real,
+ * completed top-up in that platform's cashier/manager tools -- never
+ * generated automatically and never trusted from the customer app.
  */
 export async function submitWinwinTransaction(input: WinwinSubmission): Promise<MatchResult> {
+  const method = input.method ?? 'winwin';
   const inserted = await pool.query(
-    `INSERT INTO winwin_transactions (submitted_by, winwin_id, deposit_code, amount_cents, mobcash_ref, occurred_at)
-     VALUES ($1,$2,$3,$4,$5,$6)
-     ON CONFLICT (mobcash_ref) DO NOTHING
+    `INSERT INTO winwin_transactions (submitted_by, winwin_id, deposit_code, amount_cents, mobcash_ref, occurred_at, method)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (method, mobcash_ref) DO NOTHING
      RETURNING id`,
-    [input.submittedBy, input.winwinId, input.depositCode ?? null, input.amountCents, input.mobcashRef, input.occurredAt]
+    [input.submittedBy, input.winwinId, input.depositCode ?? null, input.amountCents, input.mobcashRef, input.occurredAt, method]
   );
   if (inserted.rowCount === 0) {
     return { status: 'duplicate' };
@@ -95,11 +103,11 @@ export async function submitWinwinTransaction(input: WinwinSubmission): Promise<
   // order, not a blind amount match across all customers.
   const candidate = await pool.query(
     `SELECT id FROM orders
-     WHERE direction = 'deposit' AND method = 'winwin' AND status = 'pending'
+     WHERE direction = 'deposit' AND method = $4 AND status = 'pending'
        AND winwin_id = $1 AND amount_cents = $2
        AND ($3::text IS NULL OR deposit_code = $3)
      ORDER BY created_at ASC LIMIT 1`,
-    [input.winwinId, input.amountCents, input.depositCode ?? null]
+    [input.winwinId, input.amountCents, input.depositCode ?? null, method]
   );
 
   if (!candidate.rows[0]) {

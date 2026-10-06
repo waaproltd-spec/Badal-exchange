@@ -1,3 +1,5 @@
+import 'payment_method.dart' as pm;
+
 /// Order shape shared by GET /customer/orders and GET /customer/orders/:id,
 /// and returned by the deposit/withdrawal creation endpoints.
 class Order {
@@ -9,7 +11,7 @@ class Order {
     required this.status,
     required this.statusMessage,
     this.phoneNumber,
-    this.winwinId,
+    this.accountId,
     this.depositCode,
     required this.amount,
     required this.fee,
@@ -23,11 +25,12 @@ class Order {
   final String id;
   final String orderCode;
   final String direction; // 'deposit' | 'withdraw'
-  final String method; // 'evc_plus' | 'winwin'
+  final String method; // see payment_method.dart
   final String status; // pending | processing | completed | failed | cancelled | expired
   final String statusMessage;
   final String? phoneNumber;
-  final String? winwinId;
+  /// The customer's account ID on a betting platform.
+  final String? accountId;
   final String? depositCode;
   final String amount;
   final String fee;
@@ -38,7 +41,8 @@ class Order {
   final DateTime? completedAt;
 
   bool get isDeposit => direction == 'deposit';
-  bool get isEvc => method == 'evc_plus';
+  pm.PaymentMethodInfo get methodInfo => pm.methodInfo(method);
+  String get methodLabel => methodInfo.label;
 
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
@@ -49,7 +53,7 @@ class Order {
       status: json['status'] as String,
       statusMessage: json['statusMessage'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String?,
-      winwinId: json['winwinId'] as String?,
+      accountId: (json['accountId'] ?? json['winwinId']) as String?,
       depositCode: json['depositCode'] as String?,
       amount: json['amount'] as String,
       fee: json['fee'] as String,

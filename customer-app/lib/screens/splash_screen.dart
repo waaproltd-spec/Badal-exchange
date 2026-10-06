@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../api/customer_api.dart';
 import '../state/auth_provider.dart';
 import '../theme/colors.dart';
 import '../widgets/brand/baari_logo.dart';
@@ -23,6 +26,8 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _auth = context.read<AuthProvider>();
+    // Shared payment-method catalog; doesn't block startup.
+    unawaited(context.read<CustomerApi>().loadMethodCatalog());
     if (_auth.initializing) {
       _auth.addListener(_onAuthChanged);
     } else {

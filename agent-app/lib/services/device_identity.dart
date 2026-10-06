@@ -13,7 +13,7 @@ import 'package:uuid/uuid.dart';
 /// A locally-generated, persisted UUID is used as the primary identifier
 /// (simple, stable across app restarts, no extra native code required).
 /// device_info_plus is used only to produce a human-readable label the
-/// backend stores for the admin dashboard's benefit (e.g. "Pixel 7 -
+/// backend stores so managers can recognize the device (e.g. "Pixel 7 -
 /// agent-device"), never as the identifier itself.
 class DeviceIdentity {
   DeviceIdentity._();

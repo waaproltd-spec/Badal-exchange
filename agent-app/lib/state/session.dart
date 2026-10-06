@@ -9,6 +9,7 @@ import '../api/token_storage.dart';
 import '../models/agent_profile.dart';
 import '../services/device_identity.dart';
 import '../sms/sms_bridge.dart';
+import 'live_updates.dart';
 
 enum AuthStatus { unknown, loggedOut, loggedIn }
 
@@ -27,12 +28,14 @@ class Session extends ChangeNotifier {
     // the SMS bridge so both benefit from the same bearer-token refresh
     // handling instead of racing two independent token refreshes.
     smsBridge = SmsBridge(api: _api);
+    live = LiveUpdates(() => _api.client.supabase);
     _api.client.onSessionExpired = _handleSessionExpired;
   }
 
   final AgentApi _api;
   final TokenStorage _tokens;
   late final SmsBridge smsBridge;
+  late final LiveUpdates live;
 
   AgentApi get api => _api;
 
@@ -47,8 +50,10 @@ class Session extends ChangeNotifier {
 
   /// Restores a previously persisted session on app startup.
   Future<void> bootstrap() async {
-    final hasSession = await _tokens.hasSession;
-    if (!hasSession) {
+    // The shared payment-method catalog is public: load it before anything else.
+    unawaited(_api.loadMethodCatalog());
+    if (!_api.client.hasSession) {
+      await _tokens.clear();
       status = AuthStatus.loggedOut;
       notifyListeners();
       return;
@@ -56,12 +61,13 @@ class Session extends ChangeNotifier {
     _agentName = await _tokens.agentName;
     deviceId = await DeviceIdentity.instance.getOrCreateDeviceId();
     status = AuthStatus.loggedIn;
+    live.start();
     notifyListeners();
 
     // Best-effort: refresh profile and resume SMS listening in the
     // background; failures here don't invalidate the restored session
-    // (a fresh access token will be pulled on the next real API call via
-    // ApiClient's built-in refresh-on-401 handling).
+    // (Supabase Auth refreshes the access token on its own).
+    unawaited(_verifyRestoredSession());
     unawaited(_loadProfile());
     unawaited(_maybeAutoStartSmsBridge());
   }
@@ -72,7 +78,6 @@ class Session extends ChangeNotifier {
     notifyListeners();
     try {
       final result = await _api.login(phone: phone, password: password);
-      await _tokens.saveTokens(accessToken: result.accessToken, refreshToken: result.refreshToken);
       await _tokens.saveAgentIdentity(id: result.userId, name: result.name);
       _agentName = result.name;
 
@@ -88,9 +93,11 @@ class Session extends ChangeNotifier {
       }
 
       status = AuthStatus.loggedIn;
+      live.start();
       isBusy = false;
       notifyListeners();
 
+      unawaited(_api.loadMethodCatalog());
       unawaited(_loadProfile());
       unawaited(_maybeAutoStartSmsBridge());
       return true;
@@ -120,6 +127,19 @@ class Session extends ChangeNotifier {
     } catch (e) {
       deviceRegistrationError = e is ApiException ? e.message : e.toString();
       notifyListeners();
+    }
+  }
+
+  /// A restored session whose account was disabled or is no longer an
+  /// agent is signed out.
+  Future<void> _verifyRestoredSession() async {
+    try {
+      final me = await _api.client.rpc('session_profile') as Map<String, dynamic>;
+      if (me['role'] != 'agent') await logout();
+    } on ApiException catch (e) {
+      if (e.statusCode == 401 || e.statusCode == 403) await logout();
+    } catch (_) {
+      // Offline: keep the session; calls will retry when back online.
     }
   }
 
@@ -171,6 +191,7 @@ class Session extends ChangeNotifier {
   }
 
   void _handleSessionExpired() {
+    unawaited(live.stop());
     status = AuthStatus.loggedOut;
     profile = null;
     unawaited(smsBridge.stop());
@@ -179,6 +200,7 @@ class Session extends ChangeNotifier {
 
   Future<void> logout() async {
     await smsBridge.stop();
+    await live.stop();
     await _api.logout();
     status = AuthStatus.loggedOut;
     profile = null;

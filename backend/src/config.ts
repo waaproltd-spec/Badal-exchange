@@ -9,6 +9,13 @@ function required(name: string): string {
   return v;
 }
 
+// The MobCash automation worker (src/worker.ts, BAARI_PROCESS=worker) serves
+// no API, so it doesn't need the API's token secrets.
+const isWorker = process.env.BAARI_PROCESS === 'worker';
+function requiredForApi(name: string): string {
+  return isWorker ? process.env[name] || 'unused-by-worker' : required(name);
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '4000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -22,11 +29,11 @@ export const config = {
   // Supabase's poolers cap client connections per project, so keep this
   // within the plan's limit.
   databasePoolMax: parseInt(process.env.DATABASE_POOL_MAX || '20', 10),
-  jwtAccessSecret: required('JWT_ACCESS_SECRET'),
-  jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
+  jwtAccessSecret: requiredForApi('JWT_ACCESS_SECRET'),
+  jwtRefreshSecret: requiredForApi('JWT_REFRESH_SECRET'),
   jwtAccessTtl: process.env.JWT_ACCESS_TTL || '15m',
   jwtRefreshTtl: process.env.JWT_REFRESH_TTL || '30d',
-  credentialEncryptionKey: required('CREDENTIAL_ENCRYPTION_KEY'),
+  credentialEncryptionKey: requiredForApi('CREDENTIAL_ENCRYPTION_KEY'),
   adminDashboardOrigin: process.env.ADMIN_DASHBOARD_ORIGIN || 'http://localhost:5173',
   // CashdeskBot: optional at startup -- these come from the API manager and
   // may not exist yet. Checked lazily by cashdeskBotService when actually

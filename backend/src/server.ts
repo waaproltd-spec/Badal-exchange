@@ -9,6 +9,7 @@ import { agentRouter } from './routes/agent';
 import { adminRouter } from './routes/admin';
 import { cashdeskBotRouter } from './routes/cashdeskbot';
 import { ApiError } from './lib/errors';
+import { listPaymentMethods } from './services/settingsService';
 
 const app = express();
 
@@ -24,6 +25,16 @@ app.use(express.json({ limit: '1mb' }));
 app.use(apiLimiter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Public: the payment-method catalog both apps load at startup (labels,
+// kinds, order, styling, ON/OFF). No customer or secret data.
+app.get('/meta/payment-methods', async (_req, res, next) => {
+  try {
+    res.json(await listPaymentMethods());
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.use('/auth', authRouter);
 app.use('/customer', customerRouter);

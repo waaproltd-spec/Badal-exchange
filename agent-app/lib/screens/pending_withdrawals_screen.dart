@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
 import '../models/order.dart';
+import '../state/live_updates.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/order_card.dart';
@@ -20,7 +21,7 @@ class PendingWithdrawalsScreen extends StatefulWidget {
   State<PendingWithdrawalsScreen> createState() => _PendingWithdrawalsScreenState();
 }
 
-class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> {
+class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> with LiveRefresh {
   List<Order>? _orders;
   String? _error;
   bool _loading = true;
@@ -30,11 +31,12 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> {
   void initState() {
     super.initState();
     _load();
+    listenForLiveChanges(context.read<Session>().live.changes, _load);
   }
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      _loading = _orders == null;
       _error = null;
     });
     try {

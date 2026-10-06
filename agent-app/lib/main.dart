@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'api/api_client.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'state/session.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ApiClient.initialize();
   runApp(const BadalAgentApp());
 }
 

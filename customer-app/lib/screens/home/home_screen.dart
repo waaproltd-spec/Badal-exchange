@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
+import '../../models/app_content.dart';
 import '../../models/order.dart';
 import '../../state/orders_provider.dart';
 import '../../state/wallet_provider.dart';
@@ -10,9 +12,11 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/brand/baari_logo.dart';
+import '../../widgets/home_ads_strip.dart';
 import '../../widgets/method_icon.dart';
 import '../../widgets/status_badge.dart';
 import '../deposit/deposit_method_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../orders/order_detail_screen.dart';
 import '../withdraw/withdraw_method_screen.dart';
 
@@ -30,6 +34,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   static const int _recentOrdersCount = 3;
+  List<HomeAd> _ads = const [];
 
   @override
   void initState() {
@@ -42,7 +47,20 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _refresh() => Future.wait([
         context.read<WalletProvider>().load(),
         context.read<OrdersProvider>().load(),
+        _loadAds(),
       ]);
+
+  /// Ads are optional decoration: a failure just leaves the section hidden.
+  Future<void> _loadAds() async {
+    try {
+      final ads = await context.read<CustomerApi>().getHomeAds();
+      if (mounted) setState(() => _ads = ads);
+    } catch (_) {}
+  }
+
+  void _openNotifications() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+  }
 
   Future<void> _goDeposit() async {
     await Navigator.of(context).push(
@@ -80,7 +98,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 walletState: walletState,
                 onDeposit: _goDeposit,
                 onWithdraw: _goWithdraw,
+                onNotifications: _openNotifications,
               ),
+              if (_ads.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: HomeAdsStrip(ads: _ads),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
                 child: Column(
@@ -124,12 +148,14 @@ class _WalletHeader extends StatelessWidget {
     required this.walletState,
     required this.onDeposit,
     required this.onWithdraw,
+    required this.onNotifications,
   });
 
   final double topInset;
   final WalletProvider walletState;
   final VoidCallback onDeposit;
   final VoidCallback onWithdraw;
+  final VoidCallback onNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -162,9 +188,20 @@ class _WalletHeader extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: BaariLogo(markSize: 46, onDark: true),
+              Row(
+                children: [
+                  const BaariLogo(markSize: 46, onDark: true),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: AppStrings.notifications,
+                    onPressed: onNotifications,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.12),
+                      side: BorderSide(color: Colors.white.withOpacity(0.25)),
+                    ),
+                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+                  ),
+                ],
               ),
               const SizedBox(height: 28),
               _BalanceCard(walletState: walletState),
@@ -474,7 +511,7 @@ class _RecentOrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDeposit = order.isDeposit;
-    final methodLabel = order.isEvc ? AppStrings.evcPlus : AppStrings.winwin;
+    final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
 
     return Material(

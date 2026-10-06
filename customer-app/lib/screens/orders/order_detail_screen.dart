@@ -94,7 +94,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           child: Text(order.statusMessage, style: AppTextStyles.muted, textAlign: TextAlign.center),
         ),
         const SizedBox(height: 28),
-        if (order.method == 'winwin' && order.depositCode != null) ...[
+        if (order.methodInfo.isPlatform && order.depositCode != null) ...[
           AppCard(
             color: AppColors.primaryTint,
             child: Column(
@@ -120,7 +120,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               const SummaryDivider(),
               SummaryRow(
                 label: AppStrings.method,
-                value: order.isEvc ? AppStrings.evcPlus : AppStrings.winwin,
+                value: order.methodLabel,
               ),
               const SummaryDivider(),
               SummaryRow(label: 'Type', value: isDeposit ? AppStrings.deposit : AppStrings.withdraw),
@@ -128,9 +128,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 const SummaryDivider(),
                 SummaryRow(label: 'Phone Number', value: order.phoneNumber!),
               ],
-              if (order.winwinId != null) ...[
+              if (order.accountId != null) ...[
                 const SummaryDivider(),
-                SummaryRow(label: 'WinWin ID', value: order.winwinId!),
+                SummaryRow(label: '${order.methodLabel} Account ID', value: order.accountId!),
               ],
               const SummaryDivider(),
               SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),

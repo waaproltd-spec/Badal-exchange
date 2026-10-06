@@ -1,163 +1,218 @@
-import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config.dart';
 import 'api_exception.dart';
 
-/// Storage keys used across the app. Centralized here since both
-/// [ApiClient] (token refresh) and `AuthProvider` (session bookkeeping)
-/// read/write them.
+/// Storage keys for what the app remembers about the signed-in customer.
+/// The session itself is kept by Supabase Auth ([SecureSessionStorage]).
 class SecureStorageKeys {
   SecureStorageKeys._();
 
-  static const String accessToken = 'accessToken';
-  static const String refreshToken = 'refreshToken';
   static const String userPhone = 'userPhone';
   static const String userName = 'userName';
 }
 
-/// Thin HTTP client for the Badal Exchange backend.
+/// Thin client over the BAARI Supabase backend.
 ///
-/// Responsibilities:
-///  - attaches `Authorization: Bearer <accessToken>` to every request,
-///  - transparently refreshes the access token on a 401 and retries the
-///    request exactly once,
-///  - normalizes backend errors (`{error:{code,message,details}}`) and
-///    network failures into [ApiException].
-///
-/// Tokens are persisted in [FlutterSecureStorage] -- never in plain
-/// SharedPreferences.
+///  - Supabase Auth holds the session (in the platform keystore, never plain
+///    SharedPreferences) and refreshes it automatically;
+///  - every backend call is a Postgres function called with [rpc]; errors
+///    carry the app error code (e.g. INSUFFICIENT_BALANCE) in `hint` and are
+///    normalized, like network failures, into [ApiException];
+///  - [liveChanges] streams Realtime changes to the customer's own orders and
+///    wallet, and new notifications, while signed in.
 class ApiClient {
-  ApiClient({required this.baseUrl, FlutterSecureStorage? secureStorage, http.Client? httpClient})
-      : secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _http = httpClient ?? http.Client();
+  ApiClient({SupabaseClient? supabase, FlutterSecureStorage? secureStorage})
+      : _supabase = supabase,
+        secureStorage = secureStorage ?? const FlutterSecureStorage();
 
-  final String baseUrl;
+  SupabaseClient? _supabase;
   final FlutterSecureStorage secureStorage;
-  final http.Client _http;
+  StreamSubscription<AuthState>? _authSub;
+  bool _loggingOut = false;
+  RealtimeChannel? _liveChannel;
+  final _live = StreamController<String>.broadcast();
 
-  /// Called when a refresh attempt fails (refresh token missing/expired),
-  /// so the app can drop the user back to the login screen. Set by
-  /// `AuthProvider`.
+  /// Called when the session ends without the user logging out (refresh
+  /// token revoked, account disabled), so the app can show the login
+  /// screen. Set by `AuthProvider`.
   void Function()? onSessionExpired;
 
-  Future<dynamic> get(String path) => _send('GET', path);
-
-  Future<dynamic> post(String path, {Map<String, dynamic>? body, String? idempotencyKey}) =>
-      _send('POST', path, body: body, idempotencyKey: idempotencyKey);
-
-  Future<Map<String, String>> _headers({String? idempotencyKey}) async {
-    final token = await secureStorage.read(key: SecureStorageKeys.accessToken);
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-      if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
-    };
-  }
-
-  Future<dynamic> _send(
-    String method,
-    String path, {
-    Map<String, dynamic>? body,
-    String? idempotencyKey,
-    bool isRetryAfterRefresh = false,
-  }) async {
-    final uri = Uri.parse('$baseUrl$path');
-    final headers = await _headers(idempotencyKey: idempotencyKey);
-    final encodedBody = body != null ? jsonEncode(body) : null;
-
-    http.Response response;
-    try {
-      switch (method) {
-        case 'GET':
-          response = await _http.get(uri, headers: headers);
-          break;
-        case 'POST':
-          response = await _http.post(uri, headers: headers, body: encodedBody);
-          break;
-        default:
-          throw UnsupportedError('Unsupported HTTP method: $method');
-      }
-    } catch (_) {
-      throw const ApiException(
-        status: 0,
-        code: 'NETWORK_ERROR',
-        message: 'Could not reach the server. Check your internet connection and try again.',
-      );
+  static Future<void> initialize() async {
+    if (AppConfig.supabaseAnonKey.isEmpty) {
+      debugPrint('SUPABASE_ANON_KEY is not set; build with --dart-define=SUPABASE_ANON_KEY=...');
     }
-
-    if (response.statusCode == 401 && !isRetryAfterRefresh && path != '/auth/refresh') {
-      final refreshed = await _tryRefreshToken();
-      if (refreshed) {
-        return _send(
-          method,
-          path,
-          body: body,
-          idempotencyKey: idempotencyKey,
-          isRetryAfterRefresh: true,
-        );
-      }
-      onSessionExpired?.call();
-      throw const ApiException(
-        status: 401,
-        code: 'SESSION_EXPIRED',
-        message: 'Your session has expired. Please log in again.',
-      );
-    }
-
-    return _parse(response);
-  }
-
-  dynamic _parse(http.Response response) {
-    dynamic decoded;
-    if (response.body.isNotEmpty) {
-      try {
-        decoded = jsonDecode(response.body);
-      } catch (_) {
-        decoded = null;
-      }
-    }
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return decoded;
-    }
-
-    final errorObj = (decoded is Map && decoded['error'] is Map)
-        ? decoded['error'] as Map<dynamic, dynamic>
-        : const <dynamic, dynamic>{};
-
-    throw ApiException(
-      status: response.statusCode,
-      code: (errorObj['code'] as String?) ?? 'UNKNOWN_ERROR',
-      message: (errorObj['message'] as String?) ?? 'Something went wrong. Please try again.',
-      details: errorObj['details'],
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      publishableKey: AppConfig.supabaseAnonKey.isEmpty ? 'missing-anon-key' : AppConfig.supabaseAnonKey,
+      authOptions: const FlutterAuthClientOptions(
+        localStorage: SecureSessionStorage('baari_customer_supabase_session'),
+        autoRefreshToken: true,
+      ),
     );
   }
 
-  Future<bool> _tryRefreshToken() async {
-    final refreshToken = await secureStorage.read(key: SecureStorageKeys.refreshToken);
-    if (refreshToken == null) return false;
+  SupabaseClient get supabase {
+    final client = _supabase ??= Supabase.instance.client;
+    _authSub ??= client.auth.onAuthStateChange.listen((state) {
+      if (state.event == AuthChangeEvent.signedOut && !_loggingOut) {
+        stopLive();
+        onSessionExpired?.call();
+      }
+    });
+    return client;
+  }
 
+  bool get hasSession => supabase.auth.currentSession != null;
+
+  /// Emits 'orders', 'wallets' or 'notifications' when one changes.
+  Stream<String> get liveChanges => _live.stream;
+
+  /// Calls a backend function. Returns its JSON result (Map, List or null).
+  Future<dynamic> rpc(String function, [Map<String, dynamic>? params]) {
+    return guard(() => supabase.rpc(function, params: params).timeout(AppConfig.requestTimeout));
+  }
+
+  Future<void> signIn({required String phone, required String password}) async {
+    await guard(() => supabase.auth
+        .signInWithPassword(email: authEmailFor(phone), password: password)
+        .timeout(AppConfig.requestTimeout));
+  }
+
+  Future<void> signOut() async {
+    _loggingOut = true;
     try {
-      final uri = Uri.parse('$baseUrl/auth/refresh');
-      final response = await _http.post(
-        uri,
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode != 200) return false;
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final newAccessToken = data['accessToken'] as String?;
-      final newRefreshToken = data['refreshToken'] as String?;
-      if (newAccessToken == null || newRefreshToken == null) return false;
-
-      await secureStorage.write(key: SecureStorageKeys.accessToken, value: newAccessToken);
-      await secureStorage.write(key: SecureStorageKeys.refreshToken, value: newRefreshToken);
-      return true;
+      stopLive();
+      await supabase.auth.signOut();
     } catch (_) {
-      return false;
+      // Local session is cleared regardless.
+    } finally {
+      _loggingOut = false;
     }
   }
+
+  void startLive() {
+    final uid = supabase.auth.currentUser?.id;
+    if (_liveChannel != null || uid == null) return;
+    final filter = PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'customer_id', value: uid);
+    _liveChannel = supabase
+        .channel('customer-live-$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orders',
+          filter: filter,
+          callback: (_) => _live.add('orders'),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'wallets',
+          filter: filter,
+          callback: (_) => _live.add('wallets'),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'notifications',
+          callback: (_) => _live.add('notifications'),
+        )
+        .subscribe();
+  }
+
+  void stopLive() {
+    final channel = _liveChannel;
+    _liveChannel = null;
+    if (channel != null) unawaited(supabase.removeChannel(channel));
+  }
+
+  /// Runs a Supabase call and maps every failure to [ApiException].
+  static Future<T> guard<T>(Future<T> Function() call) async {
+    try {
+      return await call();
+    } on PostgrestException catch (e) {
+      throw ApiException(status: _statusFor(e.code), code: e.hint ?? e.code ?? 'ERROR', message: e.message, details: e.details);
+    } on AuthException catch (e) {
+      final code = e.code ?? '';
+      if (code == 'user_banned') {
+        throw const ApiException(status: 403, code: 'FORBIDDEN', message: 'Account is disabled');
+      }
+      if (code == 'invalid_credentials' || e.statusCode == '400') {
+        throw const ApiException(status: 401, code: 'UNAUTHORIZED', message: 'Invalid credentials');
+      }
+      if (code == 'over_request_rate_limit') {
+        throw const ApiException(status: 429, code: 'RATE_LIMITED', message: 'Too many attempts, try again later.');
+      }
+      throw ApiException(status: int.tryParse(e.statusCode ?? '') ?? 401, code: 'UNAUTHORIZED', message: e.message);
+    } on ApiException {
+      rethrow;
+    } on SocketException {
+      throw _network;
+    } on TimeoutException {
+      throw _network;
+    } catch (e) {
+      final text = e.toString();
+      if (text.contains('SocketException') || text.contains('ClientException') || text.contains('Failed host lookup')) {
+        throw _network;
+      }
+      rethrow;
+    }
+  }
+
+  static const _network = ApiException(
+    status: 0,
+    code: 'NETWORK_ERROR',
+    message: 'Could not reach the server. Check your internet connection and try again.',
+  );
+
+  /// SQLSTATE 'PTxyz' from the backend means HTTP status xyz.
+  static int _statusFor(String? sqlState) {
+    if (sqlState != null && sqlState.startsWith('PT')) {
+      return int.tryParse(sqlState.substring(2)) ?? 400;
+    }
+    if (sqlState == '42501') return 403;
+    if (sqlState == 'PGRST301' || sqlState == 'PGRST302') return 401;
+    return 400;
+  }
+}
+
+/// The Supabase Auth login address for a phone number. Must match
+/// private.auth_email() in the database.
+String authEmailFor(String identifier) {
+  final trimmed = identifier.trim();
+  if (trimmed.contains('@')) return trimmed.toLowerCase();
+  final digits = trimmed.replaceAll(RegExp(r'\D'), '');
+  final local = digits.length >= 4
+      ? digits
+      : 'x${trimmed.codeUnits.map((c) => c.toRadixString(16).padLeft(2, '0')).join()}';
+  return '$local@phone.baari.invalid';
+}
+
+/// Keeps the Supabase session in the platform keystore/keychain.
+class SecureSessionStorage extends LocalStorage {
+  const SecureSessionStorage(this.key);
+
+  final String key;
+
+  static const _storage = FlutterSecureStorage();
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> hasAccessToken() => _storage.containsKey(key: key);
+
+  @override
+  Future<String?> accessToken() => _storage.read(key: key);
+
+  @override
+  Future<void> persistSession(String persistSessionString) => _storage.write(key: key, value: persistSessionString);
+
+  @override
+  Future<void> removePersistedSession() => _storage.delete(key: key);
 }

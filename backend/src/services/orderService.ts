@@ -5,13 +5,18 @@ import { generateDepositCode, generateOrderCode } from '../lib/crypto';
 import { Quote } from './rateFeeService';
 import { lockWallet, reserveFunds, releaseFunds, finalizeDebit, creditWallet } from './walletService';
 import { writeAudit } from '../lib/audit';
+import { isPlatform } from '../lib/methods';
 import { Role } from '../auth/jwt';
 
+/**
+ * `phoneNumber` is set for mobile-money methods, `accountId` for betting
+ * platforms (stored in orders.winwin_id for every platform).
+ */
 export interface CreateDepositInput {
   customerId: string;
   quote: Quote;
   phoneNumber?: string;
-  winwinId?: string;
+  accountId?: string;
   idempotencyKey?: string | null;
 }
 
@@ -19,7 +24,7 @@ export interface CreateWithdrawInput {
   customerId: string;
   quote: Quote;
   phoneNumber?: string;
-  winwinId?: string;
+  accountId?: string;
   idempotencyKey?: string | null;
 }
 
@@ -45,7 +50,7 @@ async function uniqueDepositCode(client: PoolClient): Promise<string> {
 export async function createDepositOrder(input: CreateDepositInput) {
   return withTransaction(async (client) => {
     const orderCode = await uniqueOrderCode(client);
-    const depositCode = input.quote.method === 'winwin' ? await uniqueDepositCode(client) : null;
+    const depositCode = isPlatform(input.quote.method) ? await uniqueDepositCode(client) : null;
 
     const { rows } = await client.query(
       `INSERT INTO orders (
@@ -64,7 +69,7 @@ export async function createDepositOrder(input: CreateDepositInput) {
         input.customerId,
         input.quote.method,
         input.phoneNumber ?? null,
-        input.winwinId ?? null,
+        input.accountId ?? null,
         depositCode,
         input.quote.amountCents,
         input.quote.rate,
@@ -95,7 +100,7 @@ export async function createWithdrawOrder(input: CreateWithdrawInput) {
          AND status IN ('pending','processing') AND amount_cents = $3
          AND COALESCE(phone_number, winwin_id, '') = COALESCE($4, $5, '')
        LIMIT 1`,
-      [input.customerId, input.quote.method, input.quote.amountCents, input.phoneNumber ?? null, input.winwinId ?? null]
+      [input.customerId, input.quote.method, input.quote.amountCents, input.phoneNumber ?? null, input.accountId ?? null]
     );
     if (dupCheck.rows[0]) {
       throw ApiError.conflict('An identical withdrawal request is already in progress', 'DUPLICATE_WITHDRAWAL');
@@ -121,7 +126,7 @@ export async function createWithdrawOrder(input: CreateWithdrawInput) {
         input.customerId,
         input.quote.method,
         input.phoneNumber ?? null,
-        input.winwinId ?? null,
+        input.accountId ?? null,
         input.quote.amountCents,
         input.quote.rate,
         input.quote.feeCents,
@@ -150,7 +155,7 @@ async function lockOrder(client: PoolClient, orderId: string) {
   return rows[0];
 }
 
-/** Deposit verified (SMS-matched or WinWin/MobCash-confirmed): credit the wallet and complete the order. */
+/** Deposit verified (mobile-money payment matched, or platform top-up confirmed): credit the wallet and complete the order. */
 export async function completeDepositOrder(
   orderId: string,
   transactionRef: string,

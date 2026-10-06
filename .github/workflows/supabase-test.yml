@@ -1,0 +1,70 @@
+name: Supabase tests
+
+# Starts a throwaway local Supabase stack (Postgres, Auth, Data API,
+# Realtime, Edge Functions), applies every migration in supabase/migrations,
+# and runs:
+#   - supabase/tests: the backend end to end through Auth, RPC, row level
+#     security and Realtime;
+#   - both apps' real API classes against it (test/supabase_e2e_test.dart).
+# Nothing here touches the production Supabase project.
+on:
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - 'agent-app/**'
+      - 'customer-app/**'
+      - '.github/workflows/supabase-test.yml'
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase and apply migrations
+        run: supabase start
+
+      - name: Read local API settings
+        run: |
+          supabase status -o env > /tmp/sb.env
+          . /tmp/sb.env
+          echo "SUPABASE_E2E_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "SUPABASE_E2E_ANON_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}" >> "$GITHUB_ENV"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Backend tests (Auth, RPC, RLS, Realtime)
+        working-directory: supabase/tests
+        env:
+          SUPABASE_URL: ${{ env.SUPABASE_E2E_URL }}
+          SUPABASE_ANON_KEY: ${{ env.SUPABASE_E2E_ANON_KEY }}
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+
+      - name: Customer App against Supabase
+        working-directory: customer-app
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Agent App against Supabase
+        if: always()
+        working-directory: agent-app
+        run: |
+          flutter pub get
+          flutter test

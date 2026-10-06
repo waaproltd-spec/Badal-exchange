@@ -33,6 +33,11 @@ class AppStrings {
 
   // Method picker
   static const String chooseMethod = 'Choose a method';
+  static const String mobileMoney = 'Mobile money';
+  static const String bettingPlatforms = 'Betting platforms';
+  static const String sendPaymentTo = 'Send your payment to';
+  static const String notifications = 'Notifications';
+  static const String noNotifications = 'No notifications yet';
   static const String evcPlus = 'EVC Plus';
   static const String winwin = 'WinWin';
 
@@ -47,8 +52,7 @@ class AppStrings {
   static const String processing = 'Processing...';
   static const String pleaseWait = 'Please wait while we submit your request.';
   static const String depositCodeLabel = 'Deposit Code';
-  static const String depositCodeHelp =
-      'Use this code as the reference when you pay via WinWin.';
+  static const String depositCodeHelp = 'Use this code as the payment reference.';
   static const String done = 'Done';
   static const String tryAgain = 'Try Again';
   static const String back = 'Back';

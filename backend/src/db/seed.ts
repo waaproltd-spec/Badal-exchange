@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { pool } from './pool';
 import { hashPassword } from '../lib/crypto';
+import { METHODS } from '../lib/methods';
 
 /**
  * Fixed id used by automationOrchestrator.ts / mobcashAutomation.ts as the
@@ -52,17 +53,22 @@ async function main() {
     `INSERT INTO agent_profiles (user_id, responsibilities) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING`,
     [agentId, ['evc_deposit', 'evc_withdraw']]
   );
+  // The demo agent can also manage app settings from the Agent App's Account
+  // tab (payment method switches, home ads, deposit numbers, notifications).
+  await pool.query(
+    `UPDATE agent_profiles SET responsibilities = array_append(responsibilities, 'manage_settings')
+     WHERE user_id = $1 AND NOT ('manage_settings' = ANY(responsibilities))`,
+    [agentId]
+  );
 
   const customerId = await upsertUser('customer', '252610000003', 'Demo Customer', 'ChangeMe123!');
   await pool.query(`INSERT INTO wallets (customer_id) VALUES ($1) ON CONFLICT (customer_id) DO NOTHING`, [customerId]);
 
   // Exchange rates: 1:1 by default (admin can change any time; each order snapshots the rate in force).
-  const rates: Array<[string, string, number]> = [
-    ['evc_plus', 'deposit', 1.0],
-    ['evc_plus', 'withdraw', 1.0],
-    ['winwin', 'deposit', 1.0],
-    ['winwin', 'withdraw', 1.0],
-  ];
+  const rates: Array<[string, string, number]> = METHODS.flatMap((m): Array<[string, string, number]> => [
+    [m, 'deposit', 1.0],
+    [m, 'withdraw', 1.0],
+  ]);
   for (const [method, direction, rate] of rates) {
     const exists = await pool.query(
       `SELECT 1 FROM exchange_rates WHERE method=$1 AND direction=$2 AND active=true`,
@@ -77,12 +83,12 @@ async function main() {
   }
 
   // Fees: flat $0.20 on deposits, 1% on withdrawals (values are illustrative demo defaults).
-  const fees: Array<[string, string, 'flat' | 'percent', number]> = [
-    ['evc_plus', 'deposit', 'flat', 20],
-    ['evc_plus', 'withdraw', 'percent', 1],
-    ['winwin', 'deposit', 'flat', 20],
-    ['winwin', 'withdraw', 'percent', 1],
-  ];
+  const fees: Array<[string, string, 'flat' | 'percent', number]> = METHODS.flatMap(
+    (m): Array<[string, string, 'flat' | 'percent', number]> => [
+      [m, 'deposit', 'flat', 20],
+      [m, 'withdraw', 'percent', 1],
+    ]
+  );
   for (const [method, direction, feeType, value] of fees) {
     const exists = await pool.query(`SELECT 1 FROM fees WHERE method=$1 AND direction=$2 AND active=true`, [
       method,
@@ -100,7 +106,7 @@ async function main() {
   }
 
   // Withdrawal limits: $1 min, $500 max per request (demo defaults).
-  for (const method of ['evc_plus', 'winwin']) {
+  for (const method of METHODS) {
     await pool.query(
       `INSERT INTO withdrawal_limits (method, min_cents, max_cents) VALUES ($1, 100, 50000)
        ON CONFLICT (method) DO NOTHING`,
