@@ -11,7 +11,7 @@
  *    an agent confirms the real top-up.
  *
  * Keep in sync with the `order_method` Postgres enum (migrations 001, 004)
- * and the method lists in the customer app, agent app and admin dashboard.
+ * and served to both apps at GET /meta/payment-methods (methodCatalog below).
  */
 export const MOBILE_MONEY_METHODS = ['evc_plus', 'golis', 'telesom', 'edahab'] as const;
 export const PLATFORM_METHODS = ['winwin', 'onexbet', 'melbet', 'betwinner', 'dbbet', '888starz'] as const;

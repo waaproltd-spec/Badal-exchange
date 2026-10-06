@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Payment methods, mirroring backend/src/lib/methods.ts.
+/// Payment methods. The backend is the single source of truth
+/// (backend/src/lib/methods.ts, served at GET /meta/payment-methods); the
+/// app loads that catalog at startup (CustomerApi.loadMethodCatalog).
 ///
 /// Mobile money identifies the customer by their phone number on that
 /// service; betting platforms by their account ID on that platform.
@@ -20,7 +22,9 @@ class PaymentMethodInfo {
   String get identifierHint => isPlatform ? 'e.g. 7841228' : 'e.g. 2526XXXXXXX';
 }
 
-const paymentMethods = <PaymentMethodInfo>[
+/// Bundled copy of the backend catalog, used only until the startup load
+/// succeeds (e.g. when offline).
+List<PaymentMethodInfo> paymentMethods = const <PaymentMethodInfo>[
   PaymentMethodInfo('evc_plus', 'EVC Plus', false, Color(0xFF16A34A), 'EVC'),
   PaymentMethodInfo('golis', 'Golis', false, Color(0xFF0EA5E9), 'GO'),
   PaymentMethodInfo('telesom', 'Telesom', false, Color(0xFF2563EB), 'TE'),
@@ -32,6 +36,27 @@ const paymentMethods = <PaymentMethodInfo>[
   PaymentMethodInfo('dbbet', 'DBbet', true, Color(0xFFDC2626), 'DB'),
   PaymentMethodInfo('888starz', '888STARZ', true, Color(0xFF7C3AED), '888'),
 ];
+
+PaymentMethodInfo _fromJson(Map<String, dynamic> m) {
+  final hex = (m['color'] as String? ?? '#6B7280').replaceFirst('#', '');
+  final label = m['label'] as String? ?? m['method'] as String;
+  return PaymentMethodInfo(
+    m['method'] as String,
+    label,
+    m['kind'] == 'platform',
+    Color(int.parse('FF$hex', radix: 16)),
+    m['initials'] as String? ?? label.substring(0, label.length < 2 ? label.length : 2).toUpperCase(),
+  );
+}
+
+/// Replaces [paymentMethods] with the backend catalog; keeps the current
+/// list if the response can't be used.
+void applyPaymentMethodCatalog(List<dynamic> json) {
+  try {
+    final list = json.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
+    if (list.isNotEmpty) paymentMethods = list;
+  } catch (_) {}
+}
 
 PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
       (m) => m.id == id,
@@ -48,7 +73,9 @@ class PaymentMethodOption {
 
   factory PaymentMethodOption.fromJson(Map<String, dynamic> json) {
     return PaymentMethodOption(
-      info: methodInfo(json['method'] as String),
+      // The backend sends label/kind/styling with each method; fall back to
+      // the catalog only for older responses.
+      info: json['label'] != null ? _fromJson(json) : methodInfo(json['method'] as String),
       depositNumbers: ((json['depositNumbers'] as List<dynamic>?) ?? const [])
           .map((e) => e as Map<String, dynamic>)
           .map((e) => (number: e['number'] as String, label: e['label'] as String?))

@@ -68,7 +68,7 @@ cashdeskBotRouter.post(
       ip: req.ip,
     });
     // success:false is a real, non-exceptional outcome (e.g. insufficient
-    // balance) -- returned as-is with HTTP 200 so the admin dashboard can
+    // balance) -- returned as-is with HTTP 200 so the Agent App can
     // show CashdeskBot's own message rather than a generic error.
     res.json(result);
   })

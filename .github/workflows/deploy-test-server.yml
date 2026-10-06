@@ -5,7 +5,7 @@ name: Deploy to Test Server
 # apps already running there (dalab-internet, jirwanaag, sahal-data,
 # fududeeye-data): uses its own directory (/srv/badal-exchange), its own
 # Postgres role/database (badal_exchange_app / badal_exchange), its own
-# ports (4010 backend, 4011 dashboard -- clear of the 4000-4003 already in
+# port (4010 backend -- clear of the 4000-4003 already in
 # use), and does not modify Caddy or any other service's config.
 #
 # Database: if the SUPABASE_DATABASE_URL repository secret is set, the
@@ -114,23 +114,21 @@ jobs:
           pm2 describe badal-backend >/dev/null 2>&1 && pm2 restart badal-backend || \
             (cd /srv/badal-exchange/backend && pm2 start dist/server.js --name badal-backend)
 
-          echo "== Admin dashboard: build + serve on 4011 =="
-          cd /srv/badal-exchange/admin-dashboard
-          npm ci
-          VITE_API_BASE_URL=http://203.161.38.33:4010 npm run build
-          pm2 describe badal-dashboard >/dev/null 2>&1 && pm2 restart badal-dashboard || \
-            pm2 serve dist 4011 --name badal-dashboard --spa
+          echo "== Retire the old admin dashboard (management now lives in the Agent App) =="
+          # Only ever touches this app's own process; other apps on the box are untouched.
+          if pm2 describe badal-dashboard >/dev/null 2>&1; then
+            pm2 delete badal-dashboard
+          fi
 
           pm2 save
 
           echo "== Firewall (only adds, never removes existing rules) =="
           if systemctl is-active --quiet firewalld; then
-            firewall-cmd --permanent --add-port=4010/tcp --add-port=4011/tcp
+            firewall-cmd --permanent --add-port=4010/tcp
             firewall-cmd --reload
           fi
 
           echo "== Done =="
           echo "Backend:   http://203.161.38.33:4010/health"
-          echo "Dashboard: http://203.161.38.33:4011"
           curl -s http://localhost:4010/health || echo "backend health check failed"
           REMOTE_SCRIPT

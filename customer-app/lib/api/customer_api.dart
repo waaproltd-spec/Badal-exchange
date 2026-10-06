@@ -126,6 +126,15 @@ class CustomerApi {
   // App content (managed from the Agent App)
   // ---------------------------------------------------------------------
 
+  /// Loads the shared payment-method catalog (public endpoint) so labels
+  /// and styling match the backend. Keeps the bundled list on failure.
+  Future<void> loadMethodCatalog() async {
+    try {
+      final data = await _client.get('/meta/payment-methods');
+      if (data is List<dynamic>) applyPaymentMethodCatalog(data);
+    } catch (_) {}
+  }
+
   /// Enabled payment methods, in display order, with deposit numbers.
   Future<List<PaymentMethodOption>> getPaymentMethods() async {
     final data = await _client.get('/customer/payment-methods') as List<dynamic>;

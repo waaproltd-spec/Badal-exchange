@@ -15,10 +15,13 @@ computed and confirmed.
   WinWin/MobCash transaction matching, and payment-integration credentials.
   See `backend/README.md` (and inline comments in `src/db/migrations/001_init.sql`)
   for the schema and flows.
-- `admin-dashboard/` — React/Vite web dashboard for admins & managers.
 - `customer-app/` — Flutter app for customers (deposit/withdraw/orders/profile).
-- `agent-app/` — Flutter app for authorized agents (SMS-based EVC Plus
-  verification, WinWin/MobCash confirmation entry, withdrawal processing).
+- `agent-app/` — Flutter app for agents, and the management interface
+  (there is no separate admin dashboard). Tabs: Dashboard, Users
+  (customers), Reports, History, Account. Agents with the `manage_settings`
+  responsibility get Account → Admin features: payment methods (ON/OFF,
+  rates, fees, limits), deposit numbers, payment integrations, home ads,
+  notifications, app settings, agents and audit logs.
 - `docs/` — architecture notes.
 
 ## Database on Supabase
@@ -35,7 +38,8 @@ changes in the customer or agent apps.
 2. Set it as `DATABASE_URL` in `backend/.env` (see `backend/.env.example`).
    SSL is switched on automatically for non-localhost hosts.
 3. `cd backend && npm run migrate && npm run seed`. This creates the tables
-   and the demo admin, agent and customer logins.
+   and the demo admin, agent and customer logins. The demo agent has
+   `manage_settings`, so it can use every management screen in the Agent App.
 
 Migration `003_lock_public_schema.sql` turns on row level security, with no
 policies, for every table, and revokes Supabase's `anon` and `authenticated`
