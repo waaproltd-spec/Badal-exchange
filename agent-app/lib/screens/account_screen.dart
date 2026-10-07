@@ -10,6 +10,7 @@ import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
+import 'admin/exchange_screens.dart';
 import 'admin/integrations_screens.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
@@ -152,6 +153,25 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusProcessing,
               label: 'Payment Integrations',
               onTap: () => _open(const IntegrationsScreen()),
+            ),
+            const _SubLabel('Exchange (EVC Plus ⇄ eDahab)'),
+            _NavRow(
+              icon: Icons.swap_horiz_rounded,
+              color: AppColors.purple,
+              label: 'Exchange Orders',
+              onTap: () => _open(const ExchangeOrdersScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sms_rounded,
+              color: AppColors.statusPending,
+              label: 'Payment SMS Review',
+              onTap: () => _open(const PaymentSmsReviewScreen()),
+            ),
+            _NavRow(
+              icon: Icons.tune_rounded,
+              color: AppColors.statusProcessing,
+              label: 'Exchange Settings (wallets, PIN, rates)',
+              onTap: () => _open(const ExchangeSettingsScreen()),
             ),
             const _SubLabel('Customer App'),
             _NavRow(

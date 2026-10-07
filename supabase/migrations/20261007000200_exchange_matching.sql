@@ -953,6 +953,14 @@ BEGIN
   IF s.id IS NULL OR s.match_status NOT IN ('unmatched', 'ambiguous') THEN
     PERFORM private.raise_api(409, 'INVALID_STATE', 'This SMS is already matched');
   END IF;
+  SELECT * INTO o FROM public.exchange_orders WHERE id = p_exchange_order_id FOR UPDATE;
+  -- Same rules as automatic matching, except the phone: a manager may know
+  -- the customer paid from another number, never a different amount/wallet.
+  IF o.id IS NOT NULL AND (s.parsed_amount IS NULL OR abs(o.amount_sent - s.parsed_amount) >= 0.01
+      OR private.provider_method(s.parsed_provider) IS DISTINCT FROM o.from_method) THEN
+    PERFORM private.raise_api(409, 'PAYMENT_MISMATCH',
+      format('This SMS is not a %s payment of $%s', private.method_label(o.from_method::text), o.amount_sent));
+  END IF;
   UPDATE public.exchange_orders
   SET status = 'in_progress', payment_sms_log_id = s.id, payment_reference = s.transaction_ref,
       payment_received_at = s.received_at, payment_verified_at = now(), payment_verified_by = 'manager', updated_at = now()

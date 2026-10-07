@@ -241,8 +241,12 @@ test('ambiguous: two orders fit one payment -> nothing moves until a manager dec
   assert.equal((await rpc(customer, 'customer_wallet')).availableBalance, '0.00');
   const waiting = await rpc(agent, 'manage_payment_sms', { p_status: 'ambiguous' });
   assert.ok(waiting.some((s) => s.id === res.id));
+  // A manager can't assign it to an order of a different amount.
+  const other = await createOrder(customer, corridorEvcToEdahab, 80, sender, edahabNumber());
+  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_exchange_order_id: other.id }), 'PAYMENT_MISMATCH');
   const resolved = await rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_exchange_order_id: exchange.id });
   assert.equal(resolved.status, 'in_progress');
+  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_exchange_order_id: exchange.id }), 'INVALID_STATE');
 });
 
 test('device/SIM guard: once the collection wallet has a device, SMS from another device do not count', async () => {

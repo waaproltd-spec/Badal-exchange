@@ -97,6 +97,69 @@ seed did. All three use password `ChangeMe123!`:
 
 Change these passwords before going live (Account → Change Password).
 
+## Exchange (EVC Plus ⇄ eDahab)
+
+Payment verification and payout are a port of Dalab Internet's proven
+system (same SMS parsers, same matching rules, same two-step USSD payout).
+
+**Flow.** The customer creates an order (Pending payment) and pays Baari's
+collection number. The agent phone receives the carrier SMS, the Agent App
+parses it and uploads it (`agent_ingest_payment_sms`), and the database
+matches it. A matched order is "in progress": its payment is verified. The
+payout wallet's phone then dials the transfer to the customer's number
+(`agent_exchange_start_dial`, then the carrier's USSD with the PIN) and
+reports the result (`agent_exchange_report_step1`/`step2`). The order is
+completed only on a confirmed success, or when the carrier's own "you
+transferred" SMS arrives (`agent_exchange_payout_confirmation`).
+
+**Matching rules** (`private.match_sms_log`):
+
+- Provider (Hormuud/Somnet → EVC Plus, Somtel → eDahab).
+- The sender's last 9 digits, so 0610346060, 610346060 and 252610346060
+  are the same number.
+- The exact amount.
+- The order was created or updated in the last 24 hours.
+- The carrier's reference when the SMS has one (eDahab's Aqanoosiga). It is
+  not required: Hormuud's SMS has none.
+
+Both orders of events work. An SMS that arrives first is kept and matched
+the moment the order is created; a pg_cron job also re-checks every minute.
+
+**Never twice.**
+
+- Each SMS is stored once: a unique carrier reference, plus the same
+  sender, body and minute.
+- Each SMS pays one order, and each order takes one SMS (unique indexes).
+- Rows are locked while matching.
+- A payment two orders could fit is marked *ambiguous*. Nothing moves until
+  a manager assigns it (same amount and wallet required).
+- A payout can only start for a verified order. It locks the order and
+  hands out the PIN once per attempt. An unfinished attempt is never
+  redialed.
+- A failed payout fails the order; it never completes it. If the PIN step
+  was reached, a retry needs the manager to confirm the money was not sent.
+- An attempt that never reports is marked unclear after 10 minutes.
+- A payout SMS only confirms a payout dialed before it arrived.
+
+**Audit.** Every step is in `audit_logs`, with entity `exchange_order`:
+the payment (provider, amount, SMS time, reference, match result), the
+verification, each payout attempt (provider, amount, destination, carrier
+text with the PIN removed) and the final status or error. Every SMS is kept
+in `sms_logs` with its match result and reason.
+
+**Setting it up** (Agent App → Account → Exchange Settings):
+
+1. Add the EVC Plus and eDahab wallets. The oldest wallet of each kind is
+   the number customers pay into. Mark the wallets whose SIMs are in the
+   agent phone ("SIM is in this phone", with the slot).
+2. Set each payout wallet's PIN. It is stored in Vault and never shown.
+3. Open each exchange direction: rate, fee, limits, the wallet it pays out
+   from, ON.
+4. On the payout phone: turn on *Baari exchange payouts* in Android
+   Accessibility, grant the phone permission, and switch on *Automatic
+   payouts*. Without automation, an agent can still send a verified payout
+   from the order screen, or verify, retry or cancel by hand.
+
 ## Deploying
 
 1. **Database and functions.** Two ways:
@@ -164,6 +227,14 @@ The backend tests cover:
 - agent disable and ban;
 - password change;
 - Vault credentials;
-- Realtime isolation between customers.
+- Realtime isolation between customers;
+- exchange: EVC Plus and eDahab payments, SMS before or after the order,
+  phone formats, wrong amount and wrong phone, duplicate SMS, duplicate
+  order processing, ambiguous payments, the device/SIM guard, successful,
+  failed, retried, unclear and interrupted payouts.
+
+The Agent App's own tests also run the real carrier SMS through the app's
+parser and upload code, and through the payout runner, against the same
+stack (`agent-app/test/exchange_e2e_test.dart`).
 
 The *Supabase tests* workflow runs all of this on every pull request.
