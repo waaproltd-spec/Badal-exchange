@@ -169,6 +169,9 @@ class Session extends ChangeNotifier {
     payouts.start(deviceId: deviceId!);
     final granted = await smsBridge.hasPermission();
     if (!granted) return;
+    // Phone permission tells which SIM a payment SMS arrived on. Agents who
+    // allowed SMS on an older version were never asked for it.
+    await smsBridge.ensurePhonePermission();
     await smsBridge.start(deviceId: deviceId!);
   }
 

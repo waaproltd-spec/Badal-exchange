@@ -226,6 +226,18 @@ test('device/SIM guard: SMS from another phone or SIM never credit', async () =>
   assert.equal((await order(customer, d.id)).status, 'completed');
 });
 
+test('slot unresolved (no Phone permission) on the wallet\'s phone still credits; another phone does not', async () => {
+  const customer = await newCustomer();
+  const sender = evcNumber();
+  const d = await deposit(customer, 'evc_plus', 1, `252${sender}`);
+  const unresolved = { ...sms({ amount: 1, phone: `0${sender}` }), p_sim_slot: null };
+  const other = await rpc(agent, 'agent_ingest_payment_sms', { ...unresolved, p_device_id: 'other-phone' });
+  assert.equal(other.matchStatus, 'unmatched');
+  const res = await rpc(agent, 'agent_ingest_payment_sms', { ...unresolved, p_body: unresolved.p_body + ' x' });
+  assert.equal(res.matchStatus, 'matched');
+  assert.equal((await order(customer, d.id)).status, 'completed');
+});
+
 // ---------------------------------------------------------------------------
 // Withdrawals
 // ---------------------------------------------------------------------------

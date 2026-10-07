@@ -77,6 +77,13 @@ class SmsBridge {
     return status.isGranted;
   }
 
+  /// Asks once for the Phone permission if it isn't granted yet.
+  Future<void> ensurePhonePermission() async {
+    if (!(await Permission.phone.status).isGranted) {
+      await Permission.phone.request();
+    }
+  }
+
   Future<void> start({required String deviceId}) async {
     if (_subscription != null) return;
     _deviceId = deviceId;
