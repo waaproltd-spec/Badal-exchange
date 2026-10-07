@@ -19,7 +19,7 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <!-- Resolves which SIM slot a payment SMS arrived on (dual-SIM phones). -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <!-- Exchange payouts: dial the carrier's USSD transfer on the payout SIM
+    <!-- Withdrawal payouts: dial the carrier's USSD transfer on the payout SIM
          and keep the screen on while its reply dialog is read. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -71,15 +71,15 @@
         </receiver>
 
         <!--
-          Exchange payout automation (port of Dalab Internet's
-          ExchangeUssdAccessibilityService): reads and drives the carrier's
-          USSD reply dialog during a payout, and does nothing otherwise. The
-          agent turns it on in Settings > Accessibility.
+          Withdrawal payout automation (port of Dalab Internet's USSD payout
+          accessibility service): reads and drives the carrier's USSD reply
+          dialog during a payout, and does nothing otherwise. The agent turns
+          it on in Settings > Accessibility.
         -->
         <service
             android:name=".payout.PayoutAccessibilityService"
             android:exported="false"
-            android:label="Baari exchange payouts"
+            android:label="Baari payouts"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

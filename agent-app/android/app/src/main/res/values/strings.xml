@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="payout_accessibility_description">Lets Baari Agent send exchange payouts automatically: it dials the EVC Plus or eDahab transfer on the payout SIM, enters the wallet PIN when the carrier asks for it, and reads the carrier\'s answer. It only acts while a payout is running on this phone.</string>
+    <string name="payout_accessibility_description">Lets Baari Agent send withdrawal payouts automatically: it dials the EVC Plus or eDahab transfer on the payout SIM, enters the wallet PIN when the carrier asks for it, and reads the carrier\'s answer. It only acts while a payout is running on this phone.</string>
 </resources>

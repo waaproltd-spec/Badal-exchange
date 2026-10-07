@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/agent_api.dart';
 import '../api/api_exception.dart';
-import '../models/exchange.dart';
+import '../models/payout.dart';
 
 /// What the phone's own USSD automation can do right now.
 class PayoutDeviceStatus {
@@ -86,31 +86,32 @@ class PayoutOutcome {
   const PayoutOutcome(this.completed, this.message);
 }
 
-/// Exchange payout engine, port of Dalab Internet's ExchangeUssdOrchestrator
-/// + ExchangeSelfHealSweeper:
+/// Withdrawal payout engine (Dalab Internet's Reseller Withdraw payout, on
+/// its proven two-step USSD automation):
 ///
-///  1. `agent_exchange_start_dial` locks the order, refuses anything that is
-///     not a verified (in progress) order or already paid, and returns a new
-///     attempt with the payout wallet's PIN. An unfinished earlier attempt
-///     comes back without the PIN, so it can never be dialed twice.
+///  1. `agent_payout_start_dial` locks the withdrawal (funds already
+///     reserved), refuses anything paid, in review or already dialed, and
+///     returns a new attempt with the payout wallet's PIN. An unfinished
+///     earlier attempt comes back without the PIN, so it is never dialed
+///     twice.
 ///  2. The phone runs the carrier's USSD transfer (number + amount, then the
 ///     PIN when the carrier asks for it).
-///  3. Each step is reported back. Success completes the order; anything
-///     else fails it, and a failure after the PIN step needs a manager to
-///     confirm "not paid" before a retry. A report that can't reach the
-///     server is queued and replayed (the server ignores repeats).
+///  3. Each step is reported back. Success completes the withdrawal (the
+///     wallet is debited). A failure before the PIN fails it and returns the
+///     funds; anything after the PIN holds it for a manager. A report that
+///     can't reach the server is queued and replayed (repeats are ignored).
 ///
-/// The sweeper pays verified orders automatically, one at a time, but only
-/// orders whose payout wallet is set to this phone, never an order that was
+/// The sweeper pays EVC Plus / eDahab withdrawals automatically, one at a
+/// time, only those whose payout wallet is on this phone, never one that was
 /// already dialed (unless a manager asked for another try), and only while
 /// automatic payouts are switched on for this phone.
-class ExchangePayoutRunner {
-  ExchangePayoutRunner({required AgentApi api, PayoutDevice? device})
+class PayoutRunner {
+  PayoutRunner({required AgentApi api, PayoutDevice? device})
       : _api = api,
         device = device ?? NativePayoutDevice();
 
-  static const _reportQueueKey = 'baari_exchange_report_queue_v1';
-  static const _autoKey = 'baari_exchange_auto_payout';
+  static const _reportQueueKey = 'baari_payout_report_queue_v1';
+  static const _autoKey = 'baari_auto_payout';
 
   final AgentApi _api;
   final PayoutDevice device;
@@ -152,7 +153,7 @@ class ExchangePayoutRunner {
       await flushReports();
       if (!await autoPayoutEnabled()) return;
       if (!(await device.status()).ready) return;
-      final queue = await _api.getExchangePayoutQueue();
+      final queue = await _api.getPayoutQueue();
       final payable = queue.where((o) =>
           o.payoutDeviceId == deviceId && (!o.hasDialAttempt || o.payoutRequested));
       for (final order in payable) {
@@ -165,31 +166,31 @@ class ExchangePayoutRunner {
     }
   }
 
-  /// Pays one verified order from this phone.
-  Future<PayoutOutcome> payOrder(ExchangeOrder order, {required String deviceId}) async {
+  /// Pays one withdrawal from this phone.
+  Future<PayoutOutcome> payOrder(PayoutOrder order, {required String deviceId}) async {
     if (!_inFlight.add(order.id)) {
       return const PayoutOutcome(false, 'This payout is already running on this phone.');
     }
     try {
       final status = await device.status();
       if (!status.accessibilityEnabled) {
-        return const PayoutOutcome(false, 'Automatic payout is not enabled on this phone. Turn on "Baari exchange payouts" in Accessibility settings.');
+        return const PayoutOutcome(false, 'Automatic payout is not enabled on this phone. Turn on "Baari payouts" in Accessibility settings.');
       }
       if (!status.permissionsGranted) {
         return const PayoutOutcome(false, 'Phone and call permissions are needed to send payouts.');
       }
 
-      final ExchangeDialStart start;
+      final PayoutDialStart start;
       try {
-        start = await _api.startExchangeDial(order.id, deviceId: deviceId);
+        start = await _api.startPayoutDial(order.id, deviceId: deviceId);
       } on ApiException catch (e) {
         return PayoutOutcome(false, e.message);
       }
       final pin = start.pin;
       if (!start.isNew || pin == null) {
         return const PayoutOutcome(false,
-            'An earlier payout attempt for this order has not reported its result yet. It is not dialed again; '
-            'if the phone never reports, the order goes to manager review after 10 minutes.');
+            'An earlier payout attempt for this withdrawal has not reported its result yet. It is not dialed again; '
+            'if the phone never reports, it goes to manager review after 10 minutes.');
       }
 
       UssdPayoutResult result;
@@ -225,9 +226,9 @@ class ExchangePayoutRunner {
     final response = item['response'] as String?;
     try {
       if (item['step'] == 1) {
-        await _api.reportExchangeStep1(attemptId, status: status, response: response);
+        await _api.reportPayoutStep1(attemptId, status: status, response: response);
       } else {
-        await _api.reportExchangeStep2(attemptId, status: status, response: response);
+        await _api.reportPayoutStep2(attemptId, status: status, response: response);
       }
       return true;
     } on ApiException catch (e) {

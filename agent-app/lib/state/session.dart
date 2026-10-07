@@ -7,7 +7,7 @@ import '../api/agent_api.dart';
 import '../api/api_exception.dart';
 import '../api/token_storage.dart';
 import '../models/agent_profile.dart';
-import '../payout/exchange_payout_runner.dart';
+import '../payout/payout_runner.dart';
 import '../services/device_identity.dart';
 import '../sms/sms_bridge.dart';
 import 'live_updates.dart';
@@ -29,7 +29,7 @@ class Session extends ChangeNotifier {
     // the SMS bridge so both benefit from the same bearer-token refresh
     // handling instead of racing two independent token refreshes.
     smsBridge = SmsBridge(api: _api);
-    payouts = ExchangePayoutRunner(api: _api);
+    payouts = PayoutRunner(api: _api);
     live = LiveUpdates(() => _api.client.supabase);
     _api.client.onSessionExpired = _handleSessionExpired;
   }
@@ -38,9 +38,9 @@ class Session extends ChangeNotifier {
   final TokenStorage _tokens;
   late final SmsBridge smsBridge;
 
-  /// Exchange payouts dialed from this phone (automatic when switched on
+  /// Withdrawal payouts dialed from this phone (automatic when switched on
   /// for this phone and it is the payout wallet's phone).
-  late final ExchangePayoutRunner payouts;
+  late final PayoutRunner payouts;
   late final LiveUpdates live;
 
   AgentApi get api => _api;

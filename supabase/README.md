@@ -97,68 +97,74 @@ seed did. All three use password `ChangeMe123!`:
 
 Change these passwords before going live (Account → Change Password).
 
-## Exchange (EVC Plus ⇄ eDahab)
+## Automatic deposits and withdrawals (Dalab Reseller style)
 
-Payment verification and payout are a port of Dalab Internet's proven
-system (same SMS parsers, same matching rules, same two-step USSD payout).
+Customer deposits and withdrawals work like Dalab Internet's Reseller: the
+same SMS parsers, the same matching rules, and the same USSD payout.
 
-**Flow.** The customer creates an order (Pending payment) and pays Baari's
-collection number. The agent phone receives the carrier SMS, the Agent App
-parses it and uploads it (`agent_ingest_payment_sms`), and the database
-matches it. A matched order is "in progress": its payment is verified. The
-payout wallet's phone then dials the transfer to the customer's number
-(`agent_exchange_start_dial`, then the carrier's USSD with the PIN) and
-reports the result (`agent_exchange_report_step1`/`step2`). The order is
-completed only on a confirmed success, or when the carrier's own "you
-transferred" SMS arrives (`agent_exchange_payout_confirmation`).
+**Deposit.**
+1. The customer sends money to Baari's EVC Plus / eDahab number and creates
+   the deposit, which starts out pending.
+2. The carrier's SMS reaches the agent phone. The Agent App parses it and
+   uploads it (`agent_ingest_payment_sms`).
+3. The database matches it, and only then credits the wallet
+   (`private.match_sms_log`). It matches on:
+   - the method (Hormuud/Somnet → EVC Plus, Somtel → eDahab);
+   - the sender's last 9 digits, so 0610346060, 610346060 and 252610346060
+     are the same number;
+   - the exact amount;
+   - the last 24 hours;
+   - the agent phone and SIM that Baari's wallet is set to (Dalab's
+     device/SIM check);
+   - the carrier's reference when the SMS has one (it is not required).
+4. Either order of events works. An SMS that arrives first is kept and
+   matched as soon as the deposit is created, and a pg_cron job re-checks
+   every minute.
 
-**Matching rules** (`private.match_sms_log`):
-
-- Provider (Hormuud/Somnet → EVC Plus, Somtel → eDahab).
-- The sender's last 9 digits, so 0610346060, 610346060 and 252610346060
-  are the same number.
-- The exact amount.
-- The order was created or updated in the last 24 hours.
-- The carrier's reference when the SMS has one (eDahab's Aqanoosiga). It is
-  not required: Hormuud's SMS has none.
-
-Both orders of events work. An SMS that arrives first is kept and matched
-the moment the order is created; a pg_cron job also re-checks every minute.
+**Withdraw.**
+1. The amount is reserved when the customer asks.
+2. For EVC Plus and eDahab, the agent phone with Baari's wallet SIM pays it
+   out automatically: `agent_payout_start_dial`, then the carrier's USSD with
+   the PIN, then `agent_payout_report_step1`/`step2`.
+3. The wallet is debited only on a confirmed payout: either the carrier's
+   success screen, or its "you transferred" SMS
+   (`agent_payout_confirmation`).
+4. A failure before the PIN step means nothing was sent, so the withdrawal
+   fails and the money returns to the customer.
+5. Anything after the PIN may have sent money, so the funds stay reserved
+   and the withdrawal goes to *Automatic Payouts → Needs review*. Retrying,
+   or failing it with a refund, requires confirming the money was not sent.
+6. Other methods stay manual, as before.
 
 **Never twice.**
-
-- Each SMS is stored once: a unique carrier reference, plus the same
-  sender, body and minute.
-- Each SMS pays one order, and each order takes one SMS (unique indexes).
-- Rows are locked while matching.
-- A payment two orders could fit is marked *ambiguous*. Nothing moves until
-  a manager assigns it (same amount and wallet required).
-- A payout can only start for a verified order. It locks the order and
-  hands out the PIN once per attempt. An unfinished attempt is never
-  redialed.
-- A failed payout fails the order; it never completes it. If the PIN step
-  was reached, a retry needs the manager to confirm the money was not sent.
+- Each SMS is stored once (by carrier reference, or by sender, body and
+  minute), credits one deposit, and each deposit takes one SMS.
+- Rows are locked while matching. A payment two deposits could fit is
+  marked *ambiguous*, and nothing moves until a manager assigns it (same
+  amount and method required).
+- A payout locks the withdrawal. The PIN is handed out once per attempt,
+  and there is at most one open attempt and one successful one.
+- An attempted withdrawal is never redialed unless a manager asks.
 - An attempt that never reports is marked unclear after 10 minutes.
 - A payout SMS only confirms a payout dialed before it arrived.
 
-**Audit.** Every step is in `audit_logs`, with entity `exchange_order`:
-the payment (provider, amount, SMS time, reference, match result), the
-verification, each payout attempt (provider, amount, destination, carrier
-text with the PIN removed) and the final status or error. Every SMS is kept
-in `sms_logs` with its match result and reason.
+**Audit.** Every step is in `audit_logs` under the order. That covers:
+- the SMS verification: provider, amount, SMS time, reference and match
+  result;
+- each payout attempt: provider, amount, destination, wallet, and the
+  carrier's text with the PIN removed;
+- the final status or error.
 
-**Setting it up** (Agent App → Account → Exchange Settings):
+Every SMS is kept in `sms_logs` with its match result and reason.
 
-1. Add the EVC Plus and eDahab wallets. The oldest wallet of each kind is
-   the number customers pay into. Mark the wallets whose SIMs are in the
-   agent phone ("SIM is in this phone", with the slot).
-2. Set each payout wallet's PIN. It is stored in Vault and never shown.
-3. Open each exchange direction: rate, fee, limits, the wallet it pays out
-   from, ON.
-4. On the payout phone: turn on *Baari exchange payouts* in Android
-   Accessibility, grant the phone permission, and switch on *Automatic
-   payouts*. Without automation, an agent can still send a verified payout
-   from the order screen, or verify, retry or cancel by hand.
+**Setting it up** (Agent App → Account):
+1. *Wallets & Auto Payout*: add Baari's EVC Plus and eDahab wallets, with
+   "SIM is in this phone" and the SIM slot, and set each PIN. The PIN is
+   stored in Vault and never shown again.
+2. On that phone, turn on *Baari payouts* in Android Accessibility, grant
+   the phone permission, and switch on *Automatic withdrawal payouts*.
+3. *Automatic Payouts* lists withdrawals that need a decision.
+   *Payment SMS Review* lists payments no deposit (or more than one) fits.
 
 ## Deploying
 
@@ -228,13 +234,15 @@ The backend tests cover:
 - password change;
 - Vault credentials;
 - Realtime isolation between customers;
-- exchange: EVC Plus and eDahab payments, SMS before or after the order,
-  phone formats, wrong amount and wrong phone, duplicate SMS, duplicate
-  order processing, ambiguous payments, the device/SIM guard, successful,
-  failed, retried, unclear and interrupted payouts.
+- automatic deposits: EVC Plus and eDahab SMS, SMS before or after the
+  order, phone formats, wrong amount and wrong phone, duplicate SMS,
+  ambiguous payments, the device/SIM check;
+- automatic withdrawals: successful payout, failure before and after the
+  PIN, retry without a double payout, unclear payout completed by the
+  carrier SMS, interrupted payout, refund only after "not paid".
 
 The Agent App's own tests also run the real carrier SMS through the app's
-parser and upload code, and through the payout runner, against the same
-stack (`agent-app/test/exchange_e2e_test.dart`).
+parser and upload code, and withdrawals through the payout runner, against
+the same stack (`agent-app/test/payments_e2e_test.dart`).
 
 The *Supabase tests* workflow runs all of this on every pull request.

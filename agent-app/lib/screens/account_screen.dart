@@ -10,7 +10,7 @@ import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
-import 'admin/exchange_screens.dart';
+import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
@@ -154,12 +154,12 @@ class _AccountScreenState extends State<AccountScreen> {
               label: 'Payment Integrations',
               onTap: () => _open(const IntegrationsScreen()),
             ),
-            const _SubLabel('Exchange (EVC Plus ⇄ eDahab)'),
+            const _SubLabel('Automatic deposits & withdrawals'),
             _NavRow(
-              icon: Icons.swap_horiz_rounded,
+              icon: Icons.send_to_mobile_rounded,
               color: AppColors.purple,
-              label: 'Exchange Orders',
-              onTap: () => _open(const ExchangeOrdersScreen()),
+              label: 'Automatic Payouts',
+              onTap: () => _open(const PayoutsScreen()),
             ),
             _NavRow(
               icon: Icons.sms_rounded,
@@ -168,10 +168,10 @@ class _AccountScreenState extends State<AccountScreen> {
               onTap: () => _open(const PaymentSmsReviewScreen()),
             ),
             _NavRow(
-              icon: Icons.tune_rounded,
+              icon: Icons.sim_card_rounded,
               color: AppColors.statusProcessing,
-              label: 'Exchange Settings (wallets, PIN, rates)',
-              onTap: () => _open(const ExchangeSettingsScreen()),
+              label: 'Wallets & Auto Payout (PIN, SIM)',
+              onTap: () => _open(const PayoutSettingsScreen()),
             ),
             const _SubLabel('Customer App'),
             _NavRow(

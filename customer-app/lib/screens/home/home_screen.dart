@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../exchange/exchange_screen.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/app_content.dart';
@@ -231,15 +230,6 @@ class _WalletHeader extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              _ActionTile(
-                label: 'Exchange  EVC Plus ⇄ eDahab',
-                icon: Icons.swap_horiz_rounded,
-                background: Colors.white,
-                iconBackground: AppColors.purpleDark,
-                iconColor: AppColors.lightGold,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExchangeScreen())),
               ),
             ],
           ),

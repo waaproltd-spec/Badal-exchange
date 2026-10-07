@@ -1,7 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../models/agent_profile.dart';
-import '../models/exchange.dart';
+import '../models/payout.dart';
 import '../models/match_result.dart';
 import '../models/console.dart';
 import '../models/management.dart';
@@ -99,9 +99,9 @@ class AgentApi {
   }
 
   /// Uploads one payment SMS (Dalab POST /agent/sms-logs). The backend
-  /// stores it, dedupes it and matches it to at most one pending exchange
-  /// order or wallet deposit. Returns {id, status: new|already_processed,
-  /// matchStatus, exchangeOrderId?, orderId?, reason?}.
+  /// stores it, dedupes it and matches it to at most one pending wallet
+  /// deposit. Returns {id, status: new|already_processed, matchStatus,
+  /// orderId?, reason?}.
   Future<Map<String, dynamic>> ingestPaymentSms({
     required String sender,
     required String body,
@@ -125,10 +125,9 @@ class AgentApi {
         'p_device_id': deviceId,
       });
 
-  /// The payout phone's own "you transferred \$X to NUMBER" SMS (Dalab POST
-  /// /agent/exchange/orders/payout-confirmation). Only completes an order
-  /// whose payout was actually dialed before this SMS arrived.
-  Future<Map<String, dynamic>> reportExchangePayoutConfirmation({
+  /// The payout phone's own "you transferred \$X to NUMBER" SMS. Only
+  /// completes a withdrawal whose payout was dialed before this SMS arrived.
+  Future<Map<String, dynamic>> reportPayoutConfirmation({
     required String receiverPhone,
     required String amount,
     required String rawText,
@@ -136,7 +135,7 @@ class AgentApi {
     String? reference,
     DateTime? receivedAt,
   }) =>
-      _map('agent_exchange_payout_confirmation', {
+      _map('agent_payout_confirmation', {
         'p_receiver_phone': receiverPhone,
         'p_amount': amount,
         'p_raw_text': rawText,
@@ -145,77 +144,51 @@ class AgentApi {
         'p_received_at': receivedAt?.toUtc().toIso8601String(),
       });
 
-  // ---- Exchange payouts (this phone dials them) ----
+  // ---- Withdrawal payouts (this phone dials them) ----
 
-  Future<List<ExchangeOrder>> getExchangePayoutQueue() async => (await _list('agent_exchange_payout_queue'))
-      .map((e) => ExchangeOrder.fromJson(e as Map<String, dynamic>))
-      .toList();
+  Future<List<PayoutOrder>> getPayoutQueue() async =>
+      (await _list('agent_payout_queue')).map((e) => PayoutOrder.fromJson(e as Map<String, dynamic>)).toList();
 
-  Future<ExchangeDialStart> startExchangeDial(String orderId, {String? deviceId}) async =>
-      ExchangeDialStart.fromJson(await _map('agent_exchange_start_dial', {'p_order_id': orderId, 'p_device_id': deviceId}));
+  Future<PayoutDialStart> startPayoutDial(String orderId, {String? deviceId}) async =>
+      PayoutDialStart.fromJson(await _map('agent_payout_start_dial', {'p_order_id': orderId, 'p_device_id': deviceId}));
 
-  Future<void> reportExchangeStep1(String attemptId, {required String status, String? response, bool isFinal = true}) async {
-    await _client.rpc('agent_exchange_report_step1',
+  Future<void> reportPayoutStep1(String attemptId, {required String status, String? response, bool isFinal = true}) async {
+    await _client.rpc('agent_payout_report_step1',
         {'p_attempt_id': attemptId, 'p_status': status, 'p_response': response, 'p_is_final': isFinal});
   }
 
-  Future<void> reportExchangeStep2(String attemptId, {required String status, String? response, bool isFinal = true}) async {
-    await _client.rpc('agent_exchange_report_step2',
+  Future<void> reportPayoutStep2(String attemptId, {required String status, String? response, bool isFinal = true}) async {
+    await _client.rpc('agent_payout_report_step2',
         {'p_attempt_id': attemptId, 'p_status': status, 'p_response': response, 'p_is_final': isFinal});
   }
 
-  // ---- Exchange management ----
+  // ---- Payout and payment SMS management ----
 
-  Future<List<ExchangeOrder>> getExchangeOrders({String? status, String? query}) async =>
-      (await _list('manage_exchange_orders', {'p_status': status, 'p_q': query}))
-          .map((e) => ExchangeOrder.fromJson(e as Map<String, dynamic>))
+  Future<List<PayoutOrder>> getPayouts({bool reviewOnly = false}) async =>
+      (await _list('manage_payouts', {'p_review_only': reviewOnly}))
+          .map((e) => PayoutOrder.fromJson(e as Map<String, dynamic>))
           .toList();
 
-  Future<ExchangeOrder> getExchangeOrder(String id) async =>
-      ExchangeOrder.fromJson(await _map('manage_exchange_order', {'p_id': id}));
+  Future<PayoutOrder> getPayout(String orderId) async =>
+      PayoutOrder.fromJson(await _map('manage_payout', {'p_order_id': orderId}));
 
-  Future<void> verifyExchangeOrder(String id, {String? reference}) async {
-    await _client.rpc('manage_exchange_verify', {'p_id': id, 'p_reference': reference});
-  }
-
-  Future<void> retryExchangePayout(String id, {bool confirmedNotPaid = false}) async {
-    await _client.rpc('manage_exchange_retry_payout', {'p_id': id, 'p_confirmed_not_paid': confirmedNotPaid});
-    await _client.rpc('manage_exchange_request_payout', {'p_id': id});
-  }
-
-  Future<void> reverseExchangeOrder(String id, {String? reason}) async {
-    await _client.rpc('manage_exchange_reverse', {'p_id': id, 'p_reason': reason});
+  /// Another automatic try. [confirmedNotPaid] is required (CONFIRM_NOT_PAID)
+  /// when an earlier attempt reached the PIN step.
+  Future<void> retryPayout(String orderId, {bool confirmedNotPaid = false}) async {
+    await _client.rpc('manage_payout_retry', {'p_order_id': orderId, 'p_confirmed_not_paid': confirmedNotPaid});
   }
 
   Future<List<PaymentSmsLog>> getPaymentSms({String? status}) async => (await _list('manage_payment_sms', {'p_status': status}))
       .map((e) => PaymentSmsLog.fromJson(e as Map<String, dynamic>))
       .toList();
 
-  Future<void> resolvePaymentSms(String smsId, String exchangeOrderId) async {
-    await _client.rpc('manage_resolve_payment_sms', {'p_sms_id': smsId, 'p_exchange_order_id': exchangeOrderId});
+  /// Assigns a stored payment SMS to a pending deposit (by order code).
+  Future<void> resolvePaymentSms(String smsId, String orderCode) async {
+    await _client.rpc('manage_resolve_payment_sms', {'p_sms_id': smsId, 'p_order_code': orderCode});
   }
 
-  Future<ExchangeSettings> getExchangeSettings() async => ExchangeSettings.fromJson(await _map('manage_exchange_settings'));
-
-  Future<void> saveExchangeCorridor(ExchangeCorridor c,
-      {required double rate,
-      required String feeType,
-      required double feeValue,
-      double? minAmount,
-      double? maxAmount,
-      String? payoutWalletId,
-      required bool enabled}) async {
-    await _client.rpc('manage_save_exchange_corridor', {
-      'p_id': c.id,
-      'p_rate': rate,
-      'p_fee_type': feeType,
-      'p_fee_value': feeValue,
-      'p_min_amount': minAmount,
-      'p_max_amount': maxAmount,
-      'p_payout_wallet_id': payoutWalletId,
-      'p_enabled': enabled,
-    });
-  }
+  Future<List<PayoutWallet>> getPayoutWallets() async =>
+      (await _list('manage_payout_wallets')).map((e) => PayoutWallet.fromJson(e as Map<String, dynamic>)).toList();
 
   Future<void> savePayoutWallet({String? id, required String method, required String phoneNumber, String? deviceId, int? simSlot}) async {
     await _client.rpc('manage_save_payout_wallet', {
@@ -225,6 +198,10 @@ class AgentApi {
       'p_device_id': deviceId,
       'p_sim_slot': simSlot,
     });
+  }
+
+  Future<void> deletePayoutWallet(String id) async {
+    await _client.rpc('manage_delete_payout_wallet', {'p_id': id});
   }
 
   Future<void> setPayoutWalletPin(String id, String pin) async {
@@ -576,8 +553,11 @@ class AgentApi {
     return Order.fromJson(data);
   }
 
-  Future<Order> failWithdrawal(String orderId, {required String reason}) async =>
-      Order.fromJson(await _map('agent_withdrawal_fail', {'p_order_id': orderId, 'p_reason': reason}));
+  /// Releases the reserved funds. [confirmedNotPaid] is required
+  /// (CONFIRM_NOT_PAID) when an automatic payout may have sent the money.
+  Future<Order> failWithdrawal(String orderId, {required String reason, bool confirmedNotPaid = false}) async =>
+      Order.fromJson(await _map('agent_withdrawal_fail',
+          {'p_order_id': orderId, 'p_reason': reason, 'p_confirmed_not_paid': confirmedNotPaid}));
 
   Future<void> logout() async {
     // Ends this session on the server too; the local session is cleared

@@ -20,10 +20,10 @@ import 'payment_sms_parsers.dart';
 ///  2. [PaymentSmsParsers.classify] decides what it is:
 ///     - a customer's incoming payment: uploaded with its parsed provider,
 ///       amount, phone and reference to `agent_ingest_payment_sms`, which
-///       dedupes it and matches it to at most one pending exchange order or
+///       dedupes it and matches it to at most one pending
 ///       wallet deposit (the backend alone decides);
 ///     - the payout phone's own "you transferred" SMS: reported to
-///       `agent_exchange_payout_confirmation`;
+///       `agent_payout_confirmation` (completes the withdrawal it paid);
 ///     - unparsed but money-looking: uploaded with no parsed fields, so a
 ///       manager can see it and resolve it by hand;
 ///     - anything else (personal texts, OTPs): dropped, never sent.
@@ -169,7 +169,7 @@ class SmsBridge {
     try {
       if (c.payoutSent != null) {
         final sent = c.payoutSent!;
-        final res = await _api.reportExchangePayoutConfirmation(
+        final res = await _api.reportPayoutConfirmation(
           receiverPhone: sent.receiverPhone,
           amount: sent.amount,
           rawText: sent.rawText,
@@ -215,7 +215,7 @@ class SmsBridge {
                 : match == 'matched'
                     ? MatchStatus.matched
                     : MatchStatus.unmatched,
-            orderId: (res['exchangeOrderId'] ?? res['orderId']) as String?,
+            orderId: res['orderId'] as String?,
             message: match == 'ambiguous'
                 ? 'More than one order fits: left for manual review'
                 : already
