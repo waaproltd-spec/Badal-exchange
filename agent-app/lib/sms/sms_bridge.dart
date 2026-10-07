@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../api/agent_api.dart';
@@ -9,35 +11,30 @@ import '../api/api_exception.dart';
 import '../models/match_result.dart';
 import '../models/sms_transaction_log.dart';
 import '../services/sms_log_store.dart';
-import 'evc_sms_parser.dart';
+import 'payment_sms_parsers.dart';
 
-/// Android-only bridge between the native SMS BroadcastReceiver
-/// (android/app/src/main/kotlin/.../SmsReceiver.kt) and the app's
-/// automatic EVC Plus deposit-matching pipeline.
+/// Android payment-SMS pipeline, ported from Dalab Internet's SmsReceiver +
+/// SmsUploadFlow + PendingActionQueue + SmsInboxScanner:
 ///
-/// Flow for every inbound SMS while this bridge is listening:
-///  1. Native SmsReceiver receives `android.provider.Telephony.SMS_RECEIVED`,
-///     does a coarse sender-id pre-filter, and forwards only
-///     `{sender, body, timestampMillis}` for messages that pass it, over
-///     the `com.badalexchange.agent/sms_events` EventChannel. Everything
-///     else is dropped natively and never reaches Dart.
-///  2. This class hands each event to [EvcSmsParser.parse] — a pure Dart
-///     function — which re-validates the sender and message wording and
-///     extracts ONLY {sender phone number, amount, transaction ref,
-///     timestamp}. If parsing fails (not a recognized payment SMS), the
-///     event — including its `body` string — is dropped right here and
-///     never referenced again.
-///  3. A successfully parsed transaction is submitted to the backend via
-///     POST /agent/sms-transactions with exactly those extracted fields —
-///     the raw SMS text is never sent. The backend alone decides
-///     matched/unmatched/duplicate; this app only reflects that result.
-///  4. The result (extracted fields + backend status) is appended to the
-///     local SMS Transactions log for the agent to review.
-///
-/// This bridge must only be started once a device id has been registered
-/// via POST /agent/devices/register for the logged-in agent (see
-/// [start]'s `deviceId` requirement) and only after the RECEIVE_SMS runtime
-/// permission has been granted.
+///  1. The native SmsReceiver forwards every inbound SMS with its SIM slot.
+///  2. [PaymentSmsParsers.classify] decides what it is:
+///     - a customer's incoming payment: uploaded with its parsed provider,
+///       amount, phone and reference to `agent_ingest_payment_sms`, which
+///       dedupes it and matches it to at most one pending exchange order or
+///       wallet deposit (the backend alone decides);
+///     - the payout phone's own "you transferred" SMS: reported to
+///       `agent_exchange_payout_confirmation`;
+///     - unparsed but money-looking: uploaded with no parsed fields, so a
+///       manager can see it and resolve it by hand;
+///     - anything else (personal texts, OTPs): dropped, never sent.
+///  3. An upload that fails on the network or a server error goes to a
+///     persistent queue and is retried (on start, every minute, and after
+///     the next successful upload). The backend's dedupe (carrier
+///     reference, or sender + body + minute) makes a retried or rescanned
+///     SMS safe: it can never pay an order twice.
+///  4. On start, the inbox is rescanned for the last 24 hours, so payments
+///     that arrived while the app was closed are still processed, each with
+///     its own SMS timestamp.
 class SmsBridge {
   SmsBridge({AgentApi? api, SmsLogStore? logStore})
       : _api = api ?? AgentApi(),
@@ -46,69 +43,56 @@ class SmsBridge {
   static const MethodChannel _methodChannel = MethodChannel('com.badalexchange.agent/sms');
   static const EventChannel _eventChannel = EventChannel('com.badalexchange.agent/sms_events');
 
+  static const _queueKey = 'baari_sms_pending_v1';
+  static const _lastScanKey = 'baari_sms_last_inbox_scan_ms';
+  static const _maxQueue = 500;
+  static const _lookback = Duration(hours: 24);
+
   final AgentApi _api;
   final SmsLogStore _logStore;
   final Uuid _uuid = const Uuid();
 
   StreamSubscription<dynamic>? _subscription;
+  Timer? _retryTimer;
   String? _deviceId;
+  bool _flushing = false;
 
-  /// Fires whenever a new log entry (matched/unmatched/duplicate/error) is
-  /// appended, so the SMS Transactions screen can refresh its view.
+  /// Serializes uploads so queue writes never interleave.
+  Future<void> _chain = Future.value();
+
   final StreamController<SmsTransactionLog> _onLogEntry = StreamController.broadcast();
   Stream<SmsTransactionLog> get onLogEntry => _onLogEntry.stream;
 
   bool get isListening => _subscription != null;
 
-  /// True only on Android — SMS reading is not implemented for any other
-  /// platform (see the module-level doc comment).
-  static bool get isSupportedPlatform {
-    // defaultTargetPlatform is intentionally not imported here to keep this
-    // file free of a widgets dependency; callers on non-Android platforms
-    // should gate calls to [start] themselves. See HomeShell/Dashboard for
-    // the actual Platform.isAndroid check using dart:io.
-    return true;
-  }
+  static bool get isSupportedPlatform => true;
 
-  /// Checks whether the RECEIVE_SMS runtime permission is currently
-  /// granted, without prompting.
-  Future<bool> hasPermission() async {
-    final status = await Permission.sms.status;
-    return status.isGranted;
-  }
+  Future<bool> hasPermission() async => (await Permission.sms.status).isGranted;
 
-  /// Prompts the agent for the RECEIVE_SMS/READ_SMS runtime permission.
-  /// Must only be called on a device that has already been registered as
-  /// an authorized agent device — this app never requests SMS access on a
-  /// customer-facing build.
+  /// Requests SMS access, plus phone state so the SIM slot of each SMS can
+  /// be resolved (optional: without it matching uses the device alone).
   Future<bool> requestPermission() async {
     final status = await Permission.sms.request();
+    await Permission.phone.request();
     return status.isGranted;
   }
 
-  /// Starts listening for inbound SMS events and running the automatic
-  /// matching pipeline. No-op if already listening.
-  ///
-  /// [deviceId] is the id this device was registered with via
-  /// POST /agent/devices/register — it is attached to every submitted
-  /// transaction so the backend and managers can trace which device
-  /// captured it.
   Future<void> start({required String deviceId}) async {
     if (_subscription != null) return;
     _deviceId = deviceId;
-
     _subscription = _eventChannel.receiveBroadcastStream().listen(
-      _handleNativeEvent,
-      onError: (Object error, StackTrace stackTrace) {
-        // A stream error from the platform side (e.g. permission revoked
-        // mid-session) should not crash the app — just stop listening.
-        stop();
-      },
+      (event) => _enqueueWork(() => _handleEvent(event)),
+      onError: (Object error, StackTrace stackTrace) => stop(),
       cancelOnError: false,
     );
+    _retryTimer = Timer.periodic(const Duration(minutes: 1), (_) => _enqueueWork(_flushQueue));
+    _enqueueWork(_flushQueue);
+    _enqueueWork(_scanInbox);
   }
 
   Future<void> stop() async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     await _subscription?.cancel();
     _subscription = null;
   }
@@ -118,67 +102,254 @@ class SmsBridge {
     await _onLogEntry.close();
   }
 
-  /// Exposed for the app's connectivity/settings screen if ever needed;
-  /// currently unused by the UI but kept for symmetry with [start]/[stop]
-  /// and to make manual re-registration checks easy from a debug menu.
   Future<bool> isNativeReceiverEnabled() async {
     try {
-      final result = await _methodChannel.invokeMethod<bool>('isReceiverEnabled');
-      return result ?? true;
+      return await _methodChannel.invokeMethod<bool>('isReceiverEnabled') ?? true;
     } on MissingPluginException {
       return false;
     }
   }
 
-  Future<void> _handleNativeEvent(dynamic event) async {
-    if (event is! Map) return;
-    final sender = event['sender'] as String?;
-    final body = event['body'] as String?;
-    final timestampMillis = event['timestampMillis'] as int?;
-    if (sender == null || body == null) return;
-
-    final receivedAt = timestampMillis != null
-        ? DateTime.fromMillisecondsSinceEpoch(timestampMillis)
-        : DateTime.now();
-
-    // Pure-Dart extraction. `body` (the raw SMS text) is used only inside
-    // this call and is never stored or sent anywhere from this point on.
-    final parsed = EvcSmsParser.parse(sender, body, receivedAt: receivedAt);
-    if (parsed == null) return; // not a recognized EVC Plus payment SMS
-
-    await _submitParsedTransaction(parsed);
+  void _enqueueWork(Future<void> Function() work) {
+    _chain = _chain.then((_) => work()).catchError((Object _) {});
   }
 
-  Future<void> _submitParsedTransaction(ParsedEvcSmsTransaction parsed) async {
-    MatchResult result;
-    try {
-      result = await _api.submitSmsTransaction(
-        provider: parsed.provider,
-        sender: parsed.senderPhoneNumber,
-        amount: parsed.amount,
-        transactionRef: parsed.transactionRef,
-        occurredAt: parsed.occurredAt,
-        deviceId: _deviceId,
-      );
-    } on ApiException catch (e) {
-      result = MatchResult.error(e.message);
-    } catch (e) {
-      result = MatchResult.error('Failed to submit SMS transaction: $e');
-    }
+  /// Runs one SMS through the pipeline (also used by the end-to-end test).
+  Future<void> handleSms(PendingSms sms) => _process(sms, fromQueue: false);
 
+  Future<void> _handleEvent(dynamic event) async {
+    final sms = PendingSms.fromNative(event, deviceId: _deviceId);
+    if (sms == null) return;
+    await _process(sms, fromQueue: false);
+  }
+
+  /// Dalab SmsInboxScanner: everything since the last scan (at most 24h
+  /// back). The cutoff is saved before processing so an interrupted pass
+  /// doesn't redo the whole batch.
+  Future<void> _scanInbox() async {
+    final prefs = await SharedPreferences.getInstance();
+    final startedAt = DateTime.now().millisecondsSinceEpoch;
+    final last = prefs.getInt(_lastScanKey) ?? 0;
+    final cutoff = last > startedAt - _lookback.inMilliseconds ? last : startedAt - _lookback.inMilliseconds;
+    List<dynamic>? rows;
+    try {
+      rows = await _methodChannel.invokeMethod<List<dynamic>>('scanInbox', {'sinceMillis': cutoff});
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      return;
+    }
+    await prefs.setInt(_lastScanKey, startedAt);
+    for (final row in rows ?? const []) {
+      final sms = PendingSms.fromNative(row, deviceId: _deviceId);
+      if (sms != null) await _process(sms, fromQueue: false);
+    }
+  }
+
+  Future<void> _flushQueue() async {
+    if (_flushing) return;
+    _flushing = true;
+    try {
+      final queue = await _loadQueue();
+      if (queue.isEmpty) return;
+      final remaining = <PendingSms>[];
+      for (final sms in queue) {
+        final outcome = await _process(sms, fromQueue: true);
+        if (outcome == _Outcome.retry) remaining.add(sms);
+      }
+      await _saveQueue(remaining);
+    } finally {
+      _flushing = false;
+    }
+  }
+
+  Future<_Outcome> _process(PendingSms sms, {required bool fromQueue}) async {
+    final c = PaymentSmsParsers.classify(sms.sender, sms.body);
+    if (!c.isRelevant) return _Outcome.done;
+    try {
+      if (c.payoutSent != null) {
+        final sent = c.payoutSent!;
+        final res = await _api.reportExchangePayoutConfirmation(
+          receiverPhone: sent.receiverPhone,
+          amount: sent.amount,
+          rawText: sent.rawText,
+          provider: sent.provider,
+          reference: sent.reference,
+          receivedAt: sms.receivedAt,
+        );
+        final completed = res['result'] == 'completed';
+        await _log(
+          provider: '${sent.provider} payout',
+          phone: sent.receiverPhone,
+          amount: sent.amount,
+          ref: sent.reference,
+          at: sms.receivedAt,
+          status: completed ? MatchStatus.matched : MatchStatus.unmatched,
+          orderId: res['orderId'] as String?,
+          message: completed ? null : res['result'] as String?,
+        );
+      } else {
+        final p = c.payment;
+        final res = await _api.ingestPaymentSms(
+          sender: sms.sender,
+          body: sms.body,
+          receivedAt: sms.receivedAt,
+          provider: p?.provider,
+          amount: p?.amount,
+          phone: p?.phone,
+          transactionRef: p?.transactionRef,
+          simSlot: sms.simSlot,
+          deviceId: sms.deviceId,
+        );
+        if (p != null) {
+          final match = res['matchStatus'] as String?;
+          final already = res['status'] == 'already_processed';
+          await _log(
+            provider: p.provider,
+            phone: p.phone,
+            amount: p.amount,
+            ref: p.transactionRef,
+            at: sms.receivedAt,
+            status: already
+                ? MatchStatus.duplicate
+                : match == 'matched'
+                    ? MatchStatus.matched
+                    : MatchStatus.unmatched,
+            orderId: (res['exchangeOrderId'] ?? res['orderId']) as String?,
+            message: match == 'ambiguous'
+                ? 'More than one order fits: left for manual review'
+                : already
+                    ? null
+                    : res['reason'] as String?,
+          );
+        }
+      }
+      if (!fromQueue) _enqueueWork(_flushQueue);
+      return _Outcome.done;
+    } on ApiException catch (e) {
+      if (e.isNetworkError || e.statusCode >= 500 || e.isUnauthorized) {
+        if (!fromQueue) await _addToQueue(sms);
+        return _Outcome.retry;
+      }
+      await _log(
+        provider: c.payment?.provider ?? c.payoutSent?.provider ?? 'SMS',
+        phone: c.payment?.phone ?? c.payoutSent?.receiverPhone,
+        amount: c.payment?.amount ?? c.payoutSent?.amount ?? '',
+        ref: c.payment?.transactionRef,
+        at: sms.receivedAt,
+        status: MatchStatus.error,
+        message: e.message,
+      );
+      return _Outcome.done;
+    } catch (_) {
+      if (!fromQueue) await _addToQueue(sms);
+      return _Outcome.retry;
+    }
+  }
+
+  Future<void> _log({
+    required String provider,
+    String? phone,
+    required String amount,
+    String? ref,
+    required DateTime at,
+    required MatchStatus status,
+    String? orderId,
+    String? message,
+  }) async {
     final entry = SmsTransactionLog(
       id: _uuid.v4(),
-      provider: parsed.provider,
-      sender: parsed.senderPhoneNumber,
-      amount: parsed.amount,
-      transactionRef: parsed.transactionRef,
-      occurredAt: parsed.occurredAt,
+      provider: provider,
+      sender: phone,
+      amount: amount,
+      transactionRef: ref ?? '',
+      occurredAt: at,
       submittedAt: DateTime.now(),
-      status: result.status,
-      orderId: result.orderId,
-      errorMessage: result.errorMessage,
+      status: status,
+      orderId: orderId,
+      errorMessage: message,
     );
     await _logStore.add(entry);
     if (!_onLogEntry.isClosed) _onLogEntry.add(entry);
   }
+
+  Future<List<PendingSms>> _loadQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_queueKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map((e) => PendingSms.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _saveQueue(List<PendingSms> queue) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmed = queue.length > _maxQueue ? queue.sublist(queue.length - _maxQueue) : queue;
+    await prefs.setString(_queueKey, jsonEncode(trimmed.map((e) => e.toJson()).toList()));
+  }
+
+  Future<void> _addToQueue(PendingSms sms) async {
+    final queue = await _loadQueue();
+    if (queue.any((q) => q.sameAs(sms))) return;
+    queue.add(sms);
+    await _saveQueue(queue);
+  }
+}
+
+enum _Outcome { done, retry }
+
+/// One SMS waiting to be processed (Dalab SmsUploadAction).
+class PendingSms {
+  PendingSms({
+    required this.sender,
+    required this.body,
+    required this.receivedAt,
+    this.simSlot,
+    this.deviceId,
+  });
+
+  final String sender;
+  final String body;
+  final DateTime receivedAt;
+  final int? simSlot;
+  final String? deviceId;
+
+  static PendingSms? fromNative(dynamic event, {String? deviceId}) {
+    if (event is! Map) return null;
+    final sender = event['sender'] as String?;
+    final body = event['body'] as String?;
+    if (sender == null || body == null || body.isEmpty) return null;
+    final ts = event['timestampMillis'];
+    final slot = event['simSlot'];
+    return PendingSms(
+      sender: sender,
+      body: body,
+      receivedAt: ts is int && ts > 0 ? DateTime.fromMillisecondsSinceEpoch(ts) : DateTime.now(),
+      simSlot: slot is int ? slot : null,
+      deviceId: deviceId,
+    );
+  }
+
+  bool sameAs(PendingSms o) =>
+      o.sender == sender && o.body == body && o.receivedAt.isAtSameMomentAs(receivedAt);
+
+  Map<String, dynamic> toJson() => {
+        'sender': sender,
+        'body': body,
+        'receivedAt': receivedAt.toUtc().toIso8601String(),
+        'simSlot': simSlot,
+        'deviceId': deviceId,
+      };
+
+  factory PendingSms.fromJson(Map<String, dynamic> j) => PendingSms(
+        sender: j['sender'] as String,
+        body: j['body'] as String,
+        receivedAt: DateTime.parse(j['receivedAt'] as String),
+        simSlot: j['simSlot'] as int?,
+        deviceId: j['deviceId'] as String?,
+      );
 }

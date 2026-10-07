@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../models/agent_profile.dart';
+import '../models/exchange.dart';
 import '../models/match_result.dart';
 import '../models/console.dart';
 import '../models/management.dart';
@@ -95,6 +96,139 @@ class AgentApi {
       'p_idempotency_key': _uuid.v4(),
     });
     return MatchResult.fromJson(data);
+  }
+
+  /// Uploads one payment SMS (Dalab POST /agent/sms-logs). The backend
+  /// stores it, dedupes it and matches it to at most one pending exchange
+  /// order or wallet deposit. Returns {id, status: new|already_processed,
+  /// matchStatus, exchangeOrderId?, orderId?, reason?}.
+  Future<Map<String, dynamic>> ingestPaymentSms({
+    required String sender,
+    required String body,
+    required DateTime receivedAt,
+    String? provider,
+    String? amount,
+    String? phone,
+    String? transactionRef,
+    int? simSlot,
+    String? deviceId,
+  }) =>
+      _map('agent_ingest_payment_sms', {
+        'p_sender': sender,
+        'p_body': body,
+        'p_received_at': receivedAt.toUtc().toIso8601String(),
+        'p_parsed_provider': provider,
+        'p_parsed_amount': amount,
+        'p_parsed_phone': phone,
+        'p_transaction_ref': transactionRef,
+        'p_sim_slot': simSlot,
+        'p_device_id': deviceId,
+      });
+
+  /// The payout phone's own "you transferred \$X to NUMBER" SMS (Dalab POST
+  /// /agent/exchange/orders/payout-confirmation). Only completes an order
+  /// whose payout was actually dialed before this SMS arrived.
+  Future<Map<String, dynamic>> reportExchangePayoutConfirmation({
+    required String receiverPhone,
+    required String amount,
+    required String rawText,
+    String? provider,
+    String? reference,
+    DateTime? receivedAt,
+  }) =>
+      _map('agent_exchange_payout_confirmation', {
+        'p_receiver_phone': receiverPhone,
+        'p_amount': amount,
+        'p_raw_text': rawText,
+        'p_provider': provider,
+        'p_reference': reference,
+        'p_received_at': receivedAt?.toUtc().toIso8601String(),
+      });
+
+  // ---- Exchange payouts (this phone dials them) ----
+
+  Future<List<ExchangeOrder>> getExchangePayoutQueue() async => (await _list('agent_exchange_payout_queue'))
+      .map((e) => ExchangeOrder.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  Future<ExchangeDialStart> startExchangeDial(String orderId, {String? deviceId}) async =>
+      ExchangeDialStart.fromJson(await _map('agent_exchange_start_dial', {'p_order_id': orderId, 'p_device_id': deviceId}));
+
+  Future<void> reportExchangeStep1(String attemptId, {required String status, String? response, bool isFinal = true}) async {
+    await _client.rpc('agent_exchange_report_step1',
+        {'p_attempt_id': attemptId, 'p_status': status, 'p_response': response, 'p_is_final': isFinal});
+  }
+
+  Future<void> reportExchangeStep2(String attemptId, {required String status, String? response, bool isFinal = true}) async {
+    await _client.rpc('agent_exchange_report_step2',
+        {'p_attempt_id': attemptId, 'p_status': status, 'p_response': response, 'p_is_final': isFinal});
+  }
+
+  // ---- Exchange management ----
+
+  Future<List<ExchangeOrder>> getExchangeOrders({String? status, String? query}) async =>
+      (await _list('manage_exchange_orders', {'p_status': status, 'p_q': query}))
+          .map((e) => ExchangeOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<ExchangeOrder> getExchangeOrder(String id) async =>
+      ExchangeOrder.fromJson(await _map('manage_exchange_order', {'p_id': id}));
+
+  Future<void> verifyExchangeOrder(String id, {String? reference}) async {
+    await _client.rpc('manage_exchange_verify', {'p_id': id, 'p_reference': reference});
+  }
+
+  Future<void> retryExchangePayout(String id, {bool confirmedNotPaid = false}) async {
+    await _client.rpc('manage_exchange_retry_payout', {'p_id': id, 'p_confirmed_not_paid': confirmedNotPaid});
+    await _client.rpc('manage_exchange_request_payout', {'p_id': id});
+  }
+
+  Future<void> reverseExchangeOrder(String id, {String? reason}) async {
+    await _client.rpc('manage_exchange_reverse', {'p_id': id, 'p_reason': reason});
+  }
+
+  Future<List<PaymentSmsLog>> getPaymentSms({String? status}) async => (await _list('manage_payment_sms', {'p_status': status}))
+      .map((e) => PaymentSmsLog.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  Future<void> resolvePaymentSms(String smsId, String exchangeOrderId) async {
+    await _client.rpc('manage_resolve_payment_sms', {'p_sms_id': smsId, 'p_exchange_order_id': exchangeOrderId});
+  }
+
+  Future<ExchangeSettings> getExchangeSettings() async => ExchangeSettings.fromJson(await _map('manage_exchange_settings'));
+
+  Future<void> saveExchangeCorridor(ExchangeCorridor c,
+      {required double rate,
+      required String feeType,
+      required double feeValue,
+      double? minAmount,
+      double? maxAmount,
+      String? payoutWalletId,
+      required bool enabled}) async {
+    await _client.rpc('manage_save_exchange_corridor', {
+      'p_id': c.id,
+      'p_rate': rate,
+      'p_fee_type': feeType,
+      'p_fee_value': feeValue,
+      'p_min_amount': minAmount,
+      'p_max_amount': maxAmount,
+      'p_payout_wallet_id': payoutWalletId,
+      'p_enabled': enabled,
+    });
+  }
+
+  Future<void> savePayoutWallet({String? id, required String method, required String phoneNumber, String? deviceId, int? simSlot}) async {
+    await _client.rpc('manage_save_payout_wallet', {
+      'p_id': id,
+      'p_method': method,
+      'p_phone_number': phoneNumber,
+      'p_device_id': deviceId,
+      'p_sim_slot': simSlot,
+    });
+  }
+
+  Future<void> setPayoutWalletPin(String id, String pin) async {
+    await _client.rpc('manage_set_payout_wallet_pin', {'p_id': id, 'p_pin': pin});
   }
 
   /// Submits a WinWin/MobCash deposit confirmation the agent manually keyed

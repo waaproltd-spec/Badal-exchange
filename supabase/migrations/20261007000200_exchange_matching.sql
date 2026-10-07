@@ -334,6 +334,38 @@ $$;
 
 -- Dalab resweepUnmatchedSmsLogs: every unmatched SMS of the last 24h gets
 -- another try (an order created after it, a device/SIM fixed by a manager).
+-- A payout attempt that never reported its result (the app was killed in
+-- the middle of the dial, the phone died) would leave its order in
+-- progress forever: the device never redials an order that has an attempt.
+-- After 10 minutes (a real dial takes under 90 seconds) the attempt is
+-- marked ambiguous and the order failed, so it shows up for a manager,
+-- whose retry must first confirm the money was not sent. The PIN may have
+-- been entered, so this is never treated as "not paid". completed_at is
+-- set so the carrier's payout SMS can still complete the order.
+CREATE OR REPLACE FUNCTION private.expire_interrupted_payouts()
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  a record;
+  n int := 0;
+BEGIN
+  FOR a IN
+    SELECT da.id, da.exchange_order_id FROM public.exchange_dial_attempts da
+    JOIN public.exchange_orders o ON o.id = da.exchange_order_id
+    WHERE da.status IN ('pending', 'step1_success') AND da.created_at < now() - interval '10 minutes'
+      AND o.status = 'in_progress'
+    FOR UPDATE OF da, o SKIP LOCKED
+  LOOP
+    UPDATE public.exchange_dial_attempts
+    SET status = 'ambiguous', completed_at = now(),
+        step2_response = 'Interrupted: the phone never reported this payout''s result'
+    WHERE id = a.id;
+    PERFORM private.fail_exchange_order(a.exchange_order_id, 'Payout interrupted: no result reported by the payout phone');
+    n := n + 1;
+  END LOOP;
+  RETURN n;
+END
+$$;
+
 CREATE OR REPLACE FUNCTION private.resweep_unmatched_sms()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
@@ -353,6 +385,7 @@ BEGIN
       RAISE WARNING 'resweep failed for sms_log %: %', r.id, SQLERRM;
     END;
   END LOOP;
+  PERFORM private.expire_interrupted_payouts();
   RETURN v_matched;
 END
 $$;
@@ -746,9 +779,14 @@ BEGIN
   IF a.id IS NULL THEN
     PERFORM private.raise_api(404, 'NOT_FOUND', 'Dial attempt not found');
   END IF;
-  v_text := private.scrub_pin(left(p_response, 2000), private.exchange_payout_pin(a.exchange_order_id));
+  v_text := COALESCE(private.scrub_pin(left(p_response, 2000), private.exchange_payout_pin(a.exchange_order_id)), '(no response text)');
   UPDATE public.exchange_dial_attempts SET status = p_status, step2_response = v_text, completed_at = now()
-  WHERE id = p_attempt_id AND status IN ('pending', 'step1_success')
+  WHERE id = p_attempt_id
+    AND (status IN ('pending', 'step1_success')
+         -- A late (queued) success report for an attempt the 10-minute
+         -- expiry already marked interrupted, while no newer attempt exists.
+         OR (p_status = 'success' AND status = 'ambiguous' AND step2_response LIKE 'Interrupted:%'
+             AND attempt_number = (SELECT max(attempt_number) FROM public.exchange_dial_attempts WHERE exchange_order_id = a.exchange_order_id)))
   RETURNING * INTO a;
   IF a.id IS NULL THEN
     SELECT * INTO a FROM public.exchange_dial_attempts WHERE id = p_attempt_id;
@@ -757,7 +795,7 @@ BEGIN
 
   IF p_status = 'success' THEN
     UPDATE public.exchange_orders SET status = 'completed', completed_at = now(), updated_at = now(), failure_reason = NULL
-    WHERE id = a.exchange_order_id AND status <> 'completed'
+    WHERE id = a.exchange_order_id AND status IN ('in_progress', 'failed')
     RETURNING * INTO o;
     IF o.id IS NOT NULL THEN
       PERFORM private.exchange_audit(o.id, 'exchange_completed', NULL, jsonb_build_object(
@@ -778,12 +816,18 @@ $$;
 -- "you transferred $X to NUMBER" SMS on the payout phone. Corroboration of
 -- a payout that was actually dialed -- never a substitute for one.
 CREATE OR REPLACE FUNCTION public.agent_exchange_payout_confirmation(
-  p_receiver_phone text, p_amount text, p_raw_text text DEFAULT NULL, p_provider text DEFAULT NULL, p_reference text DEFAULT NULL
+  p_receiver_phone text, p_amount text, p_raw_text text DEFAULT NULL, p_provider text DEFAULT NULL, p_reference text DEFAULT NULL,
+  p_received_at text DEFAULT NULL
 )
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_agent uuid := private.require_role('agent');
   v_amount numeric := private.to_amount(p_amount);
+  -- When the SMS's own time is known, it can only confirm a payout dialed
+  -- before it arrived (2 minutes of clock skew allowed). An old "you
+  -- transferred" SMS replayed by an inbox rescan can then never complete a
+  -- newer order to the same number for the same amount.
+  v_received timestamptz := CASE WHEN p_received_at IS NULL THEN NULL ELSE private.parse_ts(p_received_at, 'receivedAt') END;
   v_key text := private.phone_key(p_receiver_phone);
   o public.exchange_orders;
   v_text text;
@@ -796,6 +840,9 @@ BEGIN
   SELECT * INTO o FROM public.exchange_orders
   WHERE status IN ('in_progress', 'failed') AND abs(amount_received - v_amount) < 0.01
     AND private.phone_key(receiver_phone) = v_key
+    AND (v_received IS NULL OR EXISTS (
+      SELECT 1 FROM public.exchange_dial_attempts a
+      WHERE a.exchange_order_id = exchange_orders.id AND a.created_at <= v_received + interval '2 minutes'))
   ORDER BY updated_at DESC
   LIMIT 1
   FOR UPDATE SKIP LOCKED;
@@ -937,7 +984,10 @@ BEGIN
     PERFORM private.raise_api(409, 'ALREADY_PAID', 'A payout for this order already went through');
   END IF;
   SELECT * INTO v_last FROM public.exchange_dial_attempts WHERE exchange_order_id = o.id ORDER BY attempt_number DESC LIMIT 1;
-  IF v_last.status = 'ambiguous' AND NOT COALESCE(p_confirmed_not_paid, false) THEN
+  -- The PIN may have reached the carrier whenever the attempt got to step 2
+  -- (step2_response is always set there). Step 1 never sends the PIN.
+  IF v_last.status IN ('ambiguous', 'failed') AND v_last.step2_response IS NOT NULL
+     AND NOT COALESCE(p_confirmed_not_paid, false) THEN
     PERFORM private.raise_api(409, 'CONFIRM_NOT_PAID',
       'The last payout attempt had an unclear result. Check the payout wallet''s history first, then confirm it was not paid.');
   END IF;

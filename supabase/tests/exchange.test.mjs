@@ -245,7 +245,10 @@ test('ambiguous: two orders fit one payment -> nothing moves until a manager dec
 });
 
 test('device/SIM guard: once the collection wallet has a device, SMS from another device do not count', async () => {
-  await rpc(agent, 'manage_save_payout_wallet', { p_id: edahabWallet.id, p_method: 'edahab', p_phone_number: '627000001', p_device_id: 'collect-phone', p_sim_slot: 2 });
+  // The collection wallet is the oldest eDahab wallet (an earlier run's, on
+  // a reused database).
+  const collect = (await rpc(agent, 'manage_exchange_settings')).payoutWallets.find((w) => w.method === 'edahab');
+  await rpc(agent, 'manage_save_payout_wallet', { p_id: collect.id, p_method: 'edahab', p_phone_number: collect.phoneNumber, p_device_id: 'collect-phone', p_sim_slot: 2 });
   try {
     const customer = await newCustomer();
     const sender = edahabNumber();
@@ -257,7 +260,8 @@ test('device/SIM guard: once the collection wallet has a device, SMS from anothe
     assert.equal(right.matchStatus, 'matched');
     assert.equal((await rpc(customer, 'customer_exchange_order', { p_id: order.id })).status, 'in_progress');
   } finally {
-    await rpc(agent, 'manage_save_payout_wallet', { p_id: edahabWallet.id, p_method: 'edahab', p_phone_number: '627000001' });
+    await rpc(agent, 'manage_save_payout_wallet', { p_id: collect.id, p_method: 'edahab', p_phone_number: collect.phoneNumber,
+      p_device_id: collect.deviceId, p_sim_slot: collect.simSlot });
   }
 });
 
@@ -315,6 +319,31 @@ test('failed payout: order is failed (not completed) and leaves the auto-dial qu
   assert.match(failed.failureReason, /Insufficient/);
   const queue = await rpc(agent, 'agent_exchange_payout_queue');
   assert.ok(!queue.some((o) => o.id === order.id));
+  // The PIN was entered, so a retry needs a manager's "not paid" first.
+  await rejects(rpc(agent, 'manage_exchange_retry_payout', { p_id: order.id }), 'CONFIRM_NOT_PAID');
+  await rpc(agent, 'manage_exchange_retry_payout', { p_id: order.id, p_confirmed_not_paid: true });
+  assert.equal((await rpc(customer, 'customer_exchange_order', { p_id: order.id })).status, 'in_progress');
+});
+
+test('interrupted payout (phone never reports): failed after 10 minutes, retry needs confirmation, late success still counts', async () => {
+  const { customer, order } = await verifiedOrder(17);
+  const dial = await rpc(agent, 'agent_exchange_start_dial', { p_order_id: order.id });
+  await rpc(agent, 'agent_exchange_report_step1', { p_attempt_id: dial.id, p_status: 'step1_success' });
+  // A second start while the first is unfinished returns it, without the PIN.
+  const again = await rpc(agent, 'agent_exchange_start_dial', { p_order_id: order.id });
+  assert.equal(again.id, dial.id);
+  assert.equal(again.pin, undefined);
+
+  await db.query(`UPDATE exchange_dial_attempts SET created_at = now() - interval '11 minutes' WHERE id = $1`, [dial.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  const failed = await rpc(customer, 'customer_exchange_order', { p_id: order.id });
+  assert.equal(failed.status, 'failed');
+  await rejects(rpc(agent, 'manage_exchange_retry_payout', { p_id: order.id }), 'CONFIRM_NOT_PAID');
+
+  // The phone's queued step-2 report finally arrives: it did pay.
+  await rpc(agent, 'agent_exchange_report_step2', { p_attempt_id: dial.id, p_status: 'success', p_response: '$1 ayaad uwareejisay X' });
+  assert.equal((await rpc(customer, 'customer_exchange_order', { p_id: order.id })).status, 'completed');
+  await rejects(rpc(agent, 'manage_exchange_retry_payout', { p_id: order.id, p_confirmed_not_paid: true }), 'INVALID_ORDER_STATE');
 });
 
 test('retry after a failed payout: new attempt, no double payout', async () => {
@@ -347,9 +376,18 @@ test('unclear payout: retry needs confirmation; the carrier payout SMS completes
   assert.equal((await rpc(customer, 'customer_exchange_order', { p_id: order.id })).status, 'failed');
   await rejects(rpc(agent, 'manage_exchange_retry_payout', { p_id: order.id }), 'CONFIRM_NOT_PAID');
 
+  // An older payout SMS to the same number (an inbox rescan replaying a
+  // previous exchange's confirmation) arrived before this dial: ignored.
+  const stale = await rpc(agent, 'agent_exchange_payout_confirmation', {
+    p_receiver_phone: order.receiverPhone, p_amount: order.amountReceived, p_raw_text: 'old',
+    p_received_at: new Date(Date.now() - 60 * 60 * 1000).toISOString() });
+  assert.equal(stale.result, 'no_matching_order');
+  assert.equal((await rpc(customer, 'customer_exchange_order', { p_id: order.id })).status, 'failed');
+
   // The carrier's own "ayaad u warejisay" SMS shows the money did go out.
   const conf = await rpc(agent, 'agent_exchange_payout_confirmation', {
-    p_receiver_phone: `0${order.receiverPhone}`, p_amount: order.amountReceived, p_raw_text: 'X Dollar ayad u warejisay ...', p_provider: 'Somtel' });
+    p_receiver_phone: `0${order.receiverPhone}`, p_amount: order.amountReceived, p_raw_text: 'X Dollar ayad u warejisay ...', p_provider: 'Somtel',
+    p_received_at: new Date().toISOString() });
   assert.equal(conf.result, 'completed');
   assert.equal((await rpc(customer, 'customer_exchange_order', { p_id: order.id })).status, 'completed');
   await rejects(rpc(agent, 'manage_exchange_retry_payout', { p_id: order.id, p_confirmed_not_paid: true }), 'INVALID_ORDER_STATE');

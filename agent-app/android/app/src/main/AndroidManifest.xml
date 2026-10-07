@@ -17,6 +17,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Resolves which SIM slot a payment SMS arrived on (dual-SIM phones). -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- Exchange payouts: dial the carrier's USSD transfer on the payout SIM
+         and keep the screen on while its reply dialog is read. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:label="Badal Exchange Agent"
@@ -52,8 +58,8 @@
           messaging app) still receive and display it normally — this app
           only reads it to detect authorized EVC Plus payment
           notifications, it does not intercept or hide SMS from the agent.
-          See SmsReceiver.kt for the sender allow-list pre-filter — every
-          other SMS is dropped immediately and never leaves the receiver.
+          Every SMS is passed to Dart, where lib/sms/payment_sms_parsers.dart
+          keeps only payment SMS; everything else is dropped on the device.
         -->
         <receiver
             android:name=".SmsReceiver"
@@ -63,6 +69,25 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
+
+        <!--
+          Exchange payout automation (port of Dalab Internet's
+          ExchangeUssdAccessibilityService): reads and drives the carrier's
+          USSD reply dialog during a payout, and does nothing otherwise. The
+          agent turns it on in Settings > Accessibility.
+        -->
+        <service
+            android:name=".payout.PayoutAccessibilityService"
+            android:exported="false"
+            android:label="Baari exchange payouts"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/payout_accessibility_service_config" />
+        </service>
 
     </application>
 

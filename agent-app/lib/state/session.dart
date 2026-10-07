@@ -7,6 +7,7 @@ import '../api/agent_api.dart';
 import '../api/api_exception.dart';
 import '../api/token_storage.dart';
 import '../models/agent_profile.dart';
+import '../payout/exchange_payout_runner.dart';
 import '../services/device_identity.dart';
 import '../sms/sms_bridge.dart';
 import 'live_updates.dart';
@@ -28,6 +29,7 @@ class Session extends ChangeNotifier {
     // the SMS bridge so both benefit from the same bearer-token refresh
     // handling instead of racing two independent token refreshes.
     smsBridge = SmsBridge(api: _api);
+    payouts = ExchangePayoutRunner(api: _api);
     live = LiveUpdates(() => _api.client.supabase);
     _api.client.onSessionExpired = _handleSessionExpired;
   }
@@ -35,6 +37,10 @@ class Session extends ChangeNotifier {
   final AgentApi _api;
   final TokenStorage _tokens;
   late final SmsBridge smsBridge;
+
+  /// Exchange payouts dialed from this phone (automatic when switched on
+  /// for this phone and it is the payout wallet's phone).
+  late final ExchangePayoutRunner payouts;
   late final LiveUpdates live;
 
   AgentApi get api => _api;
@@ -160,6 +166,7 @@ class Session extends ChangeNotifier {
   Future<void> _maybeAutoStartSmsBridge() async {
     if (!Platform.isAndroid) return;
     if (deviceId == null || deviceRegistrationError != null) return;
+    payouts.start(deviceId: deviceId!);
     final granted = await smsBridge.hasPermission();
     if (!granted) return;
     await smsBridge.start(deviceId: deviceId!);
@@ -194,11 +201,13 @@ class Session extends ChangeNotifier {
     unawaited(live.stop());
     status = AuthStatus.loggedOut;
     profile = null;
+    payouts.stop();
     unawaited(smsBridge.stop());
     notifyListeners();
   }
 
   Future<void> logout() async {
+    payouts.stop();
     await smsBridge.stop();
     await live.stop();
     await _api.logout();
