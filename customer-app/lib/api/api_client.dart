@@ -121,6 +121,13 @@ class ApiClient {
           callback: (_) => _live.add('wallets'),
         )
         .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'exchange_orders',
+          filter: filter,
+          callback: (_) => _live.add('exchange_orders'),
+        )
+        .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'notifications',

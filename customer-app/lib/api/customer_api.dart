@@ -1,4 +1,5 @@
 import '../models/app_content.dart';
+import '../models/exchange.dart';
 import '../models/order.dart';
 import '../models/payment_method.dart';
 import '../models/quote.dart';
@@ -171,4 +172,41 @@ class CustomerApi {
     final data = await _client.rpc('customer_order', {'p_id': id}) as Map<String, dynamic>;
     return Order.fromJson(data);
   }
+
+  // ---------------------------------------------------------------------
+  // Exchange (EVC Plus <-> eDahab)
+  // ---------------------------------------------------------------------
+
+  Future<List<ExchangeOption>> exchangeOptions() async =>
+      ((await _client.rpc('exchange_options') as List<dynamic>?) ?? const [])
+          .map((e) => ExchangeOption.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<ExchangeQuote> exchangeQuote({required String optionId, required String amount}) async =>
+      ExchangeQuote.fromJson(
+          await _client.rpc('exchange_quote', {'p_corridor_id': optionId, 'p_amount': amount}) as Map<String, dynamic>);
+
+  /// [clientRequestId] makes a retried tap return the same order.
+  Future<ExchangeOrder> createExchangeOrder({
+    required String optionId,
+    required String amount,
+    required String senderPhone,
+    required String receiverPhone,
+    required String clientRequestId,
+  }) async =>
+      ExchangeOrder.fromJson(await _client.rpc('customer_create_exchange_order', {
+        'p_corridor_id': optionId,
+        'p_amount': amount,
+        'p_sender_phone': senderPhone,
+        'p_receiver_phone': receiverPhone,
+        'p_client_request_id': clientRequestId,
+      }) as Map<String, dynamic>);
+
+  Future<List<ExchangeOrder>> exchangeOrders() async =>
+      ((await _client.rpc('customer_exchange_orders') as List<dynamic>?) ?? const [])
+          .map((e) => ExchangeOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<ExchangeOrder> exchangeOrder(String id) async =>
+      ExchangeOrder.fromJson(await _client.rpc('customer_exchange_order', {'p_id': id}) as Map<String, dynamic>);
 }

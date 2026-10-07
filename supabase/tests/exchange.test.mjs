@@ -122,7 +122,8 @@ test('setup: options show Baari collection numbers; PIN is never readable', asyn
 test('EVC Plus: order first, then payment SMS -> verified (phone written differently)', async () => {
   const customer = await newCustomer();
   const sender = evcNumber();
-  const order = await createOrder(customer, corridorEvcToEdahab, 1, `252${sender}`, edahabNumber());
+  const order = await createOrder(customer, corridorEvcToEdahab, 1, `252${sender}`, `0${edahabNumber()}`);
+  assert.match(order.receiverPhone, /^62\d{7}$/);
   assert.equal(order.status, 'pending');
   assert.equal(order.amountReceived, '0.98');
   assert.match(order.collectionUssd, /^\*712\*617000001\*1#$/);

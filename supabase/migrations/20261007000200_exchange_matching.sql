@@ -57,6 +57,10 @@ BEGIN
   IF d LIKE '252%' AND length(d) > 9 THEN
     d := substr(d, 4);
   END IF;
+  -- 0610346060 is the same number as 610346060.
+  IF d ~ '^0\d{9}$' THEN
+    d := substr(d, 2);
+  END IF;
   IF d !~ '^\d{9}$' OR d LIKE '0%' THEN
     PERFORM private.raise_api(400, 'VALIDATION_ERROR', format('Invalid %s. Enter exactly 9 digits.', p_field));
   END IF;
