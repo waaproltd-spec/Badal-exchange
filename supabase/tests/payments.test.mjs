@@ -158,6 +158,18 @@ test('SMS before the deposit order: the minute resweep also picks it up', async 
   assert.equal((await order(customer, d.id)).status, 'completed');
 });
 
+test('an unpaid deposit from days ago does not block a new one for the same number and amount', async () => {
+  const customer = await newCustomer();
+  const sender = evcNumber();
+  const old = await deposit(customer, 'evc_plus', 1, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '7 days', updated_at = now() - interval '7 days' WHERE id = $1`, [old.id]);
+  const fresh = await deposit(customer, 'evc_plus', 1, `252${sender}`);
+  const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 1, phone: `0${sender}` }));
+  assert.equal(res.matchStatus, 'matched');
+  assert.equal(res.orderId, fresh.id);
+  assert.equal((await order(customer, old.id)).status, 'pending');
+});
+
 test('wrong amount, near amount and wrong phone never credit', async () => {
   const customer = await newCustomer();
   const sender = evcNumber();
