@@ -84,8 +84,6 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
                   const SummaryDivider(),
-                  SummaryRow(label: AppStrings.fee, value: Formatters.money(quote.fee)),
-                  const SummaryDivider(),
                   SummaryRow(label: AppStrings.totalDeducted, value: Formatters.money(quote.walletDelta)),
                   const SummaryDivider(),
                   SummaryRow(

@@ -33,7 +33,7 @@ void main() {
     expect(methods.map((m) => m.info.id), contains('evc_plus'));
 
     final quote = await api.createQuote(direction: 'deposit', method: 'evc_plus', amount: '12');
-    expect(quote.netAmount, '11.80');
+    expect(quote.netAmount, '12.00'); // no rates or fees: 1:1
 
     await expectLater(
       api.withdraw(method: 'evc_plus', phoneNumber: phone, amount: '50', idempotencyKey: 'k-${DateTime.now().microsecondsSinceEpoch}'),
@@ -80,7 +80,7 @@ void main() {
     }
     expect(changes, containsAll(<String>['orders', 'wallets']));
 
-    expect((await api.getWallet()).availableBalance, '11.80');
+    expect((await api.getWallet()).availableBalance, '12.00');
     final orders = await api.getOrders();
     expect(orders.first.status, 'completed');
     expect((await api.getOrder(order.id)).status, 'completed');

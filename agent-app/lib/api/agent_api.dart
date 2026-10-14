@@ -354,21 +354,6 @@ class AgentApi {
     await _client.rpc('manage_set_payment_method', {'p_method': method, 'p_enabled': enabled});
   }
 
-  /// New exchange rate for one method/direction (past orders keep theirs).
-  Future<void> setRate(String method, String direction, double rate) async {
-    await _client.rpc('admin_set_exchange_rate', {'p_method': method, 'p_direction': direction, 'p_rate': rate});
-  }
-
-  /// [value] is dollars for a flat fee (sent as cents) or 0-100 for percent.
-  Future<void> setFee(String method, String direction, {required String type, required double value}) async {
-    await _client.rpc('admin_set_fee', {
-      'p_method': method,
-      'p_direction': direction,
-      'p_fee_type': type,
-      'p_value': type == 'flat' ? (value * 100).round() : value,
-    });
-  }
-
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
     await _client.rpc('admin_set_withdrawal_limits', {'p_method': method, 'p_min_amount': min, 'p_max_amount': max});

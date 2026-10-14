@@ -59,8 +59,6 @@ class WithdrawResultScreen extends StatelessWidget {
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),
                   const SummaryDivider(),
-                  SummaryRow(label: AppStrings.fee, value: Formatters.money(order.fee)),
-                  const SummaryDivider(),
                   SummaryRow(label: 'You receive', value: Formatters.money(order.netAmount)),
                   const SummaryDivider(),
                   Padding(

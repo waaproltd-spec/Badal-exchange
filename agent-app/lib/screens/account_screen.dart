@@ -125,18 +125,6 @@ class _AccountScreenState extends State<AccountScreen> {
               onTap: () => _open(const MethodSettingsListScreen(title: 'Bet Payment Methods', kind: 'platform')),
             ),
             _NavRow(
-              icon: Icons.currency_exchange_rounded,
-              color: AppColors.statusProcessing,
-              label: 'Rates',
-              onTap: () => _open(const MethodSettingsListScreen(title: 'Rates', focus: MethodFocus.rates)),
-            ),
-            _NavRow(
-              icon: Icons.percent_rounded,
-              color: AppColors.purple,
-              label: 'Fees',
-              onTap: () => _open(const MethodSettingsListScreen(title: 'Fees', focus: MethodFocus.fees)),
-            ),
-            _NavRow(
               icon: Icons.straighten_rounded,
               color: AppColors.statusPending,
               label: 'Minimum & Maximum Limits',

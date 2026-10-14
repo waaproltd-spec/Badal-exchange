@@ -125,11 +125,12 @@ test('a user migrated with a bcryptjs hash logs in with the same password', asyn
 
 test('quote matches the backend math', async () => {
   const dep = await rpc(customer, 'customer_quote', { p_direction: 'deposit', p_method: 'evc_plus', p_amount: '10' });
-  assert.equal(dep.fee, '0.20');
-  assert.equal(dep.netAmount, '9.80');
+  // No rates or fees: everything is 1:1.
+  assert.equal(dep.fee, '0.00');
+  assert.equal(dep.netAmount, '10.00');
   const wd = await rpc(customer, 'customer_quote', { p_direction: 'withdraw', p_method: 'winwin', p_amount: '10' });
-  assert.equal(wd.fee, '0.10');
-  assert.equal(wd.walletDelta, '10.10');
+  assert.equal(wd.fee, '0.00');
+  assert.equal(wd.walletDelta, '10.00');
   assert.equal(wd.netAmount, '10.00');
   await rejects(rpc(customer, 'customer_quote', { p_direction: 'withdraw', p_method: 'winwin', p_amount: '0.5' }), 'BELOW_MIN_WITHDRAWAL');
   await rejects(rpc(customer, 'customer_quote', { p_direction: 'withdraw', p_method: 'winwin', p_amount: '501' }), 'ABOVE_MAX_WITHDRAWAL');
@@ -142,7 +143,7 @@ test('mobile-money deposit: idempotency, SMS match, wallet credit, dedupe', asyn
   await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_phone_number: null }), 'VALIDATION_ERROR');
   const order = await rpc(customer, 'customer_create_deposit', args);
   assert.equal(order.status, 'pending');
-  assert.equal(order.netAmount, '24.80');
+  assert.equal(order.netAmount, '25.00');
   assert.equal(order.depositCode, null);
   const replay = await rpc(customer, 'customer_create_deposit', args);
   assert.equal(replay.id, order.id, 'retry with the same key returns the same order');
@@ -163,8 +164,8 @@ test('mobile-money deposit: idempotency, SMS match, wallet credit, dedupe', asyn
   assert.equal(after.status, 'completed');
   assert.equal(after.transactionRef, ref);
   const w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '24.80');
-  assert.equal(w.totalDeposit, '24.80');
+  assert.equal(w.availableBalance, '25.00');
+  assert.equal(w.totalDeposit, '25.00');
 });
 
 test('manual mobile-money and unmatched confirmations', async () => {
@@ -194,7 +195,7 @@ test('platform deposit with deposit code', async () => {
     p_occurred_at: new Date().toISOString(), p_idempotency_key: key(), p_deposit_code: order.depositCode });
   assert.deepEqual(ok, { status: 'matched', orderId: order.id });
   const w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '49.40'); // 24.80 + 4.80 + 19.80
+  assert.equal(w.availableBalance, '50.00'); // 25 + 5 + 20
 });
 
 test('withdrawals: reserve, duplicate guard, complete, fail releases', async () => {
@@ -204,8 +205,8 @@ test('withdrawals: reserve, duplicate guard, complete, fail releases', async () 
   const wd = await rpc(customer, 'customer_create_withdrawal', {
     p_method: 'evc_plus', p_amount: '10', p_idempotency_key: key(), p_phone_number: phone(1) });
   let w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '39.30');
-  assert.equal(w.pendingBalance, '10.10');
+  assert.equal(w.availableBalance, '40.00');
+  assert.equal(w.pendingBalance, '10.00');
   await rejects(rpc(customer, 'customer_create_withdrawal', {
     p_method: 'evc_plus', p_amount: '10', p_idempotency_key: key(), p_phone_number: phone(1) }), 'DUPLICATE_WITHDRAWAL');
 
@@ -216,14 +217,14 @@ test('withdrawals: reserve, duplicate guard, complete, fail releases', async () 
   assert.equal(done.status, 'completed');
   w = await rpc(customer, 'customer_wallet');
   assert.equal(w.pendingBalance, '0.00');
-  assert.equal(w.totalWithdraw, '10.10');
+  assert.equal(w.totalWithdraw, '10.00');
 
   const wd2 = await rpc(customer, 'customer_create_withdrawal', {
     p_method: 'onexbet', p_amount: '5', p_idempotency_key: key(), p_account_id: '1X998877' });
   const failed = await rpc(agent, 'agent_withdrawal_fail', { p_order_id: wd2.id, p_reason: 'Account not found' });
   assert.equal(failed.status, 'failed');
   w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '39.30');
+  assert.equal(w.availableBalance, '40.00');
   assert.equal(w.pendingBalance, '0.00');
   const ledger = await rpc(agent, 'agent_customer_ledger', { p_id: customerId });
   assert.deepEqual(ledger.slice(0, 2).map((l) => l.type), ['release', 'reserve']);
@@ -254,12 +255,12 @@ test('agent console: dashboard, users, reports, history, account', async () => {
   assert.ok(dash.recentActivity.length > 0);
   const users = await rpc(agent, 'agent_customers', { p_q: phone(1) });
   assert.equal(users.length, 1);
-  assert.equal(users[0].walletBalance, '39.30');
+  assert.equal(users[0].walletBalance, '40.00');
   assert.ok(users[0].deposits >= 3);
   const sorted = await rpc(agent, 'agent_customers', { p_sort: 'balance', p_limit: 100 });
   assert.ok(sorted.length >= 2);
   const detail = await rpc(agent, 'agent_customer', { p_id: customerId });
-  assert.equal(detail.totalWithdrawals, '10.10');
+  assert.equal(detail.totalWithdrawals, '10.00');
   assert.ok(detail.recentOrders.length > 0);
   const rep = await rpc(agent, 'agent_reports', { p_period: 'weekly' });
   assert.equal(rep.series.length, 7);
@@ -284,17 +285,16 @@ test('management: method switch, rates, fees, limits, content', async () => {
     p_method: 'telesom', p_amount: '5', p_idempotency_key: key(), p_phone_number: phone(1) }), 'METHOD_DISABLED');
   await rpc(agent, 'manage_set_payment_method', { p_method: 'telesom', p_enabled: true });
 
-  await rpc(agent, 'admin_set_exchange_rate', { p_method: 'dbbet', p_direction: 'deposit', p_rate: 1.05 });
-  await rpc(agent, 'admin_set_fee', { p_method: 'dbbet', p_direction: 'deposit', p_fee_type: 'flat', p_value: 50 });
+  // Rates and fees are turned off.
+  await rejects(rpc(agent, 'admin_set_exchange_rate', { p_method: 'dbbet', p_direction: 'deposit', p_rate: 1.05 }), 'RATES_DISABLED');
+  await rejects(rpc(agent, 'admin_set_fee', { p_method: 'dbbet', p_direction: 'deposit', p_fee_type: 'flat', p_value: 50 }), 'FEES_DISABLED');
   await rpc(agent, 'admin_set_withdrawal_limits', { p_method: 'dbbet', p_min_amount: 2, p_max_amount: 300 });
   const list = await rpc(agent, 'manage_payment_methods');
   const dbbet = list.find((m) => m.method === 'dbbet');
-  assert.equal(dbbet.depositRate, 1.05);
-  assert.deepEqual(dbbet.depositFee, { type: 'flat', value: 50 });
   assert.equal(dbbet.minWithdraw, '2.00');
   assert.equal(dbbet.maxWithdraw, '300.00');
   const q = await rpc(customer, 'customer_quote', { p_direction: 'deposit', p_method: 'dbbet', p_amount: '100' });
-  assert.equal(q.netAmount, '104.50');
+  assert.equal(q.netAmount, '100.00');
 
   const ad = await rpc(agent, 'manage_save_home_ad', { p_title: 'Welcome', p_link_url: 'https://example.com' });
   await rejects(rpc(agent, 'manage_save_home_ad', { p_title: 'Bad', p_link_url: 'not a url' }), 'VALIDATION_ERROR');
