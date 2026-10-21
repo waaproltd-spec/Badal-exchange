@@ -65,7 +65,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.somethingWentWrong);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -84,12 +84,12 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Text('Withdrawal details', style: AppTextStyles.headline),
+              Text(AppStrings.withdrawalDetails, style: AppTextStyles.headline),
               const SizedBox(height: 8),
               Text(
                 _info.isPlatform
-                    ? 'Enter your ${_info.label} account ID and the amount to withdraw.'
-                    : 'Enter the ${_info.label} number to receive your withdrawal.',
+                    ? AppStrings.withdrawPlatformHint(_info.label)
+                    : AppStrings.withdrawPhoneHint(_info.label),
                 style: AppTextStyles.muted,
               ),
               const SizedBox(height: 28),
@@ -101,7 +101,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                 textInputAction: TextInputAction.next,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return _info.isPlatform ? 'Enter your account ID' : 'Enter a phone number';
+                    return _info.isPlatform ? AppStrings.enterAccountId : AppStrings.enterPhone;
                   }
                   return null;
                 },
@@ -115,7 +115,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                 textInputAction: TextInputAction.done,
                 validator: (v) {
                   final n = double.tryParse((v ?? '').trim());
-                  if (n == null || n <= 0) return 'Enter a valid amount';
+                  if (n == null || n <= 0) return AppStrings.enterValidAmount;
                   return null;
                 },
               ),

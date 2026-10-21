@@ -43,7 +43,7 @@ class _DepositProcessingScreenState extends State<DepositProcessingScreen> {
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.somethingWentWrong);
     }
   }
 
@@ -88,7 +88,7 @@ class _DepositProcessingScreenState extends State<DepositProcessingScreen> {
         child: const Icon(Icons.priority_high_rounded, color: AppColors.statusFailed, size: 36),
       ),
       const SizedBox(height: 24),
-      Text('We could not complete this', style: AppTextStyles.title, textAlign: TextAlign.center),
+      Text(AppStrings.couldNotComplete, style: AppTextStyles.title, textAlign: TextAlign.center),
       const SizedBox(height: 8),
       Text(message, style: AppTextStyles.muted, textAlign: TextAlign.center),
       const SizedBox(height: 28),

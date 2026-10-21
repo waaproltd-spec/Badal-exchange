@@ -69,7 +69,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.somethingWentWrong);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -88,16 +88,14 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Text('Deposit details', style: AppTextStyles.headline),
+              Text(AppStrings.depositDetails, style: AppTextStyles.headline),
               const SizedBox(height: 8),
               Text(
                 _info.usesWithdrawalCode
-                    ? 'In ${_info.label}, withdraw to the Badal cash desk and copy the code you get. '
-                        'Then enter your account ID, the amount and that code. Your wallet is credited '
-                        'with the amount ${_info.label} pays out.'
+                    ? AppStrings.depositCodeFlowHint(_info.label)
                     : _info.isPlatform
-                    ? 'Enter your ${_info.label} account ID and the amount to deposit.'
-                    : 'Enter the ${_info.label} number you will pay from.',
+                    ? AppStrings.depositPlatformHint(_info.label)
+                    : AppStrings.depositPhoneHint(_info.label),
                 style: AppTextStyles.muted,
               ),
               if (widget.option.depositNumbers.isNotEmpty) ...[
@@ -113,7 +111,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 textInputAction: TextInputAction.next,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return _info.isPlatform ? 'Enter your account ID' : 'Enter a phone number';
+                    return _info.isPlatform ? AppStrings.enterAccountId : AppStrings.enterPhone;
                   }
                   return null;
                 },
@@ -127,21 +125,21 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 textInputAction: TextInputAction.done,
                 validator: (v) {
                   final n = double.tryParse((v ?? '').trim());
-                  if (n == null || n <= 0) return 'Enter a valid amount';
+                  if (n == null || n <= 0) return AppStrings.enterValidAmount;
                   return null;
                 },
               ),
               if (_info.usesWithdrawalCode) ...[
                 const SizedBox(height: 20),
                 AppTextField(
-                  label: '${_info.label} withdrawal code',
+                  label: AppStrings.withdrawalCodeLabel(_info.label),
                   controller: _codeController,
-                  hint: 'Code from ${_info.label}',
+                  hint: AppStrings.withdrawalCodeHint(_info.label),
                   textInputAction: TextInputAction.done,
                   validator: (v) {
                     final t = (v ?? '').trim();
-                    if (t.isEmpty) return 'Enter the withdrawal code';
-                    if (t.length > 64 || t.contains(RegExp(r'\s'))) return 'Enter the code exactly as shown';
+                    if (t.isEmpty) return AppStrings.enterWithdrawalCode;
+                    if (t.length > 64 || t.contains(RegExp(r'\s'))) return AppStrings.enterCodeExactly;
                     return null;
                   },
                 ),

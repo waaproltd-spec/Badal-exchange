@@ -45,7 +45,7 @@ class WithdrawResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Center(
-              child: Text('Withdrawal Submitted', style: AppTextStyles.headline, textAlign: TextAlign.center),
+              child: Text(AppStrings.withdrawalSubmitted, style: AppTextStyles.headline, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 8),
             Center(
@@ -55,18 +55,18 @@ class WithdrawResultScreen extends StatelessWidget {
             AppCard(
               child: Column(
                 children: [
-                  SummaryRow(label: 'Order Code', value: order.orderCode),
+                  SummaryRow(label: AppStrings.orderCode, value: order.orderCode),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),
                   const SummaryDivider(),
-                  SummaryRow(label: 'You receive', value: Formatters.money(order.netAmount)),
+                  SummaryRow(label: AppStrings.youReceive, value: Formatters.money(order.netAmount)),
                   const SummaryDivider(),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Status', style: AppTextStyles.muted),
+                        Text(AppStrings.status, style: AppTextStyles.muted),
                         StatusBadge(status: order.status),
                       ],
                     ),

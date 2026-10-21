@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/strings.dart';
+
 /// Payment methods. The backend is the single source of truth
 /// (backend/src/lib/methods.ts, served at GET /meta/payment-methods); the
 /// app loads that catalog at startup (CustomerApi.loadMethodCatalog).
@@ -18,12 +20,12 @@ class PaymentMethodInfo {
   final String initials;
 
   /// What the customer types for this method.
-  String get identifierLabel => isPlatform ? '$label Account ID' : '$label Phone Number';
+  String get identifierLabel => AppStrings.identifierLabel(label, isPlatform);
 
   /// Deposits for this method are collected automatically with the
   /// withdrawal code the customer gets from the platform's cash desk.
   bool get usesWithdrawalCode => id == '888starz' || id == 'onexbet';
-  String get identifierHint => isPlatform ? 'e.g. 7841228' : 'e.g. 2526XXXXXXX';
+  String get identifierHint => AppStrings.identifierHint(isPlatform);
 }
 
 /// Bundled copy of the backend catalog, used only until the startup load

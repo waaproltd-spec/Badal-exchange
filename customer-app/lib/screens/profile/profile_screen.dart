@@ -18,12 +18,12 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out?'),
+        title: Text(AppStrings.logout),
+        content: Text(AppStrings.logoutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -78,6 +78,23 @@ class ProfileScreen extends StatelessWidget {
                   SummaryRow(label: AppStrings.name, value: displayName),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.phoneNumber, value: user?.phone ?? '-'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            AppCard(
+              child: Row(
+                children: [
+                  Expanded(child: Text(AppStrings.language, style: AppTextStyles.body)),
+                  SegmentedButton<String>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: AppLanguage.english, label: Text(AppStrings.englishName)),
+                      ButtonSegment(value: AppLanguage.somali, label: Text(AppStrings.somaliName)),
+                    ],
+                    selected: {AppLanguage.current.value},
+                    onSelectionChanged: (s) => AppLanguage.set(s.first),
+                  ),
                 ],
               ),
             ),

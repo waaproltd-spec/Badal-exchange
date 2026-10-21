@@ -14,11 +14,12 @@ import '../../utils/formatters.dart';
 import '../../widgets/brand/baari_logo.dart';
 import '../../widgets/home_ads_strip.dart';
 import '../../widgets/method_icon.dart';
+import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/status_badge.dart';
-import '../deposit/deposit_method_screen.dart';
+import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../orders/order_detail_screen.dart';
-import '../withdraw/withdraw_method_screen.dart';
+import '../withdraw/withdraw_details_screen.dart';
 
 /// Wallet home: branded header, balance card (Balance / Xiran / Bonus),
 /// Deposit + Withdraw, and the most recent orders.
@@ -62,16 +63,22 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
   }
 
+  /// Deposit and Withdraw both pick a method in the bottom sheet, then open
+  /// that method's form.
   Future<void> _goDeposit() async {
+    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit);
+    if (option == null || !mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const DepositMethodScreen()),
+      MaterialPageRoute(builder: (_) => DepositDetailsScreen(option: option)),
     );
     if (mounted) _refresh();
   }
 
   Future<void> _goWithdraw() async {
+    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw);
+    if (option == null || !mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const WithdrawMethodScreen()),
+      MaterialPageRoute(builder: (_) => WithdrawDetailsScreen(method: option.info.id)),
     );
     if (mounted) _refresh();
   }

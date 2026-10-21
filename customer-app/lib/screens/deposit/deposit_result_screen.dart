@@ -53,7 +53,7 @@ class DepositResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Center(
-              child: Text('Deposit Submitted', style: AppTextStyles.headline, textAlign: TextAlign.center),
+              child: Text(AppStrings.depositSubmitted, style: AppTextStyles.headline, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 8),
             Center(
@@ -76,7 +76,7 @@ class DepositResultScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Use this code as the reference when you pay via ${order.methodLabel}.',
+                      AppStrings.depositCodeUse(order.methodLabel),
                       style: AppTextStyles.muted,
                       textAlign: TextAlign.center,
                     ),
@@ -89,7 +89,7 @@ class DepositResultScreen extends StatelessWidget {
             AppCard(
               child: Column(
                 children: [
-                  SummaryRow(label: 'Order Code', value: order.orderCode),
+                  SummaryRow(label: AppStrings.orderCode, value: order.orderCode),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),
                   const SummaryDivider(),
@@ -100,7 +100,7 @@ class DepositResultScreen extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Status', style: AppTextStyles.muted),
+                        Text(AppStrings.status, style: AppTextStyles.muted),
                         StatusBadge(status: order.status),
                       ],
                     ),

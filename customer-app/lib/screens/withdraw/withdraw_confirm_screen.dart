@@ -40,6 +40,10 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   /// same logical request, so a network retry can never double-submit.
   late final String _idempotencyKey;
 
+  /// One tap submits once: the button stays off until the processing screen
+  /// is closed.
+  bool _submitting = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,7 +67,7 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(title: Text('Confirm Withdrawal', style: AppTextStyles.appBarTitle)),
+      appBar: AppBar(title: Text(AppStrings.confirmWithdrawal, style: AppTextStyles.appBarTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -78,11 +82,19 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
               child: Column(
                 children: [
                   SummaryRow(
-                    label: info.isPlatform ? 'Account ID' : 'Phone Number',
+                    label: '${AppStrings.sendTo} (${info.isPlatform ? AppStrings.accountId : AppStrings.phoneNumber})',
                     value: (info.isPlatform ? widget.accountId : widget.phoneNumber) ?? '',
                   ),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
+                  if (quote.rate != 1) ...[
+                    const SummaryDivider(),
+                    SummaryRow(label: AppStrings.rate, value: quote.rate.toString()),
+                  ],
+                  if ((num.tryParse(quote.fee) ?? 0) != 0) ...[
+                    const SummaryDivider(),
+                    SummaryRow(label: AppStrings.fee, value: Formatters.money(quote.fee)),
+                  ],
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.totalDeducted, value: Formatters.money(quote.walletDelta)),
                   const SummaryDivider(),
@@ -97,14 +109,18 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
             const SizedBox(height: 32),
             PrimaryButton(
               label: AppStrings.confirm,
-              onPressed: () {
-                final api = context.read<CustomerApi>();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => WithdrawProcessingScreen(action: () => _submit(api)),
-                  ),
-                );
-              },
+              onPressed: _submitting
+                  ? null
+                  : () async {
+                      final api = context.read<CustomerApi>();
+                      setState(() => _submitting = true);
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => WithdrawProcessingScreen(action: () => _submit(api)),
+                        ),
+                      );
+                      if (mounted) setState(() => _submitting = false);
+                    },
             ),
           ],
         ),

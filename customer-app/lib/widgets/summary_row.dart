@@ -25,7 +25,8 @@ class SummaryRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTextStyles.muted),
+          // Both sides wrap, so long labels (e.g. in Somali) never overflow.
+          Flexible(child: Text(label, style: AppTextStyles.muted)),
           const SizedBox(width: 16),
           Flexible(
             child: Text(

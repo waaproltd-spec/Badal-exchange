@@ -13,6 +13,7 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient.initialize();
+  await AppLanguage.load();
   runApp(const BaariApp());
 }
 
@@ -48,12 +49,17 @@ class BaariApp extends StatelessWidget {
           update: (_, __, previous) => previous!,
         ),
       ],
-      child: MaterialApp(
-        title: AppStrings.appName,
-        debugShowCheckedModeBanner: false,
-        navigatorKey: navigatorKey,
-        theme: AppTheme.light,
-        home: const SplashScreen(),
+      // Changing the language rebuilds every screen in the new language.
+      child: ValueListenableBuilder<String>(
+        valueListenable: AppLanguage.current,
+        builder: (context, language, _) => MaterialApp(
+          key: ValueKey(language),
+          title: AppStrings.appName,
+          debugShowCheckedModeBanner: false,
+          navigatorKey: navigatorKey,
+          theme: AppTheme.light,
+          home: const SplashScreen(),
+        ),
       ),
     );
   }
