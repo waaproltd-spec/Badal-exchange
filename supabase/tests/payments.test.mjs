@@ -208,12 +208,34 @@ test('duplicate SMS (same reference, or redelivered) credits once', async () => 
   assert.equal(rows[0].n, 2);
 });
 
-test('ambiguous: two deposits fit one payment -> nothing credited until a manager assigns it', async () => {
+test('one customer with several equal deposits: a payment pays the oldest, the rest stay pending', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(0, sender);
+  const first = await deposit(c, 'evc_plus', 1, sender);
+  const second = await deposit(c, 'evc_plus', 1, sender);
+  const third = await deposit(c, 'evc_plus', 1, sender);
+  const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 1, phone: sender }));
+  assert.equal(res.matchStatus, 'matched');
+  assert.equal(res.orderId, first.id);
+  assert.equal((await order(c, first.id)).status, 'completed');
+  assert.equal((await order(c, second.id)).status, 'pending');
+  assert.equal((await order(c, third.id)).status, 'pending');
+  assert.equal((await rpc(c, 'customer_wallet')).availableBalance, '1.00', 'credited once');
+  // A second payment pays the next one.
+  const next = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 1, phone: sender }));
+  assert.equal(next.orderId, second.id);
+  assert.equal((await rpc(c, 'customer_wallet')).availableBalance, '2.00');
+});
+
+test('ambiguous: deposits of two customers fit one payment -> nothing credited until a manager assigns it', async () => {
   const sender = evcNumber();
   const c1 = await newCustomer(0, sender);
-  const c2 = c1; // one number belongs to one customer: two equal deposits from it
+  const otherNumber = evcNumber();
+  const c2 = await newCustomer(0, otherNumber);
   const a = await deposit(c1, 'evc_plus', 8, sender);
-  const b = await deposit(c2, 'evc_plus', 8, sender);
+  const b = await deposit(c2, 'evc_plus', 8, otherNumber);
+  // An older deposit placed before the login-number rule, from c1's number.
+  await db.query('UPDATE orders SET phone_number = $1 WHERE id = $2', [`252${sender}`, b.id]);
   const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 8, phone: sender }));
   assert.equal(res.matchStatus, 'ambiguous');
   assert.equal((await order(c1, a.id)).status, 'pending');
@@ -223,10 +245,10 @@ test('ambiguous: two deposits fit one payment -> nothing credited until a manage
 
   const other = await deposit(c1, 'evc_plus', 80, sender);
   await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: other.orderCode }), 'PAYMENT_MISMATCH');
-  const resolved = await rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: b.orderCode });
+  const resolved = await rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: a.orderCode });
   assert.equal(resolved.status, 'completed');
-  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: a.orderCode }), 'INVALID_STATE');
-  assert.equal((await order(c1, a.id)).status, 'pending');
+  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: b.orderCode }), 'INVALID_STATE');
+  assert.equal((await order(c2, b.id)).status, 'pending');
 });
 
 test('device/SIM guard: SMS from another phone or SIM never credit', async () => {
