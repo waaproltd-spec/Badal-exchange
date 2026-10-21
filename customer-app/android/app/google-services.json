@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "809183434041",
+    "project_id": "badal-exchange-1394d",
+    "storage_bucket": "badal-exchange-1394d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809183434041:android:12955c693afb35bd2d84e8",
+        "android_client_info": {
+          "package_name": "com.badalexchange"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcUvrkB63kSiC1S7gZfm-_kBbouGNgykk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

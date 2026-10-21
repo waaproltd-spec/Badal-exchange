@@ -4,9 +4,10 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Firebase: android/app/google-services.json is written by the APK build
-// from the GOOGLE_SERVICES_JSON secret (it is not committed). Without it the
-// app builds and runs without Firebase.
+// Firebase (project badal-exchange-1394d): android/app/google-services.json.
+// Its API key is not a secret -- it ships inside every APK; restrict it to
+// com.badalexchange in Google Cloud. A GOOGLE_SERVICES_JSON secret, when
+// set, replaces the file at build time.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }

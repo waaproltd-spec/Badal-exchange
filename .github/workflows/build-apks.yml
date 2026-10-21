@@ -42,12 +42,12 @@ jobs:
       - name: Firebase config for the customer app
         working-directory: customer-app
         env:
-          # The google-services.json from the Firebase console (package
-          # com.badalexchange), as is or base64-encoded. Kept out of the repo.
+          # Optional: replaces the committed google-services.json (package
+          # com.badalexchange), as is or base64-encoded.
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "::warning::GOOGLE_SERVICES_JSON is not set -- the customer app is built without Firebase."
+            echo "Using the committed android/app/google-services.json."
             exit 0
           fi
           if printf '%s' "$GOOGLE_SERVICES_JSON" | grep -q '"project_info"'; then
