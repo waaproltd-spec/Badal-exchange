@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
@@ -39,7 +40,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       final phone = await apiClient.secureStorage.read(key: SecureStorageKeys.userPhone);
       final name = await apiClient.secureStorage.read(key: SecureStorageKeys.userName);
-      if (apiClient.hasSession && phone != null) {
+      if (apiClient.hasSession && phone != null && !await _rememberMe()) {
+        // "Remember me" was off: start from the login screen.
+        await _setRememberMe(true);
+        await logout();
+      } else if (apiClient.hasSession && phone != null) {
         _user = AuthUser(phone: phone, name: name ?? '');
         unawaited(apiClient.startLive());
         unawaited(_verifyRestoredSession());
@@ -67,6 +72,45 @@ class AuthProvider extends ChangeNotifier {
     final result = await customerApi.login(phone: phone, password: password);
     final resolvedName = result.name.isNotEmpty ? result.name : phone;
     await _persistSession(phone: phone, name: resolvedName);
+  }
+
+  /// Logs in with the 9 local digits typed after +252. Accounts are stored
+  /// as 252XXXXXXXXX; older ones may have been registered as 0XXXXXXXXX or
+  /// the 9 digits alone, so those are tried when the first is refused.
+  Future<void> loginWithLocalNumber({
+    required String local,
+    required String password,
+    bool rememberMe = true,
+  }) async {
+    ApiException? refused;
+    for (final phone in ['252$local', '0$local', local]) {
+      try {
+        await login(phone: phone, password: password);
+        await _setRememberMe(rememberMe);
+        return;
+      } on ApiException catch (e) {
+        if (e.status != 401) rethrow;
+        refused = e;
+      }
+    }
+    throw refused!;
+  }
+
+  static const String _rememberMeKey = 'remember_me';
+
+  /// Off: the session is not restored the next time the app starts.
+  Future<void> _setRememberMe(bool value) async {
+    try {
+      await (await SharedPreferences.getInstance()).setBool(_rememberMeKey, value);
+    } catch (_) {}
+  }
+
+  Future<bool> _rememberMe() async {
+    try {
+      return (await SharedPreferences.getInstance()).getBool(_rememberMeKey) ?? true;
+    } catch (_) {
+      return true;
+    }
   }
 
   Future<void> register({

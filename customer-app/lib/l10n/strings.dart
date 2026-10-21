@@ -74,6 +74,20 @@ class AppStrings {
   static String get accountCreated =>
       _t('Account created. Welcome to BAARI!', 'Akoonka waa la sameeyay. Ku soo dhawoow BAARI!');
   static String get or => _t('OR', 'AMA');
+  static String get welcomeBack => _t('Welcome back', 'Ku soo dhawoow mar kale');
+  static String get loginSubtitle => _t('Log in to your BAARI wallet', 'Gal boorsadaada BAARI');
+  static String get enterPassword => _t('Enter your password', 'Geli erayga sirta');
+  static String get rememberMe => _t('Remember me', 'I xasuuso');
+  static String get forgotPassword => _t('Forgot password?', 'Erayga sirta ma ilowday?');
+  static String get forgotPasswordTitle => _t('Forgot your password?', 'Erayga sirta ma ilowday?');
+  static String get forgotPasswordBody => _t(
+        'Contact BAARI support from your registered number. They will check your account and set a new password for you.',
+        'La xiriir taageerada BAARI adigoo isticmaalaya lambarkaaga diiwaangashan. Waxay hubin doonaan akoonkaaga oo kuu samayn doonaan eray sir ah oo cusub.',
+      );
+  static String get noSupportContacts =>
+      _t('Support contacts are not available right now. Please try again later.', 'Xiriirka taageerada hadda lama heli karo. Fadlan isku day mar dambe.');
+  static String get invalidLogin =>
+      _t('Wrong phone number or password.', 'Lambarka taleefanka ama erayga sirta waa khalad.');
   static String get showPassword => _t('Show password', 'Muuji erayga sirta');
   static String get hidePassword => _t('Hide password', 'Qari erayga sirta');
 

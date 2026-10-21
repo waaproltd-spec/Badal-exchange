@@ -49,6 +49,13 @@ class CustomerApi {
 
   Future<void> logout() => _client.signOut();
 
+  /// Support links (whatsapp, telegram, facebook; empty when not set),
+  /// readable before logging in.
+  Future<Map<String, String>> getSupportContacts() async {
+    final data = await _client.rpc('support_contacts') as Map<String, dynamic>;
+    return {for (final e in data.entries) e.key: (e.value as String?)?.trim() ?? ''};
+  }
+
   /// Realtime changes to this customer's orders and wallet, and new
   /// notifications ('orders' | 'wallets' | 'notifications').
   Stream<String> get liveChanges => _client.liveChanges;

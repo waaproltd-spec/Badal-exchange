@@ -213,7 +213,7 @@ void main() {
   testWidgets('Log In goes back to the login screen it came from', (tester) async {
     await _phone(tester);
     await tester.pumpWidget(_app(const LoginScreen()));
-    await tester.tap(find.textContaining('Create Account', findRichText: true));
+    await tester.tap(find.byKey(const Key('create-account')));
     await tester.pumpAndSettle();
     expect(find.byType(RegisterScreen), findsOneWidget);
     await tester.tap(await _reveal(tester, 'go-to-login'));

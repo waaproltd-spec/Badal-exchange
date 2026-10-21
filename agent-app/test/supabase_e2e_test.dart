@@ -73,6 +73,15 @@ void main() {
     final detail = await api.getCustomer(customers.single.id);
     expect(detail.recentOrders, isNotEmpty);
     expect(await api.getCustomerLedger(customers.single.id), isNotEmpty);
+
+    // Forgot password: management sets a new one; only it works now.
+    await api.resetCustomerPassword(customers.single.id, 'Reset-Pass-22');
+    final relogin = newClient();
+    await expectLater(
+      relogin.auth.signInWithPassword(email: authEmailFor(phone), password: 'Customer-Pass-1'),
+      throwsA(isA<AuthException>()),
+    );
+    await relogin.auth.signInWithPassword(email: authEmailFor(phone), password: 'Reset-Pass-22');
     final report = await api.getReport(period: 'monthly');
     expect(report.series.length, 30);
     final history = await api.getHistory(query: phone);

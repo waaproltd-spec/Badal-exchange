@@ -532,6 +532,10 @@ class AgentApi {
   Future<String?> setPromoCode(String code) async =>
       (await _map('manage_set_promo_code', {'p_code': code}))['promoCode'] as String?;
 
+  /// Sets a new password for a customer who asked support (management only).
+  Future<void> resetCustomerPassword(String customerId, String newPassword) async =>
+      _client.rpc('manage_reset_customer_password', {'p_customer_id': customerId, 'p_new_password': newPassword});
+
   Future<TelegramLink> getTelegramLink() async => TelegramLink.fromJson(await _map('manage_telegram_status'));
 
   Future<TelegramLinkCode> createTelegramLinkCode() async =>

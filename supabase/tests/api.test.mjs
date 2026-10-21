@@ -536,3 +536,28 @@ test('realtime: customers get their own order and wallet changes only', async ()
   assert.ok(mine.some((p) => p.table === 'wallets' && p.new?.customer_id === customerId));
   assert.equal(theirs.length, 0, 'another customer receives nothing');
 });
+
+test('log-in help: support contacts before login; management resets a customer password', async () => {
+  const contacts = await rpc(client(), 'support_contacts');
+  assert.deepEqual(Object.keys(contacts).sort(), ['facebook', 'telegram', 'whatsapp']);
+
+  const p = phone(7);
+  const { rows } = await db.query(
+    `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
+                VALUES ('customer', $1, 'Forgot', private.hash_password($2)) RETURNING id)
+     INSERT INTO public.wallets (customer_id) SELECT id FROM u RETURNING customer_id`, [p, PASSWORD]);
+  const id = rows[0].customer_id;
+  const before = await login(p);
+
+  await rejects(rpc(customer, 'manage_reset_customer_password', { p_customer_id: id, p_new_password: 'New-Pass-123' }), 'FORBIDDEN');
+  await rejects(rpc(agent, 'manage_reset_customer_password', { p_customer_id: id, p_new_password: 'short' }), 'VALIDATION_ERROR');
+  await rejects(rpc(agent, 'manage_reset_customer_password', { p_customer_id: randomUUID(), p_new_password: 'New-Pass-123' }), 'NOT_FOUND');
+  await rpc(agent, 'manage_reset_customer_password', { p_customer_id: id, p_new_password: 'New-Pass-123' });
+
+  await assert.rejects(login(p), 'the old password no longer works');
+  const after = await login(p, 'New-Pass-123');
+  assert.equal((await rpc(after, 'session_profile')).role, 'customer');
+  const { error } = await before.auth.refreshSession();
+  assert.ok(error, 'existing sessions are signed out');
+  for (const c of [before, after]) await c.removeAllChannels();
+});
