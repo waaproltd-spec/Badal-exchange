@@ -192,8 +192,6 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                     return null;
                   }),
                 ),
-                const SizedBox(height: 10),
-                Text(AppStrings.depositCodeFlowHint(_info.label), style: AppTextStyles.muted.copyWith(fontSize: 13)),
               ] else if (_info.isPlatform) ...[
                 _FieldBox(
                   label: _info.identifierLabel,

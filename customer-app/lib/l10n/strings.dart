@@ -146,12 +146,6 @@ class AppStrings {
         'Enter your $method account ID and the amount to deposit.',
         'Geli aqoonsiga akoonkaaga $method iyo lacagta aad dhigayso.',
       );
-  static String depositCodeFlowHint(String method) => _t(
-        'In $method, withdraw to the Badal cash desk on this street and enter the payment code you get. '
-            'Your wallet is credited with the amount $method pays out.',
-        'Gudaha $method, lacag u bixi khasnadda Badal ee waddadan oo geli koodhka lagu siiyo. '
-            'Boorsadaada waxaa lagu shubayaa lacagta $method bixiso.',
-      );
   static String withdrawalCodeLabel(String method) =>
       _t('$method withdrawal code', 'Koodhka bixinta $method');
   static String withdrawalCodeHint(String method) => _t('Code from $method', 'Koodhka $method');
