@@ -96,8 +96,9 @@ class CustomerApi {
     String? accountId,
     required String amount,
     required String idempotencyKey,
+    String? platformCode,
   }) =>
-      _createOrder('deposits', method, phoneNumber, accountId, amount, idempotencyKey);
+      _createOrder('deposits', method, phoneNumber, accountId, amount, idempotencyKey, platformCode: platformCode);
 
   Future<Order> withdraw({
     required String method,
@@ -114,8 +115,9 @@ class CustomerApi {
     String? phoneNumber,
     String? accountId,
     String amount,
-    String idempotencyKey,
-  ) async {
+    String idempotencyKey, {
+    String? platformCode,
+  }) async {
     final data = await _client.rpc(
       kind == 'deposits' ? 'customer_create_deposit' : 'customer_create_withdrawal',
       {
@@ -124,6 +126,7 @@ class CustomerApi {
         'p_account_id': accountId,
         'p_amount': amount,
         'p_idempotency_key': idempotencyKey,
+        if (platformCode != null) 'p_platform_code': platformCode,
       },
     ) as Map<String, dynamic>;
     return Order.fromJson(data);

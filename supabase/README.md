@@ -262,6 +262,35 @@ Setup:
      https://onbezsojnpsrtuxzwsjr.supabase.co/functions/v1/telegram-bot/setup
    ```
 
+## Automatic 888STARZ orders
+
+888STARZ orders go through the CashdeskBot cash register on their own
+(`functions/platform-orders`, `migrations/*_platform_auto.sql`):
+
+- **Withdraw** (wallet to 888starz account): the funds are reserved as
+  usual. The worker checks the player exists, then tops the account up
+  (`Deposit/{id}/Add`).
+- **Deposit** (888starz account to wallet): the customer withdraws to the
+  Badal cash desk in 888starz and enters the code in the Customer App. The
+  worker collects it (`Deposit/{id}/Payout`) and credits what 888starz
+  actually paid. A deposit without a code stays manual.
+
+Each order is tried once:
+
+| Result | Withdraw | Deposit |
+| --- | --- | --- |
+| Done | Completed, debit finalized | Completed, wallet credited |
+| 888starz refused | Failed, funds returned | Failed |
+| Nothing reached 888starz (not configured, bad signature) | Back to the agents as a normal order | Back to the agents |
+| No clear answer | Held under Automatic Payouts → Needs review | Stays pending for an agent |
+
+- **When the worker runs:** the database calls it right after an order is
+  created (pg_net), and every minute while orders wait (pg_cron). It finds
+  the worker at the `edge_functions_url` setting, which the deploy workflow
+  sets, and sends a secret it keeps in Vault.
+- **Older orders:** orders from before the migration stay manual.
+- **Customers:** they only see a reason once an order has failed.
+
 ## Testing
 
 ```bash

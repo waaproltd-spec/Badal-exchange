@@ -19,6 +19,10 @@ class PaymentMethodInfo {
 
   /// What the customer types for this method.
   String get identifierLabel => isPlatform ? '$label Account ID' : '$label Phone Number';
+
+  /// Deposits for this method are collected automatically with the
+  /// withdrawal code the customer gets from the platform's cash desk.
+  bool get usesWithdrawalCode => id == '888starz';
   String get identifierHint => isPlatform ? 'e.g. 7841228' : 'e.g. 2526XXXXXXX';
 }
 

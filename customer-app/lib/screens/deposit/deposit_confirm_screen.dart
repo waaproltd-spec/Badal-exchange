@@ -24,11 +24,15 @@ class DepositConfirmScreen extends StatefulWidget {
     required this.quote,
     this.phoneNumber,
     this.accountId,
+    this.platformCode,
   });
 
   final Quote quote;
   final String? phoneNumber;
   final String? accountId;
+
+  /// The platform's withdrawal code, for deposits collected automatically.
+  final String? platformCode;
 
   @override
   State<DepositConfirmScreen> createState() => _DepositConfirmScreenState();
@@ -52,6 +56,7 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
       accountId: widget.accountId,
       amount: widget.quote.amount,
       idempotencyKey: _idempotencyKey,
+      platformCode: widget.platformCode,
     );
   }
 
@@ -80,6 +85,10 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
                     label: info.isPlatform ? 'Account ID' : 'Phone Number',
                     value: (info.isPlatform ? widget.accountId : widget.phoneNumber) ?? '',
                   ),
+                  if (widget.platformCode != null) ...[
+                    const SummaryDivider(),
+                    SummaryRow(label: 'Withdrawal code', value: widget.platformCode!),
+                  ],
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
                   const SummaryDivider(),

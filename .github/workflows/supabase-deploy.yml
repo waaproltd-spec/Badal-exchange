@@ -60,6 +60,15 @@ jobs:
           supabase functions deploy cashdeskbot --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Telegram calls it without a Supabase token; it checks Telegram's webhook secret instead.
           supabase functions deploy telegram-bot --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Called by the database (pg_net) with its own worker secret.
+          supabase functions deploy platform-orders --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+
+      - name: Point the database at the Edge Functions
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          psql "$SUPABASE_DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+            "UPDATE public.app_settings SET value = 'https://$SUPABASE_PROJECT_REF.supabase.co/functions/v1', updated_at = now() WHERE key = 'edge_functions_url'"
 
       - name: Smoke check (read-only)
         env:
@@ -70,7 +79,7 @@ jobs:
           SELECT 'accounts with a Supabase login: ' || count(*) FROM public.users u JOIN auth.users a ON a.id = u.id;
           SELECT 'accounts without one: ' || count(*) FROM public.users u WHERE NOT EXISTS (SELECT 1 FROM auth.users a WHERE a.id = u.id);
           SELECT 'API functions: ' || count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
-            AND proname ~ '^(customer|agent|manage|admin|session|register|payment_method|change_password|cashdeskbot|telegram)';
+            AND proname ~ '^(customer|agent|manage|admin|session|register|payment_method|change_password|cashdeskbot|telegram|platform)';
           SELECT 'tables in Realtime: ' || string_agg(tablename, ', ' ORDER BY tablename)
             FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public';
           SQL
