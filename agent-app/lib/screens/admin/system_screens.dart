@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/console.dart';
 import '../../models/management.dart';
@@ -327,6 +328,9 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
   }
 }
 
+/// The Telegram cashier bot (supabase/functions/telegram-bot).
+const telegramBotUsername = 'Badal888starzbot';
+
 /// Links this manager's Telegram account to the Telegram cashier bot
 /// (CashdeskBot balance, player search, deposits and payouts).
 class TelegramBotScreen extends StatefulWidget {
@@ -374,6 +378,13 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
         if (mounted) setState(() => _code = code);
       }, 'Could not create a link code.');
 
+  // The bot reads `/start CODE` from this link as `/link CODE`.
+  Future<void> _openBot(String code) async {
+    final ok = await launchUrl(Uri.parse('https://t.me/$telegramBotUsername?start=$code'),
+        mode: LaunchMode.externalApplication);
+    if (!ok && mounted) showSnack(context, 'Could not open Telegram.');
+  }
+
   Future<void> _unlink() => _run(() async {
         final link = await context.read<Session>().api.unlinkTelegram();
         if (mounted) setState(() => _link = link);
@@ -406,7 +417,13 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                       if (link.linkedAt != null) InfoRow('Since', formatDateTime(link.linkedAt!)),
                       const GroupLabel('Link your Telegram account'),
                       if (code != null) ...[
-                        const Text('Send this message to the bot in Telegram:'),
+                        ElevatedButton.icon(
+                          onPressed: () => _openBot(code.code),
+                          icon: const Icon(Icons.send_rounded),
+                          label: const Text('Open @$telegramBotUsername'),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Or send this message to @$telegramBotUsername in Telegram:'),
                         const SizedBox(height: 8),
                         SelectableText('/link ${code.code}',
                             style: const TextStyle(fontFamily: 'monospace', fontSize: 20, fontWeight: FontWeight.w800)),

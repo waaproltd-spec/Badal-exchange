@@ -42,7 +42,7 @@ const COMMANDS = [
 ];
 
 const HELP = [
-  '<b>Commands</b>',
+  '<b>888starz cashier: commands</b>',
   '/balance: cash register balance and limit',
   '/player ID: find a player',
   '/deposit ID AMOUNT: top up a player',
@@ -53,7 +53,7 @@ const HELP = [
 ].join('\n');
 
 const NOT_LINKED = [
-  'This Telegram account is not linked to Badal Exchange.',
+  'This is the Badal Exchange 888starz cashier bot. Your Telegram account is not linked yet.',
   '',
   'In the Agent App open <b>Account → Admin features → Telegram Bot</b>, get a link code, then send it here as',
   '<code>/link CODE</code>',

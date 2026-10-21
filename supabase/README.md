@@ -173,8 +173,9 @@ How access works:
 
 Setup:
 
-1. Create a bot with [@BotFather](https://t.me/BotFather) and copy its
-   token.
+1. The bot is [@Badal888starzbot](https://t.me/Badal888starzbot) (the Agent
+   App opens it with the link code filled in). Its token comes from
+   [@BotFather](https://t.me/BotFather). Keep it out of the repository.
 2. Set the secrets. The webhook secret is any long random string of
    letters, digits, `_` and `-`. `TELEGRAM_BOT_LNG` is the language sent
    to CashdeskBot (default `en`). The `CASHDESKBOT_*` secrets from step 4
