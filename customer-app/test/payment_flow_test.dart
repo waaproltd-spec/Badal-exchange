@@ -45,6 +45,12 @@ class FakeCustomerApi extends CustomerApi {
 
   final submitted = <Map<String, Object?>>[];
 
+  /// Account IDs the customer used before, per platform.
+  final savedAccounts = <String, String>{'onexbet': '7841228', '888starz': '7841228'};
+
+  @override
+  Future<String?> getPlatformAccount(String method) async => savedAccounts[method];
+
   @override
   Future<List<PaymentMethodOption>> getPaymentMethods() async =>
       _catalogJson.map(PaymentMethodOption.fromJson).toList();
@@ -352,7 +358,12 @@ void main() {
       expect(tester.widget<PrimaryButton>(confirm).onPressed, isNull);
 
       final usesCode = id == '888starz' || id == 'onexbet';
-      if (isPlatform) {
+      if (usesCode) {
+        // Payment code only: the backend reuses the saved account ID.
+        await tester.pump();
+        expect(find.text('$label Account ID'.toUpperCase()), findsNothing);
+        expect(find.byType(TextFormField), findsOneWidget);
+      } else if (isPlatform) {
         expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
         await tester.enterText(find.byType(TextFormField).first, identifier);
       } else {
@@ -391,10 +402,30 @@ void main() {
       expect(api.submitted, hasLength(1));
       expect(api.submitted.single, containsPair('kind', 'deposit'));
       expect(api.submitted.single, containsPair('method', id));
-      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', identifier));
+      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', usesCode ? null : identifier));
       expect(api.submitted.single, containsPair('amount', usesCode ? null : '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
       expect(find.text('Deposit Submitted'), findsOneWidget);
     });
   }
+
+  testWidgets('deposit 1XBET the first time: the account ID is asked for once', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi()..savedAccounts.clear();
+    final option = (await api.getPaymentMethods()).firstWhere((o) => o.info.id == 'onexbet');
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
+    await tester.pump();
+    expect(find.byKey(const Key('first-account-id')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('payment-code')), 'ABC123');
+    await tester.pump();
+    final confirm = find.byKey(const Key('confirm-deposit'));
+    expect(tester.widget<PrimaryButton>(confirm).onPressed, isNull);
+    await tester.enterText(find.byType(TextFormField).first, '7841228');
+    await tester.pump();
+    await tester.ensureVisible(confirm);
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(api.submitted.single, containsPair('account', '7841228'));
+    expect(api.submitted.single, containsPair('code', 'ABC123'));
+  });
 }

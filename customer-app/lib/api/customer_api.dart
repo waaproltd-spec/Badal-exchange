@@ -63,6 +63,13 @@ class CustomerApi {
   // Wallet & quotes
   // ---------------------------------------------------------------------
 
+  /// The betting-platform account ID this customer used before with
+  /// [method], or null the first time.
+  Future<String?> getPlatformAccount(String method) async {
+    final data = await _client.rpc('customer_platform_account', {'p_method': method}) as Map<String, dynamic>;
+    return data['accountId'] as String?;
+  }
+
   Future<Wallet> getWallet() async {
     final data = await _client.rpc('customer_wallet') as Map<String, dynamic>;
     return Wallet.fromJson(data);

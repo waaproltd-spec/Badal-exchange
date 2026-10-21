@@ -262,6 +262,31 @@ test('code-only deposit paid out without an amount is left for an agent, nothing
   assert.match(rows[0].failure_reason, /did not say how much/);
 });
 
+test('payment code only: the account ID is the one the customer used before with that platform', { skip }, async () => {
+  const c = await newCustomer(1000);
+  const codeOnly = (method, code) => rpc(c, 'customer_create_deposit', {
+    p_method: method, p_amount: null, p_platform_code: code, p_idempotency_key: randomUUID() });
+  assert.deepEqual(await rpc(c, 'customer_platform_account', { p_method: 'onexbet' }), { accountId: null });
+  await rejects(codeOnly('onexbet', 'FIRST1'), 'ACCOUNT_ID_REQUIRED');
+
+  await withdraw(c, 2, '55554444', 'onexbet');
+  assert.deepEqual(await rpc(c, 'customer_platform_account', { p_method: 'onexbet' }), { accountId: '55554444' });
+  const o = await codeOnly('onexbet', 'NEXT22');
+  assert.equal(o.accountId, '55554444');
+  assert.equal(o.amountPending, true);
+
+  // Per platform and per customer.
+  await rejects(codeOnly('888starz', 'OTHER3'), 'ACCOUNT_ID_REQUIRED');
+  const other = await newCustomer(0);
+  assert.deepEqual(await rpc(other, 'customer_platform_account', { p_method: 'onexbet' }), { accountId: null });
+
+  // The worker gets the saved ID for the code-only deposit.
+  for (let job; (job = await rpc(worker, 'platform_claim_next'));) {
+    if (job.orderId === o.id) assert.equal(job.accountId, '55554444');
+    await rpc(worker, 'platform_finish', { p_order_id: job.orderId, p_outcome: 'refused', p_message: 'test' });
+  }
+});
+
 test('an amount is still required without a code, or for other platforms', async () => {
   const c = await newCustomer(0);
   await rejects(rpc(c, 'customer_create_deposit', {
