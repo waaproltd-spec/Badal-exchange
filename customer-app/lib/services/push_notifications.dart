@@ -6,23 +6,30 @@ import 'package:flutter/foundation.dart';
 import '../api/customer_api.dart';
 
 /// A notification the backend sent: 'deposit_completed' or
-/// 'withdraw_completed', for the order [orderId]. The text comes from the
-/// server (in Somali); the app only uses the type and the order id.
+/// 'withdraw_completed' for the order [orderId], or 'broadcast' (an admin's
+/// "Send to all customers"). The text comes from the server; the app only
+/// uses the type and the id.
 class PushMessage {
-  const PushMessage({required this.type, required this.orderId, this.title, this.body});
+  const PushMessage({required this.type, this.orderId = '', this.title, this.body});
 
   final String type;
+
+  /// The order to open; empty for a broadcast.
   final String orderId;
   final String? title;
   final String? body;
 
-  static const types = {'deposit_completed', 'withdraw_completed'};
+  static const orderTypes = {'deposit_completed', 'withdraw_completed'};
+  static const broadcast = 'broadcast';
 
-  /// Null for anything that isn't one of our two notifications.
+  bool get isBroadcast => type == broadcast;
+
+  /// Null for anything that isn't one of our notifications.
   static PushMessage? fromData(Map<String, dynamic> data, {String? title, String? body}) {
     final type = data['type'];
+    if (type == broadcast) return PushMessage(type: broadcast, title: title, body: body);
     final orderId = data['orderId'];
-    if (type is! String || !types.contains(type) || orderId is! String || orderId.isEmpty) return null;
+    if (type is! String || !orderTypes.contains(type) || orderId is! String || orderId.isEmpty) return null;
     return PushMessage(type: type, orderId: orderId, title: title, body: body);
   }
 }
@@ -35,6 +42,10 @@ abstract class PushPlatform {
   Future<String?> getToken();
   Future<void> deleteToken();
   Stream<String> get onTokenRefresh;
+
+  /// The FCM topic every signed-in customer device is in, for broadcasts.
+  Future<void> subscribe(String topic);
+  Future<void> unsubscribe(String topic);
 
   /// Arrived while the app is open (Android shows nothing on its own then).
   Stream<PushMessage> get onForeground;
@@ -69,6 +80,12 @@ class FirebasePushPlatform implements PushPlatform {
   Stream<String> get onTokenRefresh => _fcm.onTokenRefresh;
 
   @override
+  Future<void> subscribe(String topic) => _fcm.subscribeToTopic(topic);
+
+  @override
+  Future<void> unsubscribe(String topic) => _fcm.unsubscribeFromTopic(topic);
+
+  @override
   Stream<PushMessage> get onForeground =>
       FirebaseMessaging.onMessage.map(_from).where((m) => m != null).cast<PushMessage>();
 
@@ -84,20 +101,24 @@ class FirebasePushPlatform implements PushPlatform {
 }
 
 /// Customer push notifications: registers this device's token for the
-/// signed-in customer (and removes it on logout), and hands the screens the
-/// order to open when a notification is tapped ([openOrder]) or a banner to
-/// show when one arrives while the app is open ([foreground]).
+/// signed-in customer and joins the 'customers' topic for broadcasts (both
+/// undone on logout), and hands the screens the notification that was
+/// tapped ([opened]) or a banner to show when one arrives while the app is
+/// open ([foreground]).
 ///
 /// [instance] is set in main() when Firebase is configured; null otherwise,
 /// and every use is then a no-op.
 class PushNotifications {
   PushNotifications(this._platform) {
-    _subs.add(_platform.onOpened.listen((m) => openOrder.value = m.orderId));
+    _subs.add(_platform.onOpened.listen((m) => opened.value = m));
     _subs.add(_platform.onForeground.listen((m) => foreground.value = m));
     _platform.initialMessage().then((m) {
-      if (m != null) openOrder.value = m.orderId;
+      if (m != null) opened.value = m;
     }).catchError((_) {});
   }
+
+  /// FCM topic for "Send to all customers".
+  static const customersTopic = 'customers';
 
   static PushNotifications? instance;
 
@@ -106,8 +127,9 @@ class PushNotifications {
   StreamSubscription<String>? _refresh;
   String? _token;
 
-  /// The order whose details to open; the shell opens it and clears it.
-  final ValueNotifier<String?> openOrder = ValueNotifier(null);
+  /// The notification tapped: the shell opens its order (or, for a
+  /// broadcast, the Notifications screen) and clears it.
+  final ValueNotifier<PushMessage?> opened = ValueNotifier(null);
 
   /// A notification that arrived while the app was open.
   final ValueNotifier<PushMessage?> foreground = ValueNotifier(null);
@@ -119,6 +141,7 @@ class PushNotifications {
       if (!await _platform.requestPermission()) return;
       final token = await _platform.getToken();
       if (token != null) await _register(api, token);
+      await _platform.subscribe(customersTopic);
       await _refresh?.cancel();
       _refresh = _platform.onTokenRefresh.listen((t) => _register(api, t));
     } catch (e) {
@@ -140,6 +163,9 @@ class PushNotifications {
   Future<void> stop(CustomerApi api) async {
     await _refresh?.cancel();
     _refresh = null;
+    try {
+      await _platform.unsubscribe(customersTopic);
+    } catch (_) {}
     final token = _token ?? await _platform.getToken().catchError((_) => null);
     _token = null;
     if (token == null) return;

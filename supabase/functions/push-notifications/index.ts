@@ -1,6 +1,9 @@
 // Customer App push notifications through Firebase Cloud Messaging (HTTP
-// v1), in Somali, for completed deposits and withdrawals only
-// (migrations/*_push_notifications.sql queues them).
+// v1): in Somali for completed deposits and withdrawals
+// (migrations/*_push_notifications.sql queues them), and the Agent App's
+// "Send to all customers" messages as written, to the FCM topic 'customers'
+// that every signed-in Customer App device joins
+// (migrations/*_push_broadcasts.sql).
 //
 // Woken by the database (pg_net right after an order completes, pg_cron
 // every minute while some wait) with the platform worker secret. Each run
@@ -8,8 +11,10 @@
 // device, and reports back (push_finish): uninstalled devices' tokens are
 // removed, FCM outages retried.
 //
-// The message holds the title and text below and, for opening the order in
-// the app, data {type, orderId} -- no amount, number or account.
+// An order message holds the title and text below and, for opening the
+// order in the app, data {type, orderId} -- no amount, number or account.
+// A broadcast holds its title and text and data {type: 'broadcast',
+// notificationId}.
 //
 // Secret: FIREBASE_SERVICE_ACCOUNT -- the service account key JSON from the
 // Firebase console (Project settings -> Service accounts -> Generate new
@@ -38,8 +43,22 @@ interface ServiceAccount {
 interface Job {
   id: string;
   kind: string;
-  orderId: string;
-  tokens: string[];
+  orderId?: string;
+  tokens?: string[];
+  // broadcasts
+  notificationId?: string;
+  title?: string;
+  body?: string;
+  topic?: string;
+}
+
+/** Where one message goes, and what it says. */
+interface Target {
+  token?: string;
+  topic?: string;
+  title: string;
+  body: string;
+  data: Record<string, string>;
 }
 
 async function rpc(fn: string, args: Record<string, unknown>) {
@@ -103,8 +122,7 @@ async function accessToken(sa: ServiceAccount): Promise<string> {
 
 type SendResult = 'sent' | 'invalid_token' | 'retry' | 'error';
 
-async function send(sa: ServiceAccount, auth: string, token: string, job: Job): Promise<[SendResult, string?]> {
-  const text = MESSAGES[job.kind];
+async function send(sa: ServiceAccount, auth: string, t: Target): Promise<[SendResult, string?]> {
   const api = Deno.env.get('FCM_API_URL') || 'https://fcm.googleapis.com';
   let res: Response;
   try {
@@ -113,9 +131,9 @@ async function send(sa: ServiceAccount, auth: string, token: string, job: Job): 
       headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: {
-          token,
-          notification: { title: text.title, body: text.body },
-          data: { type: job.kind, orderId: job.orderId },
+          ...(t.token ? { token: t.token } : { topic: t.topic }),
+          notification: { title: t.title, body: t.body },
+          data: t.data,
           android: { priority: 'high', notification: { sound: 'default' } },
         },
       }),
@@ -166,19 +184,36 @@ Deno.serve(async (req) => {
 
   const processed = [];
   for (const job of jobs) {
-    if (!MESSAGES[job.kind]) {
+    if (job.kind === 'broadcast') {
+      // One message to every signed-in customer device.
+      const [r, m] = await send(sa, auth, {
+        topic: job.topic || 'customers',
+        title: job.title ?? '',
+        body: job.body ?? '',
+        data: { type: 'broadcast', notificationId: job.notificationId ?? '' },
+      });
+      const finished = await rpc('push_finish', {
+        p_id: job.id, p_sent: r === 'sent' ? 1 : 0, p_error: r === 'sent' ? null : m ?? r, p_retry: r === 'retry',
+      });
+      processed.push({ id: job.id, kind: job.kind, sent: r === 'sent' ? 1 : 0, ...finished });
+      continue;
+    }
+    const text = MESSAGES[job.kind];
+    const tokens = job.tokens ?? [];
+    if (!text) {
       await rpc('push_finish', { p_id: job.id, p_sent: 0, p_error: `Unknown kind ${job.kind}` });
       continue;
     }
-    const results = await Promise.all(job.tokens.map((t) => send(sa, auth, t, job)));
+    const results = await Promise.all(tokens.map((token) =>
+      send(sa, auth, { token, ...text, data: { type: job.kind, orderId: job.orderId ?? '' } })));
     const sent = results.filter(([r]) => r === 'sent').length;
-    const invalid = job.tokens.filter((_, i) => results[i][0] === 'invalid_token');
+    const invalid = tokens.filter((_, i) => results[i][0] === 'invalid_token');
     const retry = sent === 0 && results.some(([r]) => r === 'retry');
     const error = sent === 0 ? results.map(([, m]) => m).find(Boolean) ?? null : null;
     const finished = await rpc('push_finish', {
       p_id: job.id, p_sent: sent, p_error: error, p_invalid_tokens: invalid, p_retry: retry,
     });
-    processed.push({ id: job.id, kind: job.kind, devices: job.tokens.length, sent, ...finished });
+    processed.push({ id: job.id, kind: job.kind, devices: tokens.length, sent, ...finished });
   }
   return Response.json({ processed });
 });

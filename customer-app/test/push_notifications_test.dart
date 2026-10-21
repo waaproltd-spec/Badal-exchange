@@ -115,6 +115,14 @@ class _FakePlatform implements PushPlatform {
   @override
   Stream<String> get onTokenRefresh => refresh.stream;
 
+  final topics = <String>{};
+
+  @override
+  Future<void> subscribe(String topic) async => topics.add(topic);
+
+  @override
+  Future<void> unsubscribe(String topic) async => topics.remove(topic);
+
   @override
   Stream<PushMessage> get onForeground => foreground.stream;
 
@@ -160,6 +168,7 @@ void main() {
     await _start(tester);
     expect(_platform.permissionAsked, 1);
     expect(_api.registered, ['device-token-1']);
+    expect(_platform.topics, {'customers'}, reason: 'gets "Send to all customers" messages');
     _platform.refresh.add('device-token-2');
     await tester.pumpAndSettle();
     expect(_api.registered, ['device-token-1', 'device-token-2']);
@@ -168,6 +177,7 @@ void main() {
   testWidgets('permission refused: nothing registered, the app works as usual', (tester) async {
     await _start(tester, setup: (p) => p.allow = false);
     expect(_api.registered, isEmpty);
+    expect(_platform.topics, isEmpty);
     expect(find.byKey(const Key('home-deposit')), findsOneWidget);
   });
 
@@ -205,6 +215,28 @@ void main() {
     expect(PushMessage.fromData({'type': 'deposit_failed', 'orderId': 'x'}), isNull);
     expect(PushMessage.fromData({'type': 'deposit_completed'}), isNull);
     expect(PushMessage.fromData({}), isNull);
+    final b = PushMessage.fromData({'type': 'broadcast', 'notificationId': 'n1'}, title: 'Badal', body: 'kuso dhawo')!;
+    expect([b.isBroadcast, b.title, b.body], [true, 'Badal', 'kuso dhawo']);
+  });
+
+  testWidgets('a "Send to all customers" notification: tapping it opens the Notifications screen', (tester) async {
+    await _start(tester);
+    _platform.opened.add(const PushMessage(type: 'broadcast', title: 'Badal', body: 'kuso dhawo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Notifications'), findsWidgets);
+    expect(_api.opened, isEmpty, reason: 'no order to open');
+  });
+
+  testWidgets('a broadcast arriving while the app is open: banner with its text; View opens Notifications',
+      (tester) async {
+    await _start(tester);
+    _platform.foreground.add(const PushMessage(type: 'broadcast', title: 'Badal', body: 'kuso dhawo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Badal'), findsOneWidget);
+    expect(find.text('kuso dhawo'), findsOneWidget);
+    await tester.tap(find.text('View'));
+    await tester.pumpAndSettle();
+    expect(find.text('Notifications'), findsWidgets);
   });
 
   test('logout: this device stops getting the notifications', () async {
@@ -212,7 +244,9 @@ void main() {
     final push = PushNotifications(platform);
     final api = _FakeApi();
     await push.start(api);
+    expect(platform.topics, {'customers'});
     await push.stop(api);
+    expect(platform.topics, isEmpty, reason: 'no broadcasts after logout');
     expect(api.unregistered, ['device-token-1']);
     expect(platform.deleted, 1);
     platform.refresh.add('device-token-9');

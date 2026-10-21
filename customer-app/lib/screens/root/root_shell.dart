@@ -6,6 +6,7 @@ import '../../l10n/strings.dart';
 import '../../services/push_notifications.dart';
 import '../../widgets/transaction_views.dart';
 import '../home/home_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../orders/orders_list_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -35,7 +36,7 @@ class _RootShellState extends State<RootShell> {
     if (push == null) return;
     // Signed in: this device gets the customer's notifications.
     push.start(context.read<CustomerApi>());
-    push.openOrder.addListener(_openFromNotification);
+    push.opened.addListener(_openFromNotification);
     push.foreground.addListener(_showForeground);
     // Tapped to start the app: open it once the shell is on screen.
     WidgetsBinding.instance.addPostFrameCallback((_) => _openFromNotification());
@@ -43,19 +44,24 @@ class _RootShellState extends State<RootShell> {
 
   @override
   void dispose() {
-    _push?.openOrder.removeListener(_openFromNotification);
+    _push?.opened.removeListener(_openFromNotification);
     _push?.foreground.removeListener(_showForeground);
     super.dispose();
   }
 
-  /// A tapped notification: that transaction's details.
+  /// A tapped notification: that transaction's details, or for a broadcast
+  /// the Notifications screen.
   Future<void> _openFromNotification() async {
     final push = _push;
-    final id = push?.openOrder.value;
-    if (push == null || id == null || !mounted) return;
-    push.openOrder.value = null;
+    final m = push?.opened.value;
+    if (push == null || m == null || !mounted) return;
+    push.opened.value = null;
+    if (m.isBroadcast) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+      return;
+    }
     try {
-      final order = await context.read<CustomerApi>().getOrder(id);
+      final order = await context.read<CustomerApi>().getOrder(m.orderId);
       if (mounted) await showTransactionDetails(context, order);
     } catch (_) {
       // Not this customer's order, or offline: the Orders tab still has it.
@@ -69,7 +75,7 @@ class _RootShellState extends State<RootShell> {
     if (m == null || !mounted) return;
     _push?.foreground.value = null;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      key: Key('push-banner-${m.orderId}'),
+      key: Key('push-banner-${m.isBroadcast ? 'broadcast' : m.orderId}'),
       duration: const Duration(seconds: 6),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -81,7 +87,7 @@ class _RootShellState extends State<RootShell> {
       ),
       action: SnackBarAction(
         label: AppStrings.viewDetails,
-        onPressed: () => _push?.openOrder.value = m.orderId,
+        onPressed: () => _push?.opened.value = m,
       ),
     ));
   }

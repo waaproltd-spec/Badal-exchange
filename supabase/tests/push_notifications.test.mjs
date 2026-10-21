@@ -42,11 +42,11 @@ const standIn = http.createServer((req, res) => {
     if (req.url === '/v1/projects/baari-test/messages:send' && req.headers.authorization === 'Bearer stand-in-access') {
       const { message } = JSON.parse(body);
       sent.push(message);
-      if (message.token.startsWith('gone-')) {
+      if (message.token?.startsWith('gone-')) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ error: { status: 'NOT_FOUND', details: [{ errorCode: 'UNREGISTERED' }] } }));
       }
-      if (message.token.startsWith('down-')) return res.writeHead(503).end();
+      if (message.token?.startsWith('down-')) return res.writeHead(503).end();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ name: `projects/baari-test/messages/${sent.length}` }));
     }
@@ -251,4 +251,41 @@ test('older than a day: dropped, not sent late; the sender needs the worker secr
   await runSender();
   assert.equal(sent.length, 0);
   assert.equal((await queued(o.id))[0].status, 'expired');
+});
+
+test('"Send to all customers": one message to every customer device (topic), with the admin\'s title and text', async (t) => {
+  if (skipUnlessServed(t)) return;
+  const manager = client();
+  await manager.auth.signInWithPassword({ email: '252610000002@phone.baari.invalid', password: PASSWORD });
+  const n1 = await rpc(manager, 'manage_send_notification', { p_title: 'Badal', p_body: 'kuso dhawo' });
+  const queuedBroadcast = (await db.query(`SELECT kind, status FROM push_notifications WHERE notification_id = $1`, [n1.id])).rows;
+  assert.deepEqual(queuedBroadcast, [{ kind: 'broadcast', status: 'pending' }]);
+  await runSender();
+  assert.equal(sent.length, 1, 'one message, not one per device');
+  assert.deepEqual(sent[0], {
+    topic: 'customers',
+    notification: { title: 'Badal', body: 'kuso dhawo' },
+    data: { type: 'broadcast', notificationId: n1.id },
+    android: { priority: 'high', notification: { sound: 'default' } },
+  });
+  assert.equal((await db.query(`SELECT status FROM push_notifications WHERE notification_id = $1`, [n1.id])).rows[0].status, 'sent');
+  await runSender();
+  assert.equal(sent.length, 1, 'sent once');
+  // It is still shown in the app's Notifications screen as before.
+  const cu = await customer();
+  assert.ok((await rpc(cu.c, 'customer_notifications')).some((x) => x.id === n1.id));
+});
+
+test('a broadcast and order notifications go out in the same run', async (t) => {
+  if (skipUnlessServed(t)) return;
+  const manager = client();
+  await manager.auth.signInWithPassword({ email: '252610000002@phone.baari.invalid', password: PASSWORD });
+  const cu = await customer();
+  await rpc(cu.c, 'customer_register_push_token', { p_token: device() });
+  const o = await completed(cu, 'withdraw');
+  const b = await rpc(manager, 'manage_send_notification', { p_title: 'Ogeysiis', p_body: 'Adeeg cusub' });
+  await runSender();
+  assert.deepEqual(sent.map((m) => m.data.type).sort(), ['broadcast', 'withdraw_completed']);
+  assert.equal((await queued(o.id))[0].status, 'sent');
+  assert.equal((await db.query(`SELECT status FROM push_notifications WHERE notification_id = $1`, [b.id])).rows[0].status, 'sent');
 });
