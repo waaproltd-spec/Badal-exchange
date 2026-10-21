@@ -471,3 +471,38 @@ test('permissions: customers cannot run payouts, read SMS or see wallets/PINs', 
   // Clean up: nothing left in the payout queue for the app tests.
   await rpc(agent, 'agent_withdrawal_fail', { p_order_id: w.id, p_reason: 'test cleanup' });
 });
+
+test('a reinstalled Agent App on the same phone keeps its wallets, SMS and payouts', async () => {
+  const label = `samsung SM-${randomUUID().slice(0, 6)}`;
+  const oldId = `old-${randomUUID()}`;
+  const newId = `new-${randomUUID()}`;
+  await rpc(agent, 'agent_register_device', { p_device_id: oldId, p_device_label: label });
+  const number = evcNumber();
+  const w = await rpc(agent, 'manage_save_payout_wallet', { p_id: null, p_method: 'evc_plus', p_phone_number: number, p_device_id: oldId, p_sim_slot: 1 });
+  try {
+    const sender = evcNumber();
+    const c = await newCustomer(0, sender);
+    const before = await deposit(c, 'evc_plus', 4, sender);
+    // Reinstalled: the same agent, the same model, a new id.
+    await rpc(agent, 'agent_register_device', { p_device_id: newId, p_device_label: label });
+    const wallets = await rpc(agent, 'manage_payout_wallets');
+    assert.equal(wallets.find((x) => x.id === w.id).deviceId, newId, 'the wallet moved to the new id');
+
+    // An SMS stored under either id counts.
+    const viaOld = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 4, phone: sender, device: oldId }));
+    assert.equal(viaOld.orderId, before.id);
+    const after = await deposit(c, 'evc_plus', 5, sender);
+    const viaNew = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 5, phone: sender, device: newId }));
+    assert.equal(viaNew.orderId, after.id);
+
+    // Another model is still another phone.
+    await rpc(agent, 'agent_register_device', { p_device_id: `other-${randomUUID()}`, p_device_label: 'Pixel 7' });
+    assert.equal((await rpc(agent, 'manage_payout_wallets')).find((x) => x.id === w.id).deviceId, newId);
+    const pending = await deposit(c, 'evc_plus', 6, sender);
+    const elsewhere = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 6, phone: sender, device: 'some-other-phone' }));
+    assert.equal(elsewhere.matchStatus, 'unmatched');
+    assert.equal((await order(c, pending.id)).status, 'pending');
+  } finally {
+    await rpc(agent, 'manage_delete_payout_wallet', { p_id: w.id });
+  }
+});
