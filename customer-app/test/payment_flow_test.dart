@@ -189,6 +189,16 @@ void main() {
           expect(grid.contains(card.topLeft) && grid.contains(card.bottomRight - const Offset(1, 1)), isTrue,
               reason: '${m.$2} should be fully visible');
         }
+        // Each card: the method's full logo (2.4 : 1, most of the card's
+        // width) above its name.
+        for (final m in _catalog) {
+          final card = tester.getRect(find.byKey(Key('method-${m.$1}')));
+          final logo = tester.getRect(find.byKey(Key('wide-logo-${m.$1}')));
+          expect(logo.width / logo.height, closeTo(2.4, 0.05));
+          expect(logo.width >= card.width * 0.7, isTrue, reason: '${m.$2} logo is ${logo.width} wide in a ${card.width} card');
+          expect(card.contains(logo.topLeft) && card.contains(logo.bottomRight - const Offset(1, 1)), isTrue);
+          expect(find.descendant(of: find.byKey(Key('method-${m.$1}')), matching: find.text(m.$2)), findsOneWidget);
+        }
         final position = tester.state<ScrollableState>(
                 find.descendant(of: find.byKey(const Key('payment-method-grid')), matching: find.byType(Scrollable)))
             .position;

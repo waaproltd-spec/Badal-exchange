@@ -42,8 +42,8 @@ class PaymentMethodSheet extends StatefulWidget {
 class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
   static const _columns = 3;
   static const _spacing = 10.0;
-  static const _sidePadding = 20.0;
-  static const _cardAspect = 1.12; // width / height, when there is room
+  static const _sidePadding = 16.0;
+  static const _cardAspect = 1.2; // width / height, when there is room
   static const _minCardHeight = 64.0;
 
   /// Space the sheet keeps for its handle, title and bottom padding.
@@ -214,30 +214,36 @@ class _MethodCard extends StatelessWidget {
             borderRadius: radius,
             border: Border.all(color: info.color.withOpacity(0.18), width: 1.2),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-          // Icon and name shrink together on short cards rather than overflow.
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
           child: LayoutBuilder(
-            builder: (context, box) => FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+            builder: (context, box) {
+              // Logo as wide as the card allows, the name below it.
+              final nameHeight = (box.maxHeight * 0.24).clamp(16.0, 24.0);
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  MethodIcon(method: info.id, size: (box.maxHeight * 0.52).clamp(26.0, 56.0)),
+                  Flexible(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: box.maxWidth, maxHeight: box.maxWidth / MethodLogo.aspect),
+                      child: MethodLogo(method: info.id, radius: 10),
+                    ),
+                  ),
                   SizedBox(height: box.maxHeight * 0.06),
                   SizedBox(
+                    height: nameHeight,
                     width: box.maxWidth,
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
                         info.label,
                         maxLines: 1,
-                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 17),
                       ),
                     ),
                   ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),

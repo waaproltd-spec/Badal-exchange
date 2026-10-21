@@ -110,3 +110,33 @@ class MethodBadge extends StatelessWidget {
     );
   }
 }
+
+/// A method's full logo on a wide rounded tile (2.4 : 1), never cropped or
+/// stretched; [MethodBadge] for a method without a logo.
+class MethodLogo extends StatelessWidget {
+  final String method;
+  final double width;
+
+  const MethodLogo({super.key, required this.method, this.width = 96});
+
+  @override
+  Widget build(BuildContext context) {
+    final height = width / 2.4;
+    if (!_logos.contains(method)) {
+      return SizedBox(width: width, height: height, child: Center(child: MethodBadge(method: method, size: height)));
+    }
+    return Container(
+      key: Key('wide-logo-$method'),
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium),
+      ),
+    );
+  }
+}

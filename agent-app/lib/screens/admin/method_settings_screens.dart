@@ -35,7 +35,7 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
             children: [
               for (final m in methods)
                 SwitchListTile(
-                  secondary: MethodBadge(method: m.method, size: 36),
+                  secondary: MethodLogo(method: m.method, width: 84),
                   title: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
                   subtitle: Text(m.enabled ? 'ON — customers can use it' : 'OFF — hidden from customers'),
                   value: m.enabled,
@@ -121,9 +121,9 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
               ConsoleCard(
                 onTap: () => _open(m),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    MethodBadge(method: m.method),
+                    MethodLogo(method: m.method),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -132,7 +132,7 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
                           Row(
                             children: [
                               Expanded(
-                                child: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                child: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                               ),
                               StatusPill(m.enabled ? 'active' : 'off'),
                             ],
@@ -233,7 +233,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
             ConsoleCard(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: SwitchListTile(
-                secondary: MethodBadge(method: s.method, size: 40),
+                secondary: MethodLogo(method: s.method, width: 84),
                 title: Text(s.label, style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text(
                   '${s.isPlatform ? 'Betting platform' : 'Mobile money'} • ${_enabled ? 'ON' : 'OFF'}',

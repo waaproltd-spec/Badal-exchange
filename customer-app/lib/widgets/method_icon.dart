@@ -54,3 +54,38 @@ class MethodIcon extends StatelessWidget {
     );
   }
 }
+
+/// A method's full logo on a wide white (or the logo's own dark) rounded
+/// tile, 2.4 : 1, never cropped or stretched. Methods without a logo show
+/// their [MethodIcon] instead.
+class MethodLogo extends StatelessWidget {
+  const MethodLogo({super.key, required this.method, this.radius = 12});
+
+  final String method;
+  final double radius;
+
+  static const aspect = 2.4;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_logos.contains(method)) {
+      return LayoutBuilder(
+        builder: (context, box) => Center(child: MethodIcon(method: method, size: box.maxHeight)),
+      );
+    }
+    return AspectRatio(
+      aspectRatio: aspect,
+      child: DecoratedBox(
+        key: Key('wide-logo-$method'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium),
+        ),
+      ),
+    );
+  }
+}
