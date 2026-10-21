@@ -12,7 +12,11 @@ class PrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.loading = false,
     this.trailingIcon,
+    this.gradient,
   });
+
+  /// Optional purple gradient fill instead of the solid color.
+  final Gradient? gradient;
 
   final String label;
 
@@ -30,6 +34,7 @@ class PrimaryButton extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
+          gradient: isDisabled ? null : gradient,
           boxShadow: isDisabled
               ? const []
               : [
@@ -43,7 +48,7 @@ class PrimaryButton extends StatelessWidget {
         child: ElevatedButton(
           onPressed: isDisabled ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: gradient != null ? Colors.transparent : AppColors.primary,
             disabledBackgroundColor: AppColors.primary.withOpacity(0.45),
             foregroundColor: Colors.white,
             elevation: 0,

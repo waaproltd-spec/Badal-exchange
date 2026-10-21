@@ -59,6 +59,23 @@ class AppStrings {
   static String get logout => _t('Log Out', 'Ka Bax');
   static String get logoutConfirm => _t('Are you sure you want to log out?', 'Ma hubtaa inaad ka baxayso?');
   static String get cancel => _t('Cancel', 'Jooji');
+  static String get createYourAccount => _t('Create your account', 'Samee akoonkaaga');
+  static String get registerSubtitle =>
+      _t('Your wallet, made simple with BAARI', 'Boorsadaada, oo BAARI u fududeeyay');
+  static String get fullNameHint => _t('Enter your full name', 'Geli magacaaga oo buuxa');
+  static String get phoneDigitsHint => _t('9 digits number', 'Lambar 9 god ah');
+  static String get passwordHint => _t('At least 8 characters', 'Ugu yaraan 8 xaraf');
+  static String get confirmPasswordHint => _t('Re-enter your password', 'Mar kale geli erayga sirta');
+  static String get enterFullName => _t('Enter your full name', 'Geli magacaaga oo buuxa');
+  static String get enterPhone9 => _t('Enter the 9 digits after +252', 'Geli 9-ka god ee ka dambeeya +252');
+  static String get passwordTooShort =>
+      _t('Password must be at least 8 characters', 'Erayga sirtu waa inuu ahaadaa ugu yaraan 8 xaraf');
+  static String get passwordsDontMatch => _t('Passwords do not match', 'Erayada sirta isma laha');
+  static String get accountCreated =>
+      _t('Account created. Welcome to BAARI!', 'Akoonka waa la sameeyay. Ku soo dhawoow BAARI!');
+  static String get or => _t('OR', 'AMA');
+  static String get showPassword => _t('Show password', 'Muuji erayga sirta');
+  static String get hidePassword => _t('Hide password', 'Qari erayga sirta');
 
   // Home
   static String get home => _t('Home', 'Hoyga');

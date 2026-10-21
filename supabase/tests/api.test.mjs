@@ -103,6 +103,15 @@ test('register: validation, duplicate phone, session profile', async () => {
   const anon = client();
   await rejects(rpc(anon, 'register_customer', { p_phone: phone(1), p_name: 'Dup', p_password: PASSWORD }), 'PHONE_TAKEN');
   await rejects(rpc(anon, 'register_customer', { p_phone: phone(3), p_name: 'Short', p_password: 'short' }), 'VALIDATION_ERROR');
+  // Somali numbers only: 252 + 9 digits; the same number in another form is a duplicate.
+  const local = phone(1).slice(3);
+  for (const same of [`+252 ${local}`, `0${local}`, `2520${local}`, local]) {
+    await rejects(rpc(anon, 'register_customer', { p_phone: same, p_name: 'Dup', p_password: PASSWORD }), 'PHONE_TAKEN');
+  }
+  for (const bad of [local.slice(1), `252${local.slice(1)}`, `252${local}1`, `252${local.slice(0, 8)}x`, '']) {
+    await rejects(rpc(anon, 'register_customer', { p_phone: bad, p_name: 'Bad', p_password: PASSWORD }), 'VALIDATION_ERROR');
+  }
+  await rejects(rpc(anon, 'register_customer', { p_phone: phone(3), p_name: '   ', p_password: PASSWORD }), 'VALIDATION_ERROR');
   const me = await rpc(customer, 'session_profile', { p_record_login: true });
   assert.equal(me.role, 'customer');
   assert.equal(me.phone, phone(1));
