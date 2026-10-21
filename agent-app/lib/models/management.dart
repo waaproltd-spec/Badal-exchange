@@ -283,3 +283,28 @@ class WalletTransaction {
         createdAt: _date(j['createdAt']) ?? DateTime.now(),
       );
 }
+
+/// Whether this manager's Telegram account is linked to the Telegram
+/// cashier bot.
+class TelegramLink {
+  final bool linked;
+  final String? telegramUsername;
+  final DateTime? linkedAt;
+  const TelegramLink({this.linked = false, this.telegramUsername, this.linkedAt});
+
+  factory TelegramLink.fromJson(Map<String, dynamic> j) => TelegramLink(
+        linked: j['linked'] as bool? ?? false,
+        telegramUsername: j['telegramUsername'] as String?,
+        linkedAt: _date(j['linkedAt']),
+      );
+}
+
+/// One-time code sent to the bot as `/link CODE`.
+class TelegramLinkCode {
+  final String code;
+  final DateTime? expiresAt;
+  const TelegramLinkCode(this.code, this.expiresAt);
+
+  factory TelegramLinkCode.fromJson(Map<String, dynamic> j) =>
+      TelegramLinkCode(j['code'] as String? ?? '', _date(j['expiresAt']));
+}

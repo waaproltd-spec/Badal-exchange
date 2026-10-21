@@ -11,6 +11,7 @@ talk to the Supabase project (`onbezsojnpsrtuxzwsjr`, eu-west-1) directly:
 | Authorization | Checks inside every function, plus row level security on every table |
 | Live updates | Supabase Realtime on orders, wallets, confirmations, notifications, app content |
 | CashdeskBot API | Edge Function `functions/cashdeskbot` (holds the CashdeskBot secrets) |
+| Telegram cashier bot | Edge Function `functions/telegram-bot` (CashdeskBot from Telegram, see below) |
 | MobCash portal automation | `backend/src/worker.ts` (optional; see below) |
 
 The old server (203.161.38.33) and its local database are no longer used.
@@ -118,7 +119,10 @@ Change these passwords before going live (Account → Change Password).
    would only create orphan logins that every function refuses anyway.
 4. **CashdeskBot** (if used): set its secrets with
    `supabase secrets set CASHDESKBOT_LOGIN=... CASHDESKBOT_CASHIERPASS=... CASHDESKBOT_HASH=... CASHDESKBOT_CASHDESKID=...`.
-5. **MobCash automation** (optional, off by default). Automatic WinWin
+5. **Telegram bot** (optional). A Telegram cashier bot for the CashdeskBot
+   API, for managers (admins and agents with `manage_settings`). See
+   *Telegram bot* below.
+6. **MobCash automation** (optional, off by default). Automatic WinWin
    processing drives the MobCash web portal with a headless browser, which
    can't run inside Supabase. Without it, WinWin works exactly as before:
    agents confirm top-ups and payouts by hand. To automate it, run the
@@ -137,6 +141,56 @@ Moving data from the old server's database is not needed for the app to
 work. If it is ever wanted, `pg_dump --data-only` it into Supabase. The
 `users_sync_auth` trigger gives every imported account its Supabase login
 with its existing password.
+
+## Telegram bot
+
+`functions/telegram-bot` lets managers use CashdeskBot from a private chat
+with a Telegram bot:
+
+| Command | Does |
+| --- | --- |
+| `/balance` | Cash register balance and limit |
+| `/player ID` | Player search (name, currency) |
+| `/deposit ID AMOUNT` | Tops up a player, after a Confirm button |
+| `/payout ID CODE` | Pays out a player's withdrawal code, after a Confirm button |
+| `/link CODE`, `/unlink` | Links or unlinks the Telegram account |
+
+How access works:
+
+- **Linking.** Each manager links their own Telegram account. In the Agent
+  App they open Account → Admin features → Telegram Bot and tap *Get link
+  code*, then send `/link CODE` to the bot. A code is valid for 10 minutes
+  and works once.
+- **Every request runs as that manager**, with the same checks as the app.
+  Disabling the account or removing `manage_settings` stops the bot for
+  them at once.
+- **Deposits and payouts** are confirmed with a button. They go through
+  the same idempotency keys, money rate limit and audit log
+  (`cashdeskbot.deposit` / `cashdeskbot.payout`, marked `"via": "telegram"`)
+  as the Agent App. Each Confirm button works once.
+- **Chats.** The bot only answers in private chats. Telegram reaches it
+  only with the webhook secret.
+
+Setup:
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) and copy its
+   token.
+2. Set the secrets. The webhook secret is any long random string of
+   letters, digits, `_` and `-`. `TELEGRAM_BOT_LNG` is the language sent
+   to CashdeskBot (default `en`). The `CASHDESKBOT_*` secrets from step 4
+   are needed too.
+
+   ```bash
+   supabase secrets set TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... TELEGRAM_BOT_LNG=en
+   ```
+3. Deploy the function: run *Deploy to Supabase*, or
+   `supabase functions deploy telegram-bot --no-verify-jwt`.
+4. Register the webhook and the command menu once:
+
+   ```bash
+   curl -X POST -H "X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET" \
+     https://onbezsojnpsrtuxzwsjr.supabase.co/functions/v1/telegram-bot/setup
+   ```
 
 ## Testing
 
@@ -164,6 +218,7 @@ The backend tests cover:
 - agent disable and ban;
 - password change;
 - Vault credentials;
+- the Telegram bot's linking, confirmation and lockout;
 - Realtime isolation between customers.
 
 The *Supabase tests* workflow runs all of this on every pull request.

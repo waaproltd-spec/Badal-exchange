@@ -172,6 +172,12 @@ class _AccountScreenState extends State<AccountScreen> {
               label: 'Customer & App Settings',
               onTap: () => _open(AppSettingsScreen(contacts: account.contacts)),
             ),
+            _NavRow(
+              icon: Icons.send_rounded,
+              color: const Color(0xFF229ED9),
+              label: 'Telegram Bot',
+              onTap: () => _open(const TelegramBotScreen()),
+            ),
             const _SubLabel('Team & system'),
             _NavRow(
               icon: Icons.groups_rounded,

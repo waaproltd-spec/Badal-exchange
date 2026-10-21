@@ -11,8 +11,9 @@ computed and confirmed.
 ## Structure
 
 - `supabase/`: **the backend.** Postgres schema, Supabase Auth, the API as
-  Postgres functions, row level security, Realtime and the `cashdeskbot`
-  Edge Function. Includes end-to-end tests. Start with `supabase/README.md`:
+  Postgres functions, row level security, Realtime, and the `cashdeskbot`
+  and `telegram-bot` Edge Functions (the Telegram cashier bot for
+  CashdeskBot). Includes end-to-end tests. Start with `supabase/README.md`:
   it has the architecture, the endpoint-by-endpoint migration map and the
   deploy steps.
 - `customer-app/`: Flutter app for customers (deposit, withdraw, orders,

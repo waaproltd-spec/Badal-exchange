@@ -430,6 +430,13 @@ class AgentApi {
     return Contacts.fromJson(data);
   }
 
+  Future<TelegramLink> getTelegramLink() async => TelegramLink.fromJson(await _map('manage_telegram_status'));
+
+  Future<TelegramLinkCode> createTelegramLinkCode() async =>
+      TelegramLinkCode.fromJson(await _map('manage_telegram_link_code'));
+
+  Future<TelegramLink> unlinkTelegram() async => TelegramLink.fromJson(await _map('manage_telegram_unlink'));
+
   Future<Order> startWithdrawal(String orderId) async =>
       Order.fromJson(await _map('agent_withdrawal_start', {'p_order_id': orderId}));
 
