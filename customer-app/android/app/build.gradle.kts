@@ -4,6 +4,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase: android/app/google-services.json is written by the APK build
+// from the GOOGLE_SERVICES_JSON secret (it is not committed). Without it the
+// app builds and runs without Firebase.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.badalexchange.customer"
     compileSdk = flutter.compileSdkVersion

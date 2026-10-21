@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,6 +16,14 @@ import 'theme/theme_scope.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient.initialize();
+  // Firebase (project badal-exchange-1394d) when the build includes its
+  // config (android/app/google-services.json, from CI); otherwise the app
+  // runs without it.
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase not configured: $e');
+  }
   await AppLanguage.load();
   await AppThemeMode.load();
   runApp(const BaariApp());

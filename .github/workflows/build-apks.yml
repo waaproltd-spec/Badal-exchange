@@ -39,6 +39,27 @@ jobs:
           flutter-version: '3.24.0'
           channel: stable
 
+      - name: Firebase config for the customer app
+        working-directory: customer-app
+        env:
+          # The google-services.json from the Firebase console (package
+          # com.badalexchange), as is or base64-encoded. Kept out of the repo.
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::warning::GOOGLE_SERVICES_JSON is not set -- the customer app is built without Firebase."
+            exit 0
+          fi
+          if printf '%s' "$GOOGLE_SERVICES_JSON" | grep -q '"project_info"'; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+          fi
+          python3 -c "import json,sys; d=json.load(open('android/app/google-services.json')); \
+            pk=[c['client_info']['android_client_info']['package_name'] for c in d['client']]; \
+            print('Firebase project', d['project_info']['project_id'], 'apps', pk); \
+            sys.exit(0 if 'com.badalexchange' in pk else 'google-services.json has no app com.badalexchange')"
+
       - name: Build customer app APK
         working-directory: customer-app
         env:
