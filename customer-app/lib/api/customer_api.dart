@@ -94,7 +94,8 @@ class CustomerApi {
     required String method,
     String? phoneNumber,
     String? accountId,
-    required String amount,
+    /// Null for a cash-desk deposit by withdrawal code: the platform says it.
+    required String? amount,
     required String idempotencyKey,
     String? platformCode,
   }) =>
@@ -114,7 +115,7 @@ class CustomerApi {
     String method,
     String? phoneNumber,
     String? accountId,
-    String amount,
+    String? amount,
     String idempotencyKey, {
     String? platformCode,
   }) async {

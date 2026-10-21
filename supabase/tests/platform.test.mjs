@@ -224,6 +224,52 @@ test('1XBET orders from before its own start time stay manual', { skip }, async 
   await rpc(agent, 'agent_withdrawal_fail', { p_order_id: o.id, p_reason: 'test cleanup' });
 });
 
+test('code-only deposit: no amount from the customer; credited with what the platform paid', async () => {
+  const c = await newCustomer(0);
+  const args = { p_method: 'onexbet', p_amount: null, p_account_id: '98765432', p_platform_code: 'CODE77', p_idempotency_key: randomUUID() };
+  const o = await rpc(c, 'customer_create_deposit', args);
+  assert.equal(o.status, 'pending');
+  assert.equal(o.amountPending, true);
+  assert.equal(o.amount, '0.00');
+  const replay = await rpc(c, 'customer_create_deposit', args);
+  assert.equal(replay.id, o.id);
+  assert.equal(replay.amountPending, true, 'a retry returns the order as it is, not the placeholder');
+  const agentView = (await rpc(agent, 'agent_pending_deposits')).find((x) => x.id === o.id);
+  assert.equal(agentView.amountPending, true);
+
+  const job = await rpc(worker, 'platform_claim_next');
+  assert.equal(job.orderId, o.id);
+  assert.equal(job.code, 'CODE77');
+  await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'done', p_summa: 7.25 });
+  const done = await rpc(c, 'customer_order', { p_id: o.id });
+  assert.equal(done.status, 'completed');
+  assert.equal(done.amountPending, false);
+  assert.equal(done.netAmount, '7.25');
+  assert.deepEqual(await balances(c), ['7.25', '0.00']);
+});
+
+test('code-only deposit paid out without an amount is left for an agent, nothing credited', async () => {
+  const c = await newCustomer(0);
+  const o = await rpc(c, 'customer_create_deposit', {
+    p_method: '888starz', p_amount: null, p_account_id: '1847412855', p_platform_code: 'NOSUM', p_idempotency_key: randomUUID() });
+  await rpc(worker, 'platform_claim_next');
+  await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'done', p_summa: null });
+  const after = await rpc(c, 'customer_order', { p_id: o.id });
+  assert.equal(after.status, 'pending');
+  assert.equal(after.amountPending, true);
+  assert.deepEqual(await balances(c), ['0.00', '0.00']);
+  const { rows } = await db.query('SELECT failure_reason FROM public.orders WHERE id = $1', [o.id]);
+  assert.match(rows[0].failure_reason, /did not say how much/);
+});
+
+test('an amount is still required without a code, or for other platforms', async () => {
+  const c = await newCustomer(0);
+  await rejects(rpc(c, 'customer_create_deposit', {
+    p_method: 'onexbet', p_amount: null, p_account_id: '98765432', p_idempotency_key: randomUUID() }), 'VALIDATION_ERROR');
+  await rejects(rpc(c, 'customer_create_deposit', {
+    p_method: 'melbet', p_amount: null, p_account_id: '98765432', p_platform_code: 'X', p_idempotency_key: randomUUID() }), 'VALIDATION_ERROR');
+});
+
 test('deposits without a code and other platforms stay manual', { skip }, async () => {
   const c = await newCustomer(1000);
   await rpc(c, 'customer_create_deposit', {

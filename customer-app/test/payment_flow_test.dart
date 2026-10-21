@@ -34,6 +34,7 @@ List<Map<String, dynamic>> get _catalogJson => [
             if (id == 'evc_plus') {'number': '610338686', 'label': 'Baari'},
             if (id == 'edahab') {'number': '620000001', 'label': null},
             if (id == 'golis') {'number': '0907000001', 'label': null},
+            if (id == 'onexbet') {'number': 'WARAN CADDE 24/7', 'label': 'MOGADISHU'},
           ],
         },
     ];
@@ -61,16 +62,17 @@ class FakeCustomerApi extends CustomerApi {
         walletDelta: amount,
       );
 
-  Order _order(String direction, String method, String amount) => Order(
+  Order _order(String direction, String method, String? amount) => Order(
         id: 'o${submitted.length}',
         orderCode: 'EXTEST${submitted.length}',
         direction: direction,
         method: method,
         status: 'pending',
         statusMessage: 'Pending',
-        amount: amount,
+        amount: amount ?? '0.00',
         fee: '0.00',
-        netAmount: amount,
+        netAmount: amount ?? '0.00',
+        amountPending: amount == null,
         createdAt: DateTime.utc(2026, 10, 21),
       );
 
@@ -79,7 +81,7 @@ class FakeCustomerApi extends CustomerApi {
     required String method,
     String? phoneNumber,
     String? accountId,
-    required String amount,
+    required String? amount,
     required String idempotencyKey,
     String? platformCode,
   }) async {
@@ -358,8 +360,21 @@ void main() {
         expect(find.byType(TextFormField), findsOneWidget);
         expect(find.text('+252 610338686'), findsOneWidget);
       }
-      await tester.enterText(find.byKey(const Key('deposit-amount')), '5');
-      if (usesCode) await tester.enterText(find.byType(TextFormField).last, 'ABC123');
+      if (usesCode) {
+        // Cash desk: street + payment code, no amount (the platform's payout decides it).
+        expect(find.text('Betting cashier deposit'), findsOneWidget);
+        expect(find.byKey(const Key('deposit-amount')), findsNothing);
+        await tester.enterText(find.byKey(const Key('payment-code')), 'ABC123');
+        if (id == 'onexbet') {
+          expect(find.byKey(const Key('street-card')), findsOneWidget);
+          expect(find.text('MOGADISHU'), findsOneWidget);
+          expect(find.text('WARAN CADDE 24/7'), findsOneWidget);
+        } else {
+          expect(find.byKey(const Key('street-card')), findsNothing);
+        }
+      } else {
+        await tester.enterText(find.byKey(const Key('deposit-amount')), '5');
+      }
       await tester.pump();
 
       // Where to send the money: a USSD code to dial for EVC Plus / eDahab.
@@ -377,7 +392,7 @@ void main() {
       expect(api.submitted.single, containsPair('kind', 'deposit'));
       expect(api.submitted.single, containsPair('method', id));
       expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', identifier));
-      expect(api.submitted.single, containsPair('amount', '5'));
+      expect(api.submitted.single, containsPair('amount', usesCode ? null : '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
       expect(find.text('Deposit Submitted'), findsOneWidget);
     });

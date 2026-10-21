@@ -78,8 +78,12 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     return n != null && n > 0 ? n : null;
   }
 
+  /// 888STARZ / 1XBET: the customer withdraws to our cash desk in the
+  /// platform and gives us the code; the platform says the amount.
+  bool get _cashDesk => _info.usesWithdrawalCode;
+
   bool get _ready =>
-      _amount != null &&
+      (_cashDesk || _amount != null) &&
       (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _ownLocal != null) &&
       (!_info.usesWithdrawalCode || _codeController.text.trim().isNotEmpty);
 
@@ -119,7 +123,8 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     final api = context.read<CustomerApi>();
     try {
       // The backend checks the method and amount before anything is created.
-      final quote = await api.createQuote(direction: 'deposit', method: _info.id, amount: _amountText);
+      // A cash-desk deposit has no amount: the platform says it.
+      final amount = _cashDesk ? null : (await api.createQuote(direction: 'deposit', method: _info.id, amount: _amountText)).amount;
       if (!mounted) return;
       final key = const Uuid().v4();
       final phone = _info.isPlatform ? null : '252$_ownLocal';
@@ -128,10 +133,10 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => DepositProcessingScreen(
           action: () => api.deposit(
-            method: quote.method,
+            method: _info.id,
             phoneNumber: phone,
             accountId: account,
-            amount: quote.amount,
+            amount: amount,
             idempotencyKey: key,
             platformCode: code,
           ),
@@ -166,7 +171,30 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
               const SizedBox(height: 24),
               _MethodCard(info: _info, onChange: _change),
               const SizedBox(height: 22),
-              if (_info.isPlatform) ...[
+              if (_cashDesk) ...[
+                if (_payTo != null) ...[
+                  _StreetCard(street: _payTo!, city: widget.option.depositNumbers.first.label),
+                  const SizedBox(height: 16),
+                ],
+                _FieldBox(
+                  label: _info.identifierLabel,
+                  child: _input(_accountController, hint: _info.identifierHint, keyboard: TextInputType.number,
+                      validator: (v) => (v ?? '').trim().isEmpty ? AppStrings.enterAccountId : null),
+                ),
+                const SizedBox(height: 16),
+                _FieldBox(
+                  label: AppStrings.paymentCode,
+                  child: _input(_codeController,
+                      key: const Key('payment-code'), hint: AppStrings.enterPaymentCode, validator: (v) {
+                    final t = (v ?? '').trim();
+                    if (t.isEmpty) return AppStrings.enterWithdrawalCode;
+                    if (t.length > 64 || t.contains(RegExp(r'\s'))) return AppStrings.enterCodeExactly;
+                    return null;
+                  }),
+                ),
+                const SizedBox(height: 10),
+                Text(AppStrings.depositCodeFlowHint(_info.label), style: AppTextStyles.muted.copyWith(fontSize: 13)),
+              ] else if (_info.isPlatform) ...[
                 _FieldBox(
                   label: _info.identifierLabel,
                   child: _input(_accountController, hint: _info.identifierHint, keyboard: TextInputType.number,
@@ -179,21 +207,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 const SizedBox(height: 12),
                 _OwnNumberLine(local: _ownLocal, text: AppStrings.payFromOwnNumber),
               ],
-              if (_info.usesWithdrawalCode) ...[
-                const SizedBox(height: 16),
-                _FieldBox(
-                  label: AppStrings.withdrawalCodeLabel(_info.label),
-                  child: _input(_codeController, hint: AppStrings.withdrawalCodeHint(_info.label), validator: (v) {
-                    final t = (v ?? '').trim();
-                    if (t.isEmpty) return AppStrings.enterWithdrawalCode;
-                    if (t.length > 64 || t.contains(RegExp(r'\s'))) return AppStrings.enterCodeExactly;
-                    return null;
-                  }),
-                ),
-                const SizedBox(height: 10),
-                Text(AppStrings.depositCodeFlowHint(_info.label), style: AppTextStyles.muted.copyWith(fontSize: 13)),
-              ],
-              if (_amount != null && _payTo != null) ...[
+              if (!_cashDesk && _amount != null && _payTo != null) ...[
                 const SizedBox(height: 22),
                 _PayToCard(
                   ussd: _ussd,
@@ -324,7 +338,11 @@ class _MethodCard extends StatelessWidget {
                 Text(info.label.toUpperCase(), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
                 Text(
-                  info.isPlatform ? AppStrings.bettingAccount : AppStrings.instantMobileTransfer,
+                  info.usesWithdrawalCode
+                      ? AppStrings.bettingCashierDeposit
+                      : info.isPlatform
+                          ? AppStrings.bettingAccount
+                          : AppStrings.instantMobileTransfer,
                   style: AppTextStyles.muted,
                 ),
               ],
@@ -391,6 +409,61 @@ class _FieldBox extends StatelessWidget {
           child: child,
         ),
       ],
+    );
+  }
+}
+
+/// The cash desk to withdraw to in the betting platform: city and street
+/// (a deposit number set up in the Agent App), with the street to copy.
+class _StreetCard extends StatelessWidget {
+  const _StreetCard({required this.street, required this.city});
+
+  final String street;
+  final String? city;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FieldBox(
+      label: AppStrings.street,
+      child: Padding(
+        key: const Key('street-card'),
+        padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+        child: Row(
+          children: [
+            if ((city ?? '').isNotEmpty) ...[
+              Flexible(
+                child: Text(city!.toUpperCase(),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(street.toUpperCase(), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Material(
+              color: AppColors.primaryTint,
+              borderRadius: BorderRadius.circular(12),
+              child: IconButton(
+                tooltip: AppStrings.copy,
+                icon: const Icon(Icons.copy_rounded, size: 20, color: AppColors.primaryDark),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: street));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.copied(street))));
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

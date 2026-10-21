@@ -432,7 +432,7 @@ class _RecentOrderTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
+                    order.amountPending ? AppStrings.amountPending : '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
                     style: AppTextStyles.body.copyWith(
                       fontWeight: FontWeight.w800,
                       color: isDeposit ? AppColors.statusCompleted : AppColors.textPrimary,

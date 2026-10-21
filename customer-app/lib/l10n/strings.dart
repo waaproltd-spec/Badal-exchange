@@ -125,6 +125,11 @@ class AppStrings {
   static String get change => _t('Change', 'Beddel');
   static String get instantMobileTransfer => _t('Instant Mobile Transfer', 'Lacag-dirid degdeg ah');
   static String get bettingAccount => _t('Betting account', 'Akoonka sharadka');
+  static String get bettingCashierDeposit => _t('Betting cashier deposit', 'Dhigasho khasnadda sharadka');
+  static String get street => _t('Street', 'Waddada');
+  static String get paymentCode => _t('Payment code', 'Koodhka lacag-bixinta');
+  static String get enterPaymentCode => _t('Enter payment code', 'Geli koodhka lacag-bixinta');
+  static String get amountPending => _t('Amount pending', 'Lacagta waa la sugayaa');
   static String get amountShort => _t('Amount', 'Lacagta');
   static String get sendMoneyToAccount => _t('Send the money to this account', 'Lacagta ku dir koontadaan');
   static String get dial => _t('Dial', 'Garaac');
@@ -142,12 +147,10 @@ class AppStrings {
         'Geli aqoonsiga akoonkaaga $method iyo lacagta aad dhigayso.',
       );
   static String depositCodeFlowHint(String method) => _t(
-        'In $method, withdraw to the Badal cash desk and copy the code you get. '
-            'Then enter your account ID, the amount and that code. Your wallet is credited '
-            'with the amount $method pays out.',
-        'Gudaha $method, lacag u bixi khasnadda Badal oo koobiyee koodhka lagu siiyo. '
-            'Kadib geli aqoonsiga akoonkaaga, lacagta iyo koodhkaas. Boorsadaada waxaa lagu '
-            'shubayaa lacagta $method bixiso.',
+        'In $method, withdraw to the Badal cash desk on this street and enter the payment code you get. '
+            'Your wallet is credited with the amount $method pays out.',
+        'Gudaha $method, lacag u bixi khasnadda Badal ee waddadan oo geli koodhka lagu siiyo. '
+            'Boorsadaada waxaa lagu shubayaa lacagta $method bixiso.',
       );
   static String withdrawalCodeLabel(String method) =>
       _t('$method withdrawal code', 'Koodhka bixinta $method');

@@ -83,7 +83,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         const SizedBox(height: 16),
         Center(
           child: Text(
-            '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
+            order.amountPending ? AppStrings.amountPending : '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
             style: AppTextStyles.amountLarge,
           ),
         ),
@@ -133,11 +133,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 SummaryRow(label: '${order.methodLabel} Account ID', value: order.accountId!),
               ],
               const SummaryDivider(),
-              SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),
+              SummaryRow(label: AppStrings.amount, value: order.amountPending ? '—' : Formatters.money(order.amount)),
               const SummaryDivider(),
               SummaryRow(
                 label: isDeposit ? AppStrings.netAmount : 'You receive',
-                value: Formatters.money(order.netAmount),
+                value: order.amountPending ? '—' : Formatters.money(order.netAmount),
               ),
               if (order.transactionRef != null) ...[
                 const SummaryDivider(),

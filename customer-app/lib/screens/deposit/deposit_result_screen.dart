@@ -85,9 +85,9 @@ class DepositResultScreen extends StatelessWidget {
                 children: [
                   SummaryRow(label: AppStrings.orderCode, value: order.orderCode),
                   const SummaryDivider(),
-                  SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),
+                  SummaryRow(label: AppStrings.amount, value: order.amountPending ? AppStrings.amountPending : Formatters.money(order.amount)),
                   const SummaryDivider(),
-                  SummaryRow(label: AppStrings.netAmount, value: Formatters.money(order.netAmount)),
+                  SummaryRow(label: AppStrings.netAmount, value: order.amountPending ? '—' : Formatters.money(order.netAmount)),
                   const SummaryDivider(),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),

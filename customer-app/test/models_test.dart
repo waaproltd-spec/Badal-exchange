@@ -183,5 +183,25 @@ void main() {
       expect(order.status, 'failed');
       expect(order.failureReason, 'Provider payout rejected');
     });
+
+    test('parses a code-only cash-desk deposit whose amount is pending', () {
+      final order = Order.fromJson(const {
+        'id': 'cd1',
+        'orderCode': 'EX5678CD',
+        'direction': 'deposit',
+        'method': 'onexbet',
+        'status': 'pending',
+        'statusMessage': 'Pending',
+        'accountId': '7841228',
+        'amount': '0.00',
+        'fee': '0.00',
+        'netAmount': '0.00',
+        'amountPending': true,
+        'createdAt': '2026-10-21T10:00:00.000Z',
+      });
+
+      expect(order.amountPending, isTrue);
+      expect(order.accountId, '7841228');
+    });
   });
 }
