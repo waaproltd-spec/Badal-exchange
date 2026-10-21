@@ -453,3 +453,97 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
     );
   }
 }
+
+/// The promo code every customer sees on their wallet card in the Customer
+/// App. Empty means no promo code (customers see a dash).
+class PromoCodeScreen extends StatefulWidget {
+  const PromoCodeScreen({super.key});
+
+  @override
+  State<PromoCodeScreen> createState() => _PromoCodeScreenState();
+}
+
+class _PromoCodeScreenState extends State<PromoCodeScreen> {
+  final _code = TextEditingController();
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final code = await context.read<Session>().api.getPromoCode();
+      if (!mounted) return;
+      setState(() {
+        _code.text = code ?? '';
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = errorText(e, 'Could not load the promo code.');
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final saved = await context.read<Session>().api.setPromoCode(_code.text);
+      if (!mounted) return;
+      _code.text = saved ?? '';
+      showSnack(context, saved == null ? 'Promo code removed.' : 'Promo code saved: $saved');
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e, 'Could not save the promo code.'));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Promo Code')),
+      body: _loading
+          ? const LoadingView()
+          : _error != null
+              ? ErrorStateView(message: _error!, onRetry: _load)
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    const Text(
+                      'Shown to every customer on the wallet card in the Customer App, with a copy button. '
+                      'Letters, digits, - and _ only. Leave empty for no promo code.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _code,
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 32,
+                      decoration: const InputDecoration(labelText: 'Promo code', hintText: 'e.g. RAMADAN26'),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+                  ],
+                ),
+    );
+  }
+}

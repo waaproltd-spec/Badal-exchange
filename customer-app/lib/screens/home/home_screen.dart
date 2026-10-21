@@ -17,6 +17,7 @@ import '../../widgets/home_ads_strip.dart';
 import '../../widgets/method_icon.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/status_badge.dart';
+import '../../widgets/wallet_card.dart';
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../orders/order_detail_screen.dart';
@@ -216,7 +217,7 @@ class _WalletHeader extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 28),
-              _BalanceCard(walletState: walletState),
+              WalletCard(wallet: walletState.wallet, loading: walletState.loading, error: walletState.error),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -245,139 +246,6 @@ class _WalletHeader extends StatelessWidget {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.walletState});
-
-  final WalletProvider walletState;
-
-  @override
-  Widget build(BuildContext context) {
-    final wallet = walletState.wallet;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: AppColors.cardGradient,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.18), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.purpleDark.withOpacity(0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.account_balance_wallet_rounded,
-                  size: 18, color: Colors.white.withOpacity(0.85)),
-              const SizedBox(width: 8),
-              Text(
-                AppStrings.availableBalance,
-                style: AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.85)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (walletState.loading && wallet == null)
-            const SizedBox(
-              height: 48,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                ),
-              ),
-            )
-          else if (walletState.error != null && wallet == null)
-            Text(walletState.error!, style: AppTextStyles.muted.copyWith(color: Colors.white70))
-          else
-            Text(
-              Formatters.money(wallet?.availableBalance ?? '0.00'),
-              style: AppTextStyles.amountLarge.copyWith(color: Colors.white, fontSize: 42),
-            ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _SubBalance(
-                  label: AppStrings.xiran,
-                  value: Formatters.money(wallet?.pendingBalance ?? '0.00'),
-                  icon: Icons.lock_clock_rounded,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SubBalance(
-                  label: AppStrings.bonus,
-                  value: Formatters.money(wallet?.bonusBalance ?? '0.00'),
-                  icon: Icons.card_giftcard_rounded,
-                  valueColor: AppColors.gold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SubBalance extends StatelessWidget {
-  const _SubBalance({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.valueColor = Colors.white,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-      decoration: BoxDecoration(
-        color: AppColors.primaryDeep.withOpacity(0.35),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppTextStyles.muted.copyWith(color: Colors.white.withOpacity(0.8)),
-                ),
-                const SizedBox(height: 4),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: AppTextStyles.fieldValue.copyWith(color: valueColor, fontSize: 20),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(icon, size: 20, color: Colors.white.withOpacity(0.7)),
         ],
       ),
     );

@@ -526,6 +526,12 @@ class AgentApi {
     return Contacts.fromJson(data);
   }
 
+  /// The promo code customers see on their wallet card ('' / null = none).
+  Future<String?> getPromoCode() async => (await _map('manage_promo_code'))['promoCode'] as String?;
+
+  Future<String?> setPromoCode(String code) async =>
+      (await _map('manage_set_promo_code', {'p_code': code}))['promoCode'] as String?;
+
   Future<TelegramLink> getTelegramLink() async => TelegramLink.fromJson(await _map('manage_telegram_status'));
 
   Future<TelegramLinkCode> createTelegramLinkCode() async =>

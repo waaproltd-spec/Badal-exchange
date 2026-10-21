@@ -175,6 +175,12 @@ class _AccountScreenState extends State<AccountScreen> {
               onTap: () => _open(const SendNotificationScreen()),
             ),
             _NavRow(
+              icon: Icons.card_giftcard_rounded,
+              color: AppColors.accentOrange,
+              label: 'Promo Code',
+              onTap: () => _open(const PromoCodeScreen()),
+            ),
+            _NavRow(
               icon: Icons.settings_rounded,
               color: AppColors.textSecondary,
               label: 'Customer & App Settings',

@@ -105,7 +105,41 @@ test('register: validation, duplicate phone, session profile', async () => {
   assert.equal(me.role, 'customer');
   assert.equal(me.phone, phone(1));
   const w = await rpc(customer, 'customer_wallet');
-  assert.deepEqual(w, { availableBalance: '0.00', pendingBalance: '0.00', totalDeposit: '0.00', totalWithdraw: '0.00' });
+  const { walletId, promoCode, ...balances } = w;
+  assert.deepEqual(balances,
+    { availableBalance: '0.00', pendingBalance: '0.00', totalDeposit: '0.00', totalWithdraw: '0.00', bonusBalance: '0.00' });
+  assert.match(walletId, /^BE\d{6}$/);
+});
+
+test('wallet ID: unique per customer, permanent; bonus and promo code from the backend', async () => {
+  const mine = (await rpc(customer, 'customer_wallet')).walletId;
+  const theirs = (await rpc(customer2, 'customer_wallet')).walletId;
+  assert.notEqual(mine, theirs);
+  assert.equal((await rpc(customer, 'customer_wallet')).walletId, mine, 'same ID on every call');
+  // Balance changes and attempts to rewrite it keep it.
+  await db.query(`UPDATE public.wallets SET wallet_code = 'BE000000', updated_at = now() WHERE customer_id = $1`, [customerId]);
+  assert.equal((await rpc(customer, 'customer_wallet')).walletId, mine);
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM public.wallets WHERE wallet_code IS NULL`);
+  assert.equal(rows[0].n, 0, 'every wallet has one');
+  const { rows: dup } = await db.query(
+    `SELECT count(*)::int AS n FROM (SELECT wallet_code FROM public.wallets GROUP BY 1 HAVING count(*) > 1) d`);
+  assert.equal(dup[0].n, 0, 'no two wallets share one');
+
+  // Bonus: the stored value, per customer.
+  await db.query(`UPDATE public.wallets SET bonus_cents = 250 WHERE customer_id = $1`, [customerId]);
+  assert.equal((await rpc(customer, 'customer_wallet')).bonusBalance, '2.50');
+  assert.equal((await rpc(customer2, 'customer_wallet')).bonusBalance, '0.00');
+  await db.query(`UPDATE public.wallets SET bonus_cents = 0 WHERE customer_id = $1`, [customerId]);
+
+  // Promo code: none until management sets one; customers can't set it.
+  await rpc(agent, 'manage_set_promo_code', { p_code: '' });
+  assert.equal((await rpc(customer, 'customer_wallet')).promoCode, null);
+  await rejects(rpc(customer, 'manage_set_promo_code', { p_code: 'FREE' }), 'FORBIDDEN');
+  await rejects(rpc(agent, 'manage_set_promo_code', { p_code: 'bad code!' }), 'VALIDATION_ERROR');
+  assert.deepEqual(await rpc(agent, 'manage_set_promo_code', { p_code: ' ramadan26 ' }), { promoCode: 'RAMADAN26' });
+  assert.equal((await rpc(customer2, 'customer_wallet')).promoCode, 'RAMADAN26');
+  assert.deepEqual(await rpc(agent, 'manage_promo_code'), { promoCode: 'RAMADAN26' });
+  await rpc(agent, 'manage_set_promo_code', { p_code: '' });
 });
 
 test('wrong password and role separation', async () => {

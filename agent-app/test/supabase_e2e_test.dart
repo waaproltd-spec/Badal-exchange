@@ -95,6 +95,11 @@ void main() {
     await api.sendNotification(title: 'E2E', body: 'Hello from the agent app test');
     expect((await api.getSentNotifications()).first.title, 'E2E');
     await api.saveContacts(account.contacts);
+
+    // Promo code shown to customers: set, read back, cleared.
+    expect(await api.setPromoCode(' welcome26 '), 'WELCOME26');
+    expect(await api.getPromoCode(), 'WELCOME26');
+    expect(await api.setPromoCode(''), isNull);
     expect(await api.getAgents(), isNotEmpty);
     expect(await api.getIntegrations(), hasLength(2));
     await api.testIntegration('evc_plus');

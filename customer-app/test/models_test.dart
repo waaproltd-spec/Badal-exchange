@@ -18,6 +18,29 @@ void main() {
       expect(wallet.totalDeposit, '9.80');
       expect(wallet.totalWithdraw, '0.00');
     });
+
+    test('parses Wallet ID, promo code and bonus', () {
+      final wallet = Wallet.fromJson(const {
+        'availableBalance': '4.83',
+        'pendingBalance': '0.80',
+        'totalDeposit': '9.80',
+        'totalWithdraw': '0.00',
+        'bonusBalance': '2.50',
+        'walletId': 'BE482913',
+        'promoCode': 'RAMADAN26',
+      });
+      expect(wallet.walletId, 'BE482913');
+      expect(wallet.promoCode, 'RAMADAN26');
+      expect(wallet.bonusBalance, '2.50');
+    });
+
+    test('no promo code is null, not a made-up value', () {
+      final wallet = Wallet.fromJson(const {
+        'availableBalance': '0.00', 'pendingBalance': '0.00', 'totalDeposit': '0.00', 'totalWithdraw': '0.00',
+        'bonusBalance': '0.00', 'walletId': 'BE000001', 'promoCode': null,
+      });
+      expect(wallet.promoCode, isNull);
+    });
   });
 
   group('Quote.fromJson', () {

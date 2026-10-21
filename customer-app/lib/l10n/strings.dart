@@ -65,8 +65,9 @@ class AppStrings {
   static String get availableBalance => _t('Available Balance', 'Haraaga la Isticmaali Karo');
   static String get deposit => _t('Deposit', 'Dhigasho');
   static String get withdraw => _t('Withdraw', 'Bixin');
-  static const String xiran = 'Xiran';
   static String get bonus => _t('Bonus', 'Gunno');
+  static String get promoCode => _t('Promo Code', 'Koodhka Dallacsiinta');
+  static String get walletId => _t('Wallet ID', 'Aqoonsiga Boorsada');
   static String get recentOrders => _t('Recent Orders', 'Dalabyadii u Dambeeyay');
   static String get viewAll => _t('View all', 'Dhammaan');
 
