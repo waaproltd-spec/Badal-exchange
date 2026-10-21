@@ -48,6 +48,13 @@ String companyAmount(CompanyBalance c) => switch (c.status) {
       _ => c.balance == null ? 'Unavailable' : '\$${c.balance}',
     };
 
+/// The Limit to show: what the register can still sell, or why it's unknown.
+String companyLimit(CompanyBalance c) => switch (c.status) {
+      'not_connected' => '—',
+      _ when c.balance == null => '—',
+      _ => c.limit == null ? 'Not reported' : '\$${c.limit}',
+    };
+
 /// Where the balance comes from and how old it is.
 String companySource(CompanyBalance c) {
   if (!c.connected) return 'No balance connection · orders handled by agents';
@@ -128,6 +135,14 @@ class CompanyCard extends StatelessWidget {
                               fontSize: c.balance == null ? 14 : 18,
                               color: c.balance == null ? AppColors.textFaint : AppColors.textPrimary)),
                     ),
+                    if (c.connected && c.balance != null)
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('Limit ${companyLimit(c)}',
+                            key: Key('company-limit-${c.method}'),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 12.5, color: AppColors.textSecondary)),
+                      ),
                     const SizedBox(height: 6),
                     CompanyStatusPill(c.status),
                   ],

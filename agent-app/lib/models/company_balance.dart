@@ -9,8 +9,19 @@ class CompanyBalance {
   /// 'available' | 'low' | 'stale' | 'offline' | 'not_connected'.
   final String status;
   final String? source;
+
+  /// Now: the last live read plus the completed sales and payouts after it.
+  /// Balance = bought through the register in total; Limit = what it can
+  /// still sell (null when the register did not report one).
   final String? balance;
   final String? limit;
+
+  /// The last live read itself, and what changed after it.
+  final String? liveBalance;
+  final String? liveLimit;
+  final String salesSinceCheck;
+  final String payoutsSinceCheck;
+  final int changesSinceCheck;
   final DateTime? lastSuccessAt;
   final DateTime? lastCheckedAt;
   final String? lastError;
@@ -30,6 +41,11 @@ class CompanyBalance {
     this.source,
     this.balance,
     this.limit,
+    this.liveBalance,
+    this.liveLimit,
+    this.salesSinceCheck = '0.00',
+    this.payoutsSinceCheck = '0.00',
+    this.changesSinceCheck = 0,
     this.lastSuccessAt,
     this.lastCheckedAt,
     this.lastError,
@@ -52,6 +68,11 @@ class CompanyBalance {
         source: j['source'] as String?,
         balance: j['balance'] as String?,
         limit: j['limit'] as String?,
+        liveBalance: j['liveBalance'] as String?,
+        liveLimit: j['liveLimit'] as String?,
+        salesSinceCheck: j['salesSinceCheck'] as String? ?? '0.00',
+        payoutsSinceCheck: j['payoutsSinceCheck'] as String? ?? '0.00',
+        changesSinceCheck: (j['changesSinceCheck'] as num?)?.toInt() ?? 0,
         lastSuccessAt: _date(j['lastSuccessAt']),
         lastCheckedAt: _date(j['lastCheckedAt']),
         lastError: j['lastError'] as String?,
@@ -97,6 +118,10 @@ class CompanyPeriod {
 class CompanyBalancesOverview {
   final List<CompanyBalance> companies;
   final String total;
+
+  /// Sum of the known Limits; null when no company reported one.
+  final String? totalLimit;
+  final int limitUnknownCount;
   final int totalCompanies;
   final String openWithdrawalAmount;
   final int lowCount;
@@ -107,6 +132,8 @@ class CompanyBalancesOverview {
   const CompanyBalancesOverview({
     required this.companies,
     required this.total,
+    this.totalLimit,
+    this.limitUnknownCount = 0,
     required this.totalCompanies,
     required this.openWithdrawalAmount,
     required this.lowCount,
@@ -120,6 +147,8 @@ class CompanyBalancesOverview {
           for (final c in j['companies'] as List? ?? const []) CompanyBalance.fromJson(Map<String, dynamic>.from(c as Map)),
         ],
         total: j['total'] as String? ?? '0.00',
+        totalLimit: j['totalLimit'] as String?,
+        limitUnknownCount: (j['limitUnknownCount'] as num?)?.toInt() ?? 0,
         totalCompanies: (j['totalCompanies'] as num?)?.toInt() ?? 0,
         openWithdrawalAmount: j['openWithdrawalAmount'] as String? ?? '0.00',
         lowCount: (j['lowCount'] as num?)?.toInt() ?? 0,
@@ -133,16 +162,56 @@ class CompanyBalancesOverview {
 class BalanceCheck {
   final bool ok;
   final String? balance;
+  final String? limit;
   final String? error;
   final DateTime checkedAt;
 
-  const BalanceCheck({required this.ok, this.balance, this.error, required this.checkedAt});
+  const BalanceCheck({required this.ok, this.balance, this.limit, this.error, required this.checkedAt});
 
   factory BalanceCheck.fromJson(Map<String, dynamic> j) => BalanceCheck(
         ok: j['ok'] as bool? ?? false,
         balance: j['balance'] as String?,
+        limit: j['limit'] as String?,
         error: j['error'] as String?,
         checkedAt: DateTime.parse(j['checkedAt'] as String),
+      );
+}
+
+/// A completed sale (Balance +, Limit -) or payout (Balance -, Limit +) of
+/// the register. [balanceAfter]/[limitAfter] are set for the ones after the
+/// last live read; earlier ones are already in that read.
+class CompanyMovement {
+  final String kind;
+  final String amount;
+  final String? orderCode;
+  final bool manual;
+  final DateTime at;
+  final bool sinceCheck;
+  final String? balanceAfter;
+  final String? limitAfter;
+
+  const CompanyMovement({
+    required this.kind,
+    required this.amount,
+    this.orderCode,
+    required this.manual,
+    required this.at,
+    required this.sinceCheck,
+    this.balanceAfter,
+    this.limitAfter,
+  });
+
+  bool get isSale => kind == 'sale';
+
+  factory CompanyMovement.fromJson(Map<String, dynamic> j) => CompanyMovement(
+        kind: j['kind'] as String,
+        amount: j['amount'] as String,
+        orderCode: j['orderCode'] as String?,
+        manual: j['manual'] as bool? ?? false,
+        at: DateTime.parse(j['at'] as String),
+        sinceCheck: j['sinceCheck'] as bool? ?? false,
+        balanceAfter: j['balanceAfter'] as String?,
+        limitAfter: j['limitAfter'] as String?,
       );
 }
 
@@ -189,13 +258,17 @@ class CompanyOrder {
 class CompanyDetail {
   final CompanyBalance company;
   final List<BalanceCheck> checks;
+  final List<CompanyMovement> movements;
   final List<CompanyOrder> orders;
 
-  const CompanyDetail({required this.company, required this.checks, required this.orders});
+  const CompanyDetail({required this.company, required this.checks, this.movements = const [], required this.orders});
 
   factory CompanyDetail.fromJson(Map<String, dynamic> j) => CompanyDetail(
         company: CompanyBalance.fromJson(j),
         checks: [for (final c in j['checks'] as List? ?? const []) BalanceCheck.fromJson(Map<String, dynamic>.from(c as Map))],
+        movements: [
+          for (final m in j['movements'] as List? ?? const []) CompanyMovement.fromJson(Map<String, dynamic>.from(m as Map)),
+        ],
         orders: [for (final o in j['orders'] as List? ?? const []) CompanyOrder.fromJson(Map<String, dynamic>.from(o as Map))],
       );
 }

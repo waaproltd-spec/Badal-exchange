@@ -131,8 +131,9 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                   ],
                   const SizedBox(height: 4),
                   const Text(
-                    'Balances are read from each company\'s cash register (CashdeskBot) and can\'t be changed here. '
-                    'Companies without a balance connection show no amount.',
+                    'Balance: what customers bought through the register. Limit: what it can still sell. '
+                    'Read from each register (CashdeskBot) and updated with every completed sale and payout; '
+                    'they can\'t be changed here. Companies without a balance connection show no amount.',
                     style: TextStyle(color: AppColors.textFaint, fontSize: 12),
                   ),
                 ],
@@ -177,6 +178,14 @@ class _TotalCard extends StatelessWidget {
                   child: Text('\$${data.total}',
                       key: const Key('total-amount'),
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 32)),
+                ),
+                Text(
+                  data.totalLimit == null
+                      ? 'Limit: not reported'
+                      : 'Limit \$${data.totalLimit}'
+                          '${data.limitUnknownCount > 0 ? ' · ${data.limitUnknownCount} not reported' : ''}',
+                  key: const Key('total-limit'),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
                 ),
                 Text(
                   'Verified balances of ${data.totalCompanies} '

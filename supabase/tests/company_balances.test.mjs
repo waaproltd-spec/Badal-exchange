@@ -139,7 +139,7 @@ test('refreshes are limited: a register is read at most every 15 seconds', async
 
 test('withdrawals waiting for a top-up: low, with how much more is needed', async (t) => {
   if (!served) return t.skip('company-balances is not served');
-  registers[1] = { Balance: 350, Limit: 1000 };
+  registers[1] = { Balance: 900, Limit: 350 }; // Limit: what it can still sell
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '1 minute'`);
   await balances(manager.c, '?refresh=1');
   const cu = await newUser('customer', [], 100000);
@@ -156,18 +156,19 @@ test('withdrawals waiting for a top-up: low, with how much more is needed', asyn
   assert.deepEqual([starz.waitingWithdrawals, starz.waitingAmount, starz.topUpNeeded], [1, '400.00', '50.00']);
   assert.equal(starz.openWithdrawals, 1);
   assert.equal(body.lowCount, 1);
-  assert.equal(body.total, '350.00', 'still counted: the balance is verified');
+  assert.equal(body.total, '900.00', 'still counted: the balance is verified');
 
   const detail = (await manager.c.rpc('agent_company_detail', { p_method: '888starz', p_status: 'open' })).data;
   assert.equal(detail.orders[0].id, o.id);
   assert.equal(detail.orders[0].waitingTopUp, true);
-  assert.equal(detail.checks[0].balance, '350.00');
+  assert.equal(detail.checks[0].balance, '900.00');
+  assert.equal(detail.checks[0].limit, '350.00');
 
   // Paid once topped up: no longer low, counted as sent in the period.
   await db.query(`UPDATE orders SET updated_at = now() - interval '2 minutes' WHERE id = $1`, [o.id]);
   await worker.rpc('platform_claim_next');
   await worker.rpc('platform_finish', { p_order_id: o.id, p_outcome: 'done', p_reference: '888starz deposit 400' });
-  registers[1] = { Balance: 600, Limit: 1000 };
+  registers[1] = { Balance: 1300, Limit: 600 };
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '1 minute'`);
   const after = company((await balances(manager.c, '?refresh=1')).body, '888starz');
   assert.equal(after.status, 'available');
@@ -178,16 +179,19 @@ test('withdrawals waiting for a top-up: low, with how much more is needed', asyn
 
 test('a low balance on its own, and an old read: low, then stale and left out of the total', async (t) => {
   if (!served) return t.skip('company-balances is not served');
-  registers[1] = { Balance: 12.5, Limit: null };
+  registers[1] = { Balance: 900, Limit: 12.5 };
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '1 minute'`);
   const low = company((await balances(manager.c, '?refresh=1')).body, '888starz');
-  assert.deepEqual([low.status, low.balance, low.limit, low.topUpNeeded], ['low', '12.50', null, null]);
+  assert.deepEqual([low.status, low.balance, low.limit, low.topUpNeeded], ['low', '900.00', '12.50', null]);
 
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '20 minutes' WHERE method = '888starz'`);
   // The worker's own refresh is what normally keeps it fresh; read without one.
   const body = (await manager.c.rpc('agent_company_balances')).data;
   assert.equal(company(body, '888starz').status, 'stale');
-  assert.equal(company(body, '888starz').balance, '12.50', 'last known, labelled stale');
+  // Last known, labelled stale: the read plus what moved after it.
+  const stale = company(body, '888starz');
+  assert.equal(stale.liveBalance, '900.00');
+  assert.equal(Number(stale.balance), 900 + Number(stale.salesSinceCheck) - Number(stale.payoutsSinceCheck));
   assert.equal(body.total, '0.00');
   assert.equal(body.unavailableCount, 2);
 });
