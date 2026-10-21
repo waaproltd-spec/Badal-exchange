@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/console.dart';
 import '../../models/management.dart';
 import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
+import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
 
 /// Audit log: every management change and money-moving action, newest first.
@@ -322,6 +324,127 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The Telegram cashier bot (supabase/functions/telegram-bot).
+const telegramBotUsername = 'Badal888starzbot';
+
+/// Links this manager's Telegram account to the Telegram cashier bot
+/// (CashdeskBot balance, player search, deposits and payouts).
+class TelegramBotScreen extends StatefulWidget {
+  const TelegramBotScreen({super.key});
+
+  @override
+  State<TelegramBotScreen> createState() => _TelegramBotScreenState();
+}
+
+class _TelegramBotScreenState extends State<TelegramBotScreen> {
+  TelegramLink? _link;
+  TelegramLinkCode? _code;
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final link = await context.read<Session>().api.getTelegramLink();
+      if (mounted) setState(() => _link = link);
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(e, 'Could not load the Telegram link.'));
+    }
+  }
+
+  Future<void> _run(Future<void> Function() action, String failure) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e, failure));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _newCode() => _run(() async {
+        final code = await context.read<Session>().api.createTelegramLinkCode();
+        if (mounted) setState(() => _code = code);
+      }, 'Could not create a link code.');
+
+  // The bot reads `/start CODE` from this link as `/link CODE`.
+  Future<void> _openBot(String code) async {
+    final ok = await launchUrl(Uri.parse('https://t.me/$telegramBotUsername?start=$code'),
+        mode: LaunchMode.externalApplication);
+    if (!ok && mounted) showSnack(context, 'Could not open Telegram.');
+  }
+
+  Future<void> _unlink() => _run(() async {
+        final link = await context.read<Session>().api.unlinkTelegram();
+        if (mounted) setState(() => _link = link);
+      }, 'Could not unlink.');
+
+  @override
+  Widget build(BuildContext context) {
+    final link = _link;
+    final code = _code;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Telegram Bot')),
+      body: _error != null
+          ? ErrorStateView(message: _error!, onRetry: _load)
+          : link == null
+              ? const LoadingView()
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      const Text(
+                        'The 888starz Telegram bot checks the cash register balance, finds 888starz players, and makes '
+                        'deposits and payouts. It acts as you, and stops working for you if you lose '
+                        'access to Admin features.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      const GroupLabel('Status'),
+                      InfoRow('Linked', link.linked ? 'Yes' : 'No'),
+                      if (link.telegramUsername != null) InfoRow('Telegram', '@${link.telegramUsername}'),
+                      if (link.linkedAt != null) InfoRow('Since', formatDateTime(link.linkedAt!)),
+                      const GroupLabel('Link your Telegram account'),
+                      if (code != null) ...[
+                        ElevatedButton.icon(
+                          onPressed: () => _openBot(code.code),
+                          icon: const Icon(Icons.send_rounded),
+                          label: const Text('Open @$telegramBotUsername'),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Or send this message to @$telegramBotUsername in Telegram:'),
+                        const SizedBox(height: 8),
+                        SelectableText('/link ${code.code}',
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 20, fontWeight: FontWeight.w800)),
+                        if (code.expiresAt != null) ...[
+                          const SizedBox(height: 4),
+                          Text('Valid until ${formatDateTime(code.expiresAt!)}, once.',
+                              style: const TextStyle(color: AppColors.textSecondary)),
+                        ],
+                        const SizedBox(height: 12),
+                      ],
+                      ElevatedButton(
+                        onPressed: _busy ? null : _newCode,
+                        child: Text(code == null ? 'Get link code' : 'Get a new code'),
+                      ),
+                      if (link.linked) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton(onPressed: _busy ? null : _unlink, child: const Text('Unlink Telegram')),
+                      ],
+                    ],
+                  ),
+                ),
     );
   }
 }

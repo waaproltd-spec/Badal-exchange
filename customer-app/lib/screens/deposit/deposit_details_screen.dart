@@ -29,6 +29,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
   final _amountController = TextEditingController();
+  final _codeController = TextEditingController();
   bool _submitting = false;
   String? _error;
 
@@ -38,6 +39,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   void dispose() {
     _identifierController.dispose();
     _amountController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -60,6 +62,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
             quote: quote,
             phoneNumber: _info.isPlatform ? null : _identifierController.text.trim(),
             accountId: _info.isPlatform ? _identifierController.text.trim() : null,
+            platformCode: _info.usesWithdrawalCode ? _codeController.text.trim() : null,
           ),
         ),
       );
@@ -88,7 +91,11 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
               Text('Deposit details', style: AppTextStyles.headline),
               const SizedBox(height: 8),
               Text(
-                _info.isPlatform
+                _info.usesWithdrawalCode
+                    ? 'In ${_info.label}, withdraw to the Badal cash desk and copy the code you get. '
+                        'Then enter your account ID, the amount and that code. Your wallet is credited '
+                        'with the amount ${_info.label} pays out.'
+                    : _info.isPlatform
                     ? 'Enter your ${_info.label} account ID and the amount to deposit.'
                     : 'Enter the ${_info.label} number you will pay from.',
                 style: AppTextStyles.muted,
@@ -124,6 +131,21 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                   return null;
                 },
               ),
+              if (_info.usesWithdrawalCode) ...[
+                const SizedBox(height: 20),
+                AppTextField(
+                  label: '${_info.label} withdrawal code',
+                  controller: _codeController,
+                  hint: 'Code from ${_info.label}',
+                  textInputAction: TextInputAction.done,
+                  validator: (v) {
+                    final t = (v ?? '').trim();
+                    if (t.isEmpty) return 'Enter the withdrawal code';
+                    if (t.length > 64 || t.contains(RegExp(r'\s'))) return 'Enter the code exactly as shown';
+                    return null;
+                  },
+                ),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Text(_error!, style: AppTextStyles.muted.copyWith(color: AppColors.error)),

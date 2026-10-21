@@ -96,10 +96,14 @@ class ApiClient {
     }
   }
 
-  void startLive() {
+  /// Subscribes to this customer's live changes. Completes with true once
+  /// the channel is connected (false if it could not connect).
+  Future<bool> startLive() {
     final uid = supabase.auth.currentUser?.id;
-    if (_liveChannel != null || uid == null) return;
+    if (uid == null) return Future.value(false);
+    if (_liveChannel != null) return Future.value(true);
     final filter = PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'customer_id', value: uid);
+    final ready = Completer<bool>();
     _liveChannel = supabase
         .channel('customer-live-$uid')
         .onPostgresChanges(
@@ -122,7 +126,14 @@ class ApiClient {
           table: 'notifications',
           callback: (_) => _live.add('notifications'),
         )
-        .subscribe();
+        .subscribe((status, _) {
+          if (ready.isCompleted) return;
+          if (status == RealtimeSubscribeStatus.subscribed) ready.complete(true);
+          if (status == RealtimeSubscribeStatus.channelError || status == RealtimeSubscribeStatus.timedOut) {
+            ready.complete(false);
+          }
+        });
+    return ready.future;
   }
 
   void stopLive() {

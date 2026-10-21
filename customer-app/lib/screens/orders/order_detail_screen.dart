@@ -135,8 +135,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               const SummaryDivider(),
               SummaryRow(label: AppStrings.amount, value: Formatters.money(order.amount)),
               const SummaryDivider(),
-              SummaryRow(label: AppStrings.fee, value: Formatters.money(order.fee)),
-              const SummaryDivider(),
               SummaryRow(
                 label: isDeposit ? AppStrings.netAmount : 'You receive',
                 value: Formatters.money(order.netAmount),

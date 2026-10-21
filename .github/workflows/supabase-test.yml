@@ -36,6 +36,7 @@ jobs:
           . /tmp/sb.env
           echo "SUPABASE_E2E_URL=$API_URL" >> "$GITHUB_ENV"
           echo "SUPABASE_E2E_ANON_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
           echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
@@ -47,6 +48,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ env.SUPABASE_E2E_URL }}
           SUPABASE_ANON_KEY: ${{ env.SUPABASE_E2E_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           npm install --no-audit --no-fund
           npm test

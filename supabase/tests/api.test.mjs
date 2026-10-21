@@ -17,6 +17,9 @@ import pg from 'pg';
 
 const URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+// The Telegram bot test calls the bot's functions with the service role key:
+// SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o env | sed -n 's/^SECRET_KEY="\(.*\)"$/\1/p')
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const PASSWORD = 'ChangeMe123!';
 
@@ -32,8 +35,8 @@ function authEmail(identifier) {
   return `${local}@phone.baari.invalid`;
 }
 
-function client() {
-  return createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+function client(apiKey = ANON_KEY) {
+  return createClient(URL, apiKey, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 async function login(identifier, password = PASSWORD) {
@@ -125,11 +128,12 @@ test('a user migrated with a bcryptjs hash logs in with the same password', asyn
 
 test('quote matches the backend math', async () => {
   const dep = await rpc(customer, 'customer_quote', { p_direction: 'deposit', p_method: 'evc_plus', p_amount: '10' });
-  assert.equal(dep.fee, '0.20');
-  assert.equal(dep.netAmount, '9.80');
+  // No rates or fees: everything is 1:1.
+  assert.equal(dep.fee, '0.00');
+  assert.equal(dep.netAmount, '10.00');
   const wd = await rpc(customer, 'customer_quote', { p_direction: 'withdraw', p_method: 'winwin', p_amount: '10' });
-  assert.equal(wd.fee, '0.10');
-  assert.equal(wd.walletDelta, '10.10');
+  assert.equal(wd.fee, '0.00');
+  assert.equal(wd.walletDelta, '10.00');
   assert.equal(wd.netAmount, '10.00');
   await rejects(rpc(customer, 'customer_quote', { p_direction: 'withdraw', p_method: 'winwin', p_amount: '0.5' }), 'BELOW_MIN_WITHDRAWAL');
   await rejects(rpc(customer, 'customer_quote', { p_direction: 'withdraw', p_method: 'winwin', p_amount: '501' }), 'ABOVE_MAX_WITHDRAWAL');
@@ -142,7 +146,7 @@ test('mobile-money deposit: idempotency, SMS match, wallet credit, dedupe', asyn
   await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_phone_number: null }), 'VALIDATION_ERROR');
   const order = await rpc(customer, 'customer_create_deposit', args);
   assert.equal(order.status, 'pending');
-  assert.equal(order.netAmount, '24.80');
+  assert.equal(order.netAmount, '25.00');
   assert.equal(order.depositCode, null);
   const replay = await rpc(customer, 'customer_create_deposit', args);
   assert.equal(replay.id, order.id, 'retry with the same key returns the same order');
@@ -163,8 +167,8 @@ test('mobile-money deposit: idempotency, SMS match, wallet credit, dedupe', asyn
   assert.equal(after.status, 'completed');
   assert.equal(after.transactionRef, ref);
   const w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '24.80');
-  assert.equal(w.totalDeposit, '24.80');
+  assert.equal(w.availableBalance, '25.00');
+  assert.equal(w.totalDeposit, '25.00');
 });
 
 test('manual mobile-money and unmatched confirmations', async () => {
@@ -194,7 +198,7 @@ test('platform deposit with deposit code', async () => {
     p_occurred_at: new Date().toISOString(), p_idempotency_key: key(), p_deposit_code: order.depositCode });
   assert.deepEqual(ok, { status: 'matched', orderId: order.id });
   const w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '49.40'); // 24.80 + 4.80 + 19.80
+  assert.equal(w.availableBalance, '50.00'); // 25 + 5 + 20
 });
 
 test('withdrawals: reserve, duplicate guard, complete, fail releases', async () => {
@@ -204,8 +208,8 @@ test('withdrawals: reserve, duplicate guard, complete, fail releases', async () 
   const wd = await rpc(customer, 'customer_create_withdrawal', {
     p_method: 'evc_plus', p_amount: '10', p_idempotency_key: key(), p_phone_number: phone(1) });
   let w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '39.30');
-  assert.equal(w.pendingBalance, '10.10');
+  assert.equal(w.availableBalance, '40.00');
+  assert.equal(w.pendingBalance, '10.00');
   await rejects(rpc(customer, 'customer_create_withdrawal', {
     p_method: 'evc_plus', p_amount: '10', p_idempotency_key: key(), p_phone_number: phone(1) }), 'DUPLICATE_WITHDRAWAL');
 
@@ -216,14 +220,14 @@ test('withdrawals: reserve, duplicate guard, complete, fail releases', async () 
   assert.equal(done.status, 'completed');
   w = await rpc(customer, 'customer_wallet');
   assert.equal(w.pendingBalance, '0.00');
-  assert.equal(w.totalWithdraw, '10.10');
+  assert.equal(w.totalWithdraw, '10.00');
 
   const wd2 = await rpc(customer, 'customer_create_withdrawal', {
     p_method: 'onexbet', p_amount: '5', p_idempotency_key: key(), p_account_id: '1X998877' });
   const failed = await rpc(agent, 'agent_withdrawal_fail', { p_order_id: wd2.id, p_reason: 'Account not found' });
   assert.equal(failed.status, 'failed');
   w = await rpc(customer, 'customer_wallet');
-  assert.equal(w.availableBalance, '39.30');
+  assert.equal(w.availableBalance, '40.00');
   assert.equal(w.pendingBalance, '0.00');
   const ledger = await rpc(agent, 'agent_customer_ledger', { p_id: customerId });
   assert.deepEqual(ledger.slice(0, 2).map((l) => l.type), ['release', 'reserve']);
@@ -254,12 +258,12 @@ test('agent console: dashboard, users, reports, history, account', async () => {
   assert.ok(dash.recentActivity.length > 0);
   const users = await rpc(agent, 'agent_customers', { p_q: phone(1) });
   assert.equal(users.length, 1);
-  assert.equal(users[0].walletBalance, '39.30');
+  assert.equal(users[0].walletBalance, '40.00');
   assert.ok(users[0].deposits >= 3);
   const sorted = await rpc(agent, 'agent_customers', { p_sort: 'balance', p_limit: 100 });
   assert.ok(sorted.length >= 2);
   const detail = await rpc(agent, 'agent_customer', { p_id: customerId });
-  assert.equal(detail.totalWithdrawals, '10.10');
+  assert.equal(detail.totalWithdrawals, '10.00');
   assert.ok(detail.recentOrders.length > 0);
   const rep = await rpc(agent, 'agent_reports', { p_period: 'weekly' });
   assert.equal(rep.series.length, 7);
@@ -284,17 +288,16 @@ test('management: method switch, rates, fees, limits, content', async () => {
     p_method: 'telesom', p_amount: '5', p_idempotency_key: key(), p_phone_number: phone(1) }), 'METHOD_DISABLED');
   await rpc(agent, 'manage_set_payment_method', { p_method: 'telesom', p_enabled: true });
 
-  await rpc(agent, 'admin_set_exchange_rate', { p_method: 'dbbet', p_direction: 'deposit', p_rate: 1.05 });
-  await rpc(agent, 'admin_set_fee', { p_method: 'dbbet', p_direction: 'deposit', p_fee_type: 'flat', p_value: 50 });
+  // Rates and fees are turned off.
+  await rejects(rpc(agent, 'admin_set_exchange_rate', { p_method: 'dbbet', p_direction: 'deposit', p_rate: 1.05 }), 'RATES_DISABLED');
+  await rejects(rpc(agent, 'admin_set_fee', { p_method: 'dbbet', p_direction: 'deposit', p_fee_type: 'flat', p_value: 50 }), 'FEES_DISABLED');
   await rpc(agent, 'admin_set_withdrawal_limits', { p_method: 'dbbet', p_min_amount: 2, p_max_amount: 300 });
   const list = await rpc(agent, 'manage_payment_methods');
   const dbbet = list.find((m) => m.method === 'dbbet');
-  assert.equal(dbbet.depositRate, 1.05);
-  assert.deepEqual(dbbet.depositFee, { type: 'flat', value: 50 });
   assert.equal(dbbet.minWithdraw, '2.00');
   assert.equal(dbbet.maxWithdraw, '300.00');
   const q = await rpc(customer, 'customer_quote', { p_direction: 'deposit', p_method: 'dbbet', p_amount: '100' });
-  assert.equal(q.netAmount, '104.50');
+  assert.equal(q.netAmount, '100.00');
 
   const ad = await rpc(agent, 'manage_save_home_ad', { p_title: 'Welcome', p_link_url: 'https://example.com' });
   await rejects(rpc(agent, 'manage_save_home_ad', { p_title: 'Bad', p_link_url: 'not a url' }), 'VALIDATION_ERROR');
@@ -371,6 +374,65 @@ test('payment integrations: credentials in Vault, password never returned', asyn
   await rpc(agent, 'admin_set_integration_automation', { p_provider: 'mobcash_winwin', p_mode: 'manual', p_dry_run: true });
   assert.equal((await rpc(agent, 'admin_payment_integrations')).length, 2);
   await rejects(rpc(agent, 'admin_mobcash_login_check', { p_username: 'a', p_password: 'b' }), 'WORKER_REQUIRED');
+});
+
+test('telegram bot: link code, acts as the manager, confirm once, audit, lockout', { skip: !SERVICE_KEY && 'set SUPABASE_SERVICE_ROLE_KEY' }, async () => {
+  const bot = client(SERVICE_KEY);
+  const tg = Number(`9${run}`);
+  // Only the bot (service role) can act for a Telegram account.
+  await rejects(rpc(agent, 'telegram_whoami', { p_telegram_user_id: tg }), '42501');
+  await rejects(rpc(bot, 'telegram_whoami', { p_telegram_user_id: tg }), 'TELEGRAM_NOT_LINKED');
+  await rejects(rpc(customer, 'manage_telegram_link_code'), 'FORBIDDEN');
+
+  const { code } = await rpc(agent, 'manage_telegram_link_code');
+  await rejects(rpc(bot, 'telegram_link', { p_telegram_user_id: tg, p_telegram_username: 'x', p_code: 'WRONG' }), 'INVALID_LINK_CODE');
+  const me = await rpc(bot, 'telegram_link', { p_telegram_user_id: tg, p_telegram_username: 'cashier', p_code: code.toLowerCase() });
+  assert.equal(me.phone, '252610000002');
+  assert.deepEqual((await rpc(bot, 'telegram_whoami', { p_telegram_user_id: tg })).userId, me.userId);
+  assert.equal((await rpc(agent, 'manage_telegram_status')).telegramUsername, 'cashier');
+  // A code works once.
+  await rejects(rpc(bot, 'telegram_link', { p_telegram_user_id: tg + 1, p_telegram_username: null, p_code: code }), 'INVALID_LINK_CODE');
+
+  const payload = { userId: '76', lng: 'en', summa: 100 };
+  const pending = await rpc(bot, 'telegram_prepare', { p_telegram_user_id: tg, p_action: 'deposit', p_payload: payload });
+  // Another Telegram account can't confirm it.
+  await rejects(rpc(bot, 'telegram_begin', { p_telegram_user_id: tg + 1, p_pending_id: pending }), 'TELEGRAM_NOT_LINKED');
+  const started = await rpc(bot, 'telegram_begin', { p_telegram_user_id: tg, p_pending_id: pending });
+  assert.deepEqual(started, { action: 'deposit', payload, replay: null });
+  await rejects(rpc(bot, 'telegram_begin', { p_telegram_user_id: tg, p_pending_id: pending }), 'PENDING_NOT_FOUND');
+  await rpc(bot, 'telegram_finish', {
+    p_telegram_user_id: tg, p_pending_id: pending, p_action: 'deposit', p_user_id: '76',
+    p_audit: { lng: 'en', summa: 100 }, p_response: { success: true } });
+  const { rows: audit } = await db.query(
+    `SELECT actor_id, after_json FROM public.audit_logs WHERE action = 'cashdeskbot.deposit' ORDER BY created_at DESC LIMIT 1`);
+  assert.equal(audit[0].actor_id, me.userId);
+  assert.equal(audit[0].after_json.via, 'telegram');
+  const { rows: keys } = await db.query('SELECT user_id, status_code FROM public.idempotency_keys WHERE key = $1', [`telegram:${pending}`]);
+  assert.deepEqual(keys[0], { user_id: me.userId, status_code: 200 });
+
+  // Abort frees the key; cancel drops the pending action.
+  const p2 = await rpc(bot, 'telegram_prepare', { p_telegram_user_id: tg, p_action: 'payout', p_payload: { userId: '76', lng: 'en', code: 'X1' } });
+  await rpc(bot, 'telegram_begin', { p_telegram_user_id: tg, p_pending_id: p2 });
+  await rpc(bot, 'telegram_abort', { p_telegram_user_id: tg, p_pending_id: p2 });
+  assert.equal((await db.query('SELECT 1 FROM public.idempotency_keys WHERE key = $1', [`telegram:${p2}`])).rowCount, 0);
+  const p3 = await rpc(bot, 'telegram_prepare', { p_telegram_user_id: tg, p_action: 'deposit', p_payload: payload });
+  await rpc(bot, 'telegram_cancel', { p_telegram_user_id: tg, p_pending_id: p3 });
+  await rejects(rpc(bot, 'telegram_begin', { p_telegram_user_id: tg, p_pending_id: p3 }), 'PENDING_NOT_FOUND');
+
+  // Losing 'manage_settings' locks the bot out at once.
+  const created = await rpc(agent, 'admin_create_agent', {
+    p_phone: phone(8), p_name: 'Bot Agent', p_password: 'Agent-Pass-1', p_responsibilities: ['manage_settings'] });
+  const a2 = await login(phone(8), 'Agent-Pass-1');
+  const linked = await rpc(bot, 'telegram_link', {
+    p_telegram_user_id: tg + 2, p_telegram_username: null, p_code: (await rpc(a2, 'manage_telegram_link_code')).code });
+  assert.equal(linked.userId, created.id);
+  await rpc(agent, 'admin_set_agent_responsibilities', { p_id: created.id, p_responsibilities: [] });
+  await rejects(rpc(bot, 'telegram_whoami', { p_telegram_user_id: tg + 2 }), 'FORBIDDEN');
+  await rpc(bot, 'telegram_unlink', { p_telegram_user_id: tg + 2 });
+  await rejects(rpc(bot, 'telegram_whoami', { p_telegram_user_id: tg + 2 }), 'TELEGRAM_NOT_LINKED');
+
+  assert.equal((await rpc(agent, 'manage_telegram_unlink')).linked, false);
+  await rejects(rpc(bot, 'telegram_whoami', { p_telegram_user_id: tg }), 'TELEGRAM_NOT_LINKED');
 });
 
 test('realtime: customers get their own order and wallet changes only', async () => {

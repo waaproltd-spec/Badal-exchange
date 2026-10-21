@@ -86,8 +86,6 @@ void main() {
     expect(methods.length, 10);
     await api.setMethodEnabled('golis', false);
     await api.setMethodEnabled('golis', true);
-    await api.setRate('evc_plus', 'withdraw', 1.0);
-    await api.setFee('evc_plus', 'withdraw', type: 'percent', value: 1);
     await api.setWithdrawalLimits('evc_plus', min: 1, max: 500);
     await api.saveHomeAd(title: 'E2E ad', enabled: true);
     final ad = (await api.getHomeAds()).firstWhere((a) => a.title == 'E2E ad');

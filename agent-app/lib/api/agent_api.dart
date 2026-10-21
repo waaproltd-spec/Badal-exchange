@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../models/agent_profile.dart';
+import '../models/payout.dart';
 import '../models/match_result.dart';
 import '../models/console.dart';
 import '../models/management.dart';
@@ -95,6 +96,116 @@ class AgentApi {
       'p_idempotency_key': _uuid.v4(),
     });
     return MatchResult.fromJson(data);
+  }
+
+  /// Uploads one payment SMS (Dalab POST /agent/sms-logs). The backend
+  /// stores it, dedupes it and matches it to at most one pending wallet
+  /// deposit. Returns {id, status: new|already_processed, matchStatus,
+  /// orderId?, reason?}.
+  Future<Map<String, dynamic>> ingestPaymentSms({
+    required String sender,
+    required String body,
+    required DateTime receivedAt,
+    String? provider,
+    String? amount,
+    String? phone,
+    String? transactionRef,
+    int? simSlot,
+    String? deviceId,
+  }) =>
+      _map('agent_ingest_payment_sms', {
+        'p_sender': sender,
+        'p_body': body,
+        'p_received_at': receivedAt.toUtc().toIso8601String(),
+        'p_parsed_provider': provider,
+        'p_parsed_amount': amount,
+        'p_parsed_phone': phone,
+        'p_transaction_ref': transactionRef,
+        'p_sim_slot': simSlot,
+        'p_device_id': deviceId,
+      });
+
+  /// The payout phone's own "you transferred \$X to NUMBER" SMS. Only
+  /// completes a withdrawal whose payout was dialed before this SMS arrived.
+  Future<Map<String, dynamic>> reportPayoutConfirmation({
+    required String receiverPhone,
+    required String amount,
+    required String rawText,
+    String? provider,
+    String? reference,
+    DateTime? receivedAt,
+  }) =>
+      _map('agent_payout_confirmation', {
+        'p_receiver_phone': receiverPhone,
+        'p_amount': amount,
+        'p_raw_text': rawText,
+        'p_provider': provider,
+        'p_reference': reference,
+        'p_received_at': receivedAt?.toUtc().toIso8601String(),
+      });
+
+  // ---- Withdrawal payouts (this phone dials them) ----
+
+  Future<List<PayoutOrder>> getPayoutQueue() async =>
+      (await _list('agent_payout_queue')).map((e) => PayoutOrder.fromJson(e as Map<String, dynamic>)).toList();
+
+  Future<PayoutDialStart> startPayoutDial(String orderId, {String? deviceId}) async =>
+      PayoutDialStart.fromJson(await _map('agent_payout_start_dial', {'p_order_id': orderId, 'p_device_id': deviceId}));
+
+  Future<void> reportPayoutStep1(String attemptId, {required String status, String? response, bool isFinal = true}) async {
+    await _client.rpc('agent_payout_report_step1',
+        {'p_attempt_id': attemptId, 'p_status': status, 'p_response': response, 'p_is_final': isFinal});
+  }
+
+  Future<void> reportPayoutStep2(String attemptId, {required String status, String? response, bool isFinal = true}) async {
+    await _client.rpc('agent_payout_report_step2',
+        {'p_attempt_id': attemptId, 'p_status': status, 'p_response': response, 'p_is_final': isFinal});
+  }
+
+  // ---- Payout and payment SMS management ----
+
+  Future<List<PayoutOrder>> getPayouts({bool reviewOnly = false}) async =>
+      (await _list('manage_payouts', {'p_review_only': reviewOnly}))
+          .map((e) => PayoutOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<PayoutOrder> getPayout(String orderId) async =>
+      PayoutOrder.fromJson(await _map('manage_payout', {'p_order_id': orderId}));
+
+  /// Another automatic try. [confirmedNotPaid] is required (CONFIRM_NOT_PAID)
+  /// when an earlier attempt reached the PIN step.
+  Future<void> retryPayout(String orderId, {bool confirmedNotPaid = false}) async {
+    await _client.rpc('manage_payout_retry', {'p_order_id': orderId, 'p_confirmed_not_paid': confirmedNotPaid});
+  }
+
+  Future<List<PaymentSmsLog>> getPaymentSms({String? status}) async => (await _list('manage_payment_sms', {'p_status': status}))
+      .map((e) => PaymentSmsLog.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  /// Assigns a stored payment SMS to a pending deposit (by order code).
+  Future<void> resolvePaymentSms(String smsId, String orderCode) async {
+    await _client.rpc('manage_resolve_payment_sms', {'p_sms_id': smsId, 'p_order_code': orderCode});
+  }
+
+  Future<List<PayoutWallet>> getPayoutWallets() async =>
+      (await _list('manage_payout_wallets')).map((e) => PayoutWallet.fromJson(e as Map<String, dynamic>)).toList();
+
+  Future<void> savePayoutWallet({String? id, required String method, required String phoneNumber, String? deviceId, int? simSlot}) async {
+    await _client.rpc('manage_save_payout_wallet', {
+      'p_id': id,
+      'p_method': method,
+      'p_phone_number': phoneNumber,
+      'p_device_id': deviceId,
+      'p_sim_slot': simSlot,
+    });
+  }
+
+  Future<void> deletePayoutWallet(String id) async {
+    await _client.rpc('manage_delete_payout_wallet', {'p_id': id});
+  }
+
+  Future<void> setPayoutWalletPin(String id, String pin) async {
+    await _client.rpc('manage_set_payout_wallet_pin', {'p_id': id, 'p_pin': pin});
   }
 
   /// Submits a WinWin/MobCash deposit confirmation the agent manually keyed
@@ -241,21 +352,6 @@ class AgentApi {
 
   Future<void> setMethodEnabled(String method, bool enabled) async {
     await _client.rpc('manage_set_payment_method', {'p_method': method, 'p_enabled': enabled});
-  }
-
-  /// New exchange rate for one method/direction (past orders keep theirs).
-  Future<void> setRate(String method, String direction, double rate) async {
-    await _client.rpc('admin_set_exchange_rate', {'p_method': method, 'p_direction': direction, 'p_rate': rate});
-  }
-
-  /// [value] is dollars for a flat fee (sent as cents) or 0-100 for percent.
-  Future<void> setFee(String method, String direction, {required String type, required double value}) async {
-    await _client.rpc('admin_set_fee', {
-      'p_method': method,
-      'p_direction': direction,
-      'p_fee_type': type,
-      'p_value': type == 'flat' ? (value * 100).round() : value,
-    });
   }
 
   /// Withdrawal limits in dollars.
@@ -430,6 +526,13 @@ class AgentApi {
     return Contacts.fromJson(data);
   }
 
+  Future<TelegramLink> getTelegramLink() async => TelegramLink.fromJson(await _map('manage_telegram_status'));
+
+  Future<TelegramLinkCode> createTelegramLinkCode() async =>
+      TelegramLinkCode.fromJson(await _map('manage_telegram_link_code'));
+
+  Future<TelegramLink> unlinkTelegram() async => TelegramLink.fromJson(await _map('manage_telegram_unlink'));
+
   Future<Order> startWithdrawal(String orderId) async =>
       Order.fromJson(await _map('agent_withdrawal_start', {'p_order_id': orderId}));
 
@@ -442,8 +545,11 @@ class AgentApi {
     return Order.fromJson(data);
   }
 
-  Future<Order> failWithdrawal(String orderId, {required String reason}) async =>
-      Order.fromJson(await _map('agent_withdrawal_fail', {'p_order_id': orderId, 'p_reason': reason}));
+  /// Releases the reserved funds. [confirmedNotPaid] is required
+  /// (CONFIRM_NOT_PAID) when an automatic payout may have sent the money.
+  Future<Order> failWithdrawal(String orderId, {required String reason, bool confirmedNotPaid = false}) async =>
+      Order.fromJson(await _map('agent_withdrawal_fail',
+          {'p_order_id': orderId, 'p_reason': reason, 'p_confirmed_not_paid': confirmedNotPaid}));
 
   Future<void> logout() async {
     // Ends this session on the server too; the local session is cleared
