@@ -1,8 +1,9 @@
-// Automatic 888STARZ orders through the CashdeskBot API (see
-// migrations/*_platform_auto.sql for the order rules).
+// Automatic betting-platform orders through the CashdeskBot API, each on
+// its brand's cash register (888STARZ and 1XBET; BRANDS in
+// ../_shared/cashdeskbot.ts, order rules in migrations/*_platform_auto.sql).
 //
-//   withdraw  Baari wallet -> 888starz account: Deposit/{userId}/Add
-//   deposit   888starz account -> Baari wallet: Deposit/{userId}/Payout with
+//   withdraw  Baari wallet -> player account: Deposit/{userId}/Add
+//   deposit   player account -> Baari wallet: Deposit/{userId}/Payout with
 //             the withdrawal code the customer gave us
 //
 // The database wakes this function (pg_net, right after an order is created,
@@ -10,9 +11,16 @@
 // in Vault. Each run takes orders one at a time, each exactly once, and
 // reports one of: done, refused, not_sent, unclear.
 //
-// Uses the CASHDESKBOT_* secrets (../_shared/cashdeskbot.ts) and, optionally,
-// CASHDESKBOT_LNG (default en).
-import { ApiError, depositToPlayer, findPlayer, getCredentials, payoutToPlayer } from '../_shared/cashdeskbot.ts';
+// Uses each brand's CashdeskBot secrets (../_shared/cashdeskbot.ts) and,
+// optionally, CASHDESKBOT_LNG (default en).
+import {
+  ApiError,
+  brandForMethod,
+  depositToPlayer,
+  findPlayer,
+  getCredentials,
+  payoutToPlayer,
+} from '../_shared/cashdeskbot.ts';
 
 const LNG = Deno.env.get('CASHDESKBOT_LNG') || 'en';
 const MAX_ORDERS_PER_RUN = 20;
@@ -36,6 +44,7 @@ interface Job {
   orderId: string;
   orderCode: string;
   direction: 'deposit' | 'withdraw';
+  method: string;
   accountId: string;
   amount: string;
   code: string | null;
@@ -53,19 +62,21 @@ interface Outcome {
 const reachedNothing = (err: unknown) => err instanceof ApiError && err.status !== 502;
 
 async function run(job: Job): Promise<Outcome> {
+  const brand = brandForMethod(job.method);
+  if (!brand) return { outcome: 'not_sent', message: `No cash register for ${job.method}` };
   let c;
   try {
-    c = getCredentials();
+    c = getCredentials(brand);
   } catch (err) {
     return { outcome: 'not_sent', message: (err as Error).message };
   }
 
   if (!/^\d{1,15}$/.test(job.accountId)) {
-    return { outcome: 'refused', message: `"${job.accountId}" is not an 888starz account ID` };
+    return { outcome: 'refused', message: `"${job.accountId}" is not a ${brand.label} account ID` };
   }
   try {
     const player = await findPlayer(c, job.accountId);
-    if (!player.found) return { outcome: 'refused', message: `888starz account ${job.accountId} was not found` };
+    if (!player.found) return { outcome: 'refused', message: `${brand.label} account ${job.accountId} was not found` };
   } catch (err) {
     // A lookup is read-only: whatever went wrong, nothing was sent.
     return { outcome: 'not_sent', message: `Player lookup failed: ${(err as Error).message}` };
@@ -75,13 +86,13 @@ async function run(job: Job): Promise<Outcome> {
     if (job.direction === 'withdraw') {
       const r = await depositToPlayer(c, job.accountId, LNG, Number(job.amount));
       return r.success
-        ? { outcome: 'done', reference: `888starz deposit ${r.summa ?? job.amount}` }
-        : { outcome: 'refused', message: r.message ?? '888starz refused the deposit' };
+        ? { outcome: 'done', reference: `${brand.label} deposit ${r.summa ?? job.amount}` }
+        : { outcome: 'refused', message: r.message ?? `${brand.label} refused the deposit` };
     }
     const r = await payoutToPlayer(c, job.accountId, LNG, job.code!);
     return r.success
-      ? { outcome: 'done', reference: `888starz code ${job.code}`, summa: r.summa }
-      : { outcome: 'refused', message: r.message ?? '888starz refused the withdrawal code' };
+      ? { outcome: 'done', reference: `${brand.label} code ${job.code}`, summa: r.summa }
+      : { outcome: 'refused', message: r.message ?? `${brand.label} refused the withdrawal code` };
   } catch (err) {
     return { outcome: reachedNothing(err) ? 'not_sent' : 'unclear', message: (err as Error).message };
   }

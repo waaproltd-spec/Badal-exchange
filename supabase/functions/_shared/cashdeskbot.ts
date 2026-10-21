@@ -1,12 +1,16 @@
 // Client for the CashdeskBot partner API (https://partners.servcul.com/CashdeskBotAPI/),
-// shared by the `cashdeskbot` (Agent App) and `telegram-bot` Edge Functions.
-// The credentials are Edge Function secrets, never sent to the apps:
-//   supabase secrets set CASHDESKBOT_LOGIN=... CASHDESKBOT_CASHIERPASS=... \
-//     CASHDESKBOT_HASH=... CASHDESKBOT_CASHDESKID=... [CASHDESKBOT_BASE_URL=...]
+// shared by the `cashdeskbot` (Agent App), `telegram-bot` and
+// `platform-orders` Edge Functions.
 //
-// See the Node service (backend/src/services/cashDeskBotService.ts) for notes
-// on the signature scheme (the Deposit/Add signature still needs confirming
-// against the live API).
+// Each betting brand has its own cash register, with its own Edge Function
+// secrets (never sent to the apps):
+//   888starz: CASHDESKBOT_LOGIN, CASHDESKBOT_CASHIERPASS, CASHDESKBOT_HASH,
+//             CASHDESKBOT_CASHDESKID [, CASHDESKBOT_BASE_URL]
+//   1xBet:    the same names with the CASHDESKBOT_1XBET_ prefix
+//
+// Checked against the live API: the Balance signature differs from the PDF
+// (see balanceSign). The Deposit/Add and Payout signatures are as the PDF
+// describes and still need confirming against the live API.
 import { md5Hex } from './md5.ts';
 
 export class ApiError extends Error {
@@ -28,14 +32,31 @@ export interface Creds {
   cashdeskid: string;
 }
 
-export function getCredentials(): Creds {
-  const env = (k: string) => Deno.env.get(`CASHDESKBOT_${k.toUpperCase()}`) ?? '';
+export interface Brand {
+  key: string;
+  label: string;
+  /** The order method its customers' orders use. */
+  method: string;
+  /** Prefix of its CashdeskBot secrets. */
+  envPrefix: string;
+}
+
+export const BRANDS: Record<string, Brand> = {
+  '888starz': { key: '888starz', label: '888starz', method: '888starz', envPrefix: 'CASHDESKBOT' },
+  '1xbet': { key: '1xbet', label: '1xBet', method: 'onexbet', envPrefix: 'CASHDESKBOT_1XBET' },
+};
+
+export const brandForMethod = (method: string) => Object.values(BRANDS).find((b) => b.method === method);
+
+export function getCredentials(brand: Brand = BRANDS['888starz']): Creds {
+  const name = (k: string) => `${brand.envPrefix}_${k.toUpperCase()}`;
+  const env = (k: string) => Deno.env.get(name(k)) ?? '';
   const missing = ['login', 'cashierpass', 'hash', 'cashdeskid'].filter((k) => !env(k));
   if (missing.length > 0) {
     throw new ApiError(
       400,
       'CASHDESKBOT_NOT_CONFIGURED',
-      `CashdeskBot is not configured -- missing ${missing.map((k) => `CASHDESKBOT_${k.toUpperCase()}`).join(', ')}. ` +
+      `The ${brand.label} cash register is not configured -- missing ${missing.map(name).join(', ')}. ` +
         'Obtain these from the CashdeskBot API manager and set them as Supabase Edge Function secrets.',
     );
   }

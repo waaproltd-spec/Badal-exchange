@@ -53,8 +53,8 @@ async function newCustomer(balanceCents) {
   return c;
 }
 
-const withdraw = (c, amount, account = '1847412855') => rpc(c, 'customer_create_withdrawal', {
-  p_method: '888starz', p_amount: String(amount), p_account_id: account, p_idempotency_key: randomUUID() });
+const withdraw = (c, amount, account = '1847412855', method = '888starz') => rpc(c, 'customer_create_withdrawal', {
+  p_method: method, p_amount: String(amount), p_account_id: account, p_idempotency_key: randomUUID() });
 const deposit = (c, amount, code, account = '1847412855') => rpc(c, 'customer_create_deposit', {
   p_method: '888starz', p_amount: String(amount), p_account_id: account, p_platform_code: code, p_idempotency_key: randomUUID() });
 const balances = async (c) => {
@@ -72,7 +72,7 @@ before(async () => {
   const { error } = await agent.auth.signInWithPassword({ email: '252610000002@phone.baari.invalid', password: PASSWORD });
   if (error) throw error;
   // Nothing from other test files may be waiting for the worker.
-  await db.query(`UPDATE public.orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method = '888starz'`);
+  await db.query(`UPDATE public.orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method IN ('888starz', 'onexbet')`);
 });
 
 after(async () => {
@@ -193,6 +193,33 @@ test('orders from before automation was switched on stay manual', { skip }, asyn
   const c = await newCustomer(1000);
   const o = await withdraw(c, 1);
   await db.query(`UPDATE public.orders SET created_at = (SELECT value::timestamptz FROM public.app_settings WHERE key = 'platform_auto_since') - interval '1 minute' WHERE id = $1`, [o.id]);
+  assert.equal(await rpc(worker, 'platform_claim_next'), null);
+  await rpc(agent, 'agent_withdrawal_fail', { p_order_id: o.id, p_reason: 'test cleanup' });
+});
+
+test('1XBET orders go through the worker too, named as 1XBET', { skip }, async () => {
+  const c = await newCustomer(1000);
+  const w = await withdraw(c, 2, '98765432', 'onexbet');
+  const job = await rpc(worker, 'platform_claim_next');
+  assert.equal(job.orderId, w.id);
+  assert.equal(job.method, 'onexbet');
+  await rpc(worker, 'platform_finish', { p_order_id: w.id, p_outcome: 'unclear' });
+  const review = (await rpc(agent, 'manage_payouts', { p_review_only: true })).find((x) => x.id === w.id);
+  assert.match(review.failureReason, /^1XBET gave no clear answer .*1XBET account/);
+  await rpc(agent, 'agent_withdrawal_fail', { p_order_id: w.id, p_reason: 'test cleanup' });
+
+  const d = await rpc(c, 'customer_create_deposit', {
+    p_method: 'onexbet', p_amount: '3', p_account_id: '98765432', p_platform_code: 'X1', p_idempotency_key: randomUUID() });
+  assert.equal((await rpc(worker, 'platform_claim_next')).code, 'X1');
+  await rpc(worker, 'platform_finish', { p_order_id: d.id, p_outcome: 'done', p_summa: 3 });
+  assert.equal((await rpc(c, 'customer_order', { p_id: d.id })).transactionRef, '1XBET');
+  assert.deepEqual(await balances(c), ['13.00', '0.00']);
+});
+
+test('1XBET orders from before its own start time stay manual', { skip }, async () => {
+  const c = await newCustomer(1000);
+  const o = await withdraw(c, 1, '98765432', 'onexbet');
+  await db.query(`UPDATE public.orders SET created_at = (SELECT value::timestamptz FROM public.app_settings WHERE key = 'platform_auto_since:onexbet') - interval '1 minute' WHERE id = $1`, [o.id]);
   assert.equal(await rpc(worker, 'platform_claim_next'), null);
   await rpc(agent, 'agent_withdrawal_fail', { p_order_id: o.id, p_reason: 'test cleanup' });
 });

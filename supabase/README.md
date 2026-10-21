@@ -11,7 +11,7 @@ talk to the Supabase project (`onbezsojnpsrtuxzwsjr`, eu-west-1) directly:
 | Authorization | Checks inside every function, plus row level security on every table |
 | Live updates | Supabase Realtime on orders, wallets, confirmations, notifications, app content |
 | CashdeskBot API | Edge Function `functions/cashdeskbot` (holds the CashdeskBot secrets) |
-| Telegram cashier bot | Edge Function `functions/telegram-bot` (CashdeskBot from Telegram, see below) |
+| Telegram cashier bots | Edge Function `functions/telegram-bot`: @Badal888starzbot and @Badal1xbetbot (see below) |
 | MobCash portal automation | `backend/src/worker.ts` (optional; see below) |
 
 The old server (203.161.38.33) and its local database are no longer used.
@@ -211,10 +211,21 @@ work. If it is ever wanted, `pg_dump --data-only` it into Supabase. The
 `users_sync_auth` trigger gives every imported account its Supabase login
 with its existing password.
 
-## Telegram bot
+## Telegram bots
 
-`functions/telegram-bot` lets managers use CashdeskBot from a private chat
-with a Telegram bot:
+`functions/telegram-bot` serves one Telegram bot per betting brand, each on
+that brand's own CashdeskBot cash register:
+
+| Bot | Brand | Webhook path | Bot token secret | Cash register secrets |
+| --- | --- | --- | --- | --- |
+| @Badal888starzbot | 888starz | `/telegram-bot` | `TELEGRAM_BOT_TOKEN` | `CASHDESKBOT_*` |
+| @Badal1xbetbot | 1xBet | `/telegram-bot/1xbet` | `TELEGRAM_BOT_TOKEN_1XBET` | `CASHDESKBOT_1XBET_*` |
+
+The cash register secrets are `LOGIN`, `CASHIERPASS`, `HASH` and
+`CASHDESKID`, under each brand's prefix (for example
+`CASHDESKBOT_1XBET_HASH`). Both bots share `TELEGRAM_WEBHOOK_SECRET`.
+
+Commands:
 
 | Command | Does |
 | --- | --- |
@@ -226,53 +237,48 @@ with a Telegram bot:
 
 How access works:
 
-- **Linking.** Each manager links their own Telegram account. In the Agent
-  App they open Account → Admin features → Telegram Bot and tap *Get link
-  code*, then send `/link CODE` to the bot. A code is valid for 10 minutes
-  and works once.
+- **Who can use the bots:** managers only (admins, and agents with
+  `manage_settings`).
+- **Linking:** in the Agent App, open Account → Admin features → Telegram
+  Bot and get a link code. It is valid for 10 minutes and works once. One
+  link works with both bots.
 - **Every request runs as that manager**, with the same checks as the app.
-  Disabling the account or removing `manage_settings` stops the bot for
+  Disabling the account or removing `manage_settings` stops the bots for
   them at once.
-- **Deposits and payouts** are confirmed with a button. They go through
-  the same idempotency keys, money rate limit and audit log
-  (`cashdeskbot.deposit` / `cashdeskbot.payout`, marked `"via": "telegram"`)
-  as the Agent App. Each Confirm button works once.
-- **Chats.** The bot only answers in private chats. Telegram reaches it
-  only with the webhook secret.
+- **Deposits and payouts:** each is confirmed with a button that works
+  once. They use the app's idempotency, money rate limit and audit log;
+  the audit entries are marked `"via": "telegram"` and name the brand.
+- **Chats:** the bots only answer in private chats, and Telegram reaches
+  them only with the webhook secret.
 
-Setup:
+Setup for each bot:
 
-1. The bot is [@Badal888starzbot](https://t.me/Badal888starzbot) (the Agent
-   App opens it with the link code filled in). Its token comes from
-   [@BotFather](https://t.me/BotFather). Keep it out of the repository.
-2. Set the secrets. The webhook secret is any long random string of
-   letters, digits, `_` and `-`. `TELEGRAM_BOT_LNG` is the language sent
-   to CashdeskBot (default `en`). The `CASHDESKBOT_*` secrets from step 4
-   are needed too.
-
-   ```bash
-   supabase secrets set TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... TELEGRAM_BOT_LNG=en
-   ```
-3. Deploy the function: run *Deploy to Supabase*, or
-   `supabase functions deploy telegram-bot --no-verify-jwt`.
+1. Get the bot's token from [@BotFather](https://t.me/BotFather). Keep it
+   out of the repository.
+2. Set the bot token and the cash register secrets in Supabase (dashboard →
+   Edge Functions → Secrets).
+3. Deploy with *Deploy to Supabase*.
 4. Register the webhook and the command menu once:
 
    ```bash
    curl -X POST -H "X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET" \
-     https://onbezsojnpsrtuxzwsjr.supabase.co/functions/v1/telegram-bot/setup
+     https://onbezsojnpsrtuxzwsjr.supabase.co/functions/v1/telegram-bot/setup        # 888starz
+   curl -X POST -H "X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET" \
+     https://onbezsojnpsrtuxzwsjr.supabase.co/functions/v1/telegram-bot/1xbet/setup  # 1xBet
    ```
 
-## Automatic 888STARZ orders
+## Automatic 888STARZ and 1XBET orders
 
-888STARZ orders go through the CashdeskBot cash register on their own
-(`functions/platform-orders`, `migrations/*_platform_auto.sql`):
+888STARZ and 1XBET orders go through their brand's CashdeskBot cash register
+on their own (`functions/platform-orders`, `migrations/*_platform_auto.sql`,
+`*_onexbet_cashdesk.sql`):
 
-- **Withdraw** (wallet to 888starz account): the funds are reserved as
+- **Withdraw** (wallet to the player's account): the funds are reserved as
   usual. The worker checks the player exists, then tops the account up
   (`Deposit/{id}/Add`).
-- **Deposit** (888starz account to wallet): the customer withdraws to the
-  Badal cash desk in 888starz and enters the code in the Customer App. The
-  worker collects it (`Deposit/{id}/Payout`) and credits what 888starz
+- **Deposit** (player's account to wallet): the customer withdraws to the
+  Badal cash desk in 888starz or 1xBet and enters the code in the Customer App. The
+  worker collects it (`Deposit/{id}/Payout`) and credits what the platform
   actually paid. A deposit without a code stays manual.
 
 Each order is tried once:
@@ -280,15 +286,15 @@ Each order is tried once:
 | Result | Withdraw | Deposit |
 | --- | --- | --- |
 | Done | Completed, debit finalized | Completed, wallet credited |
-| 888starz refused | Failed, funds returned | Failed |
-| Nothing reached 888starz (not configured, bad signature) | Back to the agents as a normal order | Back to the agents |
+| The platform refused | Failed, funds returned | Failed |
+| Nothing reached the platform (not configured, bad signature) | Back to the agents as a normal order | Back to the agents |
 | No clear answer | Held under Automatic Payouts → Needs review | Stays pending for an agent |
 
 - **When the worker runs:** the database calls it right after an order is
   created (pg_net), and every minute while orders wait (pg_cron). It finds
   the worker at the `edge_functions_url` setting, which the deploy workflow
   sets, and sends a secret it keeps in Vault.
-- **Older orders:** orders from before the migration stay manual.
+- **Older orders:** orders from before each platform's migration stay manual.
 - **Customers:** they only see a reason once an order has failed.
 
 ## Testing

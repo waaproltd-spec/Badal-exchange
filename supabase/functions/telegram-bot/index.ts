@@ -1,6 +1,10 @@
-// Telegram cashier bot for the CashdeskBot partner API: player search, the
+// Telegram cashier bots for the CashdeskBot partner API: player search, the
 // cash register's balance, player deposits and payouts, from a private chat
-// with the bot. Telegram calls this function as its webhook.
+// with the bot. One bot per betting brand, each on its own cash register
+// (BRANDS in ../_shared/cashdeskbot.ts); Telegram calls this function as
+// their webhook:
+//   @Badal888starzbot  .../functions/v1/telegram-bot
+//   @Badal1xbetbot     .../functions/v1/telegram-bot/1xbet
 //
 //   /link CODE            link this Telegram account (code from the Agent App:
 //                         Account -> Admin features -> Telegram Bot)
@@ -15,14 +19,19 @@
 // migrations/*_telegram_bot.sql), and records deposits and payouts in the
 // audit log with the same idempotency as the cashdeskbot function.
 //
+// A Telegram account linked once works with every bot.
+//
 // Secrets (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase):
-//   supabase secrets set TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... [TELEGRAM_BOT_LNG=en]
-// plus the CASHDESKBOT_* secrets (../_shared/cashdeskbot.ts). Then register
-// the webhook and the command menu once:
+//   TELEGRAM_BOT_TOKEN (888starz), TELEGRAM_BOT_TOKEN_1XBET (1xBet),
+//   TELEGRAM_WEBHOOK_SECRET (shared), [TELEGRAM_BOT_LNG=en]
+// plus each brand's CashdeskBot secrets (../_shared/cashdeskbot.ts). Then
+// register each bot's webhook and command menu once:
 //   curl -X POST -H "X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET" \
-//     https://<project>.supabase.co/functions/v1/telegram-bot/setup
+//     https://<project>.supabase.co/functions/v1/telegram-bot[/1xbet]/setup
 import {
   ApiError,
+  BRANDS,
+  type Brand,
   cashdeskBalance,
   depositToPlayer,
   findPlayer,
@@ -33,6 +42,19 @@ import {
 
 const LNG = Deno.env.get('TELEGRAM_BOT_LNG') || 'en';
 
+/** One Telegram bot, serving one brand's cash register. */
+interface Bot {
+  brand: Brand;
+  /** Path after /telegram-bot ('' for 888starz). */
+  path: string;
+  tokenEnv: string;
+}
+
+const BOTS: Bot[] = [
+  { brand: BRANDS['888starz'], path: '', tokenEnv: 'TELEGRAM_BOT_TOKEN' },
+  { brand: BRANDS['1xbet'], path: '/1xbet', tokenEnv: 'TELEGRAM_BOT_TOKEN_1XBET' },
+];
+
 const COMMANDS = [
   { command: 'balance', description: 'Cash register balance' },
   { command: 'player', description: 'Find a player: /player ID' },
@@ -42,8 +64,8 @@ const COMMANDS = [
   { command: 'unlink', description: 'Unlink this Telegram account' },
 ];
 
-const HELP = [
-  '<b>888starz cashier: commands</b>',
+const help = (bot: Bot) => [
+  `<b>${bot.brand.label} cashier: commands</b>`,
   '/balance: cash register balance and limit',
   '/player ID: find a player',
   '/deposit ID AMOUNT: top up a player',
@@ -53,8 +75,8 @@ const HELP = [
   'Deposits and payouts ask you to confirm first.',
 ].join('\n');
 
-const NOT_LINKED = [
-  'This is the 888starz cashier bot. Your Telegram account is not linked yet.',
+const notLinked = (bot: Bot) => [
+  `This is the ${bot.brand.label} cashier bot. Your Telegram account is not linked yet.`,
   '',
   'In the Agent App open <b>Account → Admin features → Telegram Bot</b>, get a link code, then send it here as',
   '<code>/link CODE</code>',
@@ -67,8 +89,13 @@ const escape = (s: unknown) =>
 // Telegram Bot API
 // ---------------------------------------------------------------------------
 
-async function telegram(method: string, body: Record<string, unknown>) {
-  const res = await fetch(`${Deno.env.get('TELEGRAM_API_URL') || 'https://api.telegram.org'}/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/${method}`, {
+async function telegram(bot: Bot, method: string, body: Record<string, unknown>) {
+  const token = Deno.env.get(bot.tokenEnv);
+  if (!token) {
+    console.error(`${bot.tokenEnv} is not set`);
+    return null;
+  }
+  const res = await fetch(`${Deno.env.get('TELEGRAM_API_URL') || 'https://api.telegram.org'}/bot${token}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -78,11 +105,11 @@ async function telegram(method: string, body: Record<string, unknown>) {
   return data;
 }
 
-const send = (chatId: number, text: string, extra: Record<string, unknown> = {}) =>
-  telegram('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, ...extra });
+const send = (bot: Bot, chatId: number, text: string, extra: Record<string, unknown> = {}) =>
+  telegram(bot, 'sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, ...extra });
 
-const edit = (chatId: number, messageId: number, text: string) =>
-  telegram('editMessageText', { chat_id: chatId, message_id: messageId, text, parse_mode: 'HTML' });
+const edit = (bot: Bot, chatId: number, messageId: number, text: string) =>
+  telegram(bot, 'editMessageText', { chat_id: chatId, message_id: messageId, text, parse_mode: 'HTML' });
 
 // ---------------------------------------------------------------------------
 // Database (service role; every telegram_* function re-checks the manager)
@@ -120,7 +147,7 @@ interface From {
   username?: string;
 }
 
-const notFound = (id: string) => `❌ No 888starz player with ID ${escape(id)}.`;
+const notFound = (bot: Bot, id: string) => `❌ No ${bot.brand.label} player with ID ${escape(id)}.`;
 
 function playerLine(p: Player, id: string) {
   const name = p.name ? `<b>${escape(p.name)}</b>` : '<i>no name</i>';
@@ -136,23 +163,24 @@ const confirmButtons = (pendingId: string) => ({
   },
 });
 
-async function onCommand(chatId: number, from: From, text: string) {
+async function onCommand(bot: Bot, chatId: number, from: From, text: string) {
+  const creds = () => getCredentials(bot.brand);
   const [rawCommand, ...args] = text.trim().split(/\s+/);
   const command = rawCommand.toLowerCase().replace(/@.*$/, '');
 
   // `/start CODE` is what a t.me/<bot>?start=CODE link sends.
   if (command === '/link' || (command === '/start' && args[0])) {
-    if (!args[0]) return send(chatId, 'Send the code from the Agent App: <code>/link CODE</code>');
+    if (!args[0]) return send(bot, chatId, 'Send the code from the Agent App: <code>/link CODE</code>');
     const me = await rpc('telegram_link', {
       p_telegram_user_id: from.id,
       p_telegram_username: from.username ?? null,
       p_code: args[0],
     });
-    return send(chatId, `Linked to <b>${escape(me.name)}</b> (${escape(me.role)}).\n\n${HELP}`);
+    return send(bot, chatId, `Linked to <b>${escape(me.name)}</b> (${escape(me.role)}).\n\n${help(bot)}`);
   }
   if (command === '/unlink') {
     await rpc('telegram_unlink', { p_telegram_user_id: from.id });
-    return send(chatId, 'This Telegram account is no longer linked.');
+    return send(bot, chatId, 'This Telegram account is no longer linked.');
   }
 
   // Everything else needs a linked manager.
@@ -161,7 +189,7 @@ async function onCommand(chatId: number, from: From, text: string) {
     me = await rpc('telegram_whoami', { p_telegram_user_id: from.id });
   } catch (err) {
     if (err instanceof ApiError && err.code === 'TELEGRAM_NOT_LINKED') {
-      return send(chatId, `${NOT_LINKED}\n\nYour Telegram ID: <code>${from.id}</code>`);
+      return send(bot, chatId, `${notLinked(bot)}\n\nYour Telegram ID: <code>${from.id}</code>`);
     }
     throw err;
   }
@@ -169,54 +197,54 @@ async function onCommand(chatId: number, from: From, text: string) {
   switch (command) {
     case '/start':
     case '/help':
-      return send(chatId, `Hi ${escape(me.name)}.\n\n${HELP}`);
+      return send(bot, chatId, `Hi ${escape(me.name)}.\n\n${help(bot)}`);
 
     case '/balance': {
-      const b = await cashdeskBalance(getCredentials(), new Date());
-      return send(chatId, `<b>Cash register</b>\nBalance: <b>${escape(b.balance ?? '—')}</b>\nLimit: ${escape(b.limit ?? '—')}`);
+      const b = await cashdeskBalance(creds(), new Date());
+      return send(bot, chatId, `<b>Cash register</b>\nBalance: <b>${escape(b.balance ?? '—')}</b>\nLimit: ${escape(b.limit ?? '—')}`);
     }
 
     case '/player':
     case '/user': {
       const [id] = args;
-      if (!id || !PLAYER_ID.test(id)) return send(chatId, 'Usage: <code>/player ID</code>');
-      const player = await findPlayer(getCredentials(), id);
-      return send(chatId, player.found ? playerLine(player, id) : notFound(id));
+      if (!id || !PLAYER_ID.test(id)) return send(bot, chatId, 'Usage: <code>/player ID</code>');
+      const player = await findPlayer(creds(), id);
+      return send(bot, chatId, player.found ? playerLine(player, id) : notFound(bot, id));
     }
 
     case '/deposit': {
       const [id, amount] = args;
       if (!id || !PLAYER_ID.test(id) || !amount || !AMOUNT.test(amount) || !(Number(amount) > 0)) {
-        return send(chatId, 'Usage: <code>/deposit ID AMOUNT</code>, for example <code>/deposit 76 100</code>');
+        return send(bot, chatId, 'Usage: <code>/deposit ID AMOUNT</code>, for example <code>/deposit 76 100</code>');
       }
-      const player = await findPlayer(getCredentials(), id);
-      if (!player.found) return send(chatId, notFound(id));
+      const player = await findPlayer(creds(), id);
+      if (!player.found) return send(bot, chatId, notFound(bot, id));
       const summa = Number(amount);
       const pendingId = await rpc('telegram_prepare', {
         p_telegram_user_id: from.id,
         p_action: 'deposit',
-        p_payload: { userId: id, lng: LNG, summa },
+        p_payload: { brand: bot.brand.key, userId: id, lng: LNG, summa },
       });
-      return send(chatId, `<b>Deposit ${escape(summa)}</b>\n${playerLine(player, id)}\n\nConfirm?`, confirmButtons(pendingId));
+      return send(bot, chatId, `<b>Deposit ${escape(summa)}</b>\n${playerLine(player, id)}\n\nConfirm?`, confirmButtons(pendingId));
     }
 
     case '/payout': {
       const [id, code] = args;
       if (!id || !PLAYER_ID.test(id) || !code || !PAYOUT_CODE.test(code)) {
-        return send(chatId, 'Usage: <code>/payout ID CODE</code>');
+        return send(bot, chatId, 'Usage: <code>/payout ID CODE</code>');
       }
-      const player = await findPlayer(getCredentials(), id);
-      if (!player.found) return send(chatId, notFound(id));
+      const player = await findPlayer(creds(), id);
+      if (!player.found) return send(bot, chatId, notFound(bot, id));
       const pendingId = await rpc('telegram_prepare', {
         p_telegram_user_id: from.id,
         p_action: 'payout',
-        p_payload: { userId: id, lng: LNG, code },
+        p_payload: { brand: bot.brand.key, userId: id, lng: LNG, code },
       });
-      return send(chatId, `<b>Payout</b>, code <code>${escape(code)}</code>\n${playerLine(player, id)}\n\nConfirm?`, confirmButtons(pendingId));
+      return send(bot, chatId, `<b>Payout</b>, code <code>${escape(code)}</code>\n${playerLine(player, id)}\n\nConfirm?`, confirmButtons(pendingId));
     }
 
     default:
-      return send(chatId, HELP);
+      return send(bot, chatId, help(bot));
   }
 }
 
@@ -229,23 +257,24 @@ function resultText(action: string, payload: Record<string, any>, response: any)
   return lines.join('\n');
 }
 
-async function onButton(chatId: number, messageId: number, from: From, data: string) {
+async function onButton(bot: Bot, chatId: number, messageId: number, from: From, data: string) {
   const [choice, pendingId] = data.split(':');
   if (!pendingId) return;
   if (choice === 'no') {
     await rpc('telegram_cancel', { p_telegram_user_id: from.id, p_pending_id: pendingId });
-    return edit(chatId, messageId, 'Cancelled.');
+    return edit(bot, chatId, messageId, 'Cancelled.');
   }
   if (choice !== 'ok') return;
 
+  // Each pending action belongs to the bot that showed it.
   const started = await rpc('telegram_begin', { p_telegram_user_id: from.id, p_pending_id: pendingId });
   const { action, payload } = started as { action: 'deposit' | 'payout'; payload: Record<string, any> };
-  if (started.replay !== null) return edit(chatId, messageId, resultText(action, payload, started.replay));
-  await edit(chatId, messageId, 'Processing…');
+  if (started.replay !== null) return edit(bot, chatId, messageId, resultText(action, payload, started.replay));
+  await edit(bot, chatId, messageId, 'Processing…');
 
   let response;
   try {
-    const c = getCredentials();
+    const c = getCredentials(BRANDS[payload.brand ?? '888starz']);
     response = action === 'deposit'
       ? await depositToPlayer(c, payload.userId, payload.lng, payload.summa)
       : await payoutToPlayer(c, payload.userId, payload.lng, payload.code);
@@ -253,12 +282,13 @@ async function onButton(chatId: number, messageId: number, from: From, data: str
     if (err instanceof ApiError && err.status !== 502) {
       // CashdeskBot never accepted it: free the key.
       await rpc('telegram_abort', { p_telegram_user_id: from.id, p_pending_id: pendingId }).catch(() => {});
-      return edit(chatId, messageId, `❌ ${escape(err.message)}`);
+      return edit(bot, chatId, messageId, `❌ ${escape(err.message)}`);
     }
     // It may or may not have gone through, so the key stays taken and the
     // same request can't be confirmed again.
     console.error(err);
     return edit(
+      bot,
       chatId,
       messageId,
       `⚠️ CashdeskBot did not answer clearly (${escape((err as Error).message)}). ` +
@@ -270,15 +300,15 @@ async function onButton(chatId: number, messageId: number, from: From, data: str
     p_pending_id: pendingId,
     p_action: action,
     p_user_id: payload.userId,
-    p_audit: action === 'deposit' ? { lng: payload.lng, summa: payload.summa } : response,
+    p_audit: { brand: payload.brand ?? '888starz', ...(action === 'deposit' ? { lng: payload.lng, summa: payload.summa } : response) },
     p_response: response,
   });
-  return edit(chatId, messageId, resultText(action, payload, response));
+  return edit(bot, chatId, messageId, resultText(action, payload, response));
 }
 
-function errorText(err: unknown) {
+function errorText(bot: Bot, err: unknown) {
   if (err instanceof ApiError) {
-    if (err.code === 'TELEGRAM_NOT_LINKED') return NOT_LINKED;
+    if (err.code === 'TELEGRAM_NOT_LINKED') return notLinked(bot);
     return `❌ ${escape(err.message)}`;
   }
   return '❌ Something went wrong. Please try again.';
@@ -296,29 +326,29 @@ function secretMatches(given: string | null) {
   return diff === 0;
 }
 
-async function setup() {
-  const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot`;
-  const webhook = await telegram('setWebhook', {
+async function setup(bot: Bot) {
+  const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot${bot.path}`;
+  const webhook = await telegram(bot, 'setWebhook', {
     url,
     secret_token: Deno.env.get('TELEGRAM_WEBHOOK_SECRET'),
     allowed_updates: ['message', 'callback_query'],
     drop_pending_updates: true,
   });
-  const commands = await telegram('setMyCommands', { commands: COMMANDS, scope: { type: 'all_private_chats' } });
+  const commands = await telegram(bot, 'setMyCommands', { commands: COMMANDS, scope: { type: 'all_private_chats' } });
   return { webhook, commands, url };
 }
 
-async function onUpdate(update: any) {
+async function onUpdate(bot: Bot, update: any) {
   if (update.callback_query) {
     const q = update.callback_query;
     const chatId = q.message?.chat?.id;
-    await telegram('answerCallbackQuery', { callback_query_id: q.id });
+    await telegram(bot, 'answerCallbackQuery', { callback_query_id: q.id });
     if (!chatId || q.message.chat.type !== 'private') return;
     try {
-      await onButton(chatId, q.message.message_id, q.from, q.data ?? '');
+      await onButton(bot, chatId, q.message.message_id, q.from, q.data ?? '');
     } catch (err) {
       if (!(err instanceof ApiError)) console.error(err);
-      await edit(chatId, q.message.message_id, errorText(err));
+      await edit(bot, chatId, q.message.message_id, errorText(bot, err));
     }
     return;
   }
@@ -327,11 +357,11 @@ async function onUpdate(update: any) {
   if (!m?.text || !m.from || m.chat?.type !== 'private') return;
   const chatId = m.chat.id;
   try {
-    if (m.text.startsWith('/')) await onCommand(chatId, m.from, m.text);
-    else await send(chatId, HELP);
+    if (m.text.startsWith('/')) await onCommand(bot, chatId, m.from, m.text);
+    else await send(bot, chatId, help(bot));
   } catch (err) {
     if (!(err instanceof ApiError)) console.error(err);
-    await send(chatId, errorText(err));
+    await send(bot, chatId, errorText(bot, err));
   }
 }
 
@@ -339,12 +369,19 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST' || !secretMatches(req.headers.get('X-Telegram-Bot-Api-Secret-Token'))) {
     return new Response('Forbidden', { status: 403 });
   }
-  if (new URL(req.url).pathname.endsWith('/setup')) {
-    return new Response(JSON.stringify(await setup()), { headers: { 'Content-Type': 'application/json' } });
+  // .../telegram-bot[/1xbet][/setup]
+  const parts = new URL(req.url).pathname.split('/').filter(Boolean);
+  const rest = parts.slice(parts.indexOf('telegram-bot') + 1);
+  const isSetup = rest[rest.length - 1] === 'setup';
+  const path = rest.slice(0, isSetup ? -1 : undefined).map((p) => `/${p}`).join('');
+  const bot = BOTS.find((b) => b.path === path);
+  if (!bot) return new Response('Not found', { status: 404 });
+  if (isSetup) {
+    return new Response(JSON.stringify(await setup(bot)), { headers: { 'Content-Type': 'application/json' } });
   }
   const update = await req.json().catch(() => null);
   // Always 200: Telegram re-sends an update until it gets one, and a
   // re-sent command must not run twice.
-  if (update) await onUpdate(update).catch((err) => console.error(err));
+  if (update) await onUpdate(bot, update).catch((err) => console.error(err));
   return new Response('ok');
 });

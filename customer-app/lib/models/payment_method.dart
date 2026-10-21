@@ -22,7 +22,7 @@ class PaymentMethodInfo {
 
   /// Deposits for this method are collected automatically with the
   /// withdrawal code the customer gets from the platform's cash desk.
-  bool get usesWithdrawalCode => id == '888starz';
+  bool get usesWithdrawalCode => id == '888starz' || id == 'onexbet';
   String get identifierHint => isPlatform ? 'e.g. 7841228' : 'e.g. 2526XXXXXXX';
 }
 

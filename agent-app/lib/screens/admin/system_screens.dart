@@ -328,11 +328,13 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
   }
 }
 
-/// The Telegram cashier bot (supabase/functions/telegram-bot).
-const telegramBotUsername = 'Badal888starzbot';
+/// The Telegram cashier bots (supabase/functions/telegram-bot), one per
+/// betting brand's cash register: (brand, bot username).
+const telegramBots = [('888starz', 'Badal888starzbot'), ('1xBet', 'Badal1xbetbot')];
 
-/// Links this manager's Telegram account to the Telegram cashier bot
-/// (CashdeskBot balance, player search, deposits and payouts).
+/// Links this manager's Telegram account to the Telegram cashier bots
+/// (CashdeskBot balance, player search, deposits and payouts). One link
+/// works with every bot.
 class TelegramBotScreen extends StatefulWidget {
   const TelegramBotScreen({super.key});
 
@@ -379,8 +381,8 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
       }, 'Could not create a link code.');
 
   // The bot reads `/start CODE` from this link as `/link CODE`.
-  Future<void> _openBot(String code) async {
-    final ok = await launchUrl(Uri.parse('https://t.me/$telegramBotUsername?start=$code'),
+  Future<void> _openBot(String bot, String code) async {
+    final ok = await launchUrl(Uri.parse('https://t.me/$bot?start=$code'),
         mode: LaunchMode.externalApplication);
     if (!ok && mounted) showSnack(context, 'Could not open Telegram.');
   }
@@ -406,9 +408,9 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       const Text(
-                        'The 888starz Telegram bot checks the cash register balance, finds 888starz players, and makes '
-                        'deposits and payouts. It acts as you, and stops working for you if you lose '
-                        'access to Admin features.',
+                        'The Telegram bots (888starz and 1xBet) check their cash register balance, find players, and '
+                        'make deposits and payouts. They act as you, and stop working for you if you lose '
+                        'access to Admin features. Linking once works with both bots.',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       const GroupLabel('Status'),
@@ -417,13 +419,16 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                       if (link.linkedAt != null) InfoRow('Since', formatDateTime(link.linkedAt!)),
                       const GroupLabel('Link your Telegram account'),
                       if (code != null) ...[
-                        ElevatedButton.icon(
-                          onPressed: () => _openBot(code.code),
-                          icon: const Icon(Icons.send_rounded),
-                          label: const Text('Open @$telegramBotUsername'),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text('Or send this message to @$telegramBotUsername in Telegram:'),
+                        for (final (brand, bot) in telegramBots) ...[
+                          ElevatedButton.icon(
+                            onPressed: () => _openBot(bot, code.code),
+                            icon: const Icon(Icons.send_rounded),
+                            label: Text('Open @$bot ($brand)'),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        const SizedBox(height: 4),
+                        const Text('Or send this message to either bot in Telegram:'),
                         const SizedBox(height: 8),
                         SelectableText('/link ${code.code}',
                             style: const TextStyle(fontFamily: 'monospace', fontSize: 20, fontWeight: FontWeight.w800)),
