@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.badalexchange.customer"
+        applicationId = "com.badalexchange"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
