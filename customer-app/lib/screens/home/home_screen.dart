@@ -17,10 +17,10 @@ import '../../widgets/home_ads_strip.dart';
 import '../../widgets/method_icon.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/status_badge.dart';
+import '../../widgets/transaction_views.dart';
 import '../../widgets/wallet_card.dart';
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
-import '../orders/order_detail_screen.dart';
 import '../withdraw/withdraw_details_screen.dart';
 
 /// Wallet home, kept compact so two recent orders fit on a phone screen:
@@ -84,7 +84,12 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) =>
-            WithdrawDetailsScreen(method: option.info.id, ownPhone: context.read<AuthProvider>().user?.phone),
+            WithdrawDetailsScreen(
+          method: option.info.id,
+          option: option,
+          ownPhone: context.read<AuthProvider>().user?.phone,
+          availableBalance: context.read<WalletProvider>().wallet?.availableBalance,
+        ),
       ),
     );
     if (mounted) _refresh();
@@ -424,9 +429,7 @@ class _RecentOrderTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: order.id)),
-        ),
+        onTap: () => showTransactionDetails(context, order),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(

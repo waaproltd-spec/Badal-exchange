@@ -10,7 +10,7 @@ import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
-import '../../widgets/method_icon.dart';
+import '../../widgets/flow_header.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'deposit_processing_screen.dart';
@@ -100,7 +100,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       (_cashDesk || _amount != null) &&
       (_cashDesk
           ? !_needsAccount || _accountController.text.trim().isNotEmpty
-          : _info.isPlatform ? _accountController.text.trim().isNotEmpty : _ownLocal != null) &&
+          : _info.isPlatform
+              ? _accountController.text.trim().isNotEmpty
+              : _ownLocal != null) &&
       (!_info.usesWithdrawalCode || _codeController.text.trim().isNotEmpty);
 
   String? get _ownLocal => _localNumber(widget.ownPhone);
@@ -140,7 +142,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     try {
       // The backend checks the method and amount before anything is created.
       // A cash-desk deposit has no amount: the platform says it.
-      final amount = _cashDesk ? null : (await api.createQuote(direction: 'deposit', method: _info.id, amount: _amountText)).amount;
+      final amount = _cashDesk
+          ? null
+          : (await api.createQuote(direction: 'deposit', method: _info.id, amount: _amountText)).amount;
       if (!mounted) return;
       final key = const Uuid().v4();
       final phone = _info.isPlatform ? null : '252$_ownLocal';
@@ -148,6 +152,8 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       final code = _info.usesWithdrawalCode ? _codeController.text.trim() : null;
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => DepositProcessingScreen(
+          method: _info.id,
+          amount: amount,
           action: () => api.deposit(
             method: _info.id,
             phoneNumber: phone,
@@ -184,13 +190,13 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
             children: [
               Row(
                 children: [
-                  _RoundButton(icon: Icons.chevron_left_rounded, onTap: () => Navigator.of(context).maybePop()),
+                  RoundIconButton(icon: Icons.chevron_left_rounded, onTap: () => Navigator.of(context).maybePop()),
                   const SizedBox(width: 14),
                   Expanded(child: Text(AppStrings.completeDeposit, style: AppTextStyles.title)),
                 ],
               ),
               const SizedBox(height: 24),
-              _MethodCard(info: _info, onChange: _change),
+              FlowMethodCard(info: _info, onChange: _change),
               const SizedBox(height: 22),
               if (_cashDesk) ...[
                 if (_payTo != null) ...[
@@ -201,15 +207,17 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                   _FieldBox(
                     key: const Key('first-account-id'),
                     label: _info.identifierLabel,
-                    child: _input(_accountController, hint: _info.identifierHint, keyboard: TextInputType.number,
+                    child: _input(_accountController,
+                        hint: _info.identifierHint,
+                        keyboard: TextInputType.number,
                         validator: (v) => (v ?? '').trim().isEmpty ? AppStrings.enterAccountId : null),
                   ),
                   const SizedBox(height: 16),
                 ],
                 _FieldBox(
                   label: AppStrings.paymentCode,
-                  child: _input(_codeController,
-                      key: const Key('payment-code'), hint: AppStrings.enterPaymentCode, validator: (v) {
+                  child: _input(_codeController, key: const Key('payment-code'), hint: AppStrings.enterPaymentCode,
+                      validator: (v) {
                     final t = (v ?? '').trim();
                     if (t.isEmpty) return AppStrings.enterWithdrawalCode;
                     if (t.length > 64 || t.contains(RegExp(r'\s'))) return AppStrings.enterCodeExactly;
@@ -219,7 +227,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
               ] else if (_info.isPlatform) ...[
                 _FieldBox(
                   label: _info.identifierLabel,
-                  child: _input(_accountController, hint: _info.identifierHint, keyboard: TextInputType.number,
+                  child: _input(_accountController,
+                      hint: _info.identifierHint,
+                      keyboard: TextInputType.number,
                       validator: (v) => (v ?? '').trim().isEmpty ? AppStrings.enterAccountId : null),
                 ),
                 const SizedBox(height: 16),
@@ -312,76 +322,6 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   }
 }
 
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 2,
-      shadowColor: Colors.black26,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(padding: const EdgeInsets.all(10), child: Icon(icon, color: AppColors.textPrimary)),
-      ),
-    );
-  }
-}
-
-class _MethodCard extends StatelessWidget {
-  const _MethodCard({required this.info, required this.onChange});
-
-  final PaymentMethodInfo info;
-  final VoidCallback onChange;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder, width: 1.2),
-      ),
-      child: Row(
-        children: [
-          MethodIcon(method: info.id, size: 50),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(info.label.toUpperCase(), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-                const SizedBox(height: 2),
-                Text(
-                  info.usesWithdrawalCode
-                      ? AppStrings.bettingCashierDeposit
-                      : info.isPlatform
-                          ? AppStrings.bettingAccount
-                          : AppStrings.instantMobileTransfer,
-                  style: AppTextStyles.muted,
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            key: const Key('change-method'),
-            onPressed: onChange,
-            child: Text(AppStrings.change,
-                style: AppTextStyles.body.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// The registered number mobile money is paid from or to: shown, never
 /// edited.
 class _OwnNumberLine extends StatelessWidget {
@@ -455,7 +395,8 @@ class _StreetCard extends StatelessWidget {
             if ((city ?? '').isNotEmpty) ...[
               Flexible(
                 child: Text(city!.toUpperCase(),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
               ),
               const SizedBox(width: 12),

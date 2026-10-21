@@ -120,7 +120,11 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                       setState(() => _submitting = true);
                       await Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => WithdrawProcessingScreen(action: () => _submit(api)),
+                          builder: (_) => WithdrawProcessingScreen(
+                            action: () => _submit(api),
+                            method: widget.quote.method,
+                            amount: widget.quote.amount,
+                          ),
                         ),
                       );
                       if (mounted) setState(() => _submitting = false);

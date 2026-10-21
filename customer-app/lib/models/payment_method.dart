@@ -72,10 +72,14 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
 /// A method the backend currently offers (enabled), with the numbers or
 /// accounts customers send deposits to.
 class PaymentMethodOption {
-  const PaymentMethodOption({required this.info, required this.depositNumbers});
+  const PaymentMethodOption({required this.info, required this.depositNumbers, this.minWithdraw, this.maxWithdraw});
 
   final PaymentMethodInfo info;
   final List<({String number, String? label})> depositNumbers;
+
+  /// Withdrawal limits the server enforces, when it sends them.
+  final String? minWithdraw;
+  final String? maxWithdraw;
 
   factory PaymentMethodOption.fromJson(Map<String, dynamic> json) {
     return PaymentMethodOption(
@@ -86,6 +90,8 @@ class PaymentMethodOption {
           .map((e) => e as Map<String, dynamic>)
           .map((e) => (number: e['number'] as String, label: e['label'] as String?))
           .toList(),
+      minWithdraw: json['minWithdraw'] as String?,
+      maxWithdraw: json['maxWithdraw'] as String?,
     );
   }
 }

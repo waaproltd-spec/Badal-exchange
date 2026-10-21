@@ -202,6 +202,37 @@ class AppStrings {
         'Geli lacagta. Waxaa loo dirayaa lambarkaaga $method ee diiwaangashan.',
       );
 
+  // Transaction screens
+  static String get transactionDetails => _t('Transaction Details', 'Faahfaahinta Dhaqdhaqaaqa');
+  static String get transactionId => _t('Transaction ID', 'Aqoonsiga Dhaqdhaqaaqa');
+  static String get transferId => _t('Transfer ID', 'Aqoonsiga Wareejinta');
+  static String get type => _t('Type', 'Nooca');
+  static String get account => _t('Account', 'Akoonka');
+  static String get balanceBefore => _t('Balance Before', 'Haraaga Ka Hor');
+  static String get balanceAfter => _t('Balance After', 'Haraaga Kadib');
+  static String get dateTime => _t('Date & Time', 'Taariikhda & Waqtiga');
+  static String get backToHome => _t('Back to Home', 'Ku noqo Hoyga');
+  static String get usdDeposited => _t('USD Deposited', 'USD la dhigay');
+  static String get usdWithdrawn => _t('USD Withdrawn', 'USD la bixiyay');
+  static String get depositConfirmed => _t('Deposit Confirmed', 'Dhigashada waa la xaqiijiyay');
+  static String get withdrawalConfirmed => _t('Withdrawal Confirmed', 'Bixinta waa la xaqiijiyay');
+  static String get waitingForPayment => _t('Waiting for your payment', 'Waxaa la sugayaa lacag-bixintaada');
+  static String get inProgress => _t('In progress', 'Waa socotaa');
+  static String get confirmingOrder => _t('Confirming Order...', 'Dalabka waa la xaqiijinayaa...');
+  static String get confirmingWithdrawal => _t('Confirming Withdrawal...', 'Bixinta waa la xaqiijinayaa...');
+  static String get hangTightDeposit =>
+      _t("Hang tight, we're processing your deposit", 'Fadlan sug, dhigashadaada waa la shaqeynayaa');
+  static String get hangTightWithdraw =>
+      _t("Hang tight, we're processing your withdrawal", 'Fadlan sug, bixintaada waa la shaqeynayaa');
+  static String get completeWithdrawal => _t('Complete Withdrawal', 'Dhammaystir Bixinta');
+  static String get allHistory => _t('All', 'Dhammaan');
+  static String get depositsTab => _t('Deposits', 'Dhigashooyin');
+  static String get withdrawalsTab => _t('Withdrawals', 'Bixinno');
+  static String withdrawLimits(String min, String max) => _t(
+        'Minimum withdrawal is $min, maximum is $max',
+        'Labixida ugu yar waa $min, labixida ugu badan waa $max',
+      );
+
   // Orders
   static String get orders => _t('Orders', 'Dalabyada');
   static String get noOrders => _t('No transactions yet', 'Weli dhaqdhaqaaq ma jiro');

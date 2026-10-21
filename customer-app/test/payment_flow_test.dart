@@ -30,6 +30,7 @@ List<Map<String, dynamic>> get _catalogJson => [
       for (final (id, label, kind, color, initials) in _catalog)
         {
           'method': id, 'label': label, 'kind': kind, 'color': color, 'initials': initials,
+          'minWithdraw': '0.30', 'maxWithdraw': '4000.00',
           'depositNumbers': [
             if (id == 'evc_plus') {'number': '610338686', 'label': 'Baari'},
             if (id == 'edahab') {'number': '620000001', 'label': null},
@@ -238,19 +239,28 @@ void main() {
     await _phone(tester, size: const Size(320, 568));
     AppLanguage.current.value = AppLanguage.somali;
     final api = FakeCustomerApi();
-    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'onexbet')));
-    expect(find.text('Faahfaahinta bixinta'), findsOneWidget);
+    final option = (await api.getPaymentMethods()).firstWhere((o) => o.info.id == 'onexbet');
+    await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'onexbet', option: option, availableBalance: '1.25')));
+    expect(find.text('Dhammaystir Bixinta'), findsOneWidget);
+    // The balance, then account and amount side by side, then the limits.
+    expect(find.text('\$1.25'), findsOneWidget);
+    expect(find.text('Labixida ugu yar waa \$0.30, labixida ugu badan waa \$4000.00'), findsOneWidget);
+    final fieldsRow = find.byType(TextFormField);
+    expect(tester.getTopLeft(fieldsRow.at(0)).dy, tester.getTopLeft(fieldsRow.at(1)).dy);
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), '1847412855');
     await tester.enterText(fields.at(1), '3');
+    await tester.scrollUntilVisible(find.text('Sii wad'), 120, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Sii wad'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sii wad'));
     await tester.pumpAndSettle();
     expect(find.text('Xaqiiji Bixinta'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.scrollUntilVisible(find.text('Xaqiiji'), 120);
+    await tester.scrollUntilVisible(find.text('Xaqiiji'), 120, scrollable: find.byType(Scrollable).last);
     await tester.tap(find.text('Xaqiiji'));
     await tester.pumpAndSettle();
-    expect(find.text('Bixinta waa la gudbiyay'), findsOneWidget);
+    expect(find.text('USD la bixiyay'), findsOneWidget);
     expect(api.submitted.single, containsPair('kind', 'withdraw'));
   });
 
@@ -347,7 +357,8 @@ void main() {
       expect(api.submitted.single, containsPair('method', id));
       expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', identifier));
       expect(api.submitted.single, containsPair('amount', '2.50'));
-      expect(find.text('Withdrawal Submitted'), findsOneWidget);
+      expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
+      expect(find.text('USD Withdrawn'), findsOneWidget);
     });
 
     testWidgets('deposit $label: Complete Deposit form -> one deposit', (tester) async {
@@ -410,7 +421,8 @@ void main() {
       expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', usesCode ? null : identifier));
       expect(api.submitted.single, containsPair('amount', usesCode ? null : '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
-      expect(find.text('Deposit Submitted'), findsOneWidget);
+      expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
+      expect(find.text('USD Deposited'), findsOneWidget);
     });
   }
 

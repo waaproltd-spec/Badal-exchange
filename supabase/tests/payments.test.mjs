@@ -523,3 +523,25 @@ test('a reinstalled Agent App on the same phone keeps its wallets, SMS and payou
     await rpc(agent, 'manage_delete_payout_wallet', { p_id: w.id });
   }
 });
+
+test('orders show the balance before and after; methods show withdrawal limits', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(500, sender);
+  const d = await deposit(c, 'evc_plus', 2, sender);
+  assert.equal(d.balanceBefore, null, 'nothing moved yet');
+  await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 2, phone: sender }));
+  const paid = await order(c, d.id);
+  assert.deepEqual([paid.balanceBefore, paid.balanceAfter], ['5.00', '7.00']);
+
+  const w = await withdraw(c, 'evc_plus', 3, sender);
+  const held = await order(c, w.id);
+  assert.deepEqual([held.balanceBefore, held.balanceAfter], ['7.00', '4.00']);
+  await rpc(agent, 'agent_withdrawal_fail', { p_order_id: w.id, p_reason: 'test', p_confirmed_not_paid: true });
+  const failed = await order(c, w.id);
+  assert.equal(failed.balanceAfter, null, 'a failed withdrawal moved nothing');
+
+  const methods = await rpc(c, 'customer_payment_methods');
+  const evc = methods.find((m) => m.method === 'evc_plus');
+  assert.match(evc.minWithdraw, /^\d+\.\d\d$/);
+  assert.match(evc.maxWithdraw, /^\d+\.\d\d$/);
+});
