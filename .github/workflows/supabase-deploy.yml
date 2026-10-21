@@ -116,6 +116,16 @@ jobs:
           SELECT kind, status, count(*) AS notifications, max(left(last_error, 80)) AS last_error
             FROM public.push_notifications GROUP BY kind, status ORDER BY kind, status;
           SELECT count(*) AS devices_registered FROM public.push_tokens;
+          -- Payment SMS from the agent phones (sender numbers masked).
+          SELECT to_char(received_at, 'MM-DD HH24:MI:SS') AS received, parsed_provider, parsed_amount,
+                 '...' || right(parsed_phone, 3) AS sender, match_status, left(match_failure_reason, 110) AS reason,
+                 left(device_id::text, 8) AS device
+            FROM public.sms_logs ORDER BY received_at DESC LIMIT 6;
+          SELECT order_code, method, direction, status, private.money(amount_cents) AS amount,
+                 to_char(created_at, 'MM-DD HH24:MI:SS') AS created
+            FROM public.orders WHERE method NOT IN ('888starz', 'onexbet') ORDER BY created_at DESC LIMIT 5;
+          SELECT left(device_id::text, 8) AS device, device_label, status, to_char(last_seen_at, 'MM-DD HH24:MI') AS last_seen
+            FROM public.agent_devices ORDER BY last_seen_at DESC NULLS LAST LIMIT 4;
           SELECT jobname, schedule, active FROM cron.job WHERE jobname LIKE 'baari-%' ORDER BY jobname;
           SELECT j.jobname, d.status, left(d.return_message, 120) AS message, to_char(d.start_time, 'MM-DD HH24:MI:SS') AS at
             FROM cron.job_run_details d JOIN cron.job j USING (jobid)
