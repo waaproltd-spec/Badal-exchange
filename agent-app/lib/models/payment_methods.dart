@@ -66,7 +66,12 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
       orElse: () => PaymentMethodInfo(id, id, MethodKind.mobileMoney, const Color(0xFF6B7280), id.isEmpty ? '?' : id[0].toUpperCase()),
     );
 
-/// Small rounded badge with the method's initials in its color.
+/// Methods with a logo in assets/methods/<id>.png; others show initials.
+const _logos = {
+  'evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet', 'winwin', 'dbbet', 'betwinner', '888starz',
+};
+
+/// Small rounded badge: the method's logo, or its initials in its color.
 class MethodBadge extends StatelessWidget {
   final String method;
   final double size;
@@ -75,6 +80,20 @@ class MethodBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_logos.contains(method)) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.26),
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.26),
+          child: Image.asset('assets/methods/$method.png', fit: BoxFit.cover, filterQuality: FilterQuality.medium),
+        ),
+      );
+    }
     final info = methodInfo(method);
     return Container(
       width: size,
