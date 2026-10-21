@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
+import '../../services/push_notifications.dart';
+import '../../widgets/transaction_views.dart';
 import '../home/home_screen.dart';
 import '../orders/orders_list_screen.dart';
 import '../profile/profile_screen.dart';
@@ -21,6 +25,66 @@ class _RootShellState extends State<RootShell> {
     const OrdersListScreen(),
     const ProfileScreen(),
   ];
+
+  PushNotifications? get _push => PushNotifications.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    final push = _push;
+    if (push == null) return;
+    // Signed in: this device gets the customer's notifications.
+    push.start(context.read<CustomerApi>());
+    push.openOrder.addListener(_openFromNotification);
+    push.foreground.addListener(_showForeground);
+    // Tapped to start the app: open it once the shell is on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openFromNotification());
+  }
+
+  @override
+  void dispose() {
+    _push?.openOrder.removeListener(_openFromNotification);
+    _push?.foreground.removeListener(_showForeground);
+    super.dispose();
+  }
+
+  /// A tapped notification: that transaction's details.
+  Future<void> _openFromNotification() async {
+    final push = _push;
+    final id = push?.openOrder.value;
+    if (push == null || id == null || !mounted) return;
+    push.openOrder.value = null;
+    try {
+      final order = await context.read<CustomerApi>().getOrder(id);
+      if (mounted) await showTransactionDetails(context, order);
+    } catch (_) {
+      // Not this customer's order, or offline: the Orders tab still has it.
+      if (mounted) setState(() => _index = 1);
+    }
+  }
+
+  /// Arrived while the app is open: a banner that opens the details.
+  void _showForeground() {
+    final m = _push?.foreground.value;
+    if (m == null || !mounted) return;
+    _push?.foreground.value = null;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      key: Key('push-banner-${m.orderId}'),
+      duration: const Duration(seconds: 6),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (m.title != null) Text(m.title!, style: const TextStyle(fontWeight: FontWeight.w800)),
+          if (m.body != null) Text(m.body!),
+        ],
+      ),
+      action: SnackBarAction(
+        label: AppStrings.viewDetails,
+        onPressed: () => _push?.openOrder.value = m.orderId,
+      ),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {

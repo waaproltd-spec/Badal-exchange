@@ -66,6 +66,8 @@ jobs:
           supabase functions deploy player-lookup --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Agent App Company Balances; the database checks the caller.
           supabase functions deploy company-balances --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Customer push notifications; woken by the database with the worker secret.
+          supabase functions deploy push-notifications --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:
@@ -111,6 +113,9 @@ jobs:
             FROM public.cashdesk_balances ORDER BY checked_at DESC LIMIT 6;
           SELECT method, kind, count(*) AS movements, private.money(sum(amount_cents)) AS total
             FROM public.cashdesk_movements GROUP BY method, kind ORDER BY method, kind;
+          SELECT kind, status, count(*) AS notifications, max(left(last_error, 80)) AS last_error
+            FROM public.push_notifications GROUP BY kind, status ORDER BY kind, status;
+          SELECT count(*) AS devices_registered FROM public.push_tokens;
           SELECT jobname, schedule, active FROM cron.job WHERE jobname LIKE 'baari-%' ORDER BY jobname;
           SELECT j.jobname, d.status, left(d.return_message, 120) AS message, to_char(d.start_time, 'MM-DD HH24:MI:SS') AS at
             FROM cron.job_run_details d JOIN cron.job j USING (jobid)

@@ -193,6 +193,12 @@ class CustomerApi {
     return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// This device's push notification token, for the signed-in customer.
+  Future<void> registerPushToken(String token) =>
+      _client.rpc('customer_register_push_token', {'p_token': token, 'p_platform': 'android'});
+
+  Future<void> unregisterPushToken(String token) => _client.rpc('customer_unregister_push_token', {'p_token': token});
+
   Future<Order> getOrder(String id) async {
     final data = await _client.rpc('customer_order', {'p_id': id}) as Map<String, dynamic>;
     return Order.fromJson(data);

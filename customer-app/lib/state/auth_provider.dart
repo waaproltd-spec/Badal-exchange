@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../api/customer_api.dart';
+import '../services/push_notifications.dart';
 import '../models/auth_user.dart';
 import '../screens/auth/login_screen.dart';
 
@@ -123,6 +124,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // While still signed in: this device stops getting the notifications.
+    await PushNotifications.instance?.stop(customerApi);
     await customerApi.logout();
     await _clearSession();
   }

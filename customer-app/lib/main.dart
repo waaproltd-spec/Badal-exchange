@@ -6,6 +6,7 @@ import 'api/api_client.dart';
 import 'api/customer_api.dart';
 import 'l10n/strings.dart';
 import 'screens/splash_screen.dart';
+import 'services/push_notifications.dart';
 import 'state/auth_provider.dart';
 import 'state/orders_provider.dart';
 import 'state/wallet_provider.dart';
@@ -21,6 +22,7 @@ Future<void> main() async {
   // runs without it.
   try {
     await Firebase.initializeApp();
+    PushNotifications.instance = PushNotifications(FirebasePushPlatform());
   } catch (e) {
     debugPrint('Firebase not configured: $e');
   }
