@@ -33,13 +33,13 @@ class PaymentMethodInfo {
 List<PaymentMethodInfo> paymentMethods = const <PaymentMethodInfo>[
   PaymentMethodInfo('evc_plus', 'EVC Plus', false, Color(0xFF16A34A), 'EVC'),
   PaymentMethodInfo('golis', 'Golis', false, Color(0xFF0EA5E9), 'GO'),
-  PaymentMethodInfo('telesom', 'Telesom', false, Color(0xFF2563EB), 'TE'),
+  PaymentMethodInfo('telesom', 'ZAAD', false, Color(0xFFEAB308), 'ZA'),
   PaymentMethodInfo('edahab', 'eDahab', false, Color(0xFFD97706), 'eD'),
-  PaymentMethodInfo('winwin', 'WinWin', true, Color(0xFF059669), 'WW'),
   PaymentMethodInfo('onexbet', '1XBET', true, Color(0xFF1D4ED8), '1X'),
   PaymentMethodInfo('melbet', 'MELBET', true, Color(0xFFCA8A04), 'MB'),
-  PaymentMethodInfo('betwinner', 'Betwinner', true, Color(0xFF15803D), 'BW'),
+  PaymentMethodInfo('winwin', 'WinWin', true, Color(0xFF059669), 'WW'),
   PaymentMethodInfo('dbbet', 'DBbet', true, Color(0xFFDC2626), 'DB'),
+  PaymentMethodInfo('betwinner', 'Betwinner', true, Color(0xFF15803D), 'BW'),
   PaymentMethodInfo('888starz', '888STARZ', true, Color(0xFF7C3AED), '888'),
 ];
 

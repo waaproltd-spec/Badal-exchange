@@ -89,6 +89,8 @@ test('catalog is public; customer data is not', async () => {
   const anon = client();
   const catalog = await rpc(anon, 'payment_method_catalog');
   assert.equal(catalog.length, 10);
+  assert.deepEqual(catalog.map((m) => m.label),
+    ['EVC Plus', 'Golis', 'ZAAD', 'eDahab', '1XBET', 'MELBET', 'WinWin', 'DBbet', 'Betwinner', '888STARZ']);
   assert.deepEqual(catalog.map((m) => m.method).slice(0, 4), ['evc_plus', 'golis', 'telesom', 'edahab']);
   assert.equal(catalog.find((m) => m.method === 'onexbet').label, '1XBET');
   const { error } = await anon.rpc('customer_wallet');
