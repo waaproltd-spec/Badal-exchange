@@ -103,8 +103,9 @@ jobs:
             FROM public.orders WHERE method IN ('888starz', 'onexbet')
             ORDER BY created_at DESC LIMIT 12;
           SELECT to_char(created_at, 'MM-DD HH24:MI:SS') AS at, action, entity_id,
-                 left((new_value - 'raw_sms')::text, 300) AS detail
+                 left((after_json - 'raw_sms')::text, 300) AS detail
             FROM public.audit_logs WHERE action LIKE 'order.auto_cashdesk%' ORDER BY created_at DESC LIMIT 8;
+          SELECT order_code, status, private.money(net_cents) AS amount FROM public.orders WHERE order_code IN ('EXEHGN3B', 'EXKEKGJ2');
           SELECT jobname, schedule, active FROM cron.job WHERE jobname LIKE 'baari-%' ORDER BY jobname;
           SELECT j.jobname, d.status, left(d.return_message, 120) AS message, to_char(d.start_time, 'MM-DD HH24:MI:SS') AS at
             FROM cron.job_run_details d JOIN cron.job j USING (jobid)

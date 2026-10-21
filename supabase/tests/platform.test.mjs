@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import pg from 'pg';
+import { readFileSync } from 'node:fs';
 
 const URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
@@ -299,6 +300,46 @@ test('code-only deposit: no amount from the customer; credited with what the pla
   assert.equal(done.amountPending, false);
   assert.equal(done.netAmount, '7.25');
   assert.deepEqual(await balances(c), ['7.25', '0.00']);
+});
+
+test('1XBET reports a payout as negative (-5): the customer is credited $5', async () => {
+  const c = await newCustomer(0);
+  const o = await rpc(c, 'customer_create_deposit', { p_method: 'onexbet', p_amount: null, p_account_id: '98765432',
+    p_platform_code: 'VW83', p_idempotency_key: randomUUID() });
+  await rpc(worker, 'platform_claim_next');
+  const r = await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'done', p_reference: '1xBet code VW83', p_summa: -5 });
+  assert.equal(r.status, 'completed');
+  const done = await rpc(c, 'customer_order', { p_id: o.id });
+  assert.equal(done.netAmount, '5.00');
+  assert.deepEqual(await balances(c), ['5.00', '0.00']);
+});
+
+test('deposits already paid out as negative are credited from the worker\'s recorded answer, once', async (t) => {
+  const { rows: [{ net }] } = await db.query(`SELECT to_regclass('net._http_response') IS NOT NULL AS net`);
+  if (!net) return t.skip('pg_net is not installed');
+  const c = await newCustomer(0);
+  const o = await rpc(c, 'customer_create_deposit', { p_method: 'onexbet', p_amount: null, p_account_id: '98765432',
+    p_platform_code: 'VW84', p_idempotency_key: randomUUID() });
+  await rpc(worker, 'platform_claim_next');
+  // What happened live: paid out, then refused as "Invalid amount", then
+  // put in front of an agent as "did not answer".
+  await db.query(`UPDATE orders SET auto_claimed_at = now() - interval '11 minutes' WHERE id = $1`, [o.id]);
+  await rpc(worker, 'platform_claim_next');
+  const answer = { processed: [{ order: o.orderCode, outcome: 'done', reference: '1xBet code VW84', summa: -5,
+    error: 'platform_finish: Invalid amount' }] };
+  const other = { processed: [{ order: 'EXNOTMINE', outcome: 'done', summa: -9, error: 'platform_finish: Invalid amount' }] };
+  const { rows: [{ id }] } = await db.query(`SELECT COALESCE(max(id), 0) + 1 AS id FROM net._http_response`);
+  await db.query(`INSERT INTO net._http_response (id, status_code, content, created) VALUES ($1, 200, $2, now()), ($3, 200, $4, now())`,
+    [id, JSON.stringify(answer), Number(id) + 1, JSON.stringify(other)]);
+  const repair = readFileSync(new globalThis.URL('../migrations/20261021002100_negative_payout_summa.sql', import.meta.url), 'utf8');
+  const block = repair.slice(repair.indexOf('DO $do$'));
+  await db.query(block);
+  await db.query(block); // running it again changes nothing
+  const done = await rpc(c, 'customer_order', { p_id: o.id });
+  assert.equal(done.status, 'completed');
+  assert.equal(done.netAmount, '5.00');
+  assert.deepEqual(await balances(c), ['5.00', '0.00']);
+  await db.query('DELETE FROM net._http_response WHERE id IN ($1, $2)', [id, Number(id) + 1]);
 });
 
 test('code-only deposit paid out without an amount is left for an agent, nothing credited', async () => {

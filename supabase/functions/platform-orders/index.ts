@@ -107,7 +107,8 @@ async function run(job: Job): Promise<Outcome> {
     }
     const r = await payoutToPlayer(c, job.accountId, LNG, job.code!);
     return r.success
-      ? { outcome: 'done', reference: `${brand.label} code ${job.code}`, summa: r.summa }
+      // CashdeskBot reports the payout as negative (money leaving the player).
+      ? { outcome: 'done', reference: `${brand.label} code ${job.code}`, summa: r.summa == null ? null : Math.abs(r.summa) }
       : { outcome: 'refused', message: r.message ?? `${brand.label} refused the withdrawal code` };
   } catch (err) {
     return { outcome: reachedNothing(err) ? 'not_sent' : 'unclear', message: (err as Error).message };
