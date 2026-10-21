@@ -28,6 +28,7 @@ import {
   getCredentials,
   payoutToPlayer,
 } from '../_shared/cashdeskbot.ts';
+import { refreshCompanyBalances } from '../_shared/company_balances.ts';
 
 const LNG = Deno.env.get('CASHDESKBOT_LNG') || 'en';
 const MAX_ORDERS_PER_RUN = 20;
@@ -140,7 +141,16 @@ Deno.serve(async (req) => {
     return new Response('Forbidden', { status: 403 });
   }
 
+  // Company Balances (Agent App): read the cash registers every few minutes.
+  try {
+    const due = await rpc('company_balance_due', { p_max_age_seconds: 240 });
+    if (due?.length) await refreshCompanyBalances(rpc, due);
+  } catch (err) {
+    console.error('company balances', (err as Error).message);
+  }
+
   const results: unknown[] = [];
+  const shortRegisters = new Set<string>();
   for (let i = 0; i < MAX_ORDERS_PER_RUN; i++) {
     const job: Job | null = await rpc('platform_claim_next', {});
     if (!job) break;
@@ -154,6 +164,7 @@ Deno.serve(async (req) => {
         p_summa: result.summa ?? null,
       });
       results.push({ order: job.orderCode, ...result, ...finished });
+      if (result.outcome === 'low_funds') shortRegisters.add(job.method);
       if (finished?.alertTelegramUserIds) {
         await alertManagers(brandForMethod(job.method)!, finished.alertTelegramUserIds, result.message ?? '');
       }
@@ -163,5 +174,7 @@ Deno.serve(async (req) => {
       results.push({ order: job.orderCode, ...result, error: (err as Error).message });
     }
   }
+  // A register just turned out short: show its real balance right away.
+  if (shortRegisters.size > 0) await refreshCompanyBalances(rpc, [...shortRegisters]).catch(() => {});
   return new Response(JSON.stringify({ processed: results }), { headers: { 'Content-Type': 'application/json' } });
 });

@@ -414,6 +414,11 @@ enabled = true
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
+[functions.company-balances]
+enabled = true
+# The function checks the caller itself (agent_company_balances_access).
+verify_jwt = false
+
 [functions.player-lookup]
 enabled = true
 # The function checks the caller itself (customer_begin_player_lookup).

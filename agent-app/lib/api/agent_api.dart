@@ -8,6 +8,7 @@ import '../models/console.dart';
 import '../models/management.dart';
 import '../models/payment_methods.dart';
 import '../models/order.dart';
+import '../models/company_balance.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 import 'token_storage.dart';
@@ -326,6 +327,29 @@ class AgentApi {
     });
     return data.map((e) => HistoryItem.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  // Company Balances (admins, managers, and 'view_company_balances').
+
+  /// Every company's cash register balance; [refresh] reads the connected
+  /// ones again (the server limits how often).
+  Future<CompanyBalancesOverview> getCompanyBalances({bool refresh = false, DateTime? from, DateTime? to}) async {
+    final data = await _client.getFunction('company-balances', {
+      if (refresh) 'refresh': '1',
+      if (from != null) 'from': from.toUtc().toIso8601String(),
+      if (to != null) 'to': to.toUtc().toIso8601String(),
+    });
+    return CompanyBalancesOverview.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  /// One company: balance, recent balance reads, and its orders in the
+  /// period ([status] 'open' | 'completed' | 'failed').
+  Future<CompanyDetail> getCompanyDetail(String method, {DateTime? from, DateTime? to, String? status}) async =>
+      CompanyDetail.fromJson(await _map('agent_company_detail', {
+        'p_method': method,
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+        'p_status': status,
+      }));
 
   Future<AgentAccount> getAccount() async => AgentAccount.fromJson(await _map('agent_account'));
 

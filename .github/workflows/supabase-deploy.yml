@@ -64,6 +64,8 @@ jobs:
           supabase functions deploy platform-orders --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Customer App player search; the database checks the caller.
           supabase functions deploy player-lookup --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Agent App Company Balances; the database checks the caller.
+          supabase functions deploy company-balances --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:
