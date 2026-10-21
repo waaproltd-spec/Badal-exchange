@@ -45,14 +45,19 @@ const seed = Number(Date.now().toString().slice(-6));
 let n = 0;
 const evcNumber = () => `61${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
 const edahabNumber = () => `62${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
+const golisNumber = () => `90${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
 
 const PHONE = 'payout-phone';
 const PIN = '4321';
 let agent;
 
-async function newCustomer(balanceCents = 0) {
+/**
+ * A customer whose registered login number is [number] (9 digits). Mobile
+ * money deposits and withdrawals only ever use that number.
+ */
+async function newCustomer(balanceCents = 0, number = evcNumber()) {
   // Created directly (register_customer allows 10 sign-ups per 15 minutes per IP).
-  const phone = `2528${String(seed).padStart(6, '0')}${String(n++).padStart(3, '0')}`;
+  const phone = `252${number}`;
   await db.query(
     `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
                 VALUES ('customer', $1, 'Payments Test', private.hash_password($2)) RETURNING id)
@@ -107,8 +112,8 @@ after(async () => {
 // ---------------------------------------------------------------------------
 
 test('EVC Plus deposit: order first, then the real SMS (0-prefixed phone, no reference) -> credited once', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'evc_plus', 5, `252${sender}`);
   assert.equal(d.status, 'pending');
   assert.equal((await wallet(customer)).availableBalance, '0.00');
@@ -129,8 +134,8 @@ test('EVC Plus deposit: order first, then the real SMS (0-prefixed phone, no ref
 });
 
 test('eDahab deposit with its Aqanoosiga reference', async () => {
-  const customer = await newCustomer();
   const sender = edahabNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'edahab', 7, sender);
   const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ provider: 'Somtel', amount: 7, phone: sender, ref: `PP${randomUUID().slice(0, 12)}` }));
   assert.equal(res.matchStatus, 'matched');
@@ -138,8 +143,8 @@ test('eDahab deposit with its Aqanoosiga reference', async () => {
 });
 
 test('SMS before the deposit order: kept, then matched the moment the order is created', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 4, phone: sender }));
   assert.equal(res.matchStatus, 'unmatched');
   const d = await deposit(customer, 'evc_plus', 4, `0${sender}`);
@@ -147,11 +152,11 @@ test('SMS before the deposit order: kept, then matched the moment the order is c
 });
 
 test('SMS before the deposit order: the minute resweep also picks it up', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, evcNumber());
   await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 6, phone: sender }));
   // An order created by an app path that does not look for waiting SMS.
-  const d = await deposit(customer, 'evc_plus', 6, evcNumber());
+  const d = await deposit(customer, 'evc_plus', 6, null);
   assert.equal(d.status, 'pending');
   await db.query(`UPDATE orders SET phone_number = $2 WHERE id = $1`, [d.id, sender]);
   await db.query('SELECT private.resweep_unmatched_sms()');
@@ -159,8 +164,8 @@ test('SMS before the deposit order: the minute resweep also picks it up', async 
 });
 
 test('an unpaid deposit from days ago does not block a new one for the same number and amount', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const old = await deposit(customer, 'evc_plus', 1, sender);
   await db.query(`UPDATE orders SET created_at = now() - interval '7 days', updated_at = now() - interval '7 days' WHERE id = $1`, [old.id]);
   const fresh = await deposit(customer, 'evc_plus', 1, `252${sender}`);
@@ -171,8 +176,8 @@ test('an unpaid deposit from days ago does not block a new one for the same numb
 });
 
 test('wrong amount, near amount and wrong phone never credit', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'evc_plus', 10, sender);
   for (const s of [sms({ amount: 11, phone: sender }), sms({ amount: 10.01, phone: sender }), sms({ amount: 10, phone: evcNumber() }),
                    sms({ provider: 'Somtel', amount: 10, phone: sender })]) {
@@ -184,8 +189,8 @@ test('wrong amount, near amount and wrong phone never credit', async () => {
 });
 
 test('duplicate SMS (same reference, or redelivered) credits once', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d1 = await deposit(customer, 'evc_plus', 3, sender);
   const ref = `R${randomUUID().slice(0, 10)}`;
   const first = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 3, phone: sender, ref }));
@@ -204,9 +209,9 @@ test('duplicate SMS (same reference, or redelivered) credits once', async () => 
 });
 
 test('ambiguous: two deposits fit one payment -> nothing credited until a manager assigns it', async () => {
-  const c1 = await newCustomer();
-  const c2 = await newCustomer();
   const sender = evcNumber();
+  const c1 = await newCustomer(0, sender);
+  const c2 = c1; // one number belongs to one customer: two equal deposits from it
   const a = await deposit(c1, 'evc_plus', 8, sender);
   const b = await deposit(c2, 'evc_plus', 8, sender);
   const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 8, phone: sender }));
@@ -225,8 +230,8 @@ test('ambiguous: two deposits fit one payment -> nothing credited until a manage
 });
 
 test('device/SIM guard: SMS from another phone or SIM never credit', async () => {
-  const customer = await newCustomer();
   const sender = edahabNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'edahab', 9, sender);
   const wrongPhone = await rpc(agent, 'agent_ingest_payment_sms', sms({ provider: 'Somtel', amount: 9, phone: sender, device: 'other-phone' }));
   assert.equal(wrongPhone.matchStatus, 'unmatched');
@@ -239,8 +244,8 @@ test('device/SIM guard: SMS from another phone or SIM never credit', async () =>
 });
 
 test('slot unresolved (no Phone permission) on the wallet\'s phone still credits; another phone does not', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'evc_plus', 1, `252${sender}`);
   const unresolved = { ...sms({ amount: 1, phone: `0${sender}` }), p_sim_slot: null };
   const other = await rpc(agent, 'agent_ingest_payment_sms', { ...unresolved, p_device_id: 'other-phone' });
@@ -250,13 +255,33 @@ test('slot unresolved (no Phone permission) on the wallet\'s phone still credits
   assert.equal((await order(customer, d.id)).status, 'completed');
 });
 
+test('login number only: deposits use the registered number; another number is refused', async () => {
+  const own = evcNumber();
+  const customer = await newCustomer(10_000, own);
+  // No number, or the same number written differently: the registered one is used.
+  for (const given of [null, own, `0${own}`, `+252 ${own}`]) {
+    const d = await deposit(customer, 'evc_plus', 1, given);
+    assert.equal(d.phoneNumber, `252${own}`);
+  }
+  await rejects(deposit(customer, 'evc_plus', 1, evcNumber()), 'PHONE_NOT_OWN');
+  await rejects(withdraw(customer, 'evc_plus', 1, evcNumber()), 'PHONE_NOT_OWN');
+  const w = await withdraw(customer, 'evc_plus', 2, null);
+  assert.equal(w.phoneNumber, `252${own}`);
+  assert.equal((await wallet(customer)).pendingBalance, '2.00');
+  // Betting platforms still use the player's account ID.
+  const p = await rpc(customer, 'customer_create_withdrawal', {
+    p_method: 'melbet', p_amount: '3', p_account_id: '7841228', p_idempotency_key: randomUUID() });
+  assert.equal(p.accountId, '7841228');
+  for (const id of [w.id, p.id]) await rpc(agent, 'agent_withdrawal_fail', { p_order_id: id, p_reason: 'test cleanup' });
+});
+
 // ---------------------------------------------------------------------------
 // Withdrawals
 // ---------------------------------------------------------------------------
 
 async function startedPayout(amount, method = 'edahab') {
-  const customer = await newCustomer(10_000);
   const to = method === 'edahab' ? edahabNumber() : evcNumber();
+  const customer = await newCustomer(10_000, to);
   const w = await withdraw(customer, method, amount, to);
   assert.equal(w.status, 'pending');
   const reserved = (await wallet(customer)).pendingBalance;
@@ -400,15 +425,17 @@ test('manual fail after an unclear payout needs "not paid", then returns the fun
 });
 
 test('methods without a payout wallet (Golis, ...) stay manual', async () => {
-  const customer = await newCustomer(10_000);
-  const w = await withdraw(customer, 'golis', 5, '901234567');
+  const golis = golisNumber();
+  const customer = await newCustomer(10_000, golis);
+  const w = await withdraw(customer, 'golis', 5, golis);
   assert.ok(!(await rpc(agent, 'agent_payout_queue')).some((o) => o.id === w.id));
   await rejects(rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE }), 'NOT_CONFIGURED');
 });
 
 test('permissions: customers cannot run payouts, read SMS or see wallets/PINs', async () => {
-  const customer = await newCustomer(10_000);
-  const w = await withdraw(customer, 'edahab', 5, edahabNumber());
+  const own = edahabNumber();
+  const customer = await newCustomer(10_000, own);
+  const w = await withdraw(customer, 'edahab', 5, own);
   await rejects(rpc(customer, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE }), 'FORBIDDEN');
   await rejects(rpc(customer, 'agent_ingest_payment_sms', sms({ amount: 1, phone: evcNumber() })), 'FORBIDDEN');
   await rejects(rpc(customer, 'manage_payment_sms'), 'FORBIDDEN');

@@ -110,7 +110,6 @@ class AppStrings {
   static String get couldNotComplete => _t('We could not complete this', 'Tan lama dhammaystiri karin');
   static String get accountId => _t('Account ID', 'Aqoonsiga Akoonka');
   static String get enterAccountId => _t('Enter your account ID', 'Geli aqoonsiga akoonkaaga');
-  static String get enterPhone => _t('Enter a phone number', 'Geli lambar taleefan');
   static String get enterValidAmount => _t('Enter a valid amount', 'Geli lacag sax ah');
   static String identifierLabel(String method, bool isPlatform) => isPlatform
       ? _t('$method Account ID', 'Aqoonsiga Akoonka $method')
@@ -130,8 +129,10 @@ class AppStrings {
   static String get dial => _t('Dial', 'Garaac');
   static String get copy => _t('Copy', 'Koobiyee');
   static String copied(String text) => _t('$text copied', '$text waa la koobiyeeyay');
-  static String get enterNineDigits => _t('Enter the 9-digit number', 'Geli lambarka 9-ka god ah');
-  static String get useAnotherNumber => _t('Use another number', 'Isticmaal lambar kale');
+  static String get payFromOwnNumber => _t('Pay from your registered number', 'Ka dir lambarkaaga diiwaangashan');
+  static String get receiveToOwnNumber => _t('Paid to your registered number', 'Waxaa lagu soo dirayaa lambarkaaga diiwaangashan');
+  static String get noRegisteredNumber =>
+      _t('Your registered number could not be read. Log out and in again.', 'Lambarkaaga diiwaangashan lama heli karo. Ka bax oo mar kale gal.');
   static String get depositDetails => _t('Deposit details', 'Faahfaahinta dhigashada');
   static String get confirmDeposit => _t('Confirm Deposit', 'Xaqiiji Dhigashada');
   static String get depositSubmitted => _t('Deposit Submitted', 'Dhigashada waa la gudbiyay');
@@ -139,8 +140,6 @@ class AppStrings {
         'Enter your $method account ID and the amount to deposit.',
         'Geli aqoonsiga akoonkaaga $method iyo lacagta aad dhigayso.',
       );
-  static String depositPhoneHint(String method) =>
-      _t('Enter the $method number you will pay from.', 'Geli lambarka $method ee aad lacagta ka soo diraysid.');
   static String depositCodeFlowHint(String method) => _t(
         'In $method, withdraw to the Badal cash desk and copy the code you get. '
             'Then enter your account ID, the amount and that code. Your wallet is credited '
@@ -169,8 +168,10 @@ class AppStrings {
         'Enter your $method account ID and the amount to withdraw.',
         'Geli aqoonsiga akoonkaaga $method iyo lacagta aad bixinayso.',
       );
-  static String withdrawPhoneHint(String method) =>
-      _t('Enter the $method number to receive your withdrawal.', 'Geli lambarka $method ee lacagta lagu soo dirayo.');
+  static String withdrawPhoneHint(String method) => _t(
+        'Enter the amount. It is sent to your registered $method number.',
+        'Geli lacagta. Waxaa loo dirayaa lambarkaaga $method ee diiwaangashan.',
+      );
 
   // Orders
   static String get orders => _t('Orders', 'Dalabyada');

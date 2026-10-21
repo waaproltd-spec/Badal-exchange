@@ -81,7 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => WithdrawDetailsScreen(method: option.info.id)),
+      MaterialPageRoute(
+        builder: (_) => WithdrawDetailsScreen(method: option.info.id, ownPhone: context.read<AuthProvider>().user?.phone),
+      ),
     );
     if (mounted) _refresh();
   }

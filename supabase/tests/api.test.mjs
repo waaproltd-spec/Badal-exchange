@@ -143,7 +143,8 @@ test('mobile-money deposit: idempotency, SMS match, wallet credit, dedupe', asyn
   const k = key();
   const args = { p_method: 'evc_plus', p_amount: '25', p_idempotency_key: k, p_phone_number: phone(1) };
   await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_idempotency_key: null }), 'IDEMPOTENCY_KEY_REQUIRED');
-  await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_phone_number: null }), 'VALIDATION_ERROR');
+  // Mobile money always uses the registered number; another one is refused.
+  await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_idempotency_key: key(), p_phone_number: '252619999999' }), 'PHONE_NOT_OWN');
   const order = await rpc(customer, 'customer_create_deposit', args);
   assert.equal(order.status, 'pending');
   assert.equal(order.netAmount, '25.00');

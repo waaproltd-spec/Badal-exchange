@@ -241,31 +241,21 @@ void main() {
     expect(api.submitted.single, containsPair('kind', 'withdraw'));
   });
 
-  testWidgets('deposit: paying from another number (unlock the phone)', (tester) async {
-    await _phone(tester);
-    final api = FakeCustomerApi();
-    final option = (await api.getPaymentMethods()).first;
-    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
-    await tester.tap(find.byKey(const Key('phone-lock')));
-    await tester.pump();
-    await tester.enterText(find.byKey(const Key('deposit-phone')), '610346060');
-    await tester.enterText(find.byKey(const Key('deposit-amount')), '2');
-    await tester.pump();
-    expect(find.text('*712*610338686*2#'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('confirm-deposit')));
-    await tester.pumpAndSettle();
-    expect(api.submitted.single, containsPair('phone', '252610346060'));
-  });
-
-  testWidgets('deposit: a short phone number is refused before anything is sent', (tester) async {
+  testWidgets('without a registered number, mobile money cannot be submitted', (tester) async {
     await _phone(tester);
     final api = FakeCustomerApi();
     final option = (await api.getPaymentMethods()).first;
     await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option)));
-    await tester.enterText(find.byKey(const Key('deposit-phone')), '61034');
     await tester.enterText(find.byKey(const Key('deposit-amount')), '2');
     await tester.pump();
+    expect(find.textContaining('could not be read'), findsOneWidget);
     expect(tester.widget<PrimaryButton>(find.byKey(const Key('confirm-deposit'))).onPressed, isNull);
+
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'evc_plus')));
+    await tester.enterText(find.byType(TextFormField).last, '2');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('could not be read'), findsOneWidget);
     expect(api.submitted, isEmpty);
   });
 
@@ -280,7 +270,7 @@ void main() {
     await tester.tap(find.byKey(const Key('method-golis')));
     await tester.pumpAndSettle();
     expect(find.text('GOLIS'), findsOneWidget);
-    expect(find.text('610338686'), findsOneWidget, reason: 'the own number carries over');
+    expect(find.text('+252 610338686'), findsOneWidget, reason: 'the registered number carries over');
   });
 
   testWidgets('deposit in Somali on a small phone fits', (tester) async {
@@ -292,6 +282,8 @@ void main() {
     await tester.enterText(find.byKey(const Key('deposit-amount')), '2');
     await tester.pump();
     expect(find.text('Dhammaystir Dhigashada'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('LACAGTA KU DIR KOONTADAAN'), 120,
+        scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
     expect(find.text('LACAGTA KU DIR KOONTADAAN'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -300,26 +292,39 @@ void main() {
   for (final m in _catalog) {
     final (id, label, kind, _, _) = m;
     final isPlatform = kind == 'platform';
-    final identifier = isPlatform ? '1847412855' : '252610346060';
+    // Mobile money always uses the customer's registered number.
+    final identifier = isPlatform ? '1847412855' : '252610338686';
 
     testWidgets('withdraw $label: ${isPlatform ? 'account ID' : 'phone'} form -> confirm -> one withdrawal', (tester) async {
       await _phone(tester);
       final api = FakeCustomerApi();
-      await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: id)));
-      expect(find.text((isPlatform ? '$label Account ID' : '$label Phone Number').toUpperCase()), findsOneWidget);
+      await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: id, ownPhone: '252610338686')));
+      final fields = find.byType(TextFormField);
+      if (isPlatform) {
+        expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
+        expect(fields, findsNWidgets(2));
+      } else {
+        // No phone field: the registered number is shown, not editable.
+        expect(find.text('$label Phone Number'.toUpperCase()), findsNothing);
+        expect(fields, findsOneWidget);
+        expect(find.text('+252 610338686'), findsOneWidget);
+      }
       // Validation before anything is sent.
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(find.text(isPlatform ? 'Enter your account ID' : 'Enter a phone number'), findsOneWidget);
+      expect(find.text(isPlatform ? 'Enter your account ID' : 'Enter a valid amount'), findsOneWidget);
 
-      final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), identifier);
-      await tester.enterText(fields.at(1), '2.50');
+      if (isPlatform) await tester.enterText(fields.at(0), identifier);
+      await tester.enterText(fields.last, '2.50');
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
       expect(find.text('Confirm Withdrawal'), findsOneWidget);
-      expect(find.text(identifier), findsOneWidget);
+      // Destination, amount, fee and total before confirming.
+      expect(find.text(isPlatform ? identifier : '+252 610338686'), findsOneWidget);
+      expect(find.text('Fee'), findsOneWidget);
+      expect(find.text('Total Deducted'), findsOneWidget);
+      expect(find.text('\$2.50'), findsNWidgets(3)); // amount, total deducted, you receive
       await tester.tap(find.text('Confirm'));
       await tester.tap(find.text('Confirm'), warnIfMissed: false); // a double tap submits once
       await tester.pumpAndSettle();
@@ -349,9 +354,9 @@ void main() {
         expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
         await tester.enterText(find.byType(TextFormField).first, identifier);
       } else {
-        // The customer's own number, locked, after +252.
-        expect(find.text('+252'), findsOneWidget);
-        expect(find.text('610338686'), findsOneWidget);
+        // No phone field: the registered number is shown, not editable.
+        expect(find.byType(TextFormField), findsOneWidget);
+        expect(find.text('+252 610338686'), findsOneWidget);
       }
       await tester.enterText(find.byKey(const Key('deposit-amount')), '5');
       if (usesCode) await tester.enterText(find.byType(TextFormField).last, 'ABC123');
@@ -371,7 +376,7 @@ void main() {
       expect(api.submitted, hasLength(1));
       expect(api.submitted.single, containsPair('kind', 'deposit'));
       expect(api.submitted.single, containsPair('method', id));
-      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', isPlatform ? identifier : '252610338686'));
+      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', identifier));
       expect(api.submitted.single, containsPair('amount', '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
       expect(find.text('Deposit Submitted'), findsOneWidget);

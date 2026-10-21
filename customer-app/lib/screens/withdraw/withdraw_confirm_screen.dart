@@ -50,6 +50,12 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
     _idempotencyKey = Uuid().v4();
   }
 
+  /// 252610338686 -> +252 610338686
+  static String _phone(String? phone) {
+    final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+    return digits.length >= 9 ? '+252 ${digits.substring(digits.length - 9)}' : (phone ?? '');
+  }
+
   Future<Order> _submit(CustomerApi api) {
     return api.withdraw(
       method: widget.quote.method,
@@ -83,7 +89,7 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                 children: [
                   SummaryRow(
                     label: '${AppStrings.sendTo} (${info.isPlatform ? AppStrings.accountId : AppStrings.phoneNumber})',
-                    value: (info.isPlatform ? widget.accountId : widget.phoneNumber) ?? '',
+                    value: info.isPlatform ? (widget.accountId ?? '') : _phone(widget.phoneNumber),
                   ),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
@@ -91,10 +97,8 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                     const SummaryDivider(),
                     SummaryRow(label: AppStrings.rate, value: quote.rate.toString()),
                   ],
-                  if ((num.tryParse(quote.fee) ?? 0) != 0) ...[
-                    const SummaryDivider(),
-                    SummaryRow(label: AppStrings.fee, value: Formatters.money(quote.fee)),
-                  ],
+                  const SummaryDivider(),
+                  SummaryRow(label: AppStrings.fee, value: Formatters.money(quote.fee)),
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.totalDeducted, value: Formatters.money(quote.walletDelta)),
                   const SummaryDivider(),

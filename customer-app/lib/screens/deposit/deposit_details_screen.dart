@@ -15,17 +15,20 @@ import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'deposit_processing_screen.dart';
 
-/// "Complete Deposit": the chosen method, who pays (phone number, or account
-/// ID for betting platforms), the amount, and where to send the money --
-/// for EVC Plus and eDahab as a ready-to-dial USSD code. Confirm creates the
-/// deposit order (the backend credits it once the payment is verified).
+/// "Complete Deposit": the chosen method, the amount (plus the account ID for
+/// betting platforms), and where to send the money -- for EVC Plus and
+/// eDahab as a ready-to-dial USSD code. Mobile money is always paid from
+/// the customer's registered login number (the backend enforces it), so
+/// there is no phone field. Confirm creates the deposit order; the backend
+/// credits it once the payment from that number is verified.
 class DepositDetailsScreen extends StatefulWidget {
   const DepositDetailsScreen({super.key, required this.option, this.ownPhone});
 
   /// The chosen method, with the numbers customers send payments to.
   final PaymentMethodOption option;
 
-  /// The customer's registered phone, offered (locked) as the paying number.
+  /// The customer's registered login phone: the only number mobile money
+  /// is paid from.
   final String? ownPhone;
 
   @override
@@ -45,11 +48,9 @@ String? _localNumber(String? phone) {
 
 class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
   final _accountController = TextEditingController();
   final _amountController = TextEditingController();
   final _codeController = TextEditingController();
-  late bool _phoneLocked;
   bool _submitting = false;
   String? _error;
 
@@ -58,17 +59,13 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    final own = _localNumber(widget.ownPhone);
-    _phoneController.text = own ?? '';
-    _phoneLocked = own != null;
-    for (final c in [_phoneController, _accountController, _amountController, _codeController]) {
+    for (final c in [_accountController, _amountController, _codeController]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    _phoneController.dispose();
     _accountController.dispose();
     _amountController.dispose();
     _codeController.dispose();
@@ -83,8 +80,10 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
 
   bool get _ready =>
       _amount != null &&
-      (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _phoneController.text.trim().length == 9) &&
+      (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _ownLocal != null) &&
       (!_info.usesWithdrawalCode || _codeController.text.trim().isNotEmpty);
+
+  String? get _ownLocal => _localNumber(widget.ownPhone);
 
   /// The number to send the money to: the first one set up for the method.
   String? get _payTo => widget.option.depositNumbers.isEmpty ? null : widget.option.depositNumbers.first.number;
@@ -123,7 +122,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       final quote = await api.createQuote(direction: 'deposit', method: _info.id, amount: _amountText);
       if (!mounted) return;
       final key = const Uuid().v4();
-      final phone = _info.isPlatform ? null : '252${_phoneController.text.trim()}';
+      final phone = _info.isPlatform ? null : '252$_ownLocal';
       final account = _info.isPlatform ? _accountController.text.trim() : null;
       final code = _info.usesWithdrawalCode ? _codeController.text.trim() : null;
       await Navigator.of(context).push(MaterialPageRoute(
@@ -175,15 +174,11 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 ),
                 const SizedBox(height: 16),
                 _amountBox(),
-              ] else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 13, child: _phoneBox()),
-                    const SizedBox(width: 10),
-                    Expanded(flex: 7, child: _amountBox()),
-                  ],
-                ),
+              ] else ...[
+                _amountBox(),
+                const SizedBox(height: 12),
+                _OwnNumberLine(local: _ownLocal, text: AppStrings.payFromOwnNumber),
+              ],
               if (_info.usesWithdrawalCode) ...[
                 const SizedBox(height: 16),
                 _FieldBox(
@@ -225,41 +220,6 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       ),
     );
   }
-
-  Widget _phoneBox() => _FieldBox(
-        label: AppStrings.phoneNumber,
-        child: Row(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 14, right: 8),
-              child: Text('+252', style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
-            ),
-            Container(width: 1, height: 24, color: AppColors.fieldBorder),
-            Expanded(
-              child: _input(
-                _phoneController,
-                key: const Key('deposit-phone'),
-                hint: '61XXXXXXX',
-                keyboard: TextInputType.phone,
-                readOnly: _phoneLocked,
-                formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
-                validator: (v) => (v ?? '').trim().length == 9 ? null : AppStrings.enterNineDigits,
-              ),
-            ),
-            if (widget.ownPhone != null)
-              IconButton(
-                key: const Key('phone-lock'),
-                tooltip: _phoneLocked ? AppStrings.useAnotherNumber : null,
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.only(right: 6),
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                icon: Icon(_phoneLocked ? Icons.lock_outline_rounded : Icons.lock_open_rounded,
-                    color: AppColors.textMuted, size: 20),
-                onPressed: () => setState(() => _phoneLocked = !_phoneLocked),
-              ),
-          ],
-        ),
-      );
 
   Widget _amountBox() => _FieldBox(
         label: AppStrings.amountShort,
@@ -378,6 +338,31 @@ class _MethodCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The registered number mobile money is paid from or to: shown, never
+/// edited.
+class _OwnNumberLine extends StatelessWidget {
+  const _OwnNumberLine({required this.local, required this.text});
+
+  final String? local;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (local == null) {
+      return Text(AppStrings.noRegisteredNumber, style: AppTextStyles.muted.copyWith(color: AppColors.error));
+    }
+    return Row(
+      key: const Key('own-number'),
+      children: [
+        const Icon(Icons.verified_user_outlined, size: 18, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: AppTextStyles.muted.copyWith(fontSize: 13))),
+        Text('+252 $local', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
+      ],
     );
   }
 }
