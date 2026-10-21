@@ -338,7 +338,7 @@ class _OwnNumberLine extends StatelessWidget {
     return Row(
       key: const Key('own-number'),
       children: [
-        const Icon(Icons.verified_user_outlined, size: 18, color: AppColors.primary),
+        Icon(Icons.verified_user_outlined, size: 18, color: AppColors.primary),
         const SizedBox(width: 8),
         Expanded(child: Text(text, style: AppTextStyles.muted.copyWith(fontSize: 13))),
         Text('+252 $local', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
@@ -364,7 +364,7 @@ class _FieldBox extends StatelessWidget {
         Container(
           constraints: const BoxConstraints(minHeight: 60),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.fieldBorder, width: 1.5),
           ),
@@ -417,7 +417,7 @@ class _StreetCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: IconButton(
                 tooltip: AppStrings.copy,
-                icon: const Icon(Icons.copy_rounded, size: 20, color: AppColors.primaryDark),
+                icon: Icon(Icons.copy_rounded, size: 20, color: AppColors.primaryDark),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: street));
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.copied(street))));
@@ -473,7 +473,7 @@ class _PayToCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Material(
-            color: AppColors.primaryDark,
+            color: AppColors.purple,
             shape: const CircleBorder(),
             elevation: 3,
             child: IconButton(

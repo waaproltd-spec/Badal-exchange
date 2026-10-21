@@ -60,7 +60,7 @@ Widget _host(Widget child, [List<Order> orders = const []]) {
       Provider<CustomerApi>.value(value: api),
       ChangeNotifierProvider(create: (_) => OrdersProvider(customerApi: api)),
     ],
-    child: MaterialApp(theme: AppTheme.light, home: child),
+    child: MaterialApp(theme: AppTheme.current, home: child),
   );
 }
 

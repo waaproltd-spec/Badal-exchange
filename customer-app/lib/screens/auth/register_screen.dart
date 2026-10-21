@@ -192,12 +192,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
+                        Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: Text(AppStrings.or, style: AppTextStyles.label),
                         ),
-                        const Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
+                        Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -206,7 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _goToLogin,
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(54),
-                        backgroundColor: Colors.white.withOpacity(0.6),
+                        backgroundColor: AppColors.surface.withOpacity(0.6),
                         side: const BorderSide(color: AppColors.accentOrange, width: 1.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -214,7 +214,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.person_add_alt_1_rounded, color: AppColors.purpleDark, size: 22),
+                          Icon(Icons.person_add_alt_1_rounded, color: AppColors.primaryDark, size: 22),
                           const SizedBox(width: 10),
                           Flexible(
                             child: Text.rich(

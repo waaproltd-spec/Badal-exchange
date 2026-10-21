@@ -160,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     fontSize: 14,
                                   ),
                                 ),
-                                const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
+                                Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
                               ],
                             ),
                           ),
@@ -354,8 +354,8 @@ class _RecentOrders extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.loading && orders.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
         child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
@@ -383,7 +383,7 @@ class _EmptyOrders extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.cardBorder, width: 1.2),
       ),
@@ -392,8 +392,8 @@ class _EmptyOrders extends StatelessWidget {
           Container(
             width: 72,
             height: 72,
-            decoration: const BoxDecoration(color: AppColors.primaryTint, shape: BoxShape.circle),
-            child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 34),
+            decoration: BoxDecoration(color: AppColors.primaryTint, shape: BoxShape.circle),
+            child: Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 34),
           ),
           const SizedBox(height: 16),
           Text(
@@ -425,7 +425,7 @@ class _RecentOrderTile extends StatelessWidget {
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
 
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.85),
+                        color: AppColors.surface.withOpacity(0.85),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: AppColors.cardBorderSoft),
                         boxShadow: [
@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       AppStrings.forgotPassword,
                                       style: AppTextStyles.body.copyWith(
                                         fontSize: 14,
-                                        color: AppColors.purpleDark,
+                                        color: AppColors.primaryDark,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
@@ -220,24 +220,24 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 14),
                           Row(
                             children: [
-                              const Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
+                              Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                                 child: Text(AppStrings.or, style: AppTextStyles.label),
                               ),
-                              const Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
+                              Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1.2)),
                             ],
                           ),
                           const SizedBox(height: 14),
                           OutlinedButton.icon(
                             key: const Key('create-account'),
                             onPressed: _createAccount,
-                            icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.purpleDark, size: 22),
+                            icon: Icon(Icons.person_add_alt_1_rounded, color: AppColors.primaryDark, size: 22),
                             label: Text(
                               AppStrings.register,
                               style: AppTextStyles.body.copyWith(
                                 fontSize: 16,
-                                color: AppColors.purpleDark,
+                                color: AppColors.primaryDark,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -325,7 +325,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
             Text(AppStrings.forgotPasswordBody, style: AppTextStyles.muted),
             const SizedBox(height: 16),
             if (contacts == null && !_failed)
-              const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              Center(child: CircularProgressIndicator(color: AppColors.primary))
             else if (links.isEmpty)
               Text(AppStrings.noSupportContacts, style: AppTextStyles.muted.copyWith(color: AppColors.error))
             else
@@ -335,8 +335,8 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                   child: OutlinedButton.icon(
                     key: Key('support-$label'),
                     onPressed: () => launchUrl(uri, mode: LaunchMode.externalApplication),
-                    icon: Icon(icon, color: AppColors.purpleDark),
-                    label: Text(label, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
+                    icon: Icon(icon, color: AppColors.primaryDark),
+                    label: Text(label, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(50),
                       side: const BorderSide(color: AppColors.accentOrange, width: 1.5),
@@ -396,7 +396,7 @@ class _Decor extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppColors.cream, AppColors.purpleSecondary.withOpacity(0.35)],
+                colors: [AppColors.screenBackground, AppColors.purpleSecondary.withOpacity(0.35)],
               ),
             ),
           ),

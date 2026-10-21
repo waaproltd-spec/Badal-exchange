@@ -50,6 +50,6 @@ class SummaryDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(color: AppColors.fieldBorder, height: 1);
+    return Divider(color: AppColors.fieldBorder, height: 1);
   }
 }

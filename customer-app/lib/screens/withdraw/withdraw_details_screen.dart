@@ -153,7 +153,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                   key: const Key('withdraw-available'),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: AppColors.cardBorder, width: 1.2),
                   ),
@@ -194,7 +194,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.verified_user_outlined, color: AppColors.primary),
+                      Icon(Icons.verified_user_outlined, color: AppColors.primary),
                       const SizedBox(width: 12),
                       Expanded(child: Text(AppStrings.receiveToOwnNumber, style: AppTextStyles.muted)),
                       Text(_ownLocal == null ? '—' : '+252 $_ownLocal',

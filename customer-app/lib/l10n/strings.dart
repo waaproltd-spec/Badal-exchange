@@ -46,6 +46,10 @@ class AppStrings {
   static String get language => _t('Language', 'Luqadda');
   static const String englishName = 'English';
   static const String somaliName = 'Soomaali';
+  static String get appearance => _t('Appearance', 'Muuqaalka');
+  static String get themeLight => _t('Light', 'Iftiin');
+  static String get themeDark => _t('Dark', 'Mugdi');
+  static String get themeSystem => _t('Phone', 'Taleefanka');
 
   // Auth
   static String get login => _t('Log In', 'Gal');

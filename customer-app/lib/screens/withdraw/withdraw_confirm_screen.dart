@@ -47,7 +47,7 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    _idempotencyKey = Uuid().v4();
+    _idempotencyKey = const Uuid().v4();
   }
 
   /// 252610338686 -> +252 610338686

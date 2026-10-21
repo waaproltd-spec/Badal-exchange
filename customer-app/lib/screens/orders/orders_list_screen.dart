@@ -56,8 +56,8 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
   Widget _buildBody(OrdersProvider state) {
     if (state.loading && state.orders.isEmpty) {
       return ListView(
-        children: const [
-          SizedBox(height: 160),
+        children: [
+          const SizedBox(height: 160),
           Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
       );
@@ -119,8 +119,8 @@ class _FilterBar extends StatelessWidget {
               onSelected: (_) => onChanged(f),
               showCheckmark: false,
               selectedColor: AppColors.purpleDark,
-              backgroundColor: Colors.white,
-              side: BorderSide(color: value == f ? AppColors.purpleDark : AppColors.cardBorder),
+              backgroundColor: AppColors.surface,
+              side: BorderSide(color: value == f ? AppColors.primaryDark : AppColors.cardBorder),
               shape: const StadiumBorder(),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               labelStyle: AppTextStyles.body.copyWith(
@@ -154,7 +154,7 @@ class _OrderTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.cardBorder, width: 1.5),
         ),

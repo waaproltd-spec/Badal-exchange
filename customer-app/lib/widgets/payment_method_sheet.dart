@@ -6,6 +6,7 @@ import '../api/customer_api.dart';
 import '../l10n/strings.dart';
 import '../models/payment_method.dart';
 import '../theme/colors.dart';
+import '../theme/theme_mode.dart';
 import '../theme/text_styles.dart';
 import 'method_icon.dart';
 
@@ -78,9 +79,9 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
     }
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.screenBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       padding: EdgeInsets.only(bottom: media.padding.bottom + 12),
       child: Column(
@@ -102,7 +103,7 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
                 Container(
                   width: 56,
                   height: 56,
-                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                   child: Icon(
                     _isDeposit ? Icons.account_balance_wallet_rounded : Icons.north_east_rounded,
                     color: Colors.white,
@@ -148,7 +149,7 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
                 if (snapshot.connectionState != ConnectionState.done) {
                   return SizedBox(
                     height: placeholder,
-                    child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
                   );
                 }
                 if (snapshot.hasError) {
@@ -204,7 +205,7 @@ class _MethodCard extends StatelessWidget {
     return Material(
       key: Key('method-${info.id}'),
       // A light wash of the method's own color, as in the BAARI design.
-      color: Color.alphaBlend(info.color.withOpacity(0.07), Colors.white),
+      color: Color.alphaBlend(info.color.withOpacity(AppThemeMode.isDark ? 0.14 : 0.07), AppColors.surface),
       borderRadius: radius,
       child: InkWell(
         borderRadius: radius,
@@ -212,7 +213,7 @@ class _MethodCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: radius,
-            border: Border.all(color: info.color.withOpacity(0.18), width: 1.2),
+            border: Border.all(color: info.color.withOpacity(AppThemeMode.isDark ? 0.35 : 0.18), width: 1.2),
           ),
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
           child: LayoutBuilder(

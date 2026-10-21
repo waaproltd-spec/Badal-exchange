@@ -91,7 +91,7 @@ class BadgedMethodIcon extends StatelessWidget {
             bottom: 2,
             child: Container(
               padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+              decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle, border: Border.all(color: AppColors.surface, width: 2)),
               child: Icon(badge, size: 16, color: Colors.white),
             ),
           ),
@@ -158,7 +158,7 @@ class DetailsCard extends StatelessWidget {
     final children = [if (header != null) header!, ...rows];
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.cardBorder, width: 1.2),
       ),
@@ -166,7 +166,7 @@ class DetailsCard extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const Divider(height: 1, thickness: 1, color: AppColors.cardBorderSoft),
+            if (i > 0) Divider(height: 1, thickness: 1, color: AppColors.cardBorderSoft),
             children[i],
           ],
         ],
@@ -203,7 +203,7 @@ class ProcessingView extends StatelessWidget {
                 margin: const EdgeInsets.all(18),
                 decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppColors.purpleSecondary.withOpacity(0.5), width: 2)),
               ),
-              const SizedBox(
+              SizedBox(
                 width: 124,
                 height: 124,
                 child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
@@ -211,7 +211,7 @@ class ProcessingView extends StatelessWidget {
               if (method != null)
                 MethodIcon(method: method!, size: 84)
               else
-                const Icon(Icons.swap_vert_rounded, size: 56, color: AppColors.primary),
+                Icon(Icons.swap_vert_rounded, size: 56, color: AppColors.primary),
             ],
           ),
         ),
@@ -226,9 +226,9 @@ class ProcessingView extends StatelessWidget {
         const Spacer(flex: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: const LinearProgressIndicator(
+          child: LinearProgressIndicator(
             minHeight: 8,
-            color: AppColors.purpleDark,
+            color: AppColors.primaryDark,
             backgroundColor: AppColors.primaryTint,
           ),
         ),
@@ -321,11 +321,11 @@ class TransactionResultView extends StatelessWidget {
           onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(54),
-            side: const BorderSide(color: AppColors.purpleDark, width: 1.4),
+            side: BorderSide(color: AppColors.primaryDark, width: 1.4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           ),
           child: Text(AppStrings.backToHome,
-              style: AppTextStyles.body.copyWith(color: AppColors.purpleDark, fontWeight: FontWeight.w700)),
+              style: AppTextStyles.body.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
         ),
       ],
     );
@@ -382,9 +382,9 @@ class TransactionDetailsSheet extends StatelessWidget {
     final media = MediaQuery.of(context);
     return Container(
       constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.screenBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -408,7 +408,7 @@ class TransactionDetailsSheet extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.cardBorderSoft),
+          Divider(height: 1, color: AppColors.cardBorderSoft),
           Flexible(
             child: ListView(
               key: const Key('transaction-details'),

@@ -82,7 +82,7 @@ class _IconTile extends StatelessWidget {
         width: 38,
         height: 38,
         decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, size: 20, color: AppColors.purpleDark),
+        child: Icon(icon, size: 20, color: AppColors.primaryDark),
       ),
     );
   }
@@ -147,7 +147,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                   tooltip: obscure ? AppStrings.showPassword : AppStrings.hidePassword,
                   icon: Icon(
                     obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: AppColors.purpleDark,
+                    color: AppColors.primaryDark,
                   ),
                   onPressed: () => setState(() => _hidden = !_hidden),
                 )
@@ -195,9 +195,9 @@ class SomaliPhoneField extends StatelessWidget {
             height: 56,
             margin: const EdgeInsets.only(left: 1.5, right: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.primaryTint,
-              borderRadius: BorderRadius.horizontal(left: Radius.circular(14.5)),
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(14.5)),
               border: Border(right: BorderSide(color: AppColors.fieldBorder, width: 1.5)),
             ),
             child: Row(

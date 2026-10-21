@@ -64,7 +64,7 @@ Widget _app(Widget home) {
       ChangeNotifierProvider(create: (_) => WalletProvider(customerApi: api)),
       ChangeNotifierProvider(create: (_) => OrdersProvider(customerApi: api)),
     ],
-    child: MaterialApp(theme: AppTheme.light, home: home),
+    child: MaterialApp(theme: AppTheme.current, home: home),
   );
 }
 

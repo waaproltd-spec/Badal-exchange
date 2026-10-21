@@ -16,7 +16,7 @@ class RoundIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       shape: const CircleBorder(),
       elevation: 2,
       shadowColor: Colors.black26,
@@ -44,7 +44,7 @@ class FlowMethodCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.cardBorder, width: 1.2),
       ),

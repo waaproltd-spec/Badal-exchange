@@ -99,10 +99,11 @@ class _BaariMarkPainter extends CustomPainter {
 
 /// "BAARI" wordmark with a short orange accent bar underneath.
 class BaariWordmark extends StatelessWidget {
-  const BaariWordmark({super.key, this.fontSize = 26, this.color = AppColors.primaryDark});
+  const BaariWordmark({super.key, this.fontSize = 26, this.color});
 
   final double fontSize;
-  final Color color;
+  /// Defaults to [AppColors.primaryDark].
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +117,7 @@ class BaariWordmark extends StatelessWidget {
             fontSize: fontSize,
             fontWeight: FontWeight.w800,
             letterSpacing: fontSize * 0.12,
-            color: color,
+            color: color ?? AppColors.primaryDark,
             height: 1.0,
           ),
         ),

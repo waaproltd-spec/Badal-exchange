@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/strings.dart';
 import '../../state/auth_provider.dart';
 import '../../theme/colors.dart';
+import '../../theme/theme_mode.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/secondary_button.dart';
@@ -17,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         title: Text(AppStrings.logout),
         content: Text(AppStrings.logoutConfirm),
         actions: [
@@ -62,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
               child: Container(
                 width: 84,
                 height: 84,
-                decoration: const BoxDecoration(color: AppColors.primaryTint, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.primaryTint, shape: BoxShape.circle),
                 child: Center(
                   child: Text(
                     initial,
@@ -83,17 +84,50 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             AppCard(
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(child: Text(AppStrings.language, style: AppTextStyles.body)),
+                  Text(AppStrings.language, style: AppTextStyles.body),
+                  const SizedBox(height: 12),
                   SegmentedButton<String>(
                     showSelectedIcon: false,
                     segments: const [
-                      ButtonSegment(value: AppLanguage.english, label: Text(AppStrings.englishName)),
-                      ButtonSegment(value: AppLanguage.somali, label: Text(AppStrings.somaliName)),
+                      ButtonSegment(
+                          value: AppLanguage.english, label: FittedBox(child: Text(AppStrings.englishName))),
+                      ButtonSegment(value: AppLanguage.somali, label: FittedBox(child: Text(AppStrings.somaliName))),
                     ],
                     selected: {AppLanguage.current.value},
                     onSelectionChanged: (s) => AppLanguage.set(s.first),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(AppStrings.appearance, style: AppTextStyles.body),
+                  const SizedBox(height: 12),
+                  SegmentedButton<ThemeMode>(
+                    key: const Key('theme-mode'),
+                    showSelectedIcon: false,
+                    segments: [
+                      ButtonSegment(
+                          value: ThemeMode.light,
+                          icon: const Icon(Icons.light_mode_rounded, size: 18),
+                          label: FittedBox(child: Text(AppStrings.themeLight))),
+                      ButtonSegment(
+                          value: ThemeMode.dark,
+                          icon: const Icon(Icons.dark_mode_rounded, size: 18),
+                          label: FittedBox(child: Text(AppStrings.themeDark))),
+                      ButtonSegment(
+                          value: ThemeMode.system,
+                          icon: const Icon(Icons.phone_android_rounded, size: 18),
+                          label: FittedBox(child: Text(AppStrings.themeSystem))),
+                    ],
+                    selected: {AppThemeMode.current.value},
+                    onSelectionChanged: (s) => AppThemeMode.set(s.first),
                   ),
                 ],
               ),
