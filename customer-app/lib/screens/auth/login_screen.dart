@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
+import '../../utils/support_links.dart';
 import '../../l10n/strings.dart';
 import '../../state/auth_provider.dart';
 import '../../theme/colors.dart';
@@ -284,22 +285,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
     );
   }
 
-  /// A contact as a link: full URLs as they are, else a WhatsApp number,
-  /// Telegram username or Facebook page name.
-  static Uri? _link(String kind, String value) {
-    final uri = Uri.tryParse(value);
-    if (uri != null && uri.hasScheme) return uri;
-    switch (kind) {
-      case 'whatsapp':
-        final digits = value.replaceAll(RegExp(r'\D'), '');
-        return digits.isEmpty ? null : Uri.parse('https://wa.me/$digits');
-      case 'telegram':
-        return Uri.parse('https://t.me/${value.replaceFirst('@', '')}');
-      case 'facebook':
-        return Uri.parse('https://facebook.com/$value');
-    }
-    return null;
-  }
+  static Uri? _link(String kind, String value) => supportLink(kind, value);
 
   @override
   Widget build(BuildContext context) {

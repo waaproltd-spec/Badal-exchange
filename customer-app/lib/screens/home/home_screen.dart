@@ -12,6 +12,7 @@ import '../../state/wallet_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/support_button.dart';
 import '../../widgets/brand/baari_logo.dart';
 import '../../widgets/home_ads_strip.dart';
 import '../../widgets/method_icon.dart';
@@ -83,8 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            WithdrawDetailsScreen(
+        builder: (_) => WithdrawDetailsScreen(
           method: option.info.id,
           option: option,
           ownPhone: context.read<AuthProvider>().user?.phone,
@@ -106,75 +106,78 @@ class _HomeScreenState extends State<HomeScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.appBackground,
-        body: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: _refresh,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              _WalletHeader(
-                topInset: topInset,
-                walletState: walletState,
-                onDeposit: _goDeposit,
-                onWithdraw: _goWithdraw,
-                onNotifications: _openNotifications,
-              ),
-              if (_ads.isNotEmpty)
+        body: SupportButton(
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: _refresh,
+            child: ListView(
+              // Room at the end so the Support button never hides the last order.
+              padding: const EdgeInsets.only(bottom: supportButtonClearance),
+              children: [
+                _WalletHeader(
+                  topInset: topInset,
+                  walletState: walletState,
+                  onDeposit: _goDeposit,
+                  onWithdraw: _goWithdraw,
+                  onNotifications: _openNotifications,
+                ),
+                if (_ads.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: HomeAdsStrip(ads: _ads),
+                  ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: HomeAdsStrip(ads: _ads),
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(AppStrings.recentOrders,
-                                maxLines: 1, style: AppTextStyles.title.copyWith(fontSize: 18)),
-                          ),
-                        ),
-                        if (widget.onViewAllOrders != null)
-                          TextButton(
-                            key: const Key('view-all-orders'),
-                            onPressed: widget.onViewAllOrders,
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              minimumSize: const Size(0, 36),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(AppStrings.recentOrders,
+                                  maxLines: 1, style: AppTextStyles.title.copyWith(fontSize: 18)),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  AppStrings.viewAll,
-                                  style: AppTextStyles.body.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
+                          ),
+                          if (widget.onViewAllOrders != null)
+                            TextButton(
+                              key: const Key('view-all-orders'),
+                              onPressed: widget.onViewAllOrders,
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                minimumSize: const Size(0, 36),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    AppStrings.viewAll,
+                                    style: AppTextStyles.body.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                                ),
-                                Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
-                              ],
+                                  Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
+                                ],
+                              ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    _RecentOrders(
-                      state: ordersState,
-                      orders: ordersState.orders.take(_recentOrdersCount).toList(),
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      _RecentOrders(
+                        state: ordersState,
+                        orders: ordersState.orders.take(_recentOrdersCount).toList(),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

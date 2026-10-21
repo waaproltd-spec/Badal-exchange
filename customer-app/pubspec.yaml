@@ -20,6 +20,7 @@ dependencies:
   google_fonts: ^6.2.1
   url_launcher: ^6.3.1
   supabase_flutter: ^2.15.4
+  font_awesome_flutter: 10.7.0
 
 # supabase_flutter pulls in app_links; 6.4.1+ reads `flutter.compileSdkVersion`
 # in its Android build, which needs Flutter 3.27+. The APKs build with 3.24.
@@ -30,6 +31,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  url_launcher_platform_interface: ^2.3.2
+  plugin_platform_interface: ^2.1.8
 
 flutter:
   uses-material-design: true

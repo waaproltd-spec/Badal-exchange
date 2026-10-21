@@ -90,6 +90,12 @@ class AppStrings {
       );
   static String get noSupportContacts =>
       _t('Support contacts are not available right now. Please try again later.', 'Xiriirka taageerada hadda lama heli karo. Fadlan isku day mar dambe.');
+  static String get support => _t('Support', 'Caawimaad');
+  static String get supportTitle => _t('Contact BAARI support', 'La xiriir taageerada BAARI');
+  static String get supportNotSetUp => _t('Support chat is not set up yet. Please try again later.',
+      'Wada-hadalka taageerada weli lama diyaarin. Fadlan isku day mar dambe.');
+  static String couldNotOpen(String app, String link) =>
+      _t('Could not open $app. Contact us at $link', 'Lama furi karo $app. Nagala soo xiriir $link');
   static String get invalidLogin =>
       _t('Wrong phone number or password.', 'Lambarka taleefanka ama erayga sirta waa khalad.');
   static String get showPassword => _t('Show password', 'Muuji erayga sirta');

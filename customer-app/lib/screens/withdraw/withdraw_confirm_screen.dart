@@ -73,9 +73,9 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
       final player = await context.read<CustomerApi>().findPlayer(widget.quote.method, widget.accountId ?? '');
       if (mounted) setState(() => _player = player);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _playerError = e.code == 'PLAYER_LOOKUP_UNAVAILABLE' || e.message.isEmpty
-          ? AppStrings.playerCheckFailed
-          : e.message);
+      final message =
+          e.code == 'PLAYER_LOOKUP_UNAVAILABLE' || e.message.isEmpty ? AppStrings.playerCheckFailed : e.message;
+      if (mounted) setState(() => _playerError = message);
     } catch (_) {
       if (mounted) setState(() => _playerError = AppStrings.playerCheckFailed);
     } finally {
