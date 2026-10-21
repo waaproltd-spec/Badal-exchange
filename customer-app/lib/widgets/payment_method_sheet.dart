@@ -27,7 +27,9 @@ Future<PaymentMethodOption?> showPaymentMethodSheet(BuildContext context, Paymen
 
 /// Every payment method the backend currently offers (methods switched OFF
 /// in the Agent App don't appear), in the backend's order, as a 3-column
-/// grid. Three rows show at once; further methods scroll into view.
+/// grid. Every method fits on screen without scrolling: cards get shorter
+/// on small phones. Only if even the shortest cards can't fit (a very small
+/// screen or many methods) does the grid scroll.
 class PaymentMethodSheet extends StatefulWidget {
   const PaymentMethodSheet({super.key, required this.direction});
 
@@ -39,10 +41,13 @@ class PaymentMethodSheet extends StatefulWidget {
 
 class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
   static const _columns = 3;
-  static const _visibleRows = 3;
-  static const _spacing = 12.0;
+  static const _spacing = 10.0;
   static const _sidePadding = 20.0;
-  static const _cardAspect = 1.12; // width / height
+  static const _cardAspect = 1.12; // width / height, when there is room
+  static const _minCardHeight = 64.0;
+
+  /// Space the sheet keeps for its handle, title and bottom padding.
+  static const _headerHeight = 132.0;
 
   late Future<List<PaymentMethodOption>> _future;
 
@@ -60,11 +65,17 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final cardWidth = (media.size.width - 2 * _sidePadding - (_columns - 1) * _spacing) / _columns;
-    final cardHeight = cardWidth / _cardAspect;
-    // Three full rows plus a peek of the next one, so more methods visibly
-    // scroll into view; never taller than most of the screen.
-    final gridHeight = (_visibleRows * cardHeight + (_visibleRows - 1) * _spacing + 0.35 * cardHeight + _spacing)
-        .clamp(cardHeight, media.size.height * 0.6);
+    // The sheet may use the screen below the status bar, minus a strip of
+    // the dimmed dashboard and the bottom inset.
+    final maxGrid = media.size.height - media.padding.top - media.padding.bottom - _headerHeight - 72;
+
+    /// Card height and grid height so all [count] methods fit when possible.
+    (double, double) layout(int count) {
+      final rows = (count / _columns).ceil().clamp(1, 99);
+      final gaps = (rows - 1) * _spacing + _spacing;
+      final card = ((maxGrid - gaps) / rows).clamp(_minCardHeight, cardWidth / _cardAspect);
+      return (card, (rows * card + gaps).clamp(card, maxGrid));
+    }
 
     return Container(
       decoration: const BoxDecoration(
@@ -103,10 +114,17 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_isDeposit ? AppStrings.deposit : AppStrings.withdraw, style: AppTextStyles.headline),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(_isDeposit ? AppStrings.deposit : AppStrings.withdraw,
+                            maxLines: 1, style: AppTextStyles.headline),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         _isDeposit ? AppStrings.chooseDepositMethod : AppStrings.chooseWithdrawMethod,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.muted,
                       ),
                     ],
@@ -120,36 +138,48 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
               ],
             ),
           ),
-          SizedBox(
-            height: gridHeight,
+          // Flexible: on a screen shorter than estimated the grid takes what
+          // is left and scrolls instead of overflowing the sheet.
+          Flexible(
             child: FutureBuilder<List<PaymentMethodOption>>(
               future: _future,
               builder: (context, snapshot) {
+                final placeholder = layout(9).$2;
                 if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  return SizedBox(
+                    height: placeholder,
+                    child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                  );
                 }
                 if (snapshot.hasError) {
                   final error = snapshot.error;
-                  return _Message(
-                    text: error is ApiException ? error.message : AppStrings.methodsLoadFailed,
-                    onRetry: _retry,
+                  return SizedBox(
+                    height: placeholder,
+                    child: _Message(
+                      text: error is ApiException ? error.message : AppStrings.methodsLoadFailed,
+                      onRetry: _retry,
+                    ),
                   );
                 }
                 final methods = snapshot.data!;
-                if (methods.isEmpty) return _Message(text: AppStrings.noMethods);
-                return GridView.builder(
-                  key: const Key('payment-method-grid'),
-                  padding: const EdgeInsets.fromLTRB(_sidePadding, 0, _sidePadding, _spacing),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: _columns,
-                    mainAxisSpacing: _spacing,
-                    crossAxisSpacing: _spacing,
-                    childAspectRatio: _cardAspect,
-                  ),
-                  itemCount: methods.length,
-                  itemBuilder: (context, i) => _MethodCard(
-                    option: methods[i],
-                    onTap: () => Navigator.of(context).pop(methods[i]),
+                if (methods.isEmpty) return SizedBox(height: placeholder, child: _Message(text: AppStrings.noMethods));
+                final (cardHeight, gridHeight) = layout(methods.length);
+                return SizedBox(
+                  height: gridHeight,
+                  child: GridView.builder(
+                    key: const Key('payment-method-grid'),
+                    padding: const EdgeInsets.fromLTRB(_sidePadding, 0, _sidePadding, _spacing),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: _columns,
+                      mainAxisSpacing: _spacing,
+                      crossAxisSpacing: _spacing,
+                      mainAxisExtent: cardHeight,
+                    ),
+                    itemCount: methods.length,
+                    itemBuilder: (context, i) => _MethodCard(
+                      option: methods[i],
+                      onTap: () => Navigator.of(context).pop(methods[i]),
+                    ),
                   ),
                 );
               },
@@ -184,22 +214,29 @@ class _MethodCard extends StatelessWidget {
             borderRadius: radius,
             border: Border.all(color: info.color.withOpacity(0.18), width: 1.2),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          // Icon and name shrink together on short cards rather than overflow.
           child: LayoutBuilder(
-            builder: (context, box) => Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                MethodIcon(method: info.id, size: (box.maxHeight * 0.52).clamp(28.0, 56.0)),
-                SizedBox(height: box.maxHeight * 0.07),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    info.label,
-                    maxLines: 1,
-                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+            builder: (context, box) => FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MethodIcon(method: info.id, size: (box.maxHeight * 0.52).clamp(26.0, 56.0)),
+                  SizedBox(height: box.maxHeight * 0.06),
+                  SizedBox(
+                    width: box.maxWidth,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        info.label,
+                        maxLines: 1,
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

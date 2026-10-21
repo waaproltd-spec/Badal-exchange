@@ -161,39 +161,44 @@ void main() {
   });
 
   for (final direction in PaymentDirection.values) {
-    testWidgets('${direction.name} sheet: 3-column grid, 9 cards up front, the 10th by scrolling', (tester) async {
-      await _phone(tester);
-      await tester.pumpWidget(_app(FakeCustomerApi(), _SheetHost(direction)));
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
+    for (final size in const [Size(320, 568), Size(360, 640), Size(390, 844), Size(412, 892)]) {
+      testWidgets('${direction.name} sheet on ${size.width.toInt()}x${size.height.toInt()}: all ten methods on screen, no scrolling',
+          (tester) async {
+        await _phone(tester, size: size);
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 16);
+        await tester.pumpWidget(_app(FakeCustomerApi(), _SheetHost(direction)));
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
 
-      expect(find.text(direction == PaymentDirection.deposit ? 'Choose a deposit method' : 'Choose a withdrawal method'),
-          findsOneWidget);
-      expect(find.byTooltip('Close'), findsOneWidget);
+        expect(find.text(direction == PaymentDirection.deposit ? 'Choose a deposit method' : 'Choose a withdrawal method'),
+            findsOneWidget);
+        expect(find.byTooltip('Close'), findsOneWidget);
 
-      // Three columns: cards 1, 4 and 7 line up, as do 2, 5 and 8.
-      final x = [for (final m in _catalog.take(9)) tester.getTopLeft(find.byKey(Key('method-${m.$1}'))).dx];
-      expect({x[0], x[3], x[6]}.length, 1);
-      expect({x[1], x[4], x[7]}.length, 1);
-      expect(x[0] < x[1] && x[1] < x[2], isTrue);
+        // Three columns: cards 1, 4, 7 and 10 line up, as do 2, 5 and 8.
+        final x = [for (final m in _catalog) tester.getTopLeft(find.byKey(Key('method-${m.$1}'))).dx];
+        expect({x[0], x[3], x[6], x[9]}.length, 1);
+        expect({x[1], x[4], x[7]}.length, 1);
+        expect(x[0] < x[1] && x[1] < x[2], isTrue);
 
-      // The first nine are fully on screen inside the grid.
-      final grid = tester.getRect(find.byKey(const Key('payment-method-grid')));
-      for (final m in _catalog.take(9)) {
-        final card = tester.getRect(find.byKey(Key('method-${m.$1}')));
-        expect(grid.contains(card.topLeft) && grid.contains(card.bottomRight - const Offset(1, 1)), isTrue,
-            reason: '${m.$2} should be fully visible');
-      }
-      // The tenth is reached by scrolling, not hidden.
-      await tester.dragUntilVisible(
-          find.byKey(const Key('method-888starz')), find.byKey(const Key('payment-method-grid')), const Offset(0, -120));
-      await tester.pumpAndSettle();
-      expect(find.text('888STARZ'), findsOneWidget);
+        // Every card is fully inside the grid and on screen, and nothing scrolls.
+        final grid = tester.getRect(find.byKey(const Key('payment-method-grid')));
+        expect(grid.bottom <= size.height, isTrue);
+        for (final m in _catalog) {
+          final card = tester.getRect(find.byKey(Key('method-${m.$1}')));
+          expect(grid.contains(card.topLeft) && grid.contains(card.bottomRight - const Offset(1, 1)), isTrue,
+              reason: '${m.$2} should be fully visible');
+        }
+        final position = tester.state<ScrollableState>(
+                find.descendant(of: find.byKey(const Key('payment-method-grid')), matching: find.byType(Scrollable)))
+            .position;
+        expect(position.maxScrollExtent, 0, reason: 'nothing to scroll');
+        expect(tester.takeException(), isNull);
 
-      await tester.tap(find.byTooltip('Close'));
-      await tester.pumpAndSettle();
-      expect(find.text('picked:closed'), findsOneWidget);
-    });
+        await tester.tap(find.byTooltip('Close'));
+        await tester.pumpAndSettle();
+        expect(find.text('picked:closed'), findsOneWidget);
+      });
+    }
 
     testWidgets('${direction.name} sheet: every method can be picked', (tester) async {
       await _phone(tester);
