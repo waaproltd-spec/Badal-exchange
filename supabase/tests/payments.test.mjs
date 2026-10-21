@@ -430,6 +430,25 @@ test('unclear payout: the carrier\'s "you transferred" SMS on the payout phone c
   await rejects(rpc(agent, 'manage_payout_retry', { p_order_id: w.id, p_confirmed_not_paid: true }), 'INVALID_ORDER_STATE');
 });
 
+test('the "you transferred" SMS arriving while the phone still waits after the PIN completes it; the late report changes nothing', async () => {
+  const { customer, w, to, left } = await startedPayout(17, 'evc_plus');
+  const dial = await rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE });
+  await rpc(agent, 'agent_payout_report_step1', { p_attempt_id: dial.id, p_status: 'step1_success' });
+  // EVC's SMS before the app gives up waiting for the final screen.
+  const conf = await rpc(agent, 'agent_payout_confirmation', { p_receiver_phone: to, p_amount: w.netAmount,
+    p_raw_text: `[-EVCPLUS-] $${w.netAmount} ayaad uwareejisay YASIIN MAXAMED AADAN(${to}), Tar: 21/10/26 19:38:46`,
+    p_provider: 'Hormuud', p_received_at: new Date().toISOString() });
+  assert.equal(conf.result, 'completed');
+  assert.equal((await order(customer, w.id)).status, 'completed');
+  // Then the app's "no final confirmation" for the same attempt.
+  const late = await rpc(agent, 'agent_payout_report_step2', { p_attempt_id: dial.id, p_status: 'ambiguous', p_response: 'No final confirmation received after entering the PIN.' });
+  assert.equal(late.status, 'success');
+  const after = await order(customer, w.id);
+  assert.equal(after.status, 'completed');
+  assert.equal((await wallet(customer)).availableBalance, left);
+  assert.ok(!(await rpc(agent, 'manage_payouts', { p_review_only: true })).some((o) => o.id === w.id), 'not in review');
+});
+
 test('payout SMS alone never completes a withdrawal that was not dialed', async () => {
   const { customer, w, to } = await startedPayout(15);
   await rpc(agent, 'agent_withdrawal_start', { p_order_id: w.id }); // manual "processing", no dial
@@ -544,4 +563,21 @@ test('orders show the balance before and after; methods show withdrawal limits',
   const evc = methods.find((m) => m.method === 'evc_plus');
   assert.match(evc.minWithdraw, /^\d+\.\d\d$/);
   assert.match(evc.maxWithdraw, /^\d+\.\d\d$/);
+});
+
+test('re-check: a payout SMS ignored while the dial was open completes the stuck withdrawal', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { customer, w, to, left } = await startedPayout(18, 'evc_plus');
+  const dial = await rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE });
+  await rpc(agent, 'agent_payout_report_step1', { p_attempt_id: dial.id, p_status: 'step1_success' });
+  await rpc(agent, 'agent_payout_report_step2', { p_attempt_id: dial.id, p_status: 'ambiguous', p_response: 'No final confirmation' });
+  // What the old rule stored for the SMS that arrived during the wait.
+  await db.query(`INSERT INTO payout_confirmations (provider, receiver_phone, amount, raw_text, order_id, result)
+                  VALUES ('Hormuud', $1, $2, 'ayaad uwareejisay', $3, 'ignored_no_dial_attempt')`, [to, w.netAmount, w.id]);
+  const sql = readFileSync(new globalThis.URL('../migrations/20261021001600_payout_sms_during_dial.sql', import.meta.url), 'utf8');
+  await db.query(sql.slice(sql.indexOf('DO $$')));
+  assert.equal((await order(customer, w.id)).status, 'completed');
+  assert.equal((await wallet(customer)).availableBalance, left);
+  await db.query(sql.slice(sql.indexOf('DO $$'))); // running it again changes nothing
+  assert.equal((await order(customer, w.id)).status, 'completed');
 });
