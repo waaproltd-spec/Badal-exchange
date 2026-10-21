@@ -26,7 +26,9 @@ class _RootShellState extends State<RootShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _tabs),
+      // Compact bar; NavigationBar adds the device's bottom safe area itself.
       bottomNavigationBar: NavigationBar(
+        height: 62,
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [

@@ -51,7 +51,13 @@ void main() {
     final id = tester.getRect(find.byKey(const Key('wallet-id')));
     expect(promo.top, id.top);
     expect(promo.right < id.left, isTrue);
-    expect(tester.getRect(find.byKey(const Key('bonus'))).top > promo.bottom, isTrue, reason: 'bonus is below them');
+    // The bonus sits beside the balance, above the two code boxes.
+    final bonus = tester.getRect(find.byKey(const Key('bonus')));
+    final balance = tester.getRect(find.byKey(const Key('available-balance')));
+    expect(bonus.left > balance.right, isTrue, reason: 'bonus is to the right of the balance');
+    expect(bonus.bottom <= promo.top, isTrue, reason: 'bonus is above the code boxes');
+    expect(promo.height, id.height);
+    expect(promo.width, closeTo(id.width, 0.5));
   });
 
   testWidgets('copies the Wallet ID and the promo code', (tester) async {
