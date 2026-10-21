@@ -11,9 +11,13 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.loading = false,
+    this.trailingIcon,
   });
 
   final String label;
+
+  /// Optional icon after the label (e.g. an arrow).
+  final IconData? trailingIcon;
   final VoidCallback? onPressed;
   final bool loading;
 
@@ -55,7 +59,16 @@ class PrimaryButton extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : Text(label, style: AppTextStyles.button),
+              : trailingIcon == null
+                  ? Text(label, style: AppTextStyles.button)
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: Text(label, style: AppTextStyles.button, overflow: TextOverflow.ellipsis)),
+                        const SizedBox(width: 10),
+                        Icon(trailingIcon, size: 22),
+                      ],
+                    ),
         ),
       ),
     );

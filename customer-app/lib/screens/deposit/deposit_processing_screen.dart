@@ -11,7 +11,7 @@ import 'deposit_result_screen.dart';
 /// Centered spinner while the deposit is submitted; on success replaces
 /// itself with [DepositResultScreen]. On failure, shows the backend's
 /// error message with a retry (reusing the same idempotency key via
-/// [action]) or a way back to the confirm screen.
+/// [action]) or a way back to the deposit form.
 class DepositProcessingScreen extends StatefulWidget {
   const DepositProcessingScreen({super.key, required this.action});
 

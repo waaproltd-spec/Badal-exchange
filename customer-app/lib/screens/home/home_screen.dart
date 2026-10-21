@@ -6,6 +6,7 @@ import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/app_content.dart';
 import '../../models/order.dart';
+import '../../state/auth_provider.dart';
 import '../../state/orders_provider.dart';
 import '../../state/wallet_provider.dart';
 import '../../theme/colors.dart';
@@ -69,7 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final option = await showPaymentMethodSheet(context, PaymentDirection.deposit);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => DepositDetailsScreen(option: option)),
+      MaterialPageRoute(
+        builder: (_) => DepositDetailsScreen(option: option, ownPhone: context.read<AuthProvider>().user?.phone),
+      ),
     );
     if (mounted) _refresh();
   }

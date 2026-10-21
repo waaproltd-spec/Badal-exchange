@@ -121,6 +121,17 @@ class AppStrings {
   static String get status => _t('Status', 'Xaaladda');
 
   // Deposit
+  static String get completeDeposit => _t('Complete Deposit', 'Dhammaystir Dhigashada');
+  static String get change => _t('Change', 'Beddel');
+  static String get instantMobileTransfer => _t('Instant Mobile Transfer', 'Lacag-dirid degdeg ah');
+  static String get bettingAccount => _t('Betting account', 'Akoonka sharadka');
+  static String get amountShort => _t('Amount', 'Lacagta');
+  static String get sendMoneyToAccount => _t('Send the money to this account', 'Lacagta ku dir koontadaan');
+  static String get dial => _t('Dial', 'Garaac');
+  static String get copy => _t('Copy', 'Koobiyee');
+  static String copied(String text) => _t('$text copied', '$text waa la koobiyeeyay');
+  static String get enterNineDigits => _t('Enter the 9-digit number', 'Geli lambarka 9-ka god ah');
+  static String get useAnotherNumber => _t('Use another number', 'Isticmaal lambar kale');
   static String get depositDetails => _t('Deposit details', 'Faahfaahinta dhigashada');
   static String get confirmDeposit => _t('Confirm Deposit', 'Xaqiiji Dhigashada');
   static String get depositSubmitted => _t('Deposit Submitted', 'Dhigashada waa la gudbiyay');

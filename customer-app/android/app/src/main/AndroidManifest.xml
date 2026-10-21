@@ -26,11 +26,20 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    <!-- url_launcher: open home-ad links on Android 11+. -->
+    <!-- url_launcher: open home-ad links, and the dialer for deposit USSD
+         codes, on Android 11+. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
         </intent>
     </queries>
 </manifest>

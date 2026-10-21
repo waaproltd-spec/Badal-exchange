@@ -7,6 +7,7 @@ import 'package:badal_exchange_customer/models/quote.dart';
 import 'package:badal_exchange_customer/screens/deposit/deposit_details_screen.dart';
 import 'package:badal_exchange_customer/screens/withdraw/withdraw_details_screen.dart';
 import 'package:badal_exchange_customer/widgets/payment_method_sheet.dart';
+import 'package:badal_exchange_customer/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -27,7 +28,14 @@ const _catalog = [
 
 List<Map<String, dynamic>> get _catalogJson => [
       for (final (id, label, kind, color, initials) in _catalog)
-        {'method': id, 'label': label, 'kind': kind, 'color': color, 'initials': initials, 'depositNumbers': []},
+        {
+          'method': id, 'label': label, 'kind': kind, 'color': color, 'initials': initials,
+          'depositNumbers': [
+            if (id == 'evc_plus') {'number': '610338686', 'label': 'Baari'},
+            if (id == 'edahab') {'number': '620000001', 'label': null},
+            if (id == 'golis') {'number': '0907000001', 'label': null},
+          ],
+        },
     ];
 
 /// Records what the screens send instead of calling the backend.
@@ -233,6 +241,61 @@ void main() {
     expect(api.submitted.single, containsPair('kind', 'withdraw'));
   });
 
+  testWidgets('deposit: paying from another number (unlock the phone)', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final option = (await api.getPaymentMethods()).first;
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
+    await tester.tap(find.byKey(const Key('phone-lock')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('deposit-phone')), '610346060');
+    await tester.enterText(find.byKey(const Key('deposit-amount')), '2');
+    await tester.pump();
+    expect(find.text('*712*610338686*2#'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-deposit')));
+    await tester.pumpAndSettle();
+    expect(api.submitted.single, containsPair('phone', '252610346060'));
+  });
+
+  testWidgets('deposit: a short phone number is refused before anything is sent', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final option = (await api.getPaymentMethods()).first;
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option)));
+    await tester.enterText(find.byKey(const Key('deposit-phone')), '61034');
+    await tester.enterText(find.byKey(const Key('deposit-amount')), '2');
+    await tester.pump();
+    expect(tester.widget<PrimaryButton>(find.byKey(const Key('confirm-deposit'))).onPressed, isNull);
+    expect(api.submitted, isEmpty);
+  });
+
+  testWidgets('deposit: Change reopens the sheet and switches method', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final option = (await api.getPaymentMethods()).first;
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
+    await tester.tap(find.byKey(const Key('change-method')));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose a deposit method'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('method-golis')));
+    await tester.pumpAndSettle();
+    expect(find.text('GOLIS'), findsOneWidget);
+    expect(find.text('610338686'), findsOneWidget, reason: 'the own number carries over');
+  });
+
+  testWidgets('deposit in Somali on a small phone fits', (tester) async {
+    await _phone(tester, size: const Size(320, 568));
+    AppLanguage.current.value = AppLanguage.somali;
+    final api = FakeCustomerApi();
+    final option = (await api.getPaymentMethods()).first;
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
+    await tester.enterText(find.byKey(const Key('deposit-amount')), '2');
+    await tester.pump();
+    expect(find.text('Dhammaystir Dhigashada'), findsOneWidget);
+    expect(find.text('LACAGTA KU DIR KOONTADAAN'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   // Every method opens the right form and submits the right kind of order.
   for (final m in _catalog) {
     final (id, label, kind, _, _) = m;
@@ -269,30 +332,47 @@ void main() {
       expect(find.text('Withdrawal Submitted'), findsOneWidget);
     });
 
-    testWidgets('deposit $label: ${isPlatform ? 'account ID' : 'phone'} form -> confirm -> one deposit', (tester) async {
+    testWidgets('deposit $label: Complete Deposit form -> one deposit', (tester) async {
       await _phone(tester);
       final api = FakeCustomerApi();
       final option = (await api.getPaymentMethods()).firstWhere((o) => o.info.id == id);
-      await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option)));
-      expect(find.text((isPlatform ? '$label Account ID' : '$label Phone Number').toUpperCase()), findsOneWidget);
+      await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
+      expect(find.text('Complete Deposit'), findsOneWidget);
+      expect(find.text(label.toUpperCase()), findsOneWidget);
+      expect(find.text('Change'), findsOneWidget);
+      // Nothing to submit until the form is filled.
+      final confirm = find.byKey(const Key('confirm-deposit'));
+      expect(tester.widget<PrimaryButton>(confirm).onPressed, isNull);
 
       final usesCode = id == '888starz' || id == 'onexbet';
-      final fields = find.byType(TextFormField);
-      expect(fields, findsNWidgets(usesCode ? 3 : 2));
-      await tester.enterText(fields.at(0), identifier);
-      await tester.enterText(fields.at(1), '5');
-      if (usesCode) await tester.enterText(fields.at(2), 'ABC123');
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
+      if (isPlatform) {
+        expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
+        await tester.enterText(find.byType(TextFormField).first, identifier);
+      } else {
+        // The customer's own number, locked, after +252.
+        expect(find.text('+252'), findsOneWidget);
+        expect(find.text('610338686'), findsOneWidget);
+      }
+      await tester.enterText(find.byKey(const Key('deposit-amount')), '5');
+      if (usesCode) await tester.enterText(find.byType(TextFormField).last, 'ABC123');
+      await tester.pump();
 
-      expect(find.text('Confirm Deposit'), findsOneWidget);
-      await tester.tap(find.text('Confirm'));
+      // Where to send the money: a USSD code to dial for EVC Plus / eDahab.
+      final ussd = {'evc_plus': '*712*610338686*5#', 'edahab': '*110*620000001*5#'}[id];
+      if (ussd != null) expect(find.text(ussd), findsOneWidget);
+      if (id == 'golis') expect(find.text('0907000001'), findsOneWidget);
+      if (isPlatform) expect(find.byKey(const Key('pay-to-card')), findsNothing);
+
+      await tester.ensureVisible(confirm);
+      await tester.tap(confirm);
+      await tester.tap(confirm, warnIfMissed: false); // a double tap submits once
       await tester.pumpAndSettle();
 
       expect(api.submitted, hasLength(1));
       expect(api.submitted.single, containsPair('kind', 'deposit'));
       expect(api.submitted.single, containsPair('method', id));
-      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', identifier));
+      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', isPlatform ? identifier : '252610338686'));
+      expect(api.submitted.single, containsPair('amount', '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
       expect(find.text('Deposit Submitted'), findsOneWidget);
     });
