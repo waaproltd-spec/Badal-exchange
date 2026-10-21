@@ -98,6 +98,75 @@ seed did. All three use password `ChangeMe123!`:
 
 Change these passwords before going live (Account → Change Password).
 
+## Automatic deposits and withdrawals (Dalab Reseller style)
+
+Customer deposits and withdrawals work like Dalab Internet's Reseller: the
+same SMS parsers, the same matching rules, and the same USSD payout.
+
+**Deposit.**
+1. The customer sends money to Baari's EVC Plus / eDahab number and creates
+   the deposit, which starts out pending.
+2. The carrier's SMS reaches the agent phone. The Agent App parses it and
+   uploads it (`agent_ingest_payment_sms`).
+3. The database matches it, and only then credits the wallet
+   (`private.match_sms_log`). It matches on:
+   - the method (Hormuud/Somnet → EVC Plus, Somtel → eDahab);
+   - the sender's last 9 digits, so 0610346060, 610346060 and 252610346060
+     are the same number;
+   - the exact amount;
+   - the last 24 hours;
+   - the agent phone and SIM that Baari's wallet is set to (Dalab's
+     device/SIM check);
+   - the carrier's reference when the SMS has one (it is not required).
+4. Either order of events works. An SMS that arrives first is kept and
+   matched as soon as the deposit is created, and a pg_cron job re-checks
+   every minute.
+
+**Withdraw.**
+1. The amount is reserved when the customer asks.
+2. For EVC Plus and eDahab, the agent phone with Baari's wallet SIM pays it
+   out automatically: `agent_payout_start_dial`, then the carrier's USSD with
+   the PIN, then `agent_payout_report_step1`/`step2`.
+3. The wallet is debited only on a confirmed payout: either the carrier's
+   success screen, or its "you transferred" SMS
+   (`agent_payout_confirmation`).
+4. A failure before the PIN step means nothing was sent, so the withdrawal
+   fails and the money returns to the customer.
+5. Anything after the PIN may have sent money, so the funds stay reserved
+   and the withdrawal goes to *Automatic Payouts → Needs review*. Retrying,
+   or failing it with a refund, requires confirming the money was not sent.
+6. Other methods stay manual, as before.
+
+**Never twice.**
+- Each SMS is stored once (by carrier reference, or by sender, body and
+  minute), credits one deposit, and each deposit takes one SMS.
+- Rows are locked while matching. A payment two deposits could fit is
+  marked *ambiguous*, and nothing moves until a manager assigns it (same
+  amount and method required).
+- A payout locks the withdrawal. The PIN is handed out once per attempt,
+  and there is at most one open attempt and one successful one.
+- An attempted withdrawal is never redialed unless a manager asks.
+- An attempt that never reports is marked unclear after 10 minutes.
+- A payout SMS only confirms a payout dialed before it arrived.
+
+**Audit.** Every step is in `audit_logs` under the order. That covers:
+- the SMS verification: provider, amount, SMS time, reference and match
+  result;
+- each payout attempt: provider, amount, destination, wallet, and the
+  carrier's text with the PIN removed;
+- the final status or error.
+
+Every SMS is kept in `sms_logs` with its match result and reason.
+
+**Setting it up** (Agent App → Account):
+1. *Wallets & Auto Payout*: add Baari's EVC Plus and eDahab wallets, with
+   "SIM is in this phone" and the SIM slot, and set each PIN. The PIN is
+   stored in Vault and never shown again.
+2. On that phone, turn on *Baari payouts* in Android Accessibility, grant
+   the phone permission, and switch on *Automatic withdrawal payouts*.
+3. *Automatic Payouts* lists withdrawals that need a decision.
+   *Payment SMS Review* lists payments no deposit (or more than one) fits.
+
 ## Deploying
 
 1. **Database and functions.** Two ways:
@@ -220,6 +289,16 @@ The backend tests cover:
 - password change;
 - Vault credentials;
 - the Telegram bot's linking, confirmation and lockout;
-- Realtime isolation between customers.
+- Realtime isolation between customers;
+- automatic deposits: EVC Plus and eDahab SMS, SMS before or after the
+  order, phone formats, wrong amount and wrong phone, duplicate SMS,
+  ambiguous payments, the device/SIM check;
+- automatic withdrawals: successful payout, failure before and after the
+  PIN, retry without a double payout, unclear payout completed by the
+  carrier SMS, interrupted payout, refund only after "not paid".
+
+The Agent App's own tests also run the real carrier SMS through the app's
+parser and upload code, and withdrawals through the payout runner, against
+the same stack (`agent-app/test/payments_e2e_test.dart`).
 
 The *Supabase tests* workflow runs all of this on every pull request.

@@ -21,6 +21,11 @@ dependencies:
   url_launcher: ^6.3.1
   supabase_flutter: ^2.15.4
 
+# supabase_flutter pulls in app_links; 6.4.1+ reads `flutter.compileSdkVersion`
+# in its Android build, which needs Flutter 3.27+. The APKs build with 3.24.
+dependency_overrides:
+  app_links: 6.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -53,7 +53,7 @@ const HELP = [
 ].join('\n');
 
 const NOT_LINKED = [
-  'This is the Badal Exchange 888starz cashier bot. Your Telegram account is not linked yet.',
+  'This is the 888starz cashier bot. Your Telegram account is not linked yet.',
   '',
   'In the Agent App open <b>Account → Admin features → Telegram Bot</b>, get a link code, then send it here as',
   '<code>/link CODE</code>',

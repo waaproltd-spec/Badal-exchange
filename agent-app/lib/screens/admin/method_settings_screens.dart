@@ -8,10 +8,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../manage_screens.dart';
 
-/// Payment method management: ON/OFF switches, per-method rates, fees and
-/// withdrawal limits, for mobile money and betting platforms alike.
-
-String _rate(double? r) => r == null ? '—' : (r == r.roundToDouble() ? r.toStringAsFixed(1) : r.toString());
+/// Payment method management: ON/OFF switches and withdrawal limits, for
+/// mobile money and betting platforms alike. There are no rates or fees:
+/// every deposit and withdrawal is 1:1 (Dalab Reseller style).
 
 /// Manage Platforms (ON/OFF): one switch per payment method.
 class ManageMethodsScreen extends StatefulWidget {
@@ -77,8 +76,8 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
   }
 }
 
-/// What the Rates / Fees / Limits overview emphasizes.
-enum MethodFocus { all, rates, fees, limits }
+/// What the overview emphasizes.
+enum MethodFocus { all, limits }
 
 /// Lists methods with their current settings; tap one to edit it.
 /// [kind] narrows to 'mobile_money' or 'platform'.
@@ -100,17 +99,8 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
     return widget.kind == null ? all : all.where((m) => m.kind == widget.kind).toList();
   }
 
-  List<String> _summary(MethodSettings m) {
-    final rates = 'Rate: deposit ${_rate(m.depositRate)} • withdraw ${_rate(m.withdrawRate)}';
-    final fees = 'Fee: deposit ${m.depositFee?.label ?? '—'} • withdraw ${m.withdrawFee?.label ?? '—'}';
-    final limits = 'Withdraw limits: \$${m.minWithdraw ?? '—'} – \$${m.maxWithdraw ?? '—'}';
-    return switch (widget.focus) {
-      MethodFocus.rates => [rates],
-      MethodFocus.fees => [fees],
-      MethodFocus.limits => [limits],
-      MethodFocus.all => [rates, fees, limits],
-    };
-  }
+  List<String> _summary(MethodSettings m) =>
+      ['Withdraw limits: \$${m.minWithdraw ?? '—'} – \$${m.maxWithdraw ?? '—'}'];
 
   Future<void> _open(MethodSettings m) async {
     final changed = await Navigator.of(context).push<bool>(
@@ -166,9 +156,8 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
   }
 }
 
-/// Edit one method: ON/OFF, deposit & withdraw rate, deposit & withdraw fee,
-/// minimum and maximum withdrawal. Only changed values are saved; every
-/// change is a new snapshot, so past orders keep the values they used.
+/// Edit one method: ON/OFF, minimum and maximum withdrawal. Only changed
+/// values are saved.
 class MethodSettingsScreen extends StatefulWidget {
   final MethodSettings settings;
   const MethodSettingsScreen({super.key, required this.settings});
@@ -180,27 +169,13 @@ class MethodSettingsScreen extends StatefulWidget {
 class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late bool _enabled = widget.settings.enabled;
-  late final _depositRate = TextEditingController(text: _rateText(widget.settings.depositRate));
-  late final _withdrawRate = TextEditingController(text: _rateText(widget.settings.withdrawRate));
-  late String _depositFeeType = widget.settings.depositFee?.type ?? 'flat';
-  late String _withdrawFeeType = widget.settings.withdrawFee?.type ?? 'flat';
-  late final _depositFee = TextEditingController(text: _feeText(widget.settings.depositFee));
-  late final _withdrawFee = TextEditingController(text: _feeText(widget.settings.withdrawFee));
   late final _min = TextEditingController(text: widget.settings.minWithdraw ?? '');
   late final _max = TextEditingController(text: widget.settings.maxWithdraw ?? '');
   bool _saving = false;
 
-  static String _rateText(double? r) => r == null ? '' : r.toString();
-
-  /// Flat fees are shown in dollars (stored as cents).
-  static String _feeText(FeeSetting? f) {
-    if (f == null) return '';
-    return f.isFlat ? (f.value / 100).toStringAsFixed(2) : f.value.toString();
-  }
-
   @override
   void dispose() {
-    for (final c in [_depositRate, _withdrawRate, _depositFee, _withdrawFee, _min, _max]) {
+    for (final c in [_min, _max]) {
       c.dispose();
     }
     super.dispose();
@@ -232,14 +207,6 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
     setState(() => _saving = true);
     try {
       if (_enabled != s.enabled) await api.setMethodEnabled(m, _enabled);
-      if (d(_depositRate) != s.depositRate) await api.setRate(m, 'deposit', d(_depositRate));
-      if (d(_withdrawRate) != s.withdrawRate) await api.setRate(m, 'withdraw', d(_withdrawRate));
-      if (_depositFeeType != s.depositFee?.type || _depositFee.text.trim() != _feeText(s.depositFee)) {
-        await api.setFee(m, 'deposit', type: _depositFeeType, value: d(_depositFee));
-      }
-      if (_withdrawFeeType != s.withdrawFee?.type || _withdrawFee.text.trim() != _feeText(s.withdrawFee)) {
-        await api.setFee(m, 'withdraw', type: _withdrawFeeType, value: d(_withdrawFee));
-      }
       if (_min.text.trim() != (s.minWithdraw ?? '') || _max.text.trim() != (s.maxWithdraw ?? '')) {
         await api.setWithdrawalLimits(m, min: min, max: max);
       }
@@ -251,40 +218,6 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
       setState(() => _saving = false);
       showSnack(context, errorText(e, 'Could not save all settings. Pull to refresh and check.'));
     }
-  }
-
-  Widget _feeRow(String label, String type, ValueChanged<String> onType, TextEditingController value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 130,
-          child: DropdownButtonFormField<String>(
-            value: type,
-            decoration: InputDecoration(labelText: label),
-            items: const [
-              DropdownMenuItem(value: 'flat', child: Text('Flat \$')),
-              DropdownMenuItem(value: 'percent', child: Text('Percent %')),
-            ],
-            onChanged: (v) => onType(v ?? type),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: TextFormField(
-            controller: value,
-            decoration: InputDecoration(labelText: type == 'flat' ? 'Amount (\$)' : 'Percent (0–100)'),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            validator: (v) {
-              final err = _nonNegative(v);
-              if (err != null) return err;
-              if (type == 'percent' && double.parse(v!.trim()) > 100) return 'At most 100';
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -307,40 +240,6 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                 ),
                 value: _enabled,
                 onChanged: (v) => setState(() => _enabled = v),
-              ),
-            ),
-            const GroupLabel('Rates'),
-            ConsoleCard(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _depositRate,
-                      decoration: const InputDecoration(labelText: 'Deposit rate'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      validator: _positive,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _withdrawRate,
-                      decoration: const InputDecoration(labelText: 'Withdraw rate'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      validator: _positive,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const GroupLabel('Fees'),
-            ConsoleCard(
-              child: Column(
-                children: [
-                  _feeRow('Deposit fee', _depositFeeType, (v) => setState(() => _depositFeeType = v), _depositFee),
-                  const SizedBox(height: 14),
-                  _feeRow('Withdraw fee', _withdrawFeeType, (v) => setState(() => _withdrawFeeType = v), _withdrawFee),
-                ],
               ),
             ),
             const GroupLabel('Withdrawal limits'),
@@ -369,8 +268,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Rate and fee changes apply to new orders only. Orders already placed keep the values they were '
-              'quoted.',
+              'Deposits and withdrawals are 1:1 with no fee: the customer gets exactly the amount sent.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),

@@ -10,6 +10,7 @@ import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
+import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
@@ -124,18 +125,6 @@ class _AccountScreenState extends State<AccountScreen> {
               onTap: () => _open(const MethodSettingsListScreen(title: 'Bet Payment Methods', kind: 'platform')),
             ),
             _NavRow(
-              icon: Icons.currency_exchange_rounded,
-              color: AppColors.statusProcessing,
-              label: 'Rates',
-              onTap: () => _open(const MethodSettingsListScreen(title: 'Rates', focus: MethodFocus.rates)),
-            ),
-            _NavRow(
-              icon: Icons.percent_rounded,
-              color: AppColors.purple,
-              label: 'Fees',
-              onTap: () => _open(const MethodSettingsListScreen(title: 'Fees', focus: MethodFocus.fees)),
-            ),
-            _NavRow(
               icon: Icons.straighten_rounded,
               color: AppColors.statusPending,
               label: 'Minimum & Maximum Limits',
@@ -152,6 +141,25 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusProcessing,
               label: 'Payment Integrations',
               onTap: () => _open(const IntegrationsScreen()),
+            ),
+            const _SubLabel('Automatic deposits & withdrawals'),
+            _NavRow(
+              icon: Icons.send_to_mobile_rounded,
+              color: AppColors.purple,
+              label: 'Automatic Payouts',
+              onTap: () => _open(const PayoutsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sms_rounded,
+              color: AppColors.statusPending,
+              label: 'Payment SMS Review',
+              onTap: () => _open(const PaymentSmsReviewScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sim_card_rounded,
+              color: AppColors.statusProcessing,
+              label: 'Wallets & Auto Payout (PIN, SIM)',
+              onTap: () => _open(const PayoutSettingsScreen()),
             ),
             const _SubLabel('Customer App'),
             _NavRow(

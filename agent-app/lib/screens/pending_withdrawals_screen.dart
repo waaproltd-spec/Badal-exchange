@@ -5,6 +5,7 @@ import '../api/api_exception.dart';
 import '../models/order.dart';
 import '../state/live_updates.dart';
 import '../state/session.dart';
+import 'admin/payout_screens.dart' show confirmNotPaid;
 import '../theme/app_theme.dart';
 import '../widgets/order_card.dart';
 import '../widgets/state_views.dart';
@@ -97,7 +98,18 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
     final reason = await showFailWithdrawalSheet(context);
     if (reason == null || reason.isEmpty || !mounted) return;
     await _runAction(order.id, () async {
-      await context.read<Session>().api.failWithdrawal(order.id, reason: reason);
+      final api = context.read<Session>().api;
+      try {
+        await api.failWithdrawal(order.id, reason: reason);
+      } on ApiException catch (e) {
+        // An automatic payout may have sent this money: only refund after
+        // the agent checked the payout wallet.
+        if (e.code != 'CONFIRM_NOT_PAID' || !mounted) rethrow;
+        final sure = await confirmNotPaid(context,
+            amount: order.netAmount, phone: order.phoneNumber ?? '', action: 'It was not sent — refund');
+        if (!sure) return;
+        await api.failWithdrawal(order.id, reason: reason, confirmedNotPaid: true);
+      }
       _showSnack('Withdrawal marked failed. Balance released to customer.', color: AppColors.statusFailed);
     });
   }

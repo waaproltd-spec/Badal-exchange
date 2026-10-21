@@ -83,10 +83,6 @@ class _DepositConfirmScreenState extends State<DepositConfirmScreen> {
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
                   const SummaryDivider(),
-                  SummaryRow(label: AppStrings.rate, value: '${quote.rate}'),
-                  const SummaryDivider(),
-                  SummaryRow(label: AppStrings.fee, value: Formatters.money(quote.fee)),
-                  const SummaryDivider(),
                   SummaryRow(
                     label: AppStrings.netAmount,
                     value: Formatters.money(quote.netAmount),

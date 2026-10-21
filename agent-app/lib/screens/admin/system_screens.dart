@@ -406,7 +406,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       const Text(
-                        'The Telegram bot checks the cash register balance, finds players, and makes CashdeskBot '
+                        'The 888starz Telegram bot checks the cash register balance, finds 888starz players, and makes '
                         'deposits and payouts. It acts as you, and stops working for you if you lose '
                         'access to Admin features.',
                         style: TextStyle(color: AppColors.textSecondary),

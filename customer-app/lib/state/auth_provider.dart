@@ -41,7 +41,7 @@ class AuthProvider extends ChangeNotifier {
       final name = await apiClient.secureStorage.read(key: SecureStorageKeys.userName);
       if (apiClient.hasSession && phone != null) {
         _user = AuthUser(phone: phone, name: name ?? '');
-        apiClient.startLive();
+        unawaited(apiClient.startLive());
         unawaited(_verifyRestoredSession());
       } else if (apiClient.hasSession) {
         await apiClient.signOut();
@@ -86,7 +86,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _persistSession({required String phone, required String name}) async {
     await apiClient.secureStorage.write(key: SecureStorageKeys.userPhone, value: phone);
     await apiClient.secureStorage.write(key: SecureStorageKeys.userName, value: name);
-    apiClient.startLive();
+    unawaited(apiClient.startLive());
     _user = AuthUser(phone: phone, name: name);
     notifyListeners();
   }
