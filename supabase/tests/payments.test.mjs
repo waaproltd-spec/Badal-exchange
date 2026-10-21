@@ -384,7 +384,8 @@ test('payout fails after the PIN: never completed, funds held; retry needs confi
   await rpc(agent, 'agent_payout_report_step2', { p_attempt_id: first.id, p_status: 'failed', p_response: 'Haraagaagu kuma filna' });
   const held = await order(customer, w.id);
   assert.equal(held.status, 'processing');
-  assert.match(held.failureReason, /kuma filna/);
+  assert.equal(held.failureReason, null, 'the agents\' note is not shown to the customer while it is open');
+  assert.match((await rpc(agent, 'manage_payout', { p_order_id: w.id })).failureReason, /kuma filna/);
   assert.equal((await wallet(customer)).pendingBalance, reserved);
   // Not redialed on its own; can't be failed (released) or retried blind.
   assert.ok(!(await rpc(agent, 'agent_payout_queue')).some((o) => o.id === w.id));
