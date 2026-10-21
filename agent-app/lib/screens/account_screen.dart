@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api_exception.dart';
+import '../l10n/wallet_strings.dart';
 import '../models/console.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
@@ -15,6 +16,7 @@ import 'admin/integrations_screens.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
 import 'manage_screens.dart';
+import 'wallet/wallet_history_screen.dart';
 
 /// Account: profile, admin features (everything the old admin dashboard
 /// managed; only for agents granted 'manage_settings'), contact links and
@@ -179,6 +181,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.accentOrange,
               label: 'Promo Code',
               onTap: () => _open(const PromoCodeScreen()),
+            ),
+            _NavRow(
+              icon: Icons.account_balance_wallet_rounded,
+              color: AppColors.statusCompleted,
+              label: WalletStrings.walletAdjustments,
+              onTap: () => _open(const WalletHistoryScreen()),
             ),
             _NavRow(
               icon: Icons.settings_rounded,

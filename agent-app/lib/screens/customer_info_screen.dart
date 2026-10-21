@@ -7,7 +7,11 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import '../l10n/wallet_strings.dart';
+import '../models/wallet_adjustment.dart';
 import 'admin/system_screens.dart';
+import 'wallet/wallet_adjust_screen.dart';
+import 'wallet/wallet_history_screen.dart';
 
 /// One customer: profile, wallet, totals, recent orders and recent wallet
 /// transactions. The only change made here is a password reset, for
@@ -57,12 +61,31 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     }
   }
 
+  Future<void> _adjust(CustomerSummary c, bool add) async {
+    final done = await Navigator.of(context).push<WalletAdjustment>(MaterialPageRoute(
+      builder: (_) => WalletAdjustScreen(customerId: c.id, name: c.name, phone: c.phone, balance: c.walletBalance, add: add),
+    ));
+    if (done != null && mounted) _load();
+  }
+
+  void _openHistory(CustomerSummary c) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => WalletHistoryScreen(customerId: c.id, name: c.name, phone: c.phone, balance: c.walletBalance),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Info'),
         actions: [
+          IconButton(
+            key: const Key('wallet-history'),
+            tooltip: WalletStrings.walletHistory,
+            icon: const Icon(Icons.manage_history_rounded),
+            onPressed: _detail == null ? null : () => _openHistory(_detail!.summary),
+          ),
           IconButton(
             key: const Key('reset-customer-password'),
             tooltip: 'Reset password',
@@ -130,6 +153,30 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _WalletButton(
+                key: const Key('add-money'),
+                color: AppColors.statusCompleted,
+                icon: Icons.add_rounded,
+                title: WalletStrings.addMoney,
+                onTap: () => _adjust(c, true),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _WalletButton(
+                key: const Key('deduct-money'),
+                color: AppColors.statusFailed,
+                icon: Icons.remove_rounded,
+                title: WalletStrings.deductMoney,
+                onTap: () => _adjust(c, false),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         TwoColumnGrid(children: [
@@ -283,6 +330,48 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
           child: const Text('Reset'),
         ),
       ],
+    );
+  }
+}
+
+/// Add Money / Deduct Money on Customer Info.
+class _WalletButton extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const _WalletButton({super.key, required this.color, required this.icon, required this.title, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

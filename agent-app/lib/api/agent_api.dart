@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../models/wallet_adjustment.dart';
 import '../models/agent_profile.dart';
 import '../models/payout.dart';
 import '../models/match_result.dart';
@@ -528,6 +529,30 @@ class AgentApi {
 
   /// The promo code customers see on their wallet card ('' / null = none).
   Future<String?> getPromoCode() async => (await _map('manage_promo_code'))['promoCode'] as String?;
+
+  /// Add or deduct money on a customer's wallet. [idempotencyKey] makes a
+  /// retried request apply once.
+  Future<WalletAdjustment> adjustWallet({
+    required String customerId,
+    required bool add,
+    required String amount,
+    required String reason,
+    required String idempotencyKey,
+  }) async =>
+      WalletAdjustment.fromJson(await _map('agent_wallet_adjust', {
+        'p_customer_id': customerId,
+        'p_direction': add ? 'add' : 'deduct',
+        'p_amount': amount,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      }));
+
+  /// Wallet adjustments, newest first: an agent's own, or everyone's for
+  /// managers.
+  Future<List<WalletAdjustment>> getWalletAdjustments({String? customerId, String? direction}) async =>
+      (await _list('agent_wallet_adjustments', {'p_customer_id': customerId, 'p_direction': direction}))
+          .map((e) => WalletAdjustment.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   Future<String?> setPromoCode(String code) async =>
       (await _map('manage_set_promo_code', {'p_code': code}))['promoCode'] as String?;

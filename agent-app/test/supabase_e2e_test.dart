@@ -82,6 +82,31 @@ void main() {
       throwsA(isA<AuthException>()),
     );
     await relogin.auth.signInWithPassword(email: authEmailFor(phone), password: 'Reset-Pass-22');
+
+    // Wallet Add / Deduct Money: server-side, once per request, private.
+    final before = (await customer.rpc('customer_wallet'))['availableBalance'] as String;
+    final key = uniq();
+    final added = await api.adjustWallet(
+        customerId: customers.single.id, add: true, amount: '5.00', reason: 'E2E PRIVATE reason', idempotencyKey: key);
+    expect(added.balanceBefore, before);
+    expect(added.reference, startsWith('WAL'));
+    final replay = await api.adjustWallet(
+        customerId: customers.single.id, add: true, amount: '5.00', reason: 'E2E PRIVATE reason', idempotencyKey: key);
+    expect(replay.id, added.id);
+    expect(replay.replayed, isTrue);
+    final deducted = await api.adjustWallet(
+        customerId: customers.single.id, add: false, amount: '2.00', reason: 'E2E deduct', idempotencyKey: uniq());
+    expect(deducted.balanceBefore, added.balanceAfter);
+    await expectLater(
+      api.adjustWallet(customerId: customers.single.id, add: false, amount: '100000.00', reason: 'Too much', idempotencyKey: uniq()),
+      throwsA(isA<ApiException>().having((e) => e.code, 'code', 'INSUFFICIENT_BALANCE')),
+    );
+    final adjustments = await api.getWalletAdjustments(customerId: customers.single.id);
+    expect(adjustments.map((a) => a.id), [deducted.id, added.id]);
+    final customerWallet = await relogin.rpc('customer_wallet');
+    expect(customerWallet['availableBalance'], deducted.balanceAfter);
+    final ledger = await relogin.from('ledger_entries').select();
+    expect(ledger.toString(), isNot(contains('PRIVATE')));
     final report = await api.getReport(period: 'monthly');
     expect(report.series.length, 30);
     final history = await api.getHistory(query: phone);
