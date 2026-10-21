@@ -1,9 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import '../../api/customer_api.dart';
-import '../../models/payment_method.dart';
-import '../../widgets/deposit_numbers_card.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
@@ -17,8 +12,8 @@ import '../../widgets/summary_row.dart';
 
 /// Circular checkmark + restated amount for a normal outcome. For betting
 /// platform deposits, prominently surfaces the `depositCode` the customer
-/// must reference when paying, and for every method shows where to send the
-/// payment (deposit numbers set up in the Agent App).
+/// must reference when paying. Where to send the payment is shown on the
+/// deposit page itself.
 class DepositResultScreen extends StatelessWidget {
   const DepositResultScreen({super.key, required this.order});
 
@@ -85,7 +80,6 @@ class DepositResultScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
             ],
-            if (_isSuccessLike) _DepositNumbers(method: order.method),
             AppCard(
               child: Column(
                 children: [
@@ -116,32 +110,6 @@ class DepositResultScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Deposit numbers for [method], fetched fresh; nothing shown if none are set.
-class _DepositNumbers extends StatelessWidget {
-  const _DepositNumbers({required this.method});
-
-  final String method;
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<PaymentMethodOption>>(
-      future: context.read<CustomerApi>().getPaymentMethods(),
-      builder: (context, snapshot) {
-        final numbers = snapshot.data
-                ?.where((m) => m.info.id == method)
-                .expand((m) => m.depositNumbers)
-                .toList() ??
-            const [];
-        if (numbers.isEmpty) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: DepositNumbersCard(numbers: numbers),
-        );
-      },
     );
   }
 }
