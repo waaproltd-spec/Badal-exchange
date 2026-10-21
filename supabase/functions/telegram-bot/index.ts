@@ -28,6 +28,7 @@ import {
   findPlayer,
   getCredentials,
   payoutToPlayer,
+  type Player,
 } from '../_shared/cashdeskbot.ts';
 
 const LNG = Deno.env.get('TELEGRAM_BOT_LNG') || 'en';
@@ -119,7 +120,9 @@ interface From {
   username?: string;
 }
 
-function playerLine(p: { userId: number | null; name: string | null; currencyId: number | null }, id: string) {
+const notFound = (id: string) => `❌ No 888starz player with ID ${escape(id)}.`;
+
+function playerLine(p: Player, id: string) {
   const name = p.name ? `<b>${escape(p.name)}</b>` : '<i>no name</i>';
   return `Player ${escape(id)}: ${name}${p.currencyId != null ? ` (currency ${escape(p.currencyId)})` : ''}`;
 }
@@ -177,7 +180,8 @@ async function onCommand(chatId: number, from: From, text: string) {
     case '/user': {
       const [id] = args;
       if (!id || !PLAYER_ID.test(id)) return send(chatId, 'Usage: <code>/player ID</code>');
-      return send(chatId, playerLine(await findPlayer(getCredentials(), id), id));
+      const player = await findPlayer(getCredentials(), id);
+      return send(chatId, player.found ? playerLine(player, id) : notFound(id));
     }
 
     case '/deposit': {
@@ -186,6 +190,7 @@ async function onCommand(chatId: number, from: From, text: string) {
         return send(chatId, 'Usage: <code>/deposit ID AMOUNT</code>, for example <code>/deposit 76 100</code>');
       }
       const player = await findPlayer(getCredentials(), id);
+      if (!player.found) return send(chatId, notFound(id));
       const summa = Number(amount);
       const pendingId = await rpc('telegram_prepare', {
         p_telegram_user_id: from.id,
@@ -201,6 +206,7 @@ async function onCommand(chatId: number, from: From, text: string) {
         return send(chatId, 'Usage: <code>/payout ID CODE</code>');
       }
       const player = await findPlayer(getCredentials(), id);
+      if (!player.found) return send(chatId, notFound(id));
       const pendingId = await rpc('telegram_prepare', {
         p_telegram_user_id: from.id,
         p_action: 'payout',

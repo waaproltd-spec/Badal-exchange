@@ -61,12 +61,18 @@ export const depositSign = (c: Creds, userId: string, lng: string, summa: number
   sign(`hash=${c.hash}&lng=${lng}&userid=${userId}`, `summa=${summa}&cashierpass=${c.cashierpass}&cashdeskid=${c.cashdeskid}`);
 export const payoutSign = (c: Creds, userId: string, lng: string, code: string) =>
   sign(`hash=${c.hash}&lng=${lng}&userid=${userId}`, `code=${code}&cashierpass=${c.cashierpass}&cashdeskid=${c.cashdeskid}`);
+// The PDF says step 1 is hash&cashdeskid&dt; the live API accepts hash&cashierpass&dt.
 export const balanceSign = (c: Creds, dt: string) =>
-  sign(`hash=${c.hash}&cashdeskid=${c.cashdeskid}&dt=${dt}`, `dt=${dt}&cashierpass=${c.cashierpass}&cashdeskid=${c.cashdeskid}`);
+  sign(`hash=${c.hash}&cashierpass=${c.cashierpass}&dt=${dt}`, `dt=${dt}&cashierpass=${c.cashierpass}&cashdeskid=${c.cashdeskid}`);
 export const userSearchSign = (c: Creds, userId: string) =>
   sign(`hash=${c.hash}&userid=${userId}&cashdeskid=${c.cashdeskid}`, `userid=${userId}&cashierpass=${c.cashierpass}&hash=${c.hash}`);
 export const confirmForUser = (c: Creds, userId: string) => md5Hex(`${userId}:${c.hash}`);
 export const confirmForCashdesk = (c: Creds) => md5Hex(`${c.cashdeskid}:${c.hash}`);
+
+/** A response field, whether CashdeskBot sends it as `userId` or `UserId`. */
+function field(raw: any, name: string) {
+  return raw?.[name] ?? raw?.[name[0].toUpperCase() + name.slice(1)] ?? null;
+}
 
 async function callCashdeskBot(c: Creds, path: string, sign: string, method: 'GET' | 'POST', body?: unknown) {
   const res = await fetch(`${c.baseUrl}${path}`, {
@@ -89,21 +95,29 @@ async function callCashdeskBot(c: Creds, path: string, sign: string, method: 'GE
   return parsed;
 }
 
-/** POST Deposit/{userId}/Add: tops up a player account. Returns CashdeskBot's response as-is. */
-export async function depositToPlayer(c: Creds, userId: string, lng: string, summa: number) {
-  return callCashdeskBot(c, `/Deposit/${encodeURIComponent(userId)}/Add`, await depositSign(c, userId, lng, summa), 'POST', {
-    cashdeskid: Number(c.cashdeskid),
-    lng,
-    summa,
-    confirm: confirmForUser(c, userId),
-  });
-}
-
 export interface PayoutResult {
   success: boolean;
   summa: number | null;
   messageId: number | null;
   message: string | null;
+}
+
+// success:false (e.g. insufficient balance) is a real outcome, returned as-is.
+const operationResult = (raw: any): PayoutResult => ({
+  success: Boolean(field(raw, 'success')),
+  summa: field(raw, 'summa'),
+  messageId: field(raw, 'messageId'),
+  message: field(raw, 'message'),
+});
+
+/** POST Deposit/{userId}/Add: tops up a player account. */
+export async function depositToPlayer(c: Creds, userId: string, lng: string, summa: number): Promise<PayoutResult> {
+  return operationResult(await callCashdeskBot(c, `/Deposit/${encodeURIComponent(userId)}/Add`, await depositSign(c, userId, lng, summa), 'POST', {
+    cashdeskid: Number(c.cashdeskid),
+    lng,
+    summa,
+    confirm: confirmForUser(c, userId),
+  }));
 }
 
 /** POST Deposit/{userId}/Payout: pays out a player's withdrawal code. */
@@ -114,13 +128,7 @@ export async function payoutToPlayer(c: Creds, userId: string, lng: string, code
     code,
     confirm: confirmForUser(c, userId),
   });
-  // success:false (e.g. insufficient balance) is a real outcome, returned as-is.
-  return {
-    success: Boolean(raw?.success),
-    summa: raw?.summa ?? null,
-    messageId: raw?.messageId ?? null,
-    message: raw?.message ?? null,
-  };
+  return operationResult(raw);
 }
 
 /** GET Cashdesk/{cashdeskId}/Balance: the cash register's balance and limit. */
@@ -128,10 +136,11 @@ export async function cashdeskBalance(c: Creds, dt: Date): Promise<{ balance: nu
   const dtStr = formatCashdeskBotDate(dt);
   const qs = new URLSearchParams({ confirm: confirmForCashdesk(c), dt: dtStr }).toString();
   const raw = await callCashdeskBot(c, `/Cashdesk/${encodeURIComponent(c.cashdeskid)}/Balance?${qs}`, await balanceSign(c, dtStr), 'GET');
-  return { balance: raw?.Balance ?? null, limit: raw?.Limit ?? null };
+  return { balance: field(raw, 'balance'), limit: field(raw, 'limit') };
 }
 
 export interface Player {
+  found: boolean;
   currencyId: number | null;
   userId: number | null;
   name: string | null;
@@ -141,5 +150,7 @@ export interface Player {
 export async function findPlayer(c: Creds, userId: string): Promise<Player> {
   const qs = new URLSearchParams({ confirm: confirmForUser(c, userId), cashdeskid: c.cashdeskid }).toString();
   const raw = await callCashdeskBot(c, `/Users/${encodeURIComponent(userId)}?${qs}`, await userSearchSign(c, userId), 'GET');
-  return { currencyId: raw?.currencyId ?? null, userId: raw?.userId ?? null, name: raw?.name ?? null };
+  // An unknown player comes back as {"UserId":0,"CurrencyId":0}.
+  const id = field(raw, 'userId');
+  return { found: Boolean(id), currencyId: field(raw, 'currencyId'), userId: id, name: field(raw, 'name') };
 }
