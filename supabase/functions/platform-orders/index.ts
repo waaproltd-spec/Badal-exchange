@@ -9,12 +9,19 @@
 // The database wakes this function (pg_net, right after an order is created,
 // and pg_cron every minute while orders wait) with the worker secret it keeps
 // in Vault. Each run takes orders one at a time, each exactly once, and
-// reports one of: done, refused, not_sent, unclear.
+// reports one of: done, refused, not_sent, unclear, low_funds.
 //
-// Uses each brand's CashdeskBot secrets (../_shared/cashdeskbot.ts) and,
-// optionally, CASHDESKBOT_LNG (default en).
+// low_funds: BAARI's cash register can't cover a withdrawal right now. The
+// order waits (the database hands it back every minute, and fails and
+// refunds it after an hour); managers linked to the brand's Telegram bot
+// are told to top the register up.
+//
+// Uses each brand's CashdeskBot secrets (../_shared/cashdeskbot.ts), the
+// Telegram bot tokens (TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_TOKEN_1XBET) for
+// the alerts and, optionally, CASHDESKBOT_LNG (default en).
 import {
   ApiError,
+  type Brand,
   brandForMethod,
   depositToPlayer,
   findPlayer,
@@ -51,7 +58,7 @@ interface Job {
 }
 
 interface Outcome {
-  outcome: 'done' | 'refused' | 'not_sent' | 'unclear';
+  outcome: 'done' | 'refused' | 'not_sent' | 'unclear' | 'low_funds';
   reference?: string;
   message?: string;
   summa?: number | null;
@@ -60,6 +67,13 @@ interface Outcome {
 // CashdeskBot answered 401/403/400 or was never reached: nothing happened
 // there. Anything else (5xx, timeouts, no answer) may have gone through.
 const reachedNothing = (err: unknown) => err instanceof ApiError && err.status !== 502;
+
+// What CashdeskBot says when the register can't cover a deposit, e.g.
+// "Deposit limit exceeded. A maximum of 10.29 can be deposited".
+const registerShort = (message: string | null) =>
+  message != null && /limit exceeded|maximum of|insufficient|not enough|low balance/i.test(message);
+
+const usd = (n: number) => `$${n.toFixed(2)}`;
 
 async function run(job: Job): Promise<Outcome> {
   const brand = brandForMethod(job.method);
@@ -84,10 +98,11 @@ async function run(job: Job): Promise<Outcome> {
 
   try {
     if (job.direction === 'withdraw') {
-      const r = await depositToPlayer(c, job.accountId, LNG, Number(job.amount));
-      return r.success
-        ? { outcome: 'done', reference: `${brand.label} deposit ${r.summa ?? job.amount}` }
-        : { outcome: 'refused', message: r.message ?? `${brand.label} refused the deposit` };
+      const amount = Number(job.amount);
+      const r = await depositToPlayer(c, job.accountId, LNG, amount);
+      if (r.success) return { outcome: 'done', reference: `${brand.label} deposit ${r.summa ?? job.amount}` };
+      if (registerShort(r.message)) return { outcome: 'low_funds', message: `${r.message}; order ${job.orderCode} needs ${usd(amount)}` };
+      return { outcome: 'refused', message: r.message ?? `${brand.label} refused the deposit` };
     }
     const r = await payoutToPlayer(c, job.accountId, LNG, job.code!);
     return r.success
@@ -96,6 +111,26 @@ async function run(job: Job): Promise<Outcome> {
   } catch (err) {
     return { outcome: reachedNothing(err) ? 'not_sent' : 'unclear', message: (err as Error).message };
   }
+}
+
+const TELEGRAM_TOKENS: Record<string, string> = { '888starz': 'TELEGRAM_BOT_TOKEN', '1xbet': 'TELEGRAM_BOT_TOKEN_1XBET' };
+
+/** Tells the managers, through the brand's bot, to top up its register. */
+async function alertManagers(brand: Brand, chatIds: number[], detail: string) {
+  const token = Deno.env.get(TELEGRAM_TOKENS[brand.key] ?? '');
+  if (!token || chatIds.length === 0) return;
+  const text = `⚠️ <b>${brand.label} cash register is low</b>\n` +
+    `A customer withdrawal is waiting: ${detail.replace(/[<>&]/g, '')}.\n` +
+    `Top up the cash register (check with /balance). The withdrawal is sent automatically once it has enough; ` +
+    `after 60 minutes it is failed and refunded.`;
+  const api = Deno.env.get('TELEGRAM_API_URL') || 'https://api.telegram.org';
+  await Promise.all(chatIds.map((chat_id) =>
+    fetch(`${api}/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id, text, parse_mode: 'HTML' }),
+    }).then((r) => r.body?.cancel()).catch((err) => console.error('telegram alert', err))
+  ));
 }
 
 Deno.serve(async (req) => {
@@ -119,6 +154,9 @@ Deno.serve(async (req) => {
         p_summa: result.summa ?? null,
       });
       results.push({ order: job.orderCode, ...result, ...finished });
+      if (finished?.alertTelegramUserIds) {
+        await alertManagers(brandForMethod(job.method)!, finished.alertTelegramUserIds, result.message ?? '');
+      }
     } catch (err) {
       // The order stays claimed; after 10 minutes it goes to an agent.
       console.error(`platform_finish ${job.orderCode}`, result, err);

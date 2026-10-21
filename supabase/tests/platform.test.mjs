@@ -144,6 +144,59 @@ test('unclear withdraw is held for review, never failed or paid again on its own
   assert.deepEqual(await balances(c), ['10.00', '0.00']);
 });
 
+test('cash register short: the withdrawal waits, retries each minute, managers are told once', { skip }, async () => {
+  // A manager linked to the Telegram bots.
+  const tg = 900000000 + seed;
+  await db.query(`DELETE FROM app_settings WHERE key = 'cashdesk_low_alert:888starz'`);
+  await db.query(`INSERT INTO telegram_operators (telegram_user_id, user_id)
+    SELECT $1, id FROM users WHERE phone = '252610000002' ON CONFLICT DO NOTHING`, [tg]);
+  const c = await newCustomer(3000);
+  const o = await withdraw(c, 25);
+  await rpc(worker, 'platform_claim_next');
+  const r = await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'low_funds',
+    p_message: 'it has $10.29, order needs $25.00' });
+  assert.equal(r.status, 'processing');
+  assert.ok(r.alertTelegramUserIds.includes(tg), 'linked managers are alerted');
+  assert.deepEqual(await balances(c), ['5.00', '25.00'], 'still reserved, not refunded');
+  const seen = await rpc(c, 'customer_order', { p_id: o.id });
+  assert.equal(seen.status, 'processing');
+  assert.equal(seen.failureReason, null, 'the register is not the customer\'s business');
+  const note = (await db.query('SELECT failure_reason FROM orders WHERE id = $1', [o.id])).rows[0].failure_reason;
+  assert.match(note, /Waiting for the 888STARZ cash register to be topped up \(it has \$10\.29/);
+  assert.equal(await rpc(worker, 'platform_claim_next'), null, 'not again within the same minute');
+
+  // A minute later: still short, no second alert.
+  await db.query(`UPDATE orders SET updated_at = now() - interval '2 minutes' WHERE id = $1`, [o.id]);
+  const again = await rpc(worker, 'platform_claim_next');
+  assert.equal(again.orderId, o.id);
+  assert.equal(again.amount, '25.00');
+  const r2 = await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'low_funds', p_message: 'still short' });
+  assert.equal(r2.alertTelegramUserIds, undefined, 'at most one alert per 15 minutes');
+
+  // Topped up: the next try pays it.
+  await db.query(`UPDATE orders SET updated_at = now() - interval '2 minutes' WHERE id = $1`, [o.id]);
+  await rpc(worker, 'platform_claim_next');
+  const done = await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'done', p_reference: '888starz deposit 25' });
+  assert.equal(done.status, 'completed');
+  assert.deepEqual(await balances(c), ['5.00', '0.00']);
+  await db.query('DELETE FROM telegram_operators WHERE telegram_user_id = $1', [tg]);
+});
+
+test('cash register short for an hour: the withdrawal fails and the money goes back', { skip }, async () => {
+  const c = await newCustomer(1000);
+  const o = await withdraw(c, 6);
+  await rpc(worker, 'platform_claim_next');
+  await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'low_funds', p_message: 'it has $1.00' });
+  await db.query(`UPDATE orders SET low_funds_since = now() - interval '61 minutes',
+    updated_at = now() - interval '2 minutes' WHERE id = $1`, [o.id]);
+  await rpc(worker, 'platform_claim_next');
+  const r = await rpc(worker, 'platform_finish', { p_order_id: o.id, p_outcome: 'low_funds', p_message: 'it has $1.00' });
+  assert.equal(r.status, 'failed');
+  const seen = await rpc(c, 'customer_order', { p_id: o.id });
+  assert.equal(seen.failureReason, '888STARZ could not receive payouts in time. Your balance was not charged; please try again later.');
+  assert.deepEqual(await balances(c), ['10.00', '0.00']);
+});
+
 test('a worker that never reports puts the order in front of an agent after 10 minutes', { skip }, async () => {
   const c = await newCustomer(1000);
   const o = await withdraw(c, 1);
