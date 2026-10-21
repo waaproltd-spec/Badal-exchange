@@ -54,9 +54,6 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   bool _submitting = false;
   String? _error;
 
-  /// Cash desk: the account ID is asked for only when the customer has never
-  /// used this platform here; otherwise the backend reuses the saved one.
-  bool _needsAccount = false;
 
   PaymentMethodInfo get _info => widget.option.info;
 
@@ -66,15 +63,17 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     for (final c in [_accountController, _amountController, _codeController]) {
       c.addListener(() => setState(() {}));
     }
-    if (_cashDesk) _checkSavedAccount();
+    if (_cashDesk) _fillSavedAccount();
   }
 
-  Future<void> _checkSavedAccount() async {
+  /// Cash desk: the account ID starts as the one the customer used last
+  /// time with this platform; they can change it.
+  Future<void> _fillSavedAccount() async {
     try {
       final saved = await context.read<CustomerApi>().getPlatformAccount(_info.id);
-      if (mounted && saved == null) setState(() => _needsAccount = true);
+      if (mounted && saved != null && _accountController.text.isEmpty) _accountController.text = saved;
     } catch (_) {
-      // The backend still checks; a first-timer gets ACCOUNT_ID_REQUIRED.
+      // Left empty: the customer types it.
     }
   }
 
@@ -98,11 +97,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
 
   bool get _ready =>
       (_cashDesk || _amount != null) &&
-      (_cashDesk
-          ? !_needsAccount || _accountController.text.trim().isNotEmpty
-          : _info.isPlatform
-              ? _accountController.text.trim().isNotEmpty
-              : _ownLocal != null) &&
+      (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _ownLocal != null) &&
       (!_info.usesWithdrawalCode || _codeController.text.trim().isNotEmpty);
 
   String? get _ownLocal => _localNumber(widget.ownPhone);
@@ -148,7 +143,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       if (!mounted) return;
       final key = const Uuid().v4();
       final phone = _info.isPlatform ? null : '252$_ownLocal';
-      final account = _info.isPlatform && (!_cashDesk || _needsAccount) ? _accountController.text.trim() : null;
+      final account = _info.isPlatform ? _accountController.text.trim() : null;
       final code = _info.usesWithdrawalCode ? _codeController.text.trim() : null;
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => DepositProcessingScreen(
@@ -164,12 +159,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
           ),
         ),
       ));
-      // Back from a failed first try (e.g. ACCOUNT_ID_REQUIRED): ask now.
-      if (mounted && _cashDesk && !_needsAccount) await _checkSavedAccount();
     } on ApiException catch (e) {
       setState(() {
         _error = e.message;
-        if (e.code == 'ACCOUNT_ID_REQUIRED') _needsAccount = true;
       });
     } catch (_) {
       setState(() => _error = AppStrings.somethingWentWrong);
@@ -203,17 +195,15 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                   _StreetCard(street: _payTo!, city: widget.option.depositNumbers.first.label),
                   const SizedBox(height: 16),
                 ],
-                if (_needsAccount) ...[
-                  _FieldBox(
-                    key: const Key('first-account-id'),
-                    label: _info.identifierLabel,
-                    child: _input(_accountController,
-                        hint: _info.identifierHint,
-                        keyboard: TextInputType.number,
-                        validator: (v) => (v ?? '').trim().isEmpty ? AppStrings.enterAccountId : null),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                _FieldBox(
+                  key: const Key('account-id'),
+                  label: _info.identifierLabel,
+                  child: _input(_accountController,
+                      hint: _info.identifierHint,
+                      keyboard: TextInputType.number,
+                      validator: (v) => (v ?? '').trim().isEmpty ? AppStrings.enterAccountId : null),
+                ),
+                const SizedBox(height: 16),
                 _FieldBox(
                   label: AppStrings.paymentCode,
                   child: _input(_codeController, key: const Key('payment-code'), hint: AppStrings.enterPaymentCode,

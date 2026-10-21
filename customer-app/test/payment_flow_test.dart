@@ -385,10 +385,11 @@ void main() {
 
       final usesCode = id == '888starz' || id == 'onexbet';
       if (usesCode) {
-        // Payment code only: the backend reuses the saved account ID.
+        // The account ID used last time is filled in; the payment code is typed.
         await tester.pump();
-        expect(find.text('$label Account ID'.toUpperCase()), findsNothing);
-        expect(find.byType(TextFormField), findsOneWidget);
+        expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
+        expect(find.byType(TextFormField), findsNWidgets(2));
+        expect(find.widgetWithText(TextFormField, '7841228'), findsOneWidget);
       } else if (isPlatform) {
         expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
         await tester.enterText(find.byType(TextFormField).first, identifier);
@@ -428,7 +429,7 @@ void main() {
       expect(api.submitted, hasLength(1));
       expect(api.submitted.single, containsPair('kind', 'deposit'));
       expect(api.submitted.single, containsPair('method', id));
-      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', usesCode ? null : identifier));
+      expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', usesCode ? '7841228' : identifier));
       expect(api.submitted.single, containsPair('amount', usesCode ? null : '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
       expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
@@ -436,13 +437,14 @@ void main() {
     });
   }
 
-  testWidgets('deposit 1XBET the first time: the account ID is asked for once', (tester) async {
+  testWidgets('deposit 1XBET: the account ID is empty the first time, and can be changed', (tester) async {
     await _phone(tester);
     final api = FakeCustomerApi()..savedAccounts.clear();
     final option = (await api.getPaymentMethods()).firstWhere((o) => o.info.id == 'onexbet');
     await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
     await tester.pump();
-    expect(find.byKey(const Key('first-account-id')), findsOneWidget);
+    expect(find.byKey(const Key('account-id')), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '7841228'), findsNothing);
     await tester.enterText(find.byKey(const Key('payment-code')), 'ABC123');
     await tester.pump();
     final confirm = find.byKey(const Key('confirm-deposit'));
