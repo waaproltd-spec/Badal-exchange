@@ -62,6 +62,8 @@ jobs:
           supabase functions deploy telegram-bot --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Called by the database (pg_net) with its own worker secret.
           supabase functions deploy platform-orders --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Customer App player search; the database checks the caller.
+          supabase functions deploy player-lookup --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:

@@ -73,6 +73,24 @@ class ApiClient {
   /// Emits 'orders', 'wallets' or 'notifications' when one changes.
   Stream<String> get liveChanges => _live.stream;
 
+  /// Calls an Edge Function with a JSON body. Returns its JSON result; its
+  /// `{error:{code,message}}` answers become [ApiException]s.
+  Future<dynamic> invoke(String function, Map<String, dynamic> body) {
+    return guard(() async {
+      try {
+        final res = await supabase.functions.invoke(function, body: body).timeout(AppConfig.requestTimeout);
+        return res.data;
+      } on FunctionException catch (e) {
+        final error = e.details is Map ? (e.details as Map)['error'] : null;
+        throw ApiException(
+          status: e.status,
+          code: error is Map ? '${error['code'] ?? 'ERROR'}' : 'ERROR',
+          message: error is Map ? '${error['message'] ?? ''}' : (e.reasonPhrase ?? 'Request failed'),
+        );
+      }
+    });
+  }
+
   /// Calls a backend function. Returns its JSON result (Map, List or null).
   Future<dynamic> rpc(String function, [Map<String, dynamic>? params]) {
     return guard(() => supabase.rpc(function, params: params).timeout(AppConfig.requestTimeout));

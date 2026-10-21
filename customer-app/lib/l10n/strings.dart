@@ -197,6 +197,17 @@ class AppStrings {
   static String get confirmWithdrawal => _t('Confirm Withdrawal', 'Xaqiiji Bixinta');
   static String get withdrawalSubmitted => _t('Withdrawal Submitted', 'Bixinta waa la gudbiyay');
   static String get sendTo => _t('Send to', 'Loo dirayo');
+  static String get playerIdFind => _t('Player ID: Find a Player', 'Aqoonsiga Ciyaaryahanka: Raadi Ciyaaryahan');
+  static String get playerName => _t('Player Name', 'Magaca Ciyaaryahanka');
+  static String get checkingPlayer => _t('Checking...', 'Waa la hubinayaa...');
+  static String playerNameUnavailable(String platform) =>
+      _t('Not provided by $platform', '$platform ma bixin');
+  static String playerNotFound(String platform, String id) => _t(
+      'No $platform player has the ID $id. Go back and check the Player ID.',
+      'Ciyaaryahan $platform ah oo aqoonsigiisu yahay $id lama helin. Dib u noqo oo hubi aqoonsiga.');
+  static String get playerNotFoundShort => _t('Player not found', 'Ciyaaryahanka lama helin');
+  static String get playerCheckFailed =>
+      _t('Could not check the player right now.', 'Hadda lama hubin karo ciyaaryahanka.');
   static String withdrawPlatformHint(String method) => _t(
         'Enter your $method account ID and the amount to withdraw.',
         'Geli aqoonsiga akoonkaaga $method iyo lacagta aad bixinayso.',

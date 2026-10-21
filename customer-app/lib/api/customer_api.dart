@@ -1,6 +1,7 @@
 import '../models/app_content.dart';
 import '../models/order.dart';
 import '../models/payment_method.dart';
+import '../models/player.dart';
 import '../models/quote.dart';
 import '../models/wallet.dart';
 import 'api_client.dart';
@@ -75,6 +76,13 @@ class CustomerApi {
   Future<String?> getPlatformAccount(String method) async {
     final data = await _client.rpc('customer_platform_account', {'p_method': method}) as Map<String, dynamic>;
     return data['accountId'] as String?;
+  }
+
+  /// "Find a Player": the 888STARZ / 1XBET player with [accountId], asked
+  /// of the platform's cash register.
+  Future<PlayerLookup> findPlayer(String method, String accountId) async {
+    final data = await _client.invoke('player-lookup', {'method': method, 'accountId': accountId});
+    return PlayerLookup.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
   Future<Wallet> getWallet() async {

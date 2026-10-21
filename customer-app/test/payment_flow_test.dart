@@ -1,10 +1,13 @@
 import 'package:badal_exchange_customer/api/api_client.dart';
+import 'package:badal_exchange_customer/api/api_exception.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/payment_method.dart';
+import 'package:badal_exchange_customer/models/player.dart';
 import 'package:badal_exchange_customer/models/quote.dart';
 import 'package:badal_exchange_customer/screens/deposit/deposit_details_screen.dart';
+import 'package:badal_exchange_customer/screens/withdraw/withdraw_confirm_screen.dart';
 import 'package:badal_exchange_customer/screens/withdraw/withdraw_details_screen.dart';
 import 'package:badal_exchange_customer/widgets/payment_method_sheet.dart';
 import 'package:badal_exchange_customer/widgets/primary_button.dart';
@@ -51,6 +54,23 @@ class FakeCustomerApi extends CustomerApi {
 
   @override
   Future<String?> getPlatformAccount(String method) async => savedAccounts[method];
+
+  /// Players the platforms know: ID -> name (null: the platform gives none).
+  final players = <String, String?>{'1847412855': 'Yaasin Maxamed', '2222': null};
+
+  /// The next player searches that fail, as the backend reports it.
+  int failLookups = 0;
+  final lookups = <String>[];
+
+  @override
+  Future<PlayerLookup> findPlayer(String method, String accountId) async {
+    lookups.add('$method:$accountId');
+    if (failLookups > 0) {
+      failLookups--;
+      throw const ApiException(status: 503, code: 'PLAYER_LOOKUP_UNAVAILABLE', message: 'Could not check the player.');
+    }
+    return PlayerLookup(found: players.containsKey(accountId), accountId: accountId, name: players[accountId]);
+  }
 
   @override
   Future<List<PaymentMethodOption>> getPaymentMethods() async =>
@@ -355,6 +375,15 @@ void main() {
       expect(find.text('Confirm Withdrawal'), findsOneWidget);
       // Destination, amount, fee and total before confirming.
       expect(find.text(isPlatform ? identifier : '+252 610338686'), findsOneWidget);
+      if (id == '888starz' || id == 'onexbet') {
+        // Found at the platform first, with the name it gave.
+        expect(find.text('Player ID: Find a Player'), findsOneWidget);
+        expect(find.text('Yaasin Maxamed'), findsOneWidget);
+        expect(api.lookups, ['$id:$identifier']);
+      } else {
+        expect(find.text('Player Name'), findsNothing);
+        expect(api.lookups, isEmpty);
+      }
       expect(find.text('Fee'), findsOneWidget);
       expect(find.text('Total Deducted'), findsOneWidget);
       expect(find.text('\$2.50'), findsNWidgets(3)); // amount, total deducted, you receive
@@ -456,5 +485,88 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.submitted.single, containsPair('account', '7841228'));
     expect(api.submitted.single, containsPair('code', 'ABC123'));
+  });
+
+  group('Confirm Withdrawal: Find a Player', () {
+    Future<FakeCustomerApi> open(WidgetTester tester, String method, String account,
+        {int failLookups = 0, Size size = const Size(393, 851)}) async {
+      await _phone(tester, size: size);
+      final api = FakeCustomerApi()..failLookups = failLookups;
+      final quote = await api.createQuote(direction: 'withdraw', method: method, amount: '500');
+      await tester.pumpWidget(_app(api, WithdrawConfirmScreen(quote: quote, accountId: account)));
+      return api;
+    }
+
+    PrimaryButton confirmButton(WidgetTester tester) =>
+        tester.widget<PrimaryButton>(find.byKey(const Key('confirm-withdrawal')));
+    String nameShown(WidgetTester tester) => tester.widget<Text>(find.byKey(const Key('player-name'))).data!;
+
+    testWidgets('a valid ID: the player\'s name above the amount, then Confirm', (tester) async {
+      final api = await open(tester, '888starz', '1847412855');
+      expect(nameShown(tester), 'Checking...');
+      expect(confirmButton(tester).onPressed, isNull, reason: 'not before the platform answers');
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(find.byKey(const Key('player-id'))).data, '1847412855');
+      expect(nameShown(tester), 'Yaasin Maxamed');
+      expect(tester.getTopLeft(find.byKey(const Key('player-name'))).dy,
+          lessThan(tester.getTopLeft(find.text('Amount (USD)')).dy));
+      for (final row in ['Fee', 'Total Deducted', 'You will receive']) {
+        expect(find.text(row), findsOneWidget);
+      }
+      expect(find.byKey(const Key('player-problem')), findsNothing);
+      await tester.tap(find.byKey(const Key('confirm-withdrawal')));
+      await tester.pumpAndSettle();
+      expect(api.submitted.single, containsPair('account', '1847412855'));
+    });
+
+    testWidgets('no name from the platform: says so, nothing made up; Confirm allowed', (tester) async {
+      final api = await open(tester, 'onexbet', '2222');
+      await tester.pumpAndSettle();
+      expect(nameShown(tester), 'Not provided by 1XBET');
+      expect(confirmButton(tester).onPressed, isNotNull);
+      expect(api.lookups, ['onexbet:2222']);
+    });
+
+    testWidgets('an unknown ID: not found, Confirm stays off', (tester) async {
+      final api = await open(tester, '888starz', '9999');
+      await tester.pumpAndSettle();
+      expect(nameShown(tester), 'Player not found');
+      expect(find.text('No 888STARZ player has the ID 9999. Go back and check the Player ID.'), findsOneWidget);
+      expect(find.byKey(const Key('retry-player')), findsNothing);
+      expect(confirmButton(tester).onPressed, isNull);
+      await tester.tap(find.byKey(const Key('confirm-withdrawal')), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(api.submitted, isEmpty);
+    });
+
+    testWidgets('the platform failing: Confirm off until a retry finds the player', (tester) async {
+      final api = await open(tester, '888starz', '1847412855', failLookups: 1);
+      await tester.pumpAndSettle();
+      expect(find.text('Could not check the player right now.'), findsOneWidget);
+      expect(nameShown(tester), '—');
+      expect(confirmButton(tester).onPressed, isNull);
+      await tester.tap(find.byKey(const Key('retry-player')));
+      await tester.pumpAndSettle();
+      expect(nameShown(tester), 'Yaasin Maxamed');
+      expect(find.byKey(const Key('player-problem')), findsNothing);
+      expect(confirmButton(tester).onPressed, isNotNull);
+      expect(api.lookups, hasLength(2));
+    });
+
+    for (final somali in [false, true]) {
+      testWidgets('${somali ? 'Somali' : 'English'} on a 320x568 phone: fits, not found message too', (tester) async {
+        AppLanguage.current.value = somali ? AppLanguage.somali : AppLanguage.english;
+        await open(tester, '888starz', '1847412855', size: const Size(320, 568));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await open(tester, '888starz', '99999999', size: const Size(320, 568));
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(find.byKey(const Key('confirm-withdrawal')), 100,
+            scrollable: find.byType(Scrollable).first);
+        expect(find.byKey(const Key('player-problem')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
