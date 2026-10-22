@@ -1,5 +1,5 @@
 name: badal_exchange_customer
-description: BAARI customer wallet app - EVC Plus / WinWin deposits and withdrawals.
+description: Badal Exchange customer wallet app - EVC Plus / WinWin deposits and withdrawals.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -41,3 +41,4 @@ flutter:
   assets:
     - assets/methods/
     - assets/methods/wide/
+    - assets/brand/

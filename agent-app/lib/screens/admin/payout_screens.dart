@@ -208,7 +208,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
       );
 
   Future<void> _fail() async {
-    if (!await _confirm(context, 'Fail and refund?', 'The reserved amount goes back to the customer\'s Baari wallet.', 'Fail & refund')) {
+    if (!await _confirm(context, 'Fail and refund?', 'The reserved amount goes back to the customer\'s Badal Exchange wallet.', 'Fail & refund')) {
       return;
     }
     await _guarded(
@@ -629,7 +629,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                         value: _auto,
                         onChanged: _setAuto,
                       ),
-                      InfoRow('Accessibility ("Baari payouts")', d?.accessibilityEnabled == true ? 'On' : 'Off'),
+                      InfoRow('Accessibility ("Badal Exchange payouts")', d?.accessibilityEnabled == true ? 'On' : 'Off'),
                       InfoRow('Phone & call permission', d?.permissionsGranted == true ? 'Granted' : 'Not granted'),
                       Wrap(spacing: 8, children: [
                         if (d?.accessibilityEnabled != true)
@@ -649,7 +649,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                     ]),
                   ),
                   Row(children: [
-                    const Expanded(child: GroupLabel('Baari wallets')),
+                    const Expanded(child: GroupLabel('Badal Exchange wallets')),
                     TextButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('Add')),
                   ]),
                   const Text(

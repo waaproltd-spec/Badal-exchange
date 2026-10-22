@@ -230,8 +230,10 @@ class _WalletHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const BaariLogo(markSize: 38, onDark: true),
-                  const Spacer(),
+                  const Expanded(
+                    child: Align(alignment: Alignment.centerLeft, child: BaariLogo(markSize: 38, onDark: true)),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     tooltip: AppStrings.notifications,
                     onPressed: onNotifications,

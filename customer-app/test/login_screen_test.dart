@@ -110,7 +110,7 @@ void main() {
     await _phone(tester);
     await tester.pumpWidget(_app());
     expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Log in to your BAARI wallet'), findsOneWidget);
+    expect(find.text('Log in to your Badal Exchange wallet'), findsOneWidget);
     expect(find.descendant(of: find.byKey(const Key('country-code')), matching: find.text('+252')), findsOneWidget);
     expect(find.text('9 digits number'), findsOneWidget);
     expect(find.textContaining('e.g. 2526'), findsNothing);

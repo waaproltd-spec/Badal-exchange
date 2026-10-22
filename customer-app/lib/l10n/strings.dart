@@ -40,7 +40,7 @@ String _t(String en, String so) => AppLanguage.isSomali ? so : en;
 class AppStrings {
   AppStrings._();
 
-  static const String appName = 'BAARI';
+  static const String appName = 'BADAL EXCHANGE';
 
   // Language
   static String get language => _t('Language', 'Luqadda');
@@ -65,7 +65,7 @@ class AppStrings {
   static String get cancel => _t('Cancel', 'Jooji');
   static String get createYourAccount => _t('Create your account', 'Samee akoonkaaga');
   static String get registerSubtitle =>
-      _t('Your wallet, made simple with BAARI', 'Boorsadaada, oo BAARI u fududeeyay');
+      _t('Your wallet, made simple with Badal Exchange', 'Boorsadaada, oo Badal Exchange u fududeeyay');
   static String get fullNameHint => _t('Enter your full name', 'Geli magacaaga oo buuxa');
   static String get phoneDigitsHint => _t('9 digits number', 'Lambar 9 god ah');
   static String get passwordHint => _t('At least 8 characters', 'Ugu yaraan 8 xaraf');
@@ -76,23 +76,23 @@ class AppStrings {
       _t('Password must be at least 8 characters', 'Erayga sirtu waa inuu ahaadaa ugu yaraan 8 xaraf');
   static String get passwordsDontMatch => _t('Passwords do not match', 'Erayada sirta isma laha');
   static String get accountCreated =>
-      _t('Account created. Welcome to BAARI!', 'Akoonka waa la sameeyay. Ku soo dhawoow BAARI!');
+      _t('Account created. Welcome to Badal Exchange!', 'Akoonka waa la sameeyay. Ku soo dhawoow Badal Exchange!');
   static String get or => _t('OR', 'AMA');
   static String get welcomeBack => _t('Welcome back', 'Ku soo dhawoow mar kale');
-  static String get loginSubtitle => _t('Log in to your BAARI wallet', 'Gal boorsadaada BAARI');
+  static String get loginSubtitle => _t('Log in to your Badal Exchange wallet', 'Gal boorsadaada Badal Exchange');
   static String get enterPassword => _t('Enter your password', 'Geli erayga sirta');
   static String get rememberMe => _t('Remember me', 'I xasuuso');
   static String get forgotPassword => _t('Forgot password?', 'Erayga sirta ma ilowday?');
   static String get forgotPasswordTitle => _t('Forgot your password?', 'Erayga sirta ma ilowday?');
   static String get forgotPasswordBody => _t(
-        'Contact BAARI support from your registered number. They will check your account and set a new password for you.',
-        'La xiriir taageerada BAARI adigoo isticmaalaya lambarkaaga diiwaangashan. Waxay hubin doonaan akoonkaaga oo kuu samayn doonaan eray sir ah oo cusub.',
+        'Contact Badal Exchange support from your registered number. They will check your account and set a new password for you.',
+        'La xiriir taageerada Badal Exchange adigoo isticmaalaya lambarkaaga diiwaangashan. Waxay hubin doonaan akoonkaaga oo kuu samayn doonaan eray sir ah oo cusub.',
       );
   static String get noSupportContacts =>
       _t('Support contacts are not available right now. Please try again later.', 'Xiriirka taageerada hadda lama heli karo. Fadlan isku day mar dambe.');
   static String get support => _t('Support', 'Caawimaad');
   static String get viewDetails => _t('View', 'Fiiri');
-  static String get supportTitle => _t('Contact BAARI support', 'La xiriir taageerada BAARI');
+  static String get supportTitle => _t('Contact Badal Exchange support', 'La xiriir taageerada Badal Exchange');
   static String get supportNotSetUp => _t('Support chat is not set up yet. Please try again later.',
       'Wada-hadalka taageerada weli lama diyaarin. Fadlan isku day mar dambe.');
   static String couldNotOpen(String app, String link) =>

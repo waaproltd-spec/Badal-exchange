@@ -53,19 +53,15 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
+                  Center(
+                    child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
+                      child: Image.asset('assets/brand/logo.png', key: const Key('brand-logo'), width: 76, height: 76),
                     ),
-                    child: const Icon(Icons.currency_exchange_rounded, color: AppColors.onPrimary, size: 36),
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    'Badal Exchange',
+                    'BADAL EXCHANGE',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                     textAlign: TextAlign.center,
                   ),

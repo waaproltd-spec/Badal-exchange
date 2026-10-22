@@ -105,7 +105,7 @@ void main() {
     expect(find.text('9 digits number'), findsOneWidget);
     expect(find.textContaining('e.g. 2526'), findsNothing);
     expect(find.text('Create your account'), findsOneWidget);
-    expect(find.text('Your wallet, made simple with BAARI'), findsOneWidget);
+    expect(find.text('Your wallet, made simple with Badal Exchange'), findsOneWidget);
     expect(find.text('Enter your full name'), findsOneWidget); // name placeholder
 
     final field = _input('register-phone');
@@ -191,7 +191,7 @@ void main() {
     pending.complete();
     await tester.pumpAndSettle();
     expect(find.byType(RootShell), findsOneWidget);
-    expect(find.text('Account created. Welcome to BAARI!'), findsOneWidget);
+    expect(find.text('Account created. Welcome to Badal Exchange!'), findsOneWidget);
   });
 
   testWidgets('a backend error is shown and the button works again', (tester) async {

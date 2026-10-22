@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Center(child: BaariLogoMark(size: 76)),
                     const SizedBox(height: 10),
-                    const Center(child: BaariWordmark(fontSize: 32)),
+                    const Center(child: FittedBox(fit: BoxFit.scaleDown, child: BaariWordmark(fontSize: 28))),
                     const SizedBox(height: 18),
                     Text(AppStrings.welcomeBack, textAlign: TextAlign.center, style: AppTextStyles.headline.copyWith(fontSize: 30)),
                     const SizedBox(height: 4),
