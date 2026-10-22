@@ -295,3 +295,115 @@ test('signed in with the code but the list is refused: stops with exactly what S
   assert.match(s.message, /Signed in, but Sahal refused the transaction list \(4005: Your Session has expired/);
   assert.equal(calls('/api/account/login'), 1, 'no second SMS');
 });
+
+// ---- Stage 2: crediting deposits from merchant payments ----
+
+const seed2 = Number(Date.now().toString().slice(-6));
+let n2 = 0;
+const evcLocal = () => `61${String(seed2 * 10 + n2++).padStart(7, '0').slice(-7)}`;
+async function customer(local) {
+  const phone = `252${local}`;
+  await db.query(
+    `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
+                VALUES ('customer', $1, 'Merchant Credit Test', private.hash_password('ChangeMe123!')) RETURNING id)
+     INSERT INTO public.wallets (customer_id) SELECT id FROM u`, [phone]);
+  const c = createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error } = await c.auth.signInWithPassword({ email: `${phone}@phone.baari.invalid`, password: 'ChangeMe123!' });
+  if (error) throw error;
+  return c;
+}
+async function depositOf(c, local, amount) {
+  const { data, error } = await c.rpc('customer_create_deposit', {
+    p_method: 'evc_plus', p_amount: String(amount), p_phone_number: `252${local}`, p_idempotency_key: crypto.randomUUID() });
+  if (error) throw error;
+  return data;
+}
+const order = async (id) => (await db.query('SELECT status, transaction_ref FROM orders WHERE id = $1', [id])).rows[0];
+const walletOf = async (c) => (await c.rpc('customer_wallet')).data.availableBalance;
+// The portal's time is Somalia time: "DD/MM/YY HH:MM:SS".
+function sahalTime(msAgo = 0) {
+  const d = new Date(Date.now() - msAgo + 3 * 3600_000);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${String(d.getUTCFullYear()).slice(2)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
+}
+let tranSeq = Number(Date.now().toString().slice(-7)) * 10;
+const payment = (payer, amount, msAgo = 0) => ({
+  tranID: tranSeq++, sender: '252900000004', receiver: payer, tranDate: sahalTime(msAgo),
+  description: `${payer} paid $${amount} to merchant: BULSHO AGENT (090353102),`, credit: Number(amount).toFixed(2), debit: '-',
+});
+
+test('a merchant payment from the customer\'s number, same amount, credits that deposit once', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'merchant_feed_credit:golis'`);
+  const local = evcLocal();
+  const c = await customer(local);
+  const d = await depositOf(c, local, 1);
+  portal.rows = [
+    payment(`252${local}`, 1),
+    { tranID: tranSeq++, sender: '252905999914', receiver: '0610346060', tranDate: sahalTime(), description: 'Yasin', credit: '-', debit: '1.00' },
+  ];
+  await run();
+  const o = await order(d.id);
+  assert.equal(o.status, 'completed');
+  assert.match(o.transaction_ref, /^Sahal merchant \d+$/);
+  assert.equal(await walletOf(c), '1.00');
+  const kinds = (await db.query(`SELECT match_status FROM merchant_transactions WHERE provider = 'golis' ORDER BY match_status`)).rows.map((r) => r.match_status);
+  assert.deepEqual(kinds, ['ignored', 'matched'], 'the outgoing payment is ignored');
+
+  // Seen again next minute: nothing credited twice.
+  await run();
+  assert.equal(await walletOf(c), '1.00');
+
+  // A second payment with no waiting deposit: not credited, kept for an agent.
+  portal.rows.push(payment(`252${local}`, 1));
+  await run();
+  assert.equal(await walletOf(c), '1.00');
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM merchant_transactions WHERE provider = 'golis' AND match_status = 'unmatched'`);
+  assert.equal(rows[0].n, 1);
+});
+
+test('another number or another amount credits nothing', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'merchant_feed_credit:golis'`);
+  const local = evcLocal();
+  const c = await customer(local);
+  const d = await depositOf(c, local, 5);
+  portal.rows = [payment(`252${evcLocal()}`, 5), payment(`252${local}`, 4)];
+  await run();
+  assert.equal((await order(d.id)).status, 'pending');
+  assert.equal(await walletOf(c), '0.00');
+});
+
+test('crediting switched off: payments are only stored; switched on, the waiting deposit is credited', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await db.query(`UPDATE app_settings SET value = 'off' WHERE key = 'merchant_feed_credit:golis'`);
+  const local = evcLocal();
+  const c = await customer(local);
+  const d = await depositOf(c, local, 2);
+  portal.rows = [payment(`252${local}`, 2)];
+  await run();
+  assert.equal((await order(d.id)).status, 'pending');
+
+  const m = await managerClient();
+  const { data, error } = await m.rpc('manage_merchant_feed_credit', { p_provider: 'golis', p_on: true });
+  assert.equal(error, null);
+  assert.equal(data.creditOn, true);
+  await run();
+  assert.equal((await order(d.id)).status, 'completed');
+  assert.equal(await walletOf(c), '2.00');
+});
+
+test('paid after the deposit expired unpaid: reopened and credited', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'merchant_feed_credit:golis'`);
+  const local = evcLocal();
+  const c = await customer(local);
+  const d = await depositOf(c, local, 3);
+  await db.query(`UPDATE orders SET created_at = now() - interval '40 minutes' WHERE id = $1`, [d.id]);
+  await db.query('SELECT private.expire_unpaid_deposits()');
+  assert.equal((await order(d.id)).status, 'expired');
+  portal.rows = [payment(`252${local}`, 3)];
+  await run();
+  assert.equal((await order(d.id)).status, 'completed');
+  assert.equal(await walletOf(c), '3.00');
+});

@@ -13,7 +13,7 @@ import '../../widgets/state_views.dart';
 /// Sahal merchant sign-in: Sahal texts an access code to the merchant phone
 /// at every sign-in, so a manager starts it here and types the code in.
 /// The server then keeps the session and reads the merchant transactions
-/// every minute (read-only for now: nothing is credited from them yet).
+/// every minute, crediting the waiting deposit each merchant payment is for.
 class MerchantFeedScreen extends StatefulWidget {
   /// How often the open screen checks while something is pending.
   final Duration poll;
@@ -124,6 +124,17 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     ),
                   ),
                 ],
+                const GroupLabel('Deposits'),
+                ConsoleCard(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: SwitchListTile(
+                    key: const Key('feed-credit'),
+                    title: const Text('Credit deposits automatically', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text('Credited (24 h): ${s.creditedToday} · Not matched: ${s.unmatchedToday}'),
+                    value: s.creditOn,
+                    onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedCredit(v)),
+                  ),
+                ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, key: const Key('feed-error'), style: const TextStyle(color: AppColors.statusFailed)),
@@ -140,8 +151,9 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   'Each sign-in makes Sahal text a new code, so sign in only when needed: the server keeps the '
-                  'session open by reading every minute. Merchant payments are only read and saved for now; '
-                  'no deposit is credited from them yet.',
+                  'session open by reading every minute. A merchant payment credits a waiting deposit only when it '
+                  'comes from the customer\'s own number with the same amount, once. Payments with no matching '
+                  'deposit are not credited; check them in the merchant portal.',
                   style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
               ],

@@ -338,7 +338,22 @@ class MerchantFeedStatus {
   final DateTime? codeAskedAt;
   final int rowsSeen;
 
-  const MerchantFeedStatus({required this.state, this.message, this.lastOkAt, this.codeAskedAt, this.rowsSeen = 0});
+  /// Whether matching payments credit customers' deposits.
+  final bool creditOn;
+  final int creditedToday;
+  /// Merchant payments of the last 24 hours with no deposit to credit.
+  final int unmatchedToday;
+
+  const MerchantFeedStatus({
+    required this.state,
+    this.message,
+    this.lastOkAt,
+    this.codeAskedAt,
+    this.rowsSeen = 0,
+    this.creditOn = false,
+    this.creditedToday = 0,
+    this.unmatchedToday = 0,
+  });
 
   bool get needsCode => state == 'needs_code';
   bool get working => state == 'ok';
@@ -349,5 +364,8 @@ class MerchantFeedStatus {
         lastOkAt: DateTime.tryParse(j['lastOkAt'] as String? ?? '')?.toLocal(),
         codeAskedAt: DateTime.tryParse(j['codeAskedAt'] as String? ?? '')?.toLocal(),
         rowsSeen: (j['rowsSeen'] as num?)?.toInt() ?? 0,
+        creditOn: j['creditOn'] as bool? ?? false,
+        creditedToday: (j['creditedToday'] as num?)?.toInt() ?? 0,
+        unmatchedToday: (j['unmatchedToday'] as num?)?.toInt() ?? 0,
       );
 }

@@ -21,6 +21,12 @@ class _FakeApi extends AgentApi {
   }
 
   @override
+  Future<MerchantFeedStatus> merchantFeedCredit(bool on) async {
+    calls.add('credit $on');
+    return status = MerchantFeedStatus(state: status.state, creditOn: on, creditedToday: 2);
+  }
+
+  @override
   Future<MerchantFeedStatus> merchantFeedCode(String code) async {
     calls.add('code $code');
     return status = const MerchantFeedStatus(state: 'code_entered', message: 'Checking the code…');
@@ -78,4 +84,16 @@ void main() {
     expect(find.text('Login not set up'), findsOneWidget);
     expect(find.byKey(const Key('feed-sign-in')), findsNothing);
   });
+
+  testWidgets('crediting can be switched off and on, with today\'s counts', (tester) async {
+    await tester.pumpWidget(_app(const MerchantFeedStatus(state: 'ok', creditOn: true, creditedToday: 3, unmatchedToday: 1)));
+    await tester.pumpAndSettle();
+    expect(find.text('Credited (24 h): 3 · Not matched: 1'), findsOneWidget);
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('feed-credit'))).value, isTrue);
+    await tester.tap(find.byKey(const Key('feed-credit')));
+    await tester.pumpAndSettle();
+    expect(_api.calls, ['credit false']);
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('feed-credit'))).value, isFalse);
+  });
+
 }

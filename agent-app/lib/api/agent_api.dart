@@ -399,6 +399,10 @@ class AgentApi {
   Future<MerchantFeedStatus> merchantFeedSignIn() async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_sign_in', {'p_provider': 'golis'}));
 
+  /// Whether matching Sahal merchant payments credit deposits.
+  Future<MerchantFeedStatus> merchantFeedCredit(bool on) async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_credit', {'p_provider': 'golis', 'p_on': on}));
+
   /// The access code from Sahal's SMS.
   Future<MerchantFeedStatus> merchantFeedCode(String code) async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_code', {'p_provider': 'golis', 'p_code': code}));
