@@ -385,6 +385,12 @@ class AgentApi {
     await _client.rpc('manage_set_payment_location', {'p_method': method, 'p_city': city, 'p_street': street});
   }
 
+  /// Mobile-money merchant code (e.g. *789*090353102*{amount}#) and whether
+  /// customers are shown it on Complete Deposit.
+  Future<void> setMerchantUssd(String method, {required String code, required bool enabled}) async {
+    await _client.rpc('manage_set_merchant_ussd', {'p_method': method, 'p_code': code, 'p_enabled': enabled});
+  }
+
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
     await _client.rpc('admin_set_withdrawal_limits', {'p_method': method, 'p_min_amount': min, 'p_max_amount': max});

@@ -40,6 +40,11 @@ class MethodSettings {
   final String? paymentCity;
   final String? paymentStreet;
 
+  /// Merchant code customers dial for a deposit ('{amount}' is filled in),
+  /// shown to them only while [merchantUssdEnabled].
+  final String? merchantUssd;
+  final bool merchantUssdEnabled;
+
   const MethodSettings({
     required this.method,
     required this.label,
@@ -53,6 +58,8 @@ class MethodSettings {
     this.maxWithdraw,
     this.paymentCity,
     this.paymentStreet,
+    this.merchantUssd,
+    this.merchantUssdEnabled = false,
   });
 
   bool get isPlatform => kind == 'platform';
@@ -73,6 +80,8 @@ class MethodSettings {
         maxWithdraw: j['maxWithdraw'] as String?,
         paymentCity: (j['paymentLocation'] as Map<String, dynamic>?)?['city'] as String?,
         paymentStreet: (j['paymentLocation'] as Map<String, dynamic>?)?['street'] as String?,
+        merchantUssd: j['merchantUssd'] as String?,
+        merchantUssdEnabled: j['merchantUssdEnabled'] as bool? ?? false,
       );
 }
 

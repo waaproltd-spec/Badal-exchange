@@ -106,7 +106,11 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   /// The number to send the money to: the first one set up for the method.
   String? get _payTo => widget.option.depositNumbers.isEmpty ? null : widget.option.depositNumbers.first.number;
 
+  /// The merchant code when the method has one switched on, otherwise the
+  /// carrier's send-money code to the deposit number.
   String? get _ussd {
+    final merchant = widget.option.merchantUssd;
+    if (merchant != null) return _amount == null ? null : merchant.replaceAll('{amount}', _amountText);
     final prefix = _sendMoneyUssd[_info.id];
     final to = _localNumber(_payTo);
     if (prefix == null || to == null || _amount == null) return null;
@@ -226,12 +230,12 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 const SizedBox(height: 12),
                 _OwnNumberLine(local: _ownLocal, text: AppStrings.payFromOwnNumber),
               ],
-              if (!_cashDesk && _amount != null && _payTo != null) ...[
+              if (!_cashDesk && _amount != null && (_payTo != null || widget.option.merchantUssd != null)) ...[
                 const SizedBox(height: 22),
                 _PayToCard(
                   ussd: _ussd,
-                  number: _payTo!,
-                  label: widget.option.depositNumbers.first.label,
+                  number: _payTo ?? '',
+                  label: widget.option.merchantUssd != null ? null : widget.option.depositNumbers.first.label,
                   onDial: _dial,
                 ),
               ],

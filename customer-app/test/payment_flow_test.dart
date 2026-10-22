@@ -566,4 +566,37 @@ void main() {
       });
     }
   });
+
+  group('merchant codes (switched on by management)', () {
+    PaymentMethodOption option(String id, String? code) => PaymentMethodOption.fromJson({
+          ..._catalogJson.firstWhere((m) => m['method'] == id),
+          'merchantUssd': code,
+        });
+
+    for (final (id, code, dial) in [
+      ('evc_plus', '*789*090353102*{amount}#', '*789*090353102*5#'),
+      ('golis', '*884*353102*{amount}#', '*884*353102*5#'),
+      ('telesom', '*883*090353102*{amount}#', '*883*090353102*5#'),
+    ]) {
+      testWidgets('$id: Complete Deposit shows the merchant code with the amount', (tester) async {
+        await _phone(tester);
+        await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option(id, code), ownPhone: '252610338686')));
+        await tester.enterText(find.byKey(const Key('deposit-amount')), '5');
+        await tester.pump();
+        expect(find.text(dial), findsOneWidget);
+        expect(find.byTooltip('Dial'), findsOneWidget);
+        expect(find.textContaining('*712*'), findsNothing);
+      });
+    }
+
+    testWidgets('switched off: EVC Plus keeps the *712* transfer to the deposit number', (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option('evc_plus', null), ownPhone: '252610338686')));
+      await tester.enterText(find.byKey(const Key('deposit-amount')), '5');
+      await tester.pump();
+      expect(find.text('*712*610338686*5#'), findsOneWidget);
+      expect(find.textContaining('*789*'), findsNothing);
+    });
+  });
+
 }

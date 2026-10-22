@@ -79,6 +79,7 @@ class PaymentMethodOption {
     this.maxWithdraw,
     this.paymentCity,
     this.paymentStreet,
+    this.merchantUssd,
   });
 
   final PaymentMethodInfo info;
@@ -91,6 +92,10 @@ class PaymentMethodOption {
   /// Cash-desk Payment Location (1XBET, 888STARZ), set by management.
   final String? paymentCity;
   final String? paymentStreet;
+
+  /// Merchant code to dial for a deposit, '{amount}' standing for the
+  /// amount; only sent while management has it switched on for the method.
+  final String? merchantUssd;
 
   bool get hasPaymentLocation => (paymentCity ?? '').isNotEmpty || (paymentStreet ?? '').isNotEmpty;
 
@@ -107,6 +112,7 @@ class PaymentMethodOption {
       maxWithdraw: json['maxWithdraw'] as String?,
       paymentCity: (json['paymentLocation'] as Map<String, dynamic>?)?['city'] as String?,
       paymentStreet: (json['paymentLocation'] as Map<String, dynamic>?)?['street'] as String?,
+      merchantUssd: json['merchantUssd'] as String?,
     );
   }
 }
