@@ -27,7 +27,12 @@ const standIn = http.createServer((req, res) => {
     if (req.url === '/api/account/currencies') {
       return reply({ resultCode: 2001, currencies: [{ CURRENCYCODE: '706', CURRENCYNAME: 'SOS' }, { CURRENCYCODE: '840', CURRENCYNAME: 'USD' }] });
     }
-    if (req.url === '/api/account/login') {
+    if (req.url === '/api/account/login' && portal.slow) {
+      // A slow Sahal: the sign-in is still running when the next run starts.
+      return setTimeout(() => answerLogin(), 1500);
+    }
+    if (req.url === '/api/account/login') return answerLogin();
+    function answerLogin() {
       if (portal.login === 'otp') return reply({ resultCode: 6083, replyMessage: 'Enter the code sent to your phone' });
       if (portal.login === 'wrong') return reply({ resultCode: 4001, replyMessage: 'Invalid username or password' });
       if (portal.login === 'sms') {
@@ -74,7 +79,7 @@ beforeEach(async () => {
   await db.query(`UPDATE merchant_feed_status SET state = 'ready', result_code = NULL, message = NULL, rows_seen = 0 WHERE provider = 'golis'`);
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
-  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null });
+  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false });
   seen.length = 0;
 });
 after(async () => {
@@ -233,4 +238,19 @@ test('a wrong code stops it; a late code is refused; a code only when Sahal aske
 
   const plain = createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   assert.ok((await plain.rpc('manage_merchant_feed_status', { p_provider: 'golis' })).error, 'not for anyone signed out');
+});
+
+test('woken twice at once: Sahal is signed in to once (one SMS), the code is sent once', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  portal.login = 'sms';
+  portal.slow = true;
+  await Promise.all([run(), run(), run()]);
+  assert.equal(calls('/api/account/login'), 1, 'one sign-in, so one SMS');
+  assert.equal((await status()).state, 'needs_code');
+
+  const m = await managerClient();
+  assert.equal((await m.rpc('manage_merchant_feed_code', { p_provider: 'golis', p_code: '654321' })).error, null);
+  await Promise.all([run(), run(), run()]);
+  assert.equal(calls('/api/account/2auth'), 1, 'the code is used by one run only');
+  assert.equal((await status()).state, 'ok');
 });

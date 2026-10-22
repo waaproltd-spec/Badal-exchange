@@ -127,8 +127,9 @@ async function run() {
   let session: string | null = feed?.sessionId ?? null;
   if (feed?.state === 'code_entered') {
     // The manager's access code, sent with Sahal's pending session (once).
+    // Exactly one run gets it; any other run woken at the same time skips.
     const { secondSessionId, code } = await rpc('merchant_feed_take_code', { p_provider: PROVIDER });
-    if (!secondSessionId || !code) return report({ state: 'stopped', message: 'No code to send. Sign in again.' });
+    if (!secondSessionId || !code) return { skipped: 'code already taken' };
     const auth = await portal('/api/account/2auth', { type: 'MERCHANT', code, sessionId: secondSessionId });
     if (String(auth?.resultCode ?? '') !== '2001' || !auth.sessionId) {
       return report({
@@ -141,6 +142,8 @@ async function run() {
   }
   let tx = session ? await portal('/api/account/transactions', { sessionId: session }) : null;
   if (!tx || ['4005', '7777'].includes(String(tx.resultCode))) {
+    // One sign-in at a time: each one makes Sahal text a new code.
+    if (!(await rpc('merchant_feed_claim_sign_in', { p_provider: PROVIDER }))) return { skipped: 'sign-in running' };
     const login = await portal('/api/account/login', {
       type: 'MERCHANT', username, password, currency: await currency(),
     });
