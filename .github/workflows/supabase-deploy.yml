@@ -147,3 +147,15 @@ jobs:
                  left(regexp_replace(raw::text, '[0-9]{6,}', '#', 'g'), 400) AS row_masked
             FROM public.merchant_transactions ORDER BY first_seen_at DESC LIMIT 5;
           SQL
+
+      - name: Golis merchant portal fund-transfer code (temporary, read-only, no login)
+        continue-on-error: true
+        run: |
+          set +e
+          curl -sS -m 60 -o bundle.js https://mymerchant.golis.so/js/bundle.js
+          for p in /api/money/b2p /api/account/find /api/money/transferTypes "Get Receiver Name" "Customer Fund Transfer" encryptData\( "self.User=" ; do
+            for off in $(grep -ob -- "$p" bundle.js | cut -d: -f1 | head -3); do
+              start=$(( off > 1600 ? off - 1600 : 0 ))
+              echo; echo "===== $p @ $off"; tail -c +$((start + 1)) bundle.js 2>/dev/null | head -c 3400; echo
+            done
+          done
