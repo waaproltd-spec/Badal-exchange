@@ -175,6 +175,73 @@ test('an unpaid deposit from days ago does not block a new one for the same numb
   assert.equal((await order(customer, old.id)).status, 'pending');
 });
 
+test('unpaid deposits expire after 30 minutes; younger ones and betting platforms do not', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(500, sender);
+  const old = await deposit(c, 'evc_plus', 2, sender);
+  const young = await deposit(c, 'evc_plus', 3, sender);
+  const bet = await rpc(c, 'customer_create_deposit', { p_method: 'melbet', p_amount: '2', p_account_id: '7841228',
+    p_idempotency_key: randomUUID() });
+  const out = await withdraw(c, 'evc_plus', 1, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '31 minutes' WHERE id = ANY($1)`, [[old.id, bet.id, out.id]]);
+  await db.query(`UPDATE orders SET created_at = now() - interval '20 minutes' WHERE id = $1`, [young.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  const expired = await order(c, old.id);
+  assert.equal(expired.status, 'expired');
+  assert.equal((await order(c, young.id)).status, 'pending');
+  assert.equal((await order(c, bet.id)).status, 'pending', 'betting platforms are not expired');
+  assert.notEqual((await order(c, out.id)).status, 'expired', 'withdrawals are not expired');
+  assert.equal((await wallet(c)).availableBalance, '4.00', 'expiring an unpaid deposit moves no money');
+});
+
+test('a deposit forgotten hours ago no longer takes the payment for a new one (EX746R48)', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(0, sender);
+  const forgotten = await deposit(c, 'evc_plus', 1, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '5 hours', updated_at = now() - interval '5 hours' WHERE id = $1`,
+    [forgotten.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()'); // expires it
+  // The customer pays, then makes the deposit a minute later.
+  const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 1, phone: sender }));
+  assert.equal(res.matchStatus, 'unmatched', 'waits for the deposit');
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await order(c, forgotten.id)).status, 'expired', 'not given to the forgotten deposit');
+  const fresh = await deposit(c, 'evc_plus', 1, sender);
+  assert.equal(fresh.status, 'completed', 'the new deposit takes the waiting payment');
+  assert.equal((await wallet(c)).availableBalance, '1.00', 'credited once');
+  assert.equal((await order(c, forgotten.id)).status, 'expired');
+});
+
+test('paid after the deposit expired: still credited once, after a short wait; not for deposits made hours before', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(0, sender);
+  const d = await deposit(c, 'evc_plus', 2, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '50 minutes' WHERE id = $1`, [d.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await order(c, d.id)).status, 'expired');
+  // Just arrived: waits, in case the customer is making a new deposit.
+  const justNow = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 2, phone: sender }));
+  assert.equal(justNow.matchStatus, 'unmatched');
+  // Waited 10 minutes with no new deposit: the expired one is reopened and paid.
+  await db.query(`UPDATE sms_logs SET received_at = now() - interval '11 minutes' WHERE id = $1`, [justNow.smsLogId ?? justNow.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  const paid = await order(c, d.id);
+  assert.equal(paid.status, 'completed');
+  assert.equal((await wallet(c)).availableBalance, '2.00');
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await wallet(c)).availableBalance, '2.00', 'once');
+
+  // A deposit made 5 hours before the payment is not reopened.
+  const old = await deposit(c, 'evc_plus', 3, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '5 hours' WHERE id = $1`, [old.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  const late = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 3, phone: sender, minutesAgo: 11 }));
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await order(c, old.id)).status, 'expired');
+  assert.notEqual(late.matchStatus, 'matched');
+  assert.equal((await wallet(c)).availableBalance, '2.00');
+});
+
 test('wrong amount, near amount and wrong phone never credit', async () => {
   const sender = evcNumber();
   const customer = await newCustomer(0, sender);
