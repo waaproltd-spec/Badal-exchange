@@ -11,6 +11,7 @@ import '../../models/payment_method.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/flow_header.dart';
+import '../../widgets/payment_location_card.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'deposit_processing_screen.dart';
@@ -191,10 +192,6 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
               FlowMethodCard(info: _info, onChange: _change),
               const SizedBox(height: 22),
               if (_cashDesk) ...[
-                if (_payTo != null) ...[
-                  _StreetCard(street: _payTo!, city: widget.option.depositNumbers.first.label),
-                  const SizedBox(height: 16),
-                ],
                 _FieldBox(
                   key: const Key('account-id'),
                   label: _info.identifierLabel,
@@ -250,6 +247,10 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 onPressed: _ready && !_submitting ? _confirm : null,
                 loading: _submitting,
               ),
+              if (_cashDesk && widget.option.hasPaymentLocation) ...[
+                const SizedBox(height: 16),
+                PaymentLocationCard(city: widget.option.paymentCity, street: widget.option.paymentStreet),
+              ],
             ],
           ),
         ),
@@ -367,60 +368,6 @@ class _FieldBox extends StatelessWidget {
 
 /// The cash desk to withdraw to in the betting platform: city and street
 /// (a deposit number set up in the Agent App), with the street to copy.
-class _StreetCard extends StatelessWidget {
-  const _StreetCard({required this.street, required this.city});
-
-  final String street;
-  final String? city;
-
-  @override
-  Widget build(BuildContext context) {
-    return _FieldBox(
-      label: AppStrings.street,
-      child: Padding(
-        key: const Key('street-card'),
-        padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
-        child: Row(
-          children: [
-            if ((city ?? '').isNotEmpty) ...[
-              Flexible(
-                child: Text(city!.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-              ),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              flex: 2,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(street.toUpperCase(), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Material(
-              color: AppColors.primaryTint,
-              borderRadius: BorderRadius.circular(12),
-              child: IconButton(
-                tooltip: AppStrings.copy,
-                icon: Icon(Icons.copy_rounded, size: 20, color: AppColors.primaryDark),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: street));
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.copied(street))));
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Where to send the money: a USSD code to dial (EVC Plus, eDahab), or the
 /// number to copy.
 class _PayToCard extends StatelessWidget {

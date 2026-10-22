@@ -72,7 +72,14 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
 /// A method the backend currently offers (enabled), with the numbers or
 /// accounts customers send deposits to.
 class PaymentMethodOption {
-  const PaymentMethodOption({required this.info, required this.depositNumbers, this.minWithdraw, this.maxWithdraw});
+  const PaymentMethodOption({
+    required this.info,
+    required this.depositNumbers,
+    this.minWithdraw,
+    this.maxWithdraw,
+    this.paymentCity,
+    this.paymentStreet,
+  });
 
   final PaymentMethodInfo info;
   final List<({String number, String? label})> depositNumbers;
@@ -80,6 +87,12 @@ class PaymentMethodOption {
   /// Withdrawal limits the server enforces, when it sends them.
   final String? minWithdraw;
   final String? maxWithdraw;
+
+  /// Cash-desk Payment Location (1XBET, 888STARZ), set by management.
+  final String? paymentCity;
+  final String? paymentStreet;
+
+  bool get hasPaymentLocation => (paymentCity ?? '').isNotEmpty || (paymentStreet ?? '').isNotEmpty;
 
   factory PaymentMethodOption.fromJson(Map<String, dynamic> json) {
     return PaymentMethodOption(
@@ -92,6 +105,8 @@ class PaymentMethodOption {
           .toList(),
       minWithdraw: json['minWithdraw'] as String?,
       maxWithdraw: json['maxWithdraw'] as String?,
+      paymentCity: (json['paymentLocation'] as Map<String, dynamic>?)?['city'] as String?,
+      paymentStreet: (json['paymentLocation'] as Map<String, dynamic>?)?['street'] as String?,
     );
   }
 }

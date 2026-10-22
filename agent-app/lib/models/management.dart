@@ -36,6 +36,10 @@ class MethodSettings {
   final String? minWithdraw;
   final String? maxWithdraw;
 
+  /// Payment Location customers see on Complete Deposit (1XBET, 888STARZ).
+  final String? paymentCity;
+  final String? paymentStreet;
+
   const MethodSettings({
     required this.method,
     required this.label,
@@ -47,9 +51,14 @@ class MethodSettings {
     this.withdrawFee,
     this.minWithdraw,
     this.maxWithdraw,
+    this.paymentCity,
+    this.paymentStreet,
   });
 
   bool get isPlatform => kind == 'platform';
+
+  /// Cash-desk companies, where the customer makes a payment code.
+  bool get hasPaymentLocation => method == 'onexbet' || method == '888starz';
 
   factory MethodSettings.fromJson(Map<String, dynamic> j) => MethodSettings(
         method: j['method'] as String,
@@ -62,6 +71,8 @@ class MethodSettings {
         withdrawFee: FeeSetting.fromJson(j['withdrawFee']),
         minWithdraw: j['minWithdraw'] as String?,
         maxWithdraw: j['maxWithdraw'] as String?,
+        paymentCity: (j['paymentLocation'] as Map<String, dynamic>?)?['city'] as String?,
+        paymentStreet: (j['paymentLocation'] as Map<String, dynamic>?)?['street'] as String?,
       );
 }
 

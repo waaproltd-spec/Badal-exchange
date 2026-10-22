@@ -171,11 +171,13 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
   late bool _enabled = widget.settings.enabled;
   late final _min = TextEditingController(text: widget.settings.minWithdraw ?? '');
   late final _max = TextEditingController(text: widget.settings.maxWithdraw ?? '');
+  late final _city = TextEditingController(text: widget.settings.paymentCity ?? '');
+  late final _street = TextEditingController(text: widget.settings.paymentStreet ?? '');
   bool _saving = false;
 
   @override
   void dispose() {
-    for (final c in [_min, _max]) {
+    for (final c in [_min, _max, _city, _street]) {
       c.dispose();
     }
     super.dispose();
@@ -209,6 +211,10 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
       if (_enabled != s.enabled) await api.setMethodEnabled(m, _enabled);
       if (_min.text.trim() != (s.minWithdraw ?? '') || _max.text.trim() != (s.maxWithdraw ?? '')) {
         await api.setWithdrawalLimits(m, min: min, max: max);
+      }
+      if (s.hasPaymentLocation &&
+          (_city.text.trim() != (s.paymentCity ?? '') || _street.text.trim() != (s.paymentStreet ?? ''))) {
+        await api.setPaymentLocation(m, city: _city.text.trim(), street: _street.text.trim());
       }
       if (!mounted) return;
       showSnack(context, '${s.label} settings saved.');
@@ -266,6 +272,35 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                 ],
               ),
             ),
+            if (s.hasPaymentLocation) ...[
+              const GroupLabel('Payment Location'),
+              ConsoleCard(
+                child: Column(
+                  children: [
+                    TextFormField(
+                      key: const Key('payment-city'),
+                      controller: _city,
+                      decoration: const InputDecoration(labelText: 'City', prefixIcon: Icon(Icons.location_city_rounded)),
+                      textCapitalization: TextCapitalization.words,
+                      validator: (v) => (v ?? '').trim().length > 60 ? 'At most 60 characters' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      key: const Key('payment-street'),
+                      controller: _street,
+                      decoration: const InputDecoration(labelText: 'Street', prefixIcon: Icon(Icons.add_road_rounded)),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v ?? '').trim().length > 80 ? 'At most 80 characters' : null,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Shown to customers on ${s.label} Complete Deposit, with a Copy button each. Leave both empty to hide it.',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+              ),
+            ],
             const SizedBox(height: 12),
             const Text(
               'Deposits and withdrawals are 1:1 with no fee: the customer gets exactly the amount sent.',

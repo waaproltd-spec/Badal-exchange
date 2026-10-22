@@ -38,8 +38,8 @@ List<Map<String, dynamic>> get _catalogJson => [
             if (id == 'evc_plus') {'number': '610338686', 'label': 'Baari'},
             if (id == 'edahab') {'number': '620000001', 'label': null},
             if (id == 'golis') {'number': '0907000001', 'label': null},
-            if (id == 'onexbet') {'number': 'WARAN CADDE 24/7', 'label': 'MOGADISHU'},
           ],
+          if (id == 'onexbet' || id == '888starz') 'paymentLocation': {'city': 'Mogadishu', 'street': 'FURAHA 5'},
         },
     ];
 
@@ -428,17 +428,14 @@ void main() {
         expect(find.text('+252 610338686'), findsOneWidget);
       }
       if (usesCode) {
-        // Cash desk: street + payment code, no amount (the platform's payout decides it).
+        // Cash desk: payment code, no amount (the platform's payout decides it).
         expect(find.text('Betting cashier deposit'), findsOneWidget);
         expect(find.byKey(const Key('deposit-amount')), findsNothing);
         await tester.enterText(find.byKey(const Key('payment-code')), 'ABC123');
-        if (id == 'onexbet') {
-          expect(find.byKey(const Key('street-card')), findsOneWidget);
-          expect(find.text('MOGADISHU'), findsOneWidget);
-          expect(find.text('WARAN CADDE 24/7'), findsOneWidget);
-        } else {
-          expect(find.byKey(const Key('street-card')), findsNothing);
-        }
+        // Payment Location under Confirm Deposit.
+        expect(find.byKey(const Key('payment-location')), findsOneWidget);
+        expect(find.text('Mogadishu'), findsOneWidget);
+        expect(find.text('FURAHA 5'), findsOneWidget);
       } else {
         await tester.enterText(find.byKey(const Key('deposit-amount')), '5');
       }

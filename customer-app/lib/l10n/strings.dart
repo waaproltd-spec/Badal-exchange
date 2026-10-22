@@ -169,6 +169,9 @@ class AppStrings {
   static String get bettingAccount => _t('Betting account', 'Akoonka sharadka');
   static String get bettingCashierDeposit => _t('Betting cashier deposit', 'Dhigasho khasnadda sharadka');
   static String get street => _t('Street', 'Waddada');
+  static String get city => _t('City', 'Magaalada');
+  static String get paymentLocation => _t('Payment Location', 'Goobta Lacag-bixinta');
+  static String get paymentLocationHint => _t('Use this address if required.', 'Isticmaal cinwaankan haddii loo baahdo.');
   static String get paymentCode => _t('Payment code', 'Koodhka lacag-bixinta');
   static String get enterPaymentCode => _t('Enter payment code', 'Geli koodhka lacag-bixinta');
   static String get amountPending => _t('Amount pending', 'Lacagta waa la sugayaa');

@@ -379,6 +379,12 @@ class AgentApi {
     await _client.rpc('manage_set_payment_method', {'p_method': method, 'p_enabled': enabled});
   }
 
+  /// City and street shown as Payment Location on 1XBET / 888STARZ
+  /// deposits; empty clears a value.
+  Future<void> setPaymentLocation(String method, {required String city, required String street}) async {
+    await _client.rpc('manage_set_payment_location', {'p_method': method, 'p_city': city, 'p_street': street});
+  }
+
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
     await _client.rpc('admin_set_withdrawal_limits', {'p_method': method, 'p_min_amount': min, 'p_max_amount': max});
