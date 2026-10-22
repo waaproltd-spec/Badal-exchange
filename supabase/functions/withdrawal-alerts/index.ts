@@ -5,8 +5,10 @@
 // Nothing here sends money or changes an order, and no PIN, password or
 // login is ever put in a message.
 //
-// Linking: the first chat that sends /start to the bot receives the alerts;
-// any other chat is told it is not allowed. A manager can unlink it
+// Linking: the first chat that sends /start to the bot receives the alerts.
+// Any other chat (a customer, a stranger) gets no answer at all, and every
+// other message is ignored: the bot never talks to anyone but the agent's
+// linked chat. A manager can unlink it
 // (manage_withdrawal_alerts) so the next /start links.
 //
 // Secret: TELEGRAM_N8N_BOT_TOKEN [, TELEGRAM_API_BASE (tests)]
@@ -92,11 +94,10 @@ async function run() {
     if (!msg?.chat?.id || !/^\/start\b/.test(String(msg.text ?? ''))) continue;
     const name = [msg.chat.title, msg.chat.username && `@${msg.chat.username}`, msg.chat.first_name].filter(Boolean).join(' ');
     const ok = await rpc('withdrawal_alerts_link', { p_chat_id: msg.chat.id, p_chat_name: name || String(msg.chat.id) });
+    if (!ok) continue; // not the agent's chat: no answer
     await tg('sendMessage', {
       chat_id: msg.chat.id,
-      text: ok
-        ? 'Badal Exchange withdrawal alerts are on for this chat. New withdrawals will appear here.'
-        : 'This chat is not allowed to receive Badal Exchange alerts.',
+      text: 'Badal Exchange withdrawal alerts are on for this chat. New withdrawals will appear here.',
     });
   }
   await rpc('withdrawal_alerts_report', { p_offset: offset });

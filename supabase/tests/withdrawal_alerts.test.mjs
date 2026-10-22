@@ -95,7 +95,7 @@ test('the worker secret is required', async (t) => {
   assert.equal(tg.calls.length, 0);
 });
 
-test('nothing is sent before a chat is linked; the first /start links, another chat is refused', async (t) => {
+test('nothing is sent before a chat is linked; the first /start links, another chat gets no answer', async (t) => {
   if (!served) return t.skip('withdrawal-alerts is not served');
   await withdrawal(3); // before linking: never announced
   let r = await run();
@@ -107,16 +107,20 @@ test('nothing is sent before a chat is linked; the first /start links, another c
   r = await run();
   assert.equal(r.status, 200);
   assert.match(sent('sendMessage', CHAT)[0].body.text, /alerts are on/);
-  assert.match(sent('sendMessage', OTHER)[0].body.text, /not allowed/);
-  assert.equal(sent('sendMessage').length, 2, 'the earlier withdrawal is not announced');
+  assert.equal(sent('sendMessage', OTHER).length, 0, 'a stranger gets no answer');
+  assert.equal(sent('sendMessage').length, 1, 'the earlier withdrawal is not announced');
   const m = (await agent.rpc('manage_withdrawal_alerts')).data;
   assert.equal(m.linked, true);
   assert.match(m.chatName, /badal_owner/);
 
-  // Updates are read once (offset kept).
+  // Updates are read once (offset kept); other messages and later /start
+  // from strangers are ignored, nothing is sent to them.
+  tg.updates.push({ update_id: updateId++, message: { message_id: 2, text: 'hello, pay me', chat: { id: OTHER, type: 'private' } } });
+  start(OTHER, 'stranger');
   tg.calls.length = 0;
   await run();
   assert.equal(sent('sendMessage').length, 0);
+  assert.equal((await agent.rpc('manage_withdrawal_alerts')).data.chatName.includes('badal_owner'), true);
 });
 
 test('a new withdrawal is announced once with code, number and exact amount; never a secret', async (t) => {
