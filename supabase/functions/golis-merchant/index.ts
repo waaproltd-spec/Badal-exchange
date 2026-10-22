@@ -81,7 +81,12 @@ async function rowId(row: Record<string, unknown>) {
 async function currency(): Promise<string> {
   const fixed = Deno.env.get('GOLIS_MERCHANT_CURRENCY');
   if (fixed) return fixed;
-  const data = await portal('/api/account/currencies', {});
+  // The page may load the list with GET; try POST first, then GET.
+  let data = await portal('/api/account/currencies', {});
+  if (rowArrays(data).length === 0) {
+    const res = await fetch(`${BASE}/api/account/currencies`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20_000) });
+    data = await res.json().catch(() => data);
+  }
   for (const rows of rowArrays(data)) {
     const usd = rows.find((c) => Object.values(c).some((v) => /^(usd|840|us)$/i.test(String(v ?? '').trim())));
     if (usd) {
@@ -89,7 +94,7 @@ async function currency(): Promise<string> {
       if (code != null) return String(code);
     }
   }
-  throw new Error(`no USD entry in /api/account/currencies (reply: ${shape(data)})`);
+  throw new Error(`no USD entry in /api/account/currencies (reply: ${shape(data)}${(data as any)?.replyMessage ? ` \"${String((data as any).replyMessage).slice(0, 80)}\"` : ''})`);
 }
 
 type Report = { state: string; code?: string | null; message?: string | null; session?: string | null; rows?: unknown[] };
