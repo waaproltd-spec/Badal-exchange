@@ -143,3 +143,12 @@ for (const [kind, code, message] of [['otp', '6083', /SMS code/], ['wrong', '400
     assert.equal(s.state, 'ok');
   });
 }
+
+test('waiting for its secrets, it is still woken every minute (and contacts nothing)', async () => {
+  await db.query(`UPDATE merchant_feed_status SET state = 'not_configured' WHERE provider = 'golis'`);
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM merchant_feed_status
+    WHERE provider = 'golis' AND state IN ('ready', 'ok', 'not_configured')`);
+  assert.equal(rows[0].n, 1);
+  const src = (await db.query(`SELECT prosrc FROM pg_proc WHERE proname = 'merchant_feed_kick'`)).rows[0].prosrc;
+  assert.match(src, /'not_configured'/);
+});
