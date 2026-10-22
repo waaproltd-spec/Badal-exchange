@@ -27,6 +27,12 @@ class _FakeApi extends AgentApi {
   }
 
   @override
+  Future<MerchantFeedStatus> merchantFeedPayouts(bool on) async {
+    calls.add('payouts $on');
+    return status = MerchantFeedStatus(state: status.state, payoutsOn: on);
+  }
+
+  @override
   Future<MerchantFeedStatus> merchantFeedCode(String code) async {
     calls.add('code $code');
     return status = const MerchantFeedStatus(state: 'code_entered', message: 'Checking the code…');
@@ -94,6 +100,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(_api.calls, ['credit false']);
     expect(tester.widget<SwitchListTile>(find.byKey(const Key('feed-credit'))).value, isFalse);
+  });
+
+
+  testWidgets('withdrawals sent from Sahal: switch and today\'s count', (tester) async {
+    await tester.pumpWidget(_app(const MerchantFeedStatus(state: 'ok', payoutsOn: true, payoutsCompletedToday: 4)));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byKey(const Key('feed-payouts')), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('Completed (24 h): 4'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('feed-payouts')));
+    await tester.pumpAndSettle();
+    expect(_api.calls, ['payouts false']);
   });
 
 }

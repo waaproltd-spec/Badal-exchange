@@ -124,17 +124,6 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     ),
                   ),
                 ],
-                const GroupLabel('Deposits'),
-                ConsoleCard(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: SwitchListTile(
-                    key: const Key('feed-credit'),
-                    title: const Text('Credit deposits automatically', style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text('Credited (24 h): ${s.creditedToday} · Not matched: ${s.unmatchedToday}'),
-                    value: s.creditOn,
-                    onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedCredit(v)),
-                  ),
-                ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, key: const Key('feed-error'), style: const TextStyle(color: AppColors.statusFailed)),
@@ -148,6 +137,29 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     label: Text(s.working ? 'Sign in again (new code)' : 'Sign in to Sahal'),
                   ),
                 ],
+                const GroupLabel('Deposits'),
+                ConsoleCard(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: SwitchListTile(
+                    key: const Key('feed-credit'),
+                    title: const Text('Credit deposits automatically', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text('Credited (24 h): ${s.creditedToday} · Not matched: ${s.unmatchedToday}'),
+                    value: s.creditOn,
+                    onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedCredit(v)),
+                  ),
+                ),
+                const GroupLabel('Withdrawals'),
+                ConsoleCard(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: SwitchListTile(
+                    key: const Key('feed-payouts'),
+                    title: const Text('Complete withdrawals sent from Sahal', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text('Send each withdrawal in Sahal (Customer Fund Transfer): it is marked completed '
+                        'when the transfer shows in Sahal. Completed (24 h): ${s.payoutsCompletedToday}'),
+                    value: s.payoutsOn,
+                    onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedPayouts(v)),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Each sign-in makes Sahal text a new code, so sign in only when needed: the server keeps the '

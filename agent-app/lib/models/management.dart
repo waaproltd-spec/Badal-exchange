@@ -344,6 +344,10 @@ class MerchantFeedStatus {
   /// Merchant payments of the last 24 hours with no deposit to credit.
   final int unmatchedToday;
 
+  /// Whether withdrawals sent from Sahal complete themselves.
+  final bool payoutsOn;
+  final int payoutsCompletedToday;
+
   const MerchantFeedStatus({
     required this.state,
     this.message,
@@ -353,6 +357,8 @@ class MerchantFeedStatus {
     this.creditOn = false,
     this.creditedToday = 0,
     this.unmatchedToday = 0,
+    this.payoutsOn = false,
+    this.payoutsCompletedToday = 0,
   });
 
   bool get needsCode => state == 'needs_code';
@@ -367,5 +373,7 @@ class MerchantFeedStatus {
         creditOn: j['creditOn'] as bool? ?? false,
         creditedToday: (j['creditedToday'] as num?)?.toInt() ?? 0,
         unmatchedToday: (j['unmatchedToday'] as num?)?.toInt() ?? 0,
+        payoutsOn: j['payoutsOn'] as bool? ?? false,
+        payoutsCompletedToday: (j['payoutsCompletedToday'] as num?)?.toInt() ?? 0,
       );
 }

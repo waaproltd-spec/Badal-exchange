@@ -347,8 +347,9 @@ test('a merchant payment from the customer\'s number, same amount, credits that 
   assert.equal(o.status, 'completed');
   assert.match(o.transaction_ref, /^Sahal merchant \d+$/);
   assert.equal(await walletOf(c), '1.00');
-  const kinds = (await db.query(`SELECT match_status FROM merchant_transactions WHERE provider = 'golis' ORDER BY match_status`)).rows.map((r) => r.match_status);
-  assert.deepEqual(kinds, ['ignored', 'matched'], 'the outgoing payment is ignored');
+  const kinds = (await db.query(`SELECT direction, match_status FROM merchant_transactions WHERE provider = 'golis' ORDER BY direction`)).rows
+    .map((r) => `${r.direction} ${r.match_status}`);
+  assert.deepEqual(kinds, ['in matched', 'out unmatched'], 'the outgoing transfer pays no withdrawal of this customer');
 
   // Seen again next minute: nothing credited twice.
   await run();
@@ -358,7 +359,7 @@ test('a merchant payment from the customer\'s number, same amount, credits that 
   portal.rows.push(payment(`252${local}`, 1));
   await run();
   assert.equal(await walletOf(c), '1.00');
-  const { rows } = await db.query(`SELECT count(*)::int AS n FROM merchant_transactions WHERE provider = 'golis' AND match_status = 'unmatched'`);
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM merchant_transactions WHERE provider = 'golis' AND direction = 'in' AND match_status = 'unmatched'`);
   assert.equal(rows[0].n, 1);
 });
 
@@ -406,4 +407,66 @@ test('paid after the deposit expired unpaid: reopened and credited', async (t) =
   await run();
   assert.equal((await order(d.id)).status, 'completed');
   assert.equal(await walletOf(c), '3.00');
+});
+
+// ---- Withdrawals sent by hand from Sahal complete themselves ----
+
+async function withdrawalOf(c, local, amount) {
+  const { data, error } = await c.rpc('customer_create_withdrawal', {
+    p_method: 'evc_plus', p_amount: String(amount), p_phone_number: `252${local}`, p_idempotency_key: crypto.randomUUID() });
+  if (error) throw error;
+  return data;
+}
+const sent = (receiver, amount, msAgo = 0) => ({
+  tranID: tranSeq++, sender: '252905999914', receiver, tranDate: sahalTime(msAgo), description: 'Done', credit: '-',
+  debit: Number(amount).toFixed(2),
+});
+async function richCustomer(local) {
+  const c = await customer(local);
+  await db.query(`UPDATE wallets SET available_cents = 1000 WHERE customer_id = (SELECT id FROM users WHERE phone = $1)`, [`252${local}`]);
+  return c;
+}
+
+test('a Sahal transfer to the customer\'s number for the amount completes that withdrawal, once', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'merchant_feed_payouts:golis'`);
+  const local = evcLocal();
+  const c = await richCustomer(local);
+  const w = await withdrawalOf(c, local, 2);
+  assert.equal(await walletOf(c), '8.00', 'reserved');
+  portal.rows = [sent(local, 2)]; // Sahal shows the 9-digit number, as typed in the portal
+  await run();
+  const o = await order(w.id);
+  assert.equal(o.status, 'completed');
+  assert.match(o.transaction_ref, /^Sahal \d+$/);
+  assert.equal(await walletOf(c), '8.00');
+
+  // A second identical transfer completes nothing more.
+  portal.rows.push(sent(`0${local}`, 2));
+  await run();
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM merchant_transactions WHERE provider = 'golis' AND direction = 'out' AND match_status = 'unmatched'`);
+  assert.equal(rows[0].n, 1);
+});
+
+test('another amount, a transfer older than the withdrawal, or the switch off: nothing is completed', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'merchant_feed_payouts:golis'`);
+  const local = evcLocal();
+  const c = await richCustomer(local);
+  const w = await withdrawalOf(c, local, 3);
+  portal.rows = [sent(local, 2), sent(local, 3, 60 * 60_000)]; // wrong amount; sent an hour before the withdrawal
+  await run();
+  assert.equal((await order(w.id)).status, 'pending');
+
+  const m = await managerClient();
+  const { data, error } = await m.rpc('manage_merchant_feed_payouts', { p_provider: 'golis', p_on: false });
+  assert.equal(error, null);
+  assert.equal(data.payoutsOn, false);
+  portal.rows.push(sent(local, 3));
+  await run();
+  assert.equal((await order(w.id)).status, 'pending', 'switched off');
+  await m.rpc('manage_merchant_feed_payouts', { p_provider: 'golis', p_on: true });
+  await run();
+  assert.equal((await order(w.id)).status, 'completed');
+  assert.equal((await m.rpc('manage_merchant_feed_status', { p_provider: 'golis' })).data.payoutsCompletedToday, 1);
 });
