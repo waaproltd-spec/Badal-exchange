@@ -1,0 +1,33 @@
+name: Golis merchant portal check (read-only)
+
+# Can a cloud server reach mymerchant.golis.so, and does its public web app
+# point at a merchant API? No login, no credentials: DNS, the public page,
+# and the hosts/paths its public scripts reference.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: DNS
+        run: |
+          for h in mymerchant.golis.so golis.so; do
+            echo "== $h"; getent hosts "$h" || echo "no address"
+            dig +short "$h" A || true
+          done
+      - name: Public page and its scripts
+        run: |
+          set +e
+          curl -sS -m 30 -D headers.txt -o index.html https://mymerchant.golis.so/
+          echo "curl exit: $?"; cat headers.txt
+          echo "== page (first 60 lines)"; head -60 index.html
+          echo "== scripts"
+          grep -oE '(src|href)="[^"]+\.(js|json)[^"]*"' index.html | sed -E 's/^(src|href)="//; s/"$//' | sort -u | tee scripts.txt
+          while read -r s; do
+            case "$s" in http*) u="$s" ;; /*) u="https://mymerchant.golis.so$s" ;; *) u="https://mymerchant.golis.so/$s" ;; esac
+            curl -sS -m 30 -o bundle.js "$u" || continue
+            echo "== $u ($(wc -c < bundle.js) bytes)"
+            echo "-- hosts"; grep -oE 'https?://[A-Za-z0-9._:-]+' bundle.js | sort | uniq -c | sort -rn | head -30
+            echo "-- api-like paths"; grep -oE '["'"'"'`](/?api/[A-Za-z0-9/_.-]+|/[A-Za-z]+/(login|auth|token|transactions?|merchant[A-Za-z/]*|webhook[A-Za-z/]*)[A-Za-z0-9/_.-]*)["'"'"'`]' bundle.js | sort -u | head -60
+          done < scripts.txt
