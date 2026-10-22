@@ -155,6 +155,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('deposit code: shown for WinWin, not for 888STARZ / 1XBET (they use the customer\'s own code)', (tester) async {
+    await _phone(tester);
+    Order withCode(String method) => Order(
+          id: 'd-$method',
+          orderCode: 'EXD$method',
+          direction: 'deposit',
+          method: method,
+          status: 'processing',
+          statusMessage: 'processing',
+          accountId: '1847412855',
+          depositCode: 'KSBW',
+          amount: '5.00',
+          fee: '0.00',
+          netAmount: '5.00',
+          createdAt: DateTime(2026, 10, 22, 4),
+        );
+
+    await tester.pumpWidget(_host(DepositResultScreen(order: withCode('winwin'))));
+    expect(find.text('KSBW'), findsOneWidget);
+
+    for (final method in ['888starz', 'onexbet']) {
+      await tester.pumpWidget(_host(DepositResultScreen(order: withCode(method))));
+      expect(find.text('KSBW'), findsNothing, reason: method);
+      expect(find.text('DEPOSIT CODE'), findsNothing, reason: method);
+    }
+  });
+
   testWidgets('Somali labels', (tester) async {
     AppLanguage.current.value = AppLanguage.somali;
     await _phone(tester);

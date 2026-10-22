@@ -9,7 +9,9 @@ import '../../widgets/transaction_views.dart';
 
 /// The deposit as submitted: amount, status ("Deposit Confirmed" once
 /// credited, otherwise waiting for the payment) and its details. For betting
-/// platform deposits with a `depositCode`, the code is shown too.
+/// platform deposits with a `depositCode`, the code is shown too -- except
+/// 888STARZ and 1XBET, which run on the customer's own withdrawal code: there
+/// is nothing to pay with ours.
 class DepositResultScreen extends StatelessWidget {
   const DepositResultScreen({super.key, required this.order});
 
@@ -22,7 +24,7 @@ class DepositResultScreen extends StatelessWidget {
       body: SafeArea(
         child: TransactionResultView(
           order: order,
-          extra: order.methodInfo.isPlatform && order.depositCode != null
+          extra: order.methodInfo.isPlatform && !order.methodInfo.usesWithdrawalCode && order.depositCode != null
               ? AppCard(
                   color: AppColors.primaryTint,
                   child: Column(
