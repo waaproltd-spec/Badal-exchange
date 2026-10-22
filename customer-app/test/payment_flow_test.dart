@@ -39,7 +39,7 @@ List<Map<String, dynamic>> get _catalogJson => [
             if (id == 'edahab') {'number': '620000001', 'label': null},
             if (id == 'golis') {'number': '0907000001', 'label': null},
           ],
-          if (id == 'onexbet' || id == '888starz') 'paymentLocation': {'city': 'Mogadishu', 'street': 'FURAHA 5'},
+          if (id == 'onexbet' || id == '888starz' || id == 'winwin') 'paymentLocation': {'city': 'Mogadishu', 'street': 'FURAHA 5'},
         },
     ];
 
@@ -50,7 +50,7 @@ class FakeCustomerApi extends CustomerApi {
   final submitted = <Map<String, Object?>>[];
 
   /// Account IDs the customer used before, per platform.
-  final savedAccounts = <String, String>{'onexbet': '7841228', '888starz': '7841228'};
+  final savedAccounts = <String, String>{'onexbet': '7841228', '888starz': '7841228', 'winwin': '7841228'};
 
   @override
   Future<String?> getPlatformAccount(String method) async => savedAccounts[method];
@@ -375,7 +375,7 @@ void main() {
       expect(find.text('Confirm Withdrawal'), findsOneWidget);
       // Destination, amount, fee and total before confirming.
       expect(find.text(isPlatform ? identifier : '+252 610338686'), findsOneWidget);
-      if (id == '888starz' || id == 'onexbet') {
+      if (id == '888starz' || id == 'onexbet' || id == 'winwin') {
         // Found at the platform first, with the name it gave.
         expect(find.text('Player ID: Find a Player'), findsOneWidget);
         expect(find.text('Yaasin Maxamed'), findsOneWidget);
@@ -412,7 +412,7 @@ void main() {
       final confirm = find.byKey(const Key('confirm-deposit'));
       expect(tester.widget<PrimaryButton>(confirm).onPressed, isNull);
 
-      final usesCode = id == '888starz' || id == 'onexbet';
+      final usesCode = id == '888starz' || id == 'onexbet' || id == 'winwin';
       if (usesCode) {
         // The account ID used last time is filled in; the payment code is typed.
         await tester.pump();

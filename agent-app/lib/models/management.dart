@@ -58,7 +58,7 @@ class MethodSettings {
   bool get isPlatform => kind == 'platform';
 
   /// Cash-desk companies, where the customer makes a payment code.
-  bool get hasPaymentLocation => method == 'onexbet' || method == '888starz';
+  bool get hasPaymentLocation => method == 'onexbet' || method == '888starz' || method == 'winwin';
 
   factory MethodSettings.fromJson(Map<String, dynamic> j) => MethodSettings(
         method: j['method'] as String,

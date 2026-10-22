@@ -7,6 +7,7 @@
 //   888starz: CASHDESKBOT_LOGIN, CASHDESKBOT_CASHIERPASS, CASHDESKBOT_HASH,
 //             CASHDESKBOT_CASHDESKID [, CASHDESKBOT_BASE_URL]
 //   1xBet:    the same names with the CASHDESKBOT_1XBET_ prefix
+//   WinWin:   the same names with the CASHDESKBOT_WINWIN_ prefix
 //
 // Checked against the live API: the Balance signature differs from the PDF
 // (see balanceSign). The Deposit/Add and Payout signatures are as the PDF
@@ -44,6 +45,7 @@ export interface Brand {
 export const BRANDS: Record<string, Brand> = {
   '888starz': { key: '888starz', label: '888starz', method: '888starz', envPrefix: 'CASHDESKBOT' },
   '1xbet': { key: '1xbet', label: '1xBet', method: 'onexbet', envPrefix: 'CASHDESKBOT_1XBET' },
+  winwin: { key: 'winwin', label: 'WinWin', method: 'winwin', envPrefix: 'CASHDESKBOT_WINWIN' },
 };
 
 export const brandForMethod = (method: string) => Object.values(BRANDS).find((b) => b.method === method);

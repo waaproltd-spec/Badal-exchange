@@ -20,9 +20,9 @@ const db = new pg.Pool({ connectionString: DATABASE_URL });
 const seed = Number(Date.now().toString().slice(-6));
 let n = 0;
 
-// Stand-in CashdeskBot balances: cash desk 1 is 888STARZ, 2 is 1XBET
+// Stand-in CashdeskBot balances: cash desk 1 is 888STARZ, 2 is 1XBET, 3 is WinWin
 // (tests/player_lookup.env).
-const registers = { 1: { Balance: 850, Limit: 1000 }, 2: 'down' };
+const registers = { 1: { Balance: 850, Limit: 1000 }, 2: 'down', 3: { Balance: 500, Limit: 200 } };
 const asked = [];
 const standIn = http.createServer((req, res) => {
   const m = req.url.match(/^\/Cashdesk\/(\d+)\/Balance/);
@@ -76,9 +76,9 @@ before(async () => {
   if (!served) return;
   await db.query('DELETE FROM cashdesk_balances');
   // Nothing from other test files may be waiting for the worker or a top-up.
-  await db.query(`UPDATE orders SET auto_claimed_at = now(), low_funds_since = NULL WHERE method IN ('888starz', 'onexbet')
+  await db.query(`UPDATE orders SET auto_claimed_at = now(), low_funds_since = NULL WHERE method IN ('888starz', 'onexbet', 'winwin')
     AND (auto_claimed_at IS NULL OR low_funds_since IS NOT NULL)`);
-  await db.query(`UPDATE orders SET status = 'failed' WHERE method IN ('888starz', 'onexbet') AND status IN ('pending', 'processing')`);
+  await db.query(`UPDATE orders SET status = 'failed' WHERE method IN ('888starz', 'onexbet', 'winwin') AND status IN ('pending', 'processing')`);
   manager = { c: await signIn('252610000002') };
   worker = client(SERVICE_KEY);
 });
@@ -114,15 +114,17 @@ test('live, offline and not-connected companies; the total only adds verified ba
   assert.equal(onex.status, 'offline');
   assert.equal(onex.balance, null, 'never read: no amount, not zero');
   assert.match(onex.lastError, /HTTP 500|CashdeskBot/);
-  for (const m of ['melbet', 'dbbet', 'winwin', 'betwinner', 'evc_plus']) {
+  const winwin = company(body, 'winwin');
+  assert.deepEqual([winwin.status, winwin.balance, winwin.limit, winwin.connected], ['available', '500.00', '200.00', true]);
+  for (const m of ['melbet', 'dbbet', 'betwinner', 'evc_plus']) {
     const x = company(body, m);
     assert.deepEqual([x.status, x.balance, x.connected], ['not_connected', null, false], m);
   }
-  assert.deepEqual(body.companies.slice(0, 2).map((x) => x.method).sort(), ['888starz', 'onexbet'], 'connected first');
-  assert.equal(body.total, '850.00');
-  assert.equal(body.totalCompanies, 1);
+  assert.deepEqual(body.companies.slice(0, 3).map((x) => x.method).sort(), ['888starz', 'onexbet', 'winwin'], 'connected first');
+  assert.equal(body.total, '1350.00');
+  assert.equal(body.totalCompanies, 2);
   assert.equal(body.unavailableCount, 1);
-  assert.equal(body.notConnectedCount, 8);
+  assert.equal(body.notConnectedCount, 7);
 });
 
 test('refreshes are limited: a register is read at most every 15 seconds', async (t) => {
@@ -134,7 +136,7 @@ test('refreshes are limited: a register is read at most every 15 seconds', async
   assert.equal(asked.length, before, 'read moments ago');
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '20 seconds'`);
   await balances(manager.c, '?refresh=1');
-  assert.equal(asked.length, before + 2);
+  assert.equal(asked.length, before + 3);
 });
 
 test('withdrawals waiting for a top-up: low, with how much more is needed', async (t) => {
@@ -156,7 +158,7 @@ test('withdrawals waiting for a top-up: low, with how much more is needed', asyn
   assert.deepEqual([starz.waitingWithdrawals, starz.waitingAmount, starz.topUpNeeded], [1, '400.00', '50.00']);
   assert.equal(starz.openWithdrawals, 1);
   assert.equal(body.lowCount, 1);
-  assert.equal(body.total, '900.00', 'still counted: the balance is verified');
+  assert.equal(body.total, '1400.00', 'still counted: the balance is verified (plus WinWin\'s 500)');
 
   const detail = (await manager.c.rpc('agent_company_detail', { p_method: '888starz', p_status: 'open' })).data;
   assert.equal(detail.orders[0].id, o.id);
@@ -192,7 +194,7 @@ test('a low balance on its own, and an old read: low, then stale and left out of
   const stale = company(body, '888starz');
   assert.equal(stale.liveBalance, '900.00');
   assert.equal(Number(stale.balance), 900 + Number(stale.salesSinceCheck) - Number(stale.payoutsSinceCheck));
-  assert.equal(body.total, '0.00');
+  assert.equal(body.total, '500.00', 'only WinWin\'s fresh read');
   assert.equal(body.unavailableCount, 2);
 });
 

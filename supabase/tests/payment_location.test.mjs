@@ -89,7 +89,7 @@ test('only managers, only 1XBET / 888STARZ, limited length', async () => {
     assert.match(error.message, /not allowed|Forbidden/);
   }
   let r = await manager.c.rpc('manage_set_payment_location', { ...args, p_method: 'melbet' });
-  assert.match(r.error.message, /only for 1XBET and 888STARZ/);
+  assert.match(r.error.message, /only for 1XBET, 888STARZ and WinWin/);
   r = await manager.c.rpc('manage_set_payment_location', { ...args, p_street: 'S'.repeat(81) });
   assert.match(r.error.message, /street/);
 
