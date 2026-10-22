@@ -419,6 +419,11 @@ enabled = true
 # Called by the database (pg_net) with its own worker secret.
 verify_jwt = false
 
+[functions.golis-merchant]
+enabled = true
+# Called by the database (pg_net) with its own worker secret.
+verify_jwt = false
+
 [functions.company-balances]
 enabled = true
 # The function checks the caller itself (agent_company_balances_access).

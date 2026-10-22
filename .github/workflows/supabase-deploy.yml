@@ -68,6 +68,8 @@ jobs:
           supabase functions deploy company-balances --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Customer push notifications; woken by the database with the worker secret.
           supabase functions deploy push-notifications --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Sahal merchant feed (read-only stage); woken by the database with the worker secret.
+          supabase functions deploy golis-merchant --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:
@@ -137,25 +139,11 @@ jobs:
           SELECT id, status_code, left(content::text, 300) AS content, timed_out, left(error_msg, 120) AS error,
                  to_char(created, 'MM-DD HH24:MI:SS') AS at
             FROM net._http_response ORDER BY created DESC LIMIT 6;
+          -- Sahal merchant feed (read-only stage). Long digit runs (phones, ids) masked.
+          SELECT provider, state, result_code, left(message, 160) AS message,
+                 to_char(checked_at, 'MM-DD HH24:MI:SS') AS checked, to_char(last_ok_at, 'MM-DD HH24:MI:SS') AS last_ok, rows_seen
+            FROM public.merchant_feed_status;
+          SELECT to_char(first_seen_at, 'MM-DD HH24:MI') AS seen,
+                 left(regexp_replace(raw::text, '[0-9]{6,}', '#', 'g'), 400) AS row_masked
+            FROM public.merchant_transactions ORDER BY first_seen_at DESC LIMIT 5;
           SQL
-
-      - name: Golis merchant portal client code (read-only, no login)
-        continue-on-error: true
-        run: |
-          set +e
-          curl -sS -m 60 -o bundle.js https://mymerchant.golis.so/js/bundle.js
-          curl -sS -m 30 -o config.js https://mymerchant.golis.so/lib/app.config.js
-          echo "== app.config.js"; cat config.js | head -c 12100; echo
-          for p in /api/account/login /api/account/2auth /api/account/addDevice /api/account/transactions /api/account/balance; do
-            for off in $(grep -ob -- "$p" bundle.js | cut -d: -f1 | head -3); do
-              start=$(( off > 1500 ? off - 1500 : 0 ))
-              echo; echo "===== $p @ $off"
-              tail -c +$((start + 1)) bundle.js | head -c 3500 | tr -s ' '
-              echo
-            done
-          done
-          echo; echo "===== AES / encrypt usages"
-          for off in $(grep -ob -- "CryptoJS.AES" bundle.js | cut -d: -f1 | head -4); do
-            start=$(( off > 600 ? off - 600 : 0 ))
-            echo "--- @ $off"; tail -c +$((start + 1)) bundle.js | head -c 1400 | tr -s ' '; echo
-          done
