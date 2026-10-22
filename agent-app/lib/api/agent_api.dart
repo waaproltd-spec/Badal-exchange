@@ -391,6 +391,18 @@ class AgentApi {
     await _client.rpc('manage_set_merchant_ussd', {'p_method': method, 'p_code': code, 'p_enabled': enabled});
   }
 
+  /// Sahal merchant feed: state, last read, whether an access code is due.
+  Future<MerchantFeedStatus> getMerchantFeedStatus() async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_status', {'p_provider': 'golis'}));
+
+  /// Starts a Sahal sign-in; Sahal texts an access code to the merchant phone.
+  Future<MerchantFeedStatus> merchantFeedSignIn() async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_sign_in', {'p_provider': 'golis'}));
+
+  /// The access code from Sahal's SMS.
+  Future<MerchantFeedStatus> merchantFeedCode(String code) async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_code', {'p_provider': 'golis', 'p_code': code}));
+
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
     await _client.rpc('admin_set_withdrawal_limits', {'p_method': method, 'p_min_amount': min, 'p_max_amount': max});

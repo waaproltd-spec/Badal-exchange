@@ -7,8 +7,15 @@
 // {userNature, type, username, currency, password}; resultCode 2001 is
 // signed in, 1001 / 6083 ask for a second code, 6054 for a new password;
 // POST /api/account/transactions with {userNature, sessionId}; 4005 / 7777
-// mean the session ended. Anything but a plain sign-in stops the feed until
-// a manager retries, so the merchant phone is never flooded with codes.
+// mean the session ended.
+//
+// Sahal answers 1001 and texts an access code to the merchant phone: the
+// feed waits (needs_code) with Sahal's pending session until a manager
+// types the code in the Agent App; it is then sent like the portal's
+// "Authenticate" page does (POST /api/account/2auth {type, code, sessionId})
+// and the session kept alive by reading every minute. Anything else stops
+// the feed until a manager signs in again, so the merchant phone is never
+// flooded with codes.
 //
 // The transactions are only stored; nothing is matched or credited.
 //
@@ -115,15 +122,34 @@ async function run() {
     return report({ state: 'not_configured', message: 'Set GOLIS_MERCHANT_USERNAME and GOLIS_MERCHANT_PASSWORD' });
   }
   const feed = await rpc('merchant_feed_get', { p_provider: PROVIDER });
-  if (feed?.state === 'stopped') return { skipped: 'stopped' };
+  if (feed?.state === 'stopped' || feed?.state === 'needs_code') return { skipped: feed.state };
 
   let session: string | null = feed?.sessionId ?? null;
+  if (feed?.state === 'code_entered') {
+    // The manager's access code, sent with Sahal's pending session (once).
+    const { secondSessionId, code } = await rpc('merchant_feed_take_code', { p_provider: PROVIDER });
+    if (!secondSessionId || !code) return report({ state: 'stopped', message: 'No code to send. Sign in again.' });
+    const auth = await portal('/api/account/2auth', { type: 'MERCHANT', code, sessionId: secondSessionId });
+    if (String(auth?.resultCode ?? '') !== '2001' || !auth.sessionId) {
+      return report({
+        state: 'stopped',
+        code: String(auth?.resultCode ?? ''),
+        message: `Sahal did not accept the code${auth?.replyMessage ? `: ${auth.replyMessage}` : ''}. Sign in again for a new one.`,
+      });
+    }
+    session = String(auth.sessionId);
+  }
   let tx = session ? await portal('/api/account/transactions', { sessionId: session }) : null;
   if (!tx || ['4005', '7777'].includes(String(tx.resultCode))) {
     const login = await portal('/api/account/login', {
       type: 'MERCHANT', username, password, currency: await currency(),
     });
     const code = String(login?.resultCode ?? '');
+    if (code === '1001' && login.sessionId) {
+      // Sahal texted the access code: wait for a manager to enter it.
+      await rpc('merchant_feed_wait_code', { p_provider: PROVIDER, p_second_session_id: String(login.sessionId) });
+      return { waiting: 'code' };
+    }
     if (code !== '2001' || !login.sessionId) {
       // A code, a password change or a refusal: stop until a manager retries.
       const why: Record<string, string> = {

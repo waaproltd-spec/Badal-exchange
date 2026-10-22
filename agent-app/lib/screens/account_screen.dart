@@ -13,6 +13,7 @@ import 'login_screen.dart';
 import 'admin/agents_screens.dart';
 import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
+import 'admin/merchant_feed_screen.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
 import 'manage_screens.dart';
@@ -143,6 +144,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusProcessing,
               label: 'Payment Integrations',
               onTap: () => _open(const IntegrationsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.storefront_rounded,
+              color: AppColors.statusCompleted,
+              label: 'Sahal Merchant Sign-in',
+              onTap: () => _open(const MerchantFeedScreen()),
             ),
             const _SubLabel('Automatic deposits & withdrawals'),
             _NavRow(

@@ -30,9 +30,19 @@ const standIn = http.createServer((req, res) => {
     if (req.url === '/api/account/login') {
       if (portal.login === 'otp') return reply({ resultCode: 6083, replyMessage: 'Enter the code sent to your phone' });
       if (portal.login === 'wrong') return reply({ resultCode: 4001, replyMessage: 'Invalid username or password' });
+      if (portal.login === 'sms') {
+        portal.pending = `P${portal.next++}`;
+        return reply({ resultCode: 1001, sessionId: portal.pending, replyMessage: 'Access code sent' });
+      }
       const s = `S${portal.next++}`;
       portal.sessions.add(s);
       return reply({ resultCode: 2001, sessionId: s, name: 'BULSHO AGENT' });
+    }
+    if (req.url === '/api/account/2auth') {
+      if (b.sessionId !== portal.pending || b.code !== '654321') return reply({ resultCode: 4002, replyMessage: 'Invalid access code' });
+      const s = `S${portal.next++}`;
+      portal.sessions.add(s);
+      return reply({ resultCode: 2001, sessionId: s });
     }
     if (req.url === '/api/account/transactions') {
       if (!portal.sessions.has(b.sessionId)) return reply({ resultCode: 4005, replyMessage: 'Session expired' });
@@ -64,7 +74,7 @@ beforeEach(async () => {
   await db.query(`UPDATE merchant_feed_status SET state = 'ready', result_code = NULL, message = NULL, rows_seen = 0 WHERE provider = 'golis'`);
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
-  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [] });
+  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null });
   seen.length = 0;
 });
 after(async () => {
@@ -151,4 +161,76 @@ test('waiting for its secrets, it is still woken every minute (and contacts noth
   assert.equal(rows[0].n, 1);
   const src = (await db.query(`SELECT prosrc FROM pg_proc WHERE proname = 'merchant_feed_kick'`)).rows[0].prosrc;
   assert.match(src, /'not_configured'/);
+});
+
+async function managerClient() {
+  const m = createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  await m.auth.signInWithPassword({ email: '252610000002@phone.baari.invalid', password: 'ChangeMe123!' });
+  return m;
+}
+
+test('SMS access code: waits for it, a manager types it, the session is used from then on', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  portal.login = 'sms';
+  portal.rows = [row('7505691073', '5.00', '252610338686')];
+  await run();
+  let s = await status();
+  assert.deepEqual([s.state, s.result_code], ['needs_code', '1001']);
+  assert.match(s.message, /access code/);
+  assert.equal(calls('/api/account/login'), 1);
+
+  // Woken while waiting: Sahal is not asked again (no second SMS).
+  await run();
+  assert.equal(calls('/api/account/login'), 1);
+
+  const m = await managerClient();
+  const shown = (await m.rpc('manage_merchant_feed_status', { p_provider: 'golis' })).data;
+  assert.equal(shown.state, 'needs_code');
+  assert.ok(shown.codeAskedAt);
+  assert.ok(!JSON.stringify(shown).includes(portal.pending), 'the pending session is not shown');
+
+  const { error } = await m.rpc('manage_merchant_feed_code', { p_provider: 'golis', p_code: ' 654 321 ' });
+  assert.equal(error, null);
+  assert.equal((await status()).state, 'code_entered');
+  await run();
+  const auth = seen.find((x) => x.path === '/api/account/2auth').body;
+  assert.deepEqual(auth, { userNature: 'MERCHANT', type: 'MERCHANT', code: '654321', sessionId: portal.pending });
+  s = await status();
+  assert.equal(s.state, 'ok');
+  assert.deepEqual((await stored()).map((x) => x.transaction_id), ['7505691073']);
+  const { rows } = await db.query(`SELECT code FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
+  assert.equal(rows[0].code, null, 'the code is used once and not kept');
+
+  // Next minute: same session, no new login.
+  await run();
+  assert.equal(calls('/api/account/login'), 1);
+});
+
+test('a wrong code stops it; a late code is refused; a code only when Sahal asked for one', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  const m = await managerClient();
+  const code = (c) => m.rpc('manage_merchant_feed_code', { p_provider: 'golis', p_code: c });
+
+  assert.match((await code('123456')).error.message, /not waiting for a code/);
+  portal.login = 'sms';
+  await run();
+  assert.match((await code('12ab')).error.message, /numbers only/);
+
+  assert.equal((await code('111111')).error, null);
+  await run();
+  let s = await status();
+  assert.equal(s.state, 'stopped');
+  assert.match(s.message, /did not accept the code: Invalid access code/);
+
+  // Sign in again: a new code is asked for; entered too late, it is refused.
+  assert.equal((await m.rpc('manage_merchant_feed_sign_in', { p_provider: 'golis' })).error, null);
+  await run();
+  assert.equal((await status()).state, 'needs_code');
+  await db.query(`UPDATE private.merchant_feed_sessions SET second_at = now() - interval '11 minutes' WHERE provider = 'golis'`);
+  assert.match((await code('654321')).error.message, /expired/);
+  const shown = (await m.rpc('manage_merchant_feed_status', { p_provider: 'golis' })).data;
+  assert.deepEqual([shown.state, shown.message], ['stopped', 'The access code expired. Sign in again.']);
+
+  const plain = createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  assert.ok((await plain.rpc('manage_merchant_feed_status', { p_provider: 'golis' })).error, 'not for anyone signed out');
 });

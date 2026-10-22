@@ -328,3 +328,26 @@ class TelegramLinkCode {
   factory TelegramLinkCode.fromJson(Map<String, dynamic> j) =>
       TelegramLinkCode(j['code'] as String? ?? '', _date(j['expiresAt']));
 }
+
+/// The Sahal merchant transaction feed (read-only for now).
+class MerchantFeedStatus {
+  /// ready | ok | stopped | not_configured | needs_code | code_entered
+  final String state;
+  final String? message;
+  final DateTime? lastOkAt;
+  final DateTime? codeAskedAt;
+  final int rowsSeen;
+
+  const MerchantFeedStatus({required this.state, this.message, this.lastOkAt, this.codeAskedAt, this.rowsSeen = 0});
+
+  bool get needsCode => state == 'needs_code';
+  bool get working => state == 'ok';
+
+  factory MerchantFeedStatus.fromJson(Map<String, dynamic> j) => MerchantFeedStatus(
+        state: j['state'] as String? ?? 'ready',
+        message: j['message'] as String?,
+        lastOkAt: DateTime.tryParse(j['lastOkAt'] as String? ?? '')?.toLocal(),
+        codeAskedAt: DateTime.tryParse(j['codeAskedAt'] as String? ?? '')?.toLocal(),
+        rowsSeen: (j['rowsSeen'] as num?)?.toInt() ?? 0,
+      );
+}
