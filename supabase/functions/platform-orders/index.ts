@@ -119,6 +119,7 @@ const TELEGRAM_TOKENS: Record<string, string> = {
   '888starz': 'TELEGRAM_BOT_TOKEN',
   '1xbet': 'TELEGRAM_BOT_TOKEN_1XBET',
   winwin: 'TELEGRAM_BOT_TOKEN_WINWIN',
+  betwinner: 'TELEGRAM_BOT_TOKEN_BETWINNER',
 };
 
 /** Tells the managers, through the brand's bot, to top up its register. */

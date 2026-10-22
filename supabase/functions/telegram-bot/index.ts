@@ -6,6 +6,7 @@
 //   @Badal888starzbot  .../functions/v1/telegram-bot
 //   @Badal1xbetbot     .../functions/v1/telegram-bot/1xbet
 //   @Badalwinwinbot    .../functions/v1/telegram-bot/winwin
+//   @Badalbetwinnerbot .../functions/v1/telegram-bot/betwinner
 //
 //   /link CODE            link this Telegram account (code from the Agent App:
 //                         Account -> Admin features -> Telegram Bot)
@@ -24,11 +25,12 @@
 //
 // Secrets (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase):
 //   TELEGRAM_BOT_TOKEN (888starz), TELEGRAM_BOT_TOKEN_1XBET (1xBet), TELEGRAM_BOT_TOKEN_WINWIN (WinWin),
+//   TELEGRAM_BOT_TOKEN_BETWINNER (Betwinner),
 //   TELEGRAM_WEBHOOK_SECRET (shared), [TELEGRAM_BOT_LNG=en]
 // plus each brand's CashdeskBot secrets (../_shared/cashdeskbot.ts). Then
 // register each bot's webhook and command menu once:
 //   curl -X POST -H "X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET" \
-//     https://<project>.supabase.co/functions/v1/telegram-bot[/1xbet|/winwin]/setup
+//     https://<project>.supabase.co/functions/v1/telegram-bot[/1xbet|/winwin|/betwinner]/setup
 import {
   ApiError,
   BRANDS,
@@ -55,6 +57,7 @@ const BOTS: Bot[] = [
   { brand: BRANDS['888starz'], path: '', tokenEnv: 'TELEGRAM_BOT_TOKEN' },
   { brand: BRANDS['1xbet'], path: '/1xbet', tokenEnv: 'TELEGRAM_BOT_TOKEN_1XBET' },
   { brand: BRANDS.winwin, path: '/winwin', tokenEnv: 'TELEGRAM_BOT_TOKEN_WINWIN' },
+  { brand: BRANDS.betwinner, path: '/betwinner', tokenEnv: 'TELEGRAM_BOT_TOKEN_BETWINNER' },
 ];
 
 const COMMANDS = [
@@ -371,7 +374,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST' || !secretMatches(req.headers.get('X-Telegram-Bot-Api-Secret-Token'))) {
     return new Response('Forbidden', { status: 403 });
   }
-  // .../telegram-bot[/1xbet|/winwin][/setup]
+  // .../telegram-bot[/1xbet|/winwin|/betwinner][/setup]
   const parts = new URL(req.url).pathname.split('/').filter(Boolean);
   const rest = parts.slice(parts.indexOf('telegram-bot') + 1);
   const isSetup = rest[rest.length - 1] === 'setup';

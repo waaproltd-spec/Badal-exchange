@@ -73,7 +73,7 @@ before(async () => {
   const { error } = await agent.auth.signInWithPassword({ email: '252610000002@phone.baari.invalid', password: PASSWORD });
   if (error) throw error;
   // Nothing from other test files may be waiting for the worker.
-  await db.query(`UPDATE public.orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method IN ('888starz', 'onexbet', 'winwin')`);
+  await db.query(`UPDATE public.orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method IN ('888starz', 'onexbet', 'winwin', 'betwinner')`);
 });
 
 after(async () => {
@@ -296,6 +296,36 @@ test('WinWin orders from before its own start time stay manual', { skip }, async
   const c = await newCustomer(1000);
   const o = await withdraw(c, 1, '44556677', 'winwin');
   await db.query(`UPDATE public.orders SET created_at = (SELECT value::timestamptz FROM public.app_settings WHERE key = 'platform_auto_since:winwin') - interval '1 minute' WHERE id = $1`, [o.id]);
+  assert.equal(await rpc(worker, 'platform_claim_next'), null);
+  await rpc(agent, 'agent_withdrawal_fail', { p_order_id: o.id, p_reason: 'test cleanup' });
+});
+
+test('Betwinner orders go through the worker too, named as Betwinner', { skip }, async () => {
+  const c = await newCustomer(1000);
+  const w = await withdraw(c, 2, '33221100', 'betwinner');
+  const job = await rpc(worker, 'platform_claim_next');
+  assert.equal(job.orderId, w.id);
+  assert.equal(job.method, 'betwinner');
+  assert.equal(job.accountId, '33221100');
+  await rpc(worker, 'platform_finish', { p_order_id: w.id, p_outcome: 'done' });
+  assert.equal((await rpc(c, 'customer_order', { p_id: w.id })).status, 'completed');
+
+  // Payment code only: the Betwinner ID used before, and what Betwinner paid is credited.
+  const d = await rpc(c, 'customer_create_deposit', {
+    p_method: 'betwinner', p_amount: null, p_platform_code: 'BW42', p_idempotency_key: randomUUID() });
+  const dj = await rpc(worker, 'platform_claim_next');
+  assert.deepEqual([dj.orderId, dj.code, dj.accountId], [d.id, 'BW42', '33221100']);
+  await rpc(worker, 'platform_finish', { p_order_id: d.id, p_outcome: 'done', p_summa: -4 });
+  const done = await rpc(c, 'customer_order', { p_id: d.id });
+  assert.equal(done.transactionRef, 'Betwinner');
+  assert.equal(done.amount, '4.00');
+  assert.deepEqual(await balances(c), ['12.00', '0.00']);
+});
+
+test('Betwinner orders from before its own start time stay manual', { skip }, async () => {
+  const c = await newCustomer(1000);
+  const o = await withdraw(c, 1, '33221100', 'betwinner');
+  await db.query(`UPDATE public.orders SET created_at = (SELECT value::timestamptz FROM public.app_settings WHERE key = 'platform_auto_since:betwinner') - interval '1 minute' WHERE id = $1`, [o.id]);
   assert.equal(await rpc(worker, 'platform_claim_next'), null);
   await rpc(agent, 'agent_withdrawal_fail', { p_order_id: o.id, p_reason: 'test cleanup' });
 });
