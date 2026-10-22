@@ -136,6 +136,7 @@ class AgentApi {
     String? provider,
     String? reference,
     DateTime? receivedAt,
+    String? deviceId,
   }) =>
       _map('agent_payout_confirmation', {
         'p_receiver_phone': receiverPhone,
@@ -144,6 +145,7 @@ class AgentApi {
         'p_provider': provider,
         'p_reference': reference,
         'p_received_at': receivedAt?.toUtc().toIso8601String(),
+        'p_device_id': deviceId,
       });
 
   // ---- Withdrawal payouts (this phone dials them) ----
@@ -209,6 +211,24 @@ class AgentApi {
   Future<void> setPayoutWalletPin(String id, String pin) async {
     await _client.rpc('manage_set_payout_wallet_pin', {'p_id': id, 'p_pin': pin});
   }
+
+  /// Server safeguards for automatic payouts, per method.
+  Future<List<AutoPayoutSettings>> getAutoPayouts() async =>
+      (await _list('manage_auto_payouts')).map((e) => AutoPayoutSettings.fromJson(e as Map<String, dynamic>)).toList();
+
+  /// [mode] off | test | live (live only after a passed $0.10 test).
+  /// Limits in dollars; null keeps them.
+  Future<AutoPayoutSettings> setAutoPayout(String method, {String? mode, double? dailyLimit, double? minBalance}) async =>
+      AutoPayoutSettings.fromJson(await _map('manage_set_auto_payout', {
+        'p_method': method,
+        'p_mode': mode,
+        'p_daily_limit': dailyLimit,
+        'p_min_balance': minBalance,
+      }));
+
+  /// The payout wallet's balance as read on the phone.
+  Future<AutoPayoutSettings> setPayoutBalance(String method, double balance) async =>
+      AutoPayoutSettings.fromJson(await _map('manage_set_payout_balance', {'p_method': method, 'p_balance': balance}));
 
   /// Submits a WinWin/MobCash deposit confirmation the agent manually keyed
   /// in after observing the real transaction in the WinWin manager app.

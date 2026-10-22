@@ -467,6 +467,7 @@ class PayoutSettingsScreen extends StatefulWidget {
 
 class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
   List<PayoutWallet>? _wallets;
+  List<AutoPayoutSettings> _safeguards = const [];
   String? _error;
   PayoutDeviceStatus? _device;
   bool _auto = false;
@@ -482,11 +483,13 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
   Future<void> _load() async {
     try {
       final w = await _session.api.getPayoutWallets();
+      final g = await _session.api.getAutoPayouts();
       final d = await _session.payouts.device.status();
       final auto = await PayoutRunner.autoPayoutEnabled();
       if (mounted) {
         setState(() {
           _wallets = w;
+          _safeguards = g;
           _device = d;
           _auto = auto;
           _error = null;
@@ -599,6 +602,153 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     if (ok == true) await _run(() => _session.api.setPayoutWalletPin(w.id, pin.text.trim()), 'PIN saved.');
   }
 
+  Future<void> _setMode(AutoPayoutSettings g, String mode) async {
+    if (mode == g.mode) return;
+    if (mode == 'test' &&
+        !await _confirm(
+          context,
+          'Test ${g.methodLabel} payouts',
+          'Only a \$${g.testAmount} withdrawal is paid automatically in Test mode.\n\n'
+              '1. Set the ${g.methodLabel} minimum withdrawal to \$${g.testAmount} (Payment methods).\n'
+              '2. From a customer account, withdraw \$${g.testAmount} to your own ${g.methodLabel} number.\n'
+              '3. Keep this phone on with automatic payouts on. It sends the payout; the withdrawal completes '
+              'when ${g.methodLabel} confirms it, and the test passes when its "you transferred" SMS arrives.\n\n'
+              'Then switch to Live.',
+          'Start test',
+        )) {
+      return;
+    }
+    if (mode == 'live' &&
+        !await _confirm(
+          context,
+          'Go live?',
+          'Every ${g.methodLabel} withdrawal will be sent automatically from ${g.walletPhone ?? 'the payout wallet'}, '
+              'up to \$${g.dailyLimit} a day, keeping at least \$${g.minBalance} in the wallet.',
+          'Go live',
+        )) {
+      return;
+    }
+    await _run(() => _session.api.setAutoPayout(g.method, mode: mode),
+        mode == 'off' ? 'Automatic ${g.methodLabel} payouts off.' : (mode == 'test' ? 'Test mode on.' : 'Live.'));
+  }
+
+  Future<void> _editLimits(AutoPayoutSettings g) async {
+    final daily = TextEditingController(text: g.dailyLimit);
+    final min = TextEditingController(text: g.minBalance);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('${g.methodLabel} limits'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            key: const Key('auto-daily'),
+            controller: daily,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Daily limit (\$)', helperText: 'Paid automatically per day'),
+          ),
+          TextField(
+            key: const Key('auto-min'),
+            controller: min,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Minimum balance (\$)', helperText: 'Always left in the wallet'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final d = double.tryParse(daily.text.trim());
+    final m = double.tryParse(min.text.trim());
+    if (d == null || m == null) {
+      if (mounted) showSnack(context, 'Enter amounts in dollars.');
+      return;
+    }
+    await _run(() => _session.api.setAutoPayout(g.method, dailyLimit: d, minBalance: m), 'Limits saved.');
+  }
+
+  Future<void> _enterBalance(AutoPayoutSettings g) async {
+    final bal = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('${g.methodLabel} wallet balance'),
+        content: TextField(
+          key: const Key('auto-balance'),
+          controller: bal,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Balance now (\$)',
+            helperText: 'As the wallet shows it. Its SMS update it after that.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final b = double.tryParse(bal.text.trim());
+    if (b == null) {
+      if (mounted) showSnack(context, 'Enter the balance in dollars.');
+      return;
+    }
+    await _run(() => _session.api.setPayoutBalance(g.method, b), 'Balance saved.');
+  }
+
+  Widget _safeguardCard(AutoPayoutSettings g) {
+    final help = switch (g.mode) {
+      'live' => 'Every withdrawal is sent automatically within the limits below.',
+      'test' => 'Only a \$${g.testAmount} test withdrawal is sent automatically.',
+      _ => 'Nothing is sent automatically. Withdrawals wait to be paid by hand.',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ConsoleCard(
+        key: Key('auto-${g.method}'),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(g.methodLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            key: Key('auto-mode-${g.method}'),
+            segments: const [
+              ButtonSegment(value: 'off', label: Text('Off')),
+              ButtonSegment(value: 'test', label: Text('Test')),
+              ButtonSegment(value: 'live', label: Text('Live')),
+            ],
+            selected: {g.mode},
+            onSelectionChanged: g.hasWallet || g.mode != 'off' ? (v) => _setMode(g, v.first) : null,
+          ),
+          const SizedBox(height: 6),
+          Text(g.hasWallet ? help : 'Add a wallet with a phone and PIN first.',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+          InfoRow('Paid today', '\$${g.paidToday} of \$${g.dailyLimit}'),
+          InfoRow('Minimum balance', '\$${g.minBalance}'),
+          InfoRow(
+            'Wallet balance',
+            g.balance == null
+                ? 'Not known yet'
+                : '\$${g.balance}${g.balanceSeenAt != null ? ' (${formatDateTime(g.balanceSeenAt!)})' : ''}',
+          ),
+          InfoRow('\$${g.testAmount} test', g.testPassed ? 'Passed${g.testOrderCode != null ? ' (${g.testOrderCode})' : ''}' : 'Not passed yet'),
+          if (g.liveNeedsRetest)
+            const Text('The payout wallet or phone changed: switch to Test and send a new test.',
+                style: TextStyle(color: AppColors.statusFailed)),
+          if (g.waiting > 0 && g.heldReason != null)
+            Text('${g.waiting} waiting · ${g.heldReason}',
+                key: Key('auto-held-${g.method}'), style: const TextStyle(color: AppColors.statusPending)),
+          Wrap(spacing: 8, children: [
+            TextButton(onPressed: () => _editLimits(g), child: const Text('Limits')),
+            if (g.hasWallet) TextButton(onPressed: () => _enterBalance(g), child: const Text('Enter balance')),
+          ]),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _setAuto(bool on) async {
     await PayoutRunner.setAutoPayoutEnabled(on);
     final deviceId = _session.deviceId;
@@ -648,6 +798,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                       ]),
                     ]),
                   ),
+                  const GroupLabel('Automatic payout safeguards'),
+                  for (final g in _safeguards) _safeguardCard(g),
                   Row(children: [
                     const Expanded(child: GroupLabel('Badal Exchange wallets')),
                     TextButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('Add')),

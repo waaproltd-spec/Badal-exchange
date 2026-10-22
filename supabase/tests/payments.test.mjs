@@ -100,6 +100,15 @@ before(async () => {
     await rpc(agent, 'manage_set_payout_wallet_pin', { p_id: w.id, p_pin: PIN });
     await db.query(`UPDATE public.payout_wallets SET created_at = now() - interval '10 years' WHERE id = $1`, [w.id]);
     await db.query(`UPDATE public.payout_wallets SET device_id = NULL WHERE method = $1 AND id <> $2`, [method, w.id]);
+    // Automatic payouts live for these wallets, no limit in the way
+    // (the safeguards themselves are tested in auto_payouts.test.mjs). The
+    // sample SMS below carry small "haraagagu waa" balances; a reading dated
+    // ahead stays the latest, so they don't hold payouts here.
+    await db.query(
+      `UPDATE public.payout_auto_settings SET mode = 'live', live_wallet_id = $2, live_device_id = $3,
+         daily_limit_cents = 10000000000, min_balance_cents = 0 WHERE method = $1`, [method, w.id, PHONE]);
+    await db.query(`INSERT INTO public.payout_wallet_balances (wallet_id, balance_cents, seen_at, source)
+                    VALUES ($1, 10000000000, now() + interval '1 day', 'manager')`, [w.id]);
   }
 });
 

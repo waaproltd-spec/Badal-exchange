@@ -146,4 +146,13 @@ jobs:
           SELECT to_char(first_seen_at, 'MM-DD HH24:MI') AS seen,
                  left(regexp_replace(raw::text, '[0-9]{6,}', '#', 'g'), 400) AS row_masked
             FROM public.merchant_transactions ORDER BY first_seen_at DESC LIMIT 5;
+          -- Automatic payouts from the payout phone: switch, limits, wallet set up (no PINs, numbers masked).
+          SELECT s.method, s.mode, private.money(s.daily_limit_cents) AS daily_limit, private.money(s.min_balance_cents) AS min_balance,
+                 (w.id IS NOT NULL) AS has_wallet, right(w.phone_number, 3) AS wallet_end,
+                 private.money(private.payout_paid_today(s.method)) AS paid_today,
+                 private.payout_balance(s.method) ->> 'estimatedCents' AS balance_cents,
+                 (private.payout_test_order(s.method) IS NOT NULL) AS test_passed
+            FROM public.payout_auto_settings s LEFT JOIN LATERAL (SELECT * FROM private.payout_wallet(s.method)) w ON true;
+          SELECT a.status, count(*) AS attempts, to_char(max(a.created_at), 'MM-DD HH24:MI') AS last
+            FROM public.payout_dial_attempts a WHERE a.created_at > now() - interval '30 days' GROUP BY a.status;
           SQL
