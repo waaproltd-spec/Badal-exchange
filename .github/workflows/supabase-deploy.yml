@@ -70,6 +70,8 @@ jobs:
           supabase functions deploy push-notifications --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Sahal merchant feed (read-only stage); woken by the database with the worker secret.
           supabase functions deploy golis-merchant --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Withdrawal alerts on Telegram (TELEGRAM_N8N_BOT_TOKEN); woken by the database with the worker secret.
+          supabase functions deploy withdrawal-alerts --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:
@@ -155,4 +157,9 @@ jobs:
             FROM public.payout_auto_settings s LEFT JOIN LATERAL (SELECT * FROM private.payout_wallet(s.method)) w ON true;
           SELECT a.status, count(*) AS attempts, to_char(max(a.created_at), 'MM-DD HH24:MI') AS last
             FROM public.payout_dial_attempts a WHERE a.created_at > now() - interval '30 days' GROUP BY a.status;
+          -- Withdrawal alerts bot: linked chat (name only), last check, last error; alerts sent.
+          SELECT (chat_id IS NOT NULL) AS linked, chat_name, to_char(linked_at, 'MM-DD HH24:MI') AS linked_at,
+                 to_char(checked_at, 'MM-DD HH24:MI:SS') AS checked, left(last_error, 200) AS last_error
+            FROM public.withdrawal_alert_chat;
+          SELECT shown_status, count(*) AS alerts FROM public.withdrawal_alerts GROUP BY shown_status;
           SQL

@@ -141,7 +141,7 @@ test('live needs a passed $0.10 test: refused from off and from test before the 
 });
 
 test('test mode pays only $0.10; live opens once that payout completed AND its carrier SMS arrived', async () => {
-  await setMode('test', { p_daily_limit: 500, p_min_balance: 0 });
+  await setMode('test', { p_daily_limit: 100000, p_min_balance: 0 });
   const big = await withdrawal(5);
   assert.equal(await inQueue(big.w.id), false);
   await rejects(start(big.w.id), 'TEST_MODE');
