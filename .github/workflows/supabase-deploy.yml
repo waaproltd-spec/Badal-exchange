@@ -138,3 +138,24 @@ jobs:
                  to_char(created, 'MM-DD HH24:MI:SS') AS at
             FROM net._http_response ORDER BY created DESC LIMIT 6;
           SQL
+
+      - name: Golis merchant portal client code (read-only, no login)
+        continue-on-error: true
+        run: |
+          set +e
+          curl -sS -m 60 -o bundle.js https://mymerchant.golis.so/js/bundle.js
+          curl -sS -m 30 -o config.js https://mymerchant.golis.so/lib/app.config.js
+          echo "== app.config.js"; cat config.js | head -c 12100; echo
+          for p in /api/account/login /api/account/2auth /api/account/addDevice /api/account/transactions /api/account/balance; do
+            for off in $(grep -ob -- "$p" bundle.js | cut -d: -f1 | head -3); do
+              start=$(( off > 1500 ? off - 1500 : 0 ))
+              echo; echo "===== $p @ $off"
+              tail -c +$((start + 1)) bundle.js | head -c 3500 | tr -s ' '
+              echo
+            done
+          done
+          echo; echo "===== AES / encrypt usages"
+          for off in $(grep -ob -- "CryptoJS.AES" bundle.js | cut -d: -f1 | head -4); do
+            start=$(( off > 600 ? off - 600 : 0 ))
+            echo "--- @ $off"; tail -c +$((start + 1)) bundle.js | head -c 1400 | tr -s ' '; echo
+          done
