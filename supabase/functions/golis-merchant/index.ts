@@ -39,13 +39,26 @@ async function rpc(fn: string, args: Record<string, unknown>) {
   return data;
 }
 
+// The portal's cookies, kept and sent back like a browser does.
+const jar = new Map<string, string>();
+const cookieHeader = () => [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
+function keepCookies(res: Response) {
+  for (const c of res.headers.getSetCookie?.() ?? []) {
+    const [pair] = c.split(';');
+    const i = pair.indexOf('=');
+    if (i > 0) jar.set(pair.slice(0, i).trim(), pair.slice(i + 1).trim());
+  }
+}
+const saveCookies = () => rpc('merchant_feed_save_cookies', { p_provider: PROVIDER, p_cookies: cookieHeader() });
+
 async function portal(path: string, body: Record<string, unknown>) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(jar.size ? { Cookie: cookieHeader() } : {}) },
     body: JSON.stringify({ userNature: 'MERCHANT', ...body }),
     signal: AbortSignal.timeout(20_000),
   });
+  keepCookies(res);
   const text = await res.text();
   try {
     return JSON.parse(text);
@@ -80,7 +93,7 @@ async function sha256(s: string) {
 
 /** The portal's own id for a row, else a fingerprint of the whole row. */
 async function rowId(row: Record<string, unknown>) {
-  const key = Object.keys(row).find((k) => /^(transaction_?id|trans_?id|txn_?id|tid)$/i.test(k));
+  const key = Object.keys(row).find((k) => /^(transaction_?id|trans_?id|tran_?id|txn_?id|tid)$/i.test(k));
   const v = key ? String(row[key] ?? '').trim() : '';
   return v || `sha256:${await sha256(JSON.stringify(row))}`;
 }
@@ -91,7 +104,11 @@ async function currency(): Promise<string> {
   // The page may load the list with GET; try POST first, then GET.
   let data = await portal('/api/account/currencies', {});
   if (rowArrays(data).length === 0) {
-    const res = await fetch(`${BASE}/api/account/currencies`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20_000) });
+    const res = await fetch(`${BASE}/api/account/currencies`, {
+      headers: { Accept: 'application/json', ...(jar.size ? { Cookie: cookieHeader() } : {}) },
+      signal: AbortSignal.timeout(20_000),
+    });
+    keepCookies(res);
     data = await res.json().catch(() => data);
   }
   for (const rows of rowArrays(data)) {
@@ -103,6 +120,9 @@ async function currency(): Promise<string> {
   }
   throw new Error(`no USD entry in /api/account/currencies (reply: ${shape(data)}${(data as any)?.replyMessage ? ` \"${String((data as any).replyMessage).slice(0, 80)}\"` : ''})`);
 }
+
+const withIds = (rows: Record<string, unknown>[]) =>
+  Promise.all(rows.map(async (r) => ({ ...r, _id: await rowId(r) })));
 
 type Report = { state: string; code?: string | null; message?: string | null; session?: string | null; rows?: unknown[] };
 const report = (r: Report) =>
@@ -124,13 +144,22 @@ async function run() {
   const feed = await rpc('merchant_feed_get', { p_provider: PROVIDER });
   if (feed?.state === 'stopped' || feed?.state === 'needs_code') return { skipped: feed.state };
 
+  jar.clear();
+  for (const part of String(feed?.cookies ?? '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) jar.set(part.slice(0, i).trim(), part.slice(i + 1).trim());
+  }
   let session: string | null = feed?.sessionId ?? null;
+  let claimed = false;
+  let firstRows: Record<string, unknown>[] = [];
   if (feed?.state === 'code_entered') {
     // The manager's access code, sent with Sahal's pending session (once).
     // Exactly one run gets it; any other run woken at the same time skips.
     const { secondSessionId, code } = await rpc('merchant_feed_take_code', { p_provider: PROVIDER });
     if (!secondSessionId || !code) return { skipped: 'code already taken' };
+    claimed = true;
     const auth = await portal('/api/account/2auth', { type: 'MERCHANT', code, sessionId: secondSessionId });
+    await saveCookies();
     if (String(auth?.resultCode ?? '') !== '2001' || !auth.sessionId) {
       return report({
         state: 'stopped',
@@ -139,15 +168,29 @@ async function run() {
       });
     }
     session = String(auth.sessionId);
+    // The page shows the list that comes with this answer (transactionInfo).
+    firstRows = rowArrays(auth.transactionInfo ?? [])[0] ?? [];
   }
   let tx = session ? await portal('/api/account/transactions', { sessionId: session }) : null;
+  if (claimed && (!tx || ['4005', '7777'].includes(String(tx?.resultCode)))) {
+    // Just signed in with the code, yet the list is refused: say exactly what Sahal answered.
+    const rows = await withIds(firstRows);
+    return report({
+      state: 'stopped',
+      code: String(tx?.resultCode ?? ''),
+      message: `Signed in, but Sahal refused the transaction list (${tx?.resultCode ?? 'no answer'}: ${tx?.replyMessage ?? shape(tx)})`,
+      rows,
+    });
+  }
   if (!tx || ['4005', '7777'].includes(String(tx.resultCode))) {
     // One sign-in at a time: each one makes Sahal text a new code.
     if (!(await rpc('merchant_feed_claim_sign_in', { p_provider: PROVIDER }))) return { skipped: 'sign-in running' };
+    jar.clear();
     const login = await portal('/api/account/login', {
       type: 'MERCHANT', username, password, currency: await currency(),
     });
     const code = String(login?.resultCode ?? '');
+    await saveCookies();
     if (code === '1001' && login.sessionId) {
       // Sahal texted the access code: wait for a manager to enter it.
       await rpc('merchant_feed_wait_code', { p_provider: PROVIDER, p_second_session_id: String(login.sessionId) });
@@ -170,13 +213,13 @@ async function run() {
     return report({ state: 'stopped', code, message: 'Signed in, but the session ended at once' });
   }
   const rows = rowArrays(tx)[0] ?? [];
-  const withIds = await Promise.all(rows.map(async (r) => ({ ...r, _id: await rowId(r) })));
+  await saveCookies();
   return report({
     state: 'ok',
     code,
     message: `${rows.length} rows; reply keys: ${shape(tx)}`,
     session,
-    rows: withIds,
+    rows: await withIds([...firstRows, ...rows]),
   });
 }
 

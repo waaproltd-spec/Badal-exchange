@@ -23,7 +23,8 @@ const standIn = http.createServer((req, res) => {
   req.on('end', () => {
     const b = body ? JSON.parse(body) : {};
     seen.push({ path: req.url, body: b });
-    const reply = (o) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+    const cookie = (req.headers.cookie ?? '').match(/connect\.sid=([^;]+)/)?.[1];
+    const reply = (o, headers = {}) => { res.writeHead(200, { 'Content-Type': 'application/json', ...headers }); res.end(JSON.stringify(o)); };
     if (req.url === '/api/account/currencies') {
       return reply({ resultCode: 2001, currencies: [{ CURRENCYCODE: '706', CURRENCYNAME: 'SOS' }, { CURRENCYCODE: '840', CURRENCYNAME: 'USD' }] });
     }
@@ -37,7 +38,9 @@ const standIn = http.createServer((req, res) => {
       if (portal.login === 'wrong') return reply({ resultCode: 4001, replyMessage: 'Invalid username or password' });
       if (portal.login === 'sms') {
         portal.pending = `P${portal.next++}`;
-        return reply({ resultCode: 1001, sessionId: portal.pending, replyMessage: 'Access code sent' });
+        // Like an Express portal: the session cookie is set at sign-in.
+        return reply({ resultCode: 1001, sessionId: portal.pending, replyMessage: 'Access code sent' },
+          { 'Set-Cookie': `connect.sid=${portal.pending}-cookie; Path=/; HttpOnly` });
       }
       const s = `S${portal.next++}`;
       portal.sessions.add(s);
@@ -45,12 +48,18 @@ const standIn = http.createServer((req, res) => {
     }
     if (req.url === '/api/account/2auth') {
       if (b.sessionId !== portal.pending || b.code !== '654321') return reply({ resultCode: 4002, replyMessage: 'Invalid access code' });
+      if (cookie !== `${portal.pending}-cookie`) return reply({ resultCode: 4005, replyMessage: 'Session expired' });
       const s = `S${portal.next++}`;
       portal.sessions.add(s);
-      return reply({ resultCode: 2001, sessionId: s });
+      portal.cookieFor[s] = cookie;
+      return reply({ resultCode: 2001, sessionId: s, transactionInfo: portal.firstRows });
     }
     if (req.url === '/api/account/transactions') {
       if (!portal.sessions.has(b.sessionId)) return reply({ resultCode: 4005, replyMessage: 'Session expired' });
+      if (portal.cookieFor[b.sessionId] && portal.cookieFor[b.sessionId] !== cookie) {
+        return reply({ resultCode: 7777, replyMessage: 'Your Session has expired. Please login again.' });
+      }
+      if (portal.refuseList) return reply({ resultCode: 4005, replyMessage: 'Your Session has expired. Please login again.' });
       return reply({ resultCode: 2001, transactionInfo: portal.rows });
     }
     res.writeHead(404).end();
@@ -79,7 +88,7 @@ beforeEach(async () => {
   await db.query(`UPDATE merchant_feed_status SET state = 'ready', result_code = NULL, message = NULL, rows_seen = 0 WHERE provider = 'golis'`);
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
-  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false });
+  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false, cookieFor: {}, firstRows: [], refuseList: false });
   seen.length = 0;
 });
 after(async () => {
@@ -253,4 +262,36 @@ test('woken twice at once: Sahal is signed in to once (one SMS), the code is sen
   await Promise.all([run(), run(), run()]);
   assert.equal(calls('/api/account/2auth'), 1, 'the code is used by one run only');
   assert.equal((await status()).state, 'ok');
+});
+
+test('after the code: the portal cookie is sent back, and the list that came with the code is kept', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  portal.login = 'sms';
+  portal.firstRows = [{ tranId: '7505720310', sender: '252900000004', receiver: '252638882065', credit: '1.00', debit: '-' }];
+  portal.rows = [row('7505691073', '5.00', '252610338686')];
+  await run();
+  const m = await managerClient();
+  await m.rpc('manage_merchant_feed_code', { p_provider: 'golis', p_code: '654321' });
+  await run();
+  const s = await status();
+  assert.equal(s.state, 'ok', s.message);
+  assert.deepEqual((await stored()).map((x) => x.transaction_id), ['7505691073', '7505720310']);
+  // A later minute: still the same cookie, still signed in.
+  await run();
+  assert.equal((await status()).state, 'ok');
+  assert.equal(calls('/api/account/login'), 1);
+});
+
+test('signed in with the code but the list is refused: stops with exactly what Sahal said, no new sign-in', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  portal.login = 'sms';
+  portal.refuseList = true;
+  await run();
+  const m = await managerClient();
+  await m.rpc('manage_merchant_feed_code', { p_provider: 'golis', p_code: '654321' });
+  await run();
+  const s = await status();
+  assert.equal(s.state, 'stopped');
+  assert.match(s.message, /Signed in, but Sahal refused the transaction list \(4005: Your Session has expired/);
+  assert.equal(calls('/api/account/login'), 1, 'no second SMS');
 });
