@@ -335,6 +335,9 @@ const telegramBots = [
   ('1xBet', 'Badal1xbetbot'),
   ('WinWin', 'Badalwinwinbot'),
   ('Betwinner', 'Badalbetwinnerbot'),
+  ('DBbet', 'Badaldbbetbot'),
+  ('BetJam', 'Badalbetjambot'),
+  ('BetOnGame', 'Badalbetongamebot'),
 ];
 
 /// Links this manager's Telegram account to the Telegram cashier bots
@@ -413,7 +416,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       const Text(
-                        'The Telegram bots (888starz, 1xBet, WinWin and Betwinner) check their cash register balance, find players, and '
+                        'The Telegram bots (888starz, 1xBet, WinWin, Betwinner, DBbet, BetJam and BetOnGame) check their cash register balance, find players, and '
                         'make deposits and payouts. They act as you, and stop working for you if you lose '
                         'access to Admin features. Linking once works with every bot.',
                         style: TextStyle(color: AppColors.textSecondary),

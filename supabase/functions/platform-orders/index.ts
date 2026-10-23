@@ -120,6 +120,9 @@ const TELEGRAM_TOKENS: Record<string, string> = {
   '1xbet': 'TELEGRAM_BOT_TOKEN_1XBET',
   winwin: 'TELEGRAM_BOT_TOKEN_WINWIN',
   betwinner: 'TELEGRAM_BOT_TOKEN_BETWINNER',
+  dbbet: 'TELEGRAM_BOT_TOKEN_DBBET',
+  betjam: 'TELEGRAM_BOT_TOKEN_BETJAM',
+  betongame: 'TELEGRAM_BOT_TOKEN_BETONGAME',
 };
 
 /** Tells the managers, through the brand's bot, to top up its register. */

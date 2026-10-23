@@ -15,7 +15,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-/// The ten methods, in the order the backend serves them.
+/// The twelve methods, in the order the backend serves them.
+
+/// Cash-desk companies: the customer's own payment code, a Payment Location.
+const _cashdesk = {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame'};
 const _catalog = [
   ('evc_plus', 'EVC Plus', 'mobile_money', '#16A34A', 'EVC'),
   ('golis', 'Golis', 'mobile_money', '#0EA5E9', 'GO'),
@@ -26,6 +29,8 @@ const _catalog = [
   ('winwin', 'WinWin', 'platform', '#7C3AED', 'WW'),
   ('dbbet', 'DBbet', 'platform', '#DC2626', 'DB'),
   ('betwinner', 'Betwinner', 'platform', '#15803D', 'BW'),
+  ('betjam', 'BetJam', 'platform', '#F5B301', 'BJ'),
+  ('betongame', 'BetOnGame', 'platform', '#2EE6C5', 'BG'),
   ('888starz', '888STARZ', 'platform', '#7C3AED', '888'),
 ];
 
@@ -39,7 +44,7 @@ List<Map<String, dynamic>> get _catalogJson => [
             if (id == 'edahab') {'number': '620000001', 'label': null},
             if (id == 'golis') {'number': '0907000001', 'label': null},
           ],
-          if (id == 'onexbet' || id == '888starz' || id == 'winwin' || id == 'betwinner') 'paymentLocation': {'city': 'Mogadishu', 'street': 'FURAHA 5'},
+          if (_cashdesk.contains(id)) 'paymentLocation': {'city': 'Mogadishu', 'street': 'FURAHA 5'},
         },
     ];
 
@@ -50,7 +55,7 @@ class FakeCustomerApi extends CustomerApi {
   final submitted = <Map<String, Object?>>[];
 
   /// Account IDs the customer used before, per platform.
-  final savedAccounts = <String, String>{'onexbet': '7841228', '888starz': '7841228', 'winwin': '7841228', 'betwinner': '7841228'};
+  final savedAccounts = <String, String>{for (final m in _cashdesk) m: '7841228'};
 
   @override
   Future<String?> getPlatformAccount(String method) async => savedAccounts[method];
@@ -183,7 +188,7 @@ void main() {
 
   for (final direction in PaymentDirection.values) {
     for (final size in const [Size(320, 568), Size(360, 640), Size(390, 844), Size(412, 892)]) {
-      testWidgets('${direction.name} sheet on ${size.width.toInt()}x${size.height.toInt()}: all ten methods on screen, no scrolling',
+      testWidgets('${direction.name} sheet on ${size.width.toInt()}x${size.height.toInt()}: all twelve methods on screen, no scrolling',
           (tester) async {
         await _phone(tester, size: size);
         tester.view.padding = const FakeViewPadding(top: 24, bottom: 16);
@@ -375,7 +380,7 @@ void main() {
       expect(find.text('Confirm Withdrawal'), findsOneWidget);
       // Destination, amount, fee and total before confirming.
       expect(find.text(isPlatform ? identifier : '+252 610338686'), findsOneWidget);
-      if (id == '888starz' || id == 'onexbet' || id == 'winwin' || id == 'betwinner') {
+      if (_cashdesk.contains(id)) {
         // Found at the platform first, with the name it gave.
         expect(find.text('Player ID: Find a Player'), findsOneWidget);
         expect(find.text('Yaasin Maxamed'), findsOneWidget);
@@ -412,7 +417,7 @@ void main() {
       final confirm = find.byKey(const Key('confirm-deposit'));
       expect(tester.widget<PrimaryButton>(confirm).onPressed, isNull);
 
-      final usesCode = id == '888starz' || id == 'onexbet' || id == 'winwin' || id == 'betwinner';
+      final usesCode = _cashdesk.contains(id);
       if (usesCode) {
         // The account ID used last time is filled in; the payment code is typed.
         await tester.pump();

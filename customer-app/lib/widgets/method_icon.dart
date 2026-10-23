@@ -4,7 +4,8 @@ import '../models/payment_method.dart';
 
 /// Methods with a logo in assets/methods/<id>.png; others show initials.
 const _logos = {
-  'evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet', 'winwin', 'dbbet', 'betwinner', '888starz',
+  'evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet', 'winwin', 'dbbet', 'betwinner', 'betjam', 'betongame',
+  '888starz',
 };
 
 /// A payment method's mark: its logo on a rounded tile, or (for a method

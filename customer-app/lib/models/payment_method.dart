@@ -24,7 +24,7 @@ class PaymentMethodInfo {
 
   /// Deposits for this method are collected automatically with the
   /// withdrawal code the customer gets from the platform's cash desk.
-  bool get usesWithdrawalCode => const {'888starz', 'onexbet', 'winwin', 'betwinner'}.contains(id);
+  bool get usesWithdrawalCode => const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame'}.contains(id);
   String get identifierHint => AppStrings.identifierHint(isPlatform);
 }
 
@@ -40,6 +40,8 @@ List<PaymentMethodInfo> paymentMethods = const <PaymentMethodInfo>[
   PaymentMethodInfo('winwin', 'WinWin', true, Color(0xFF059669), 'WW'),
   PaymentMethodInfo('dbbet', 'DBbet', true, Color(0xFFDC2626), 'DB'),
   PaymentMethodInfo('betwinner', 'Betwinner', true, Color(0xFF15803D), 'BW'),
+  PaymentMethodInfo('betjam', 'BetJam', true, Color(0xFFF5B301), 'BJ'),
+  PaymentMethodInfo('betongame', 'BetOnGame', true, Color(0xFF2EE6C5), 'BG'),
   PaymentMethodInfo('888starz', '888STARZ', true, Color(0xFF7C3AED), '888'),
 ];
 

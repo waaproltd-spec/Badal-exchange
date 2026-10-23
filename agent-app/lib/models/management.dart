@@ -65,7 +65,7 @@ class MethodSettings {
   bool get isPlatform => kind == 'platform';
 
   /// Cash-desk companies, where the customer makes a payment code.
-  bool get hasPaymentLocation => const {'onexbet', '888starz', 'winwin', 'betwinner'}.contains(method);
+  bool get hasPaymentLocation => const {'onexbet', '888starz', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame'}.contains(method);
 
   factory MethodSettings.fromJson(Map<String, dynamic> j) => MethodSettings(
         method: j['method'] as String,

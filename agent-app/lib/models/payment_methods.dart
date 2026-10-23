@@ -34,6 +34,8 @@ List<PaymentMethodInfo> paymentMethods = const [
   PaymentMethodInfo('onexbet', '1XBET', MethodKind.platform, Color(0xFF1D4ED8), '1X'),
   PaymentMethodInfo('melbet', 'MELBET', MethodKind.platform, Color(0xFFCA8A04), 'MB'),
   PaymentMethodInfo('betwinner', 'Betwinner', MethodKind.platform, Color(0xFF15803D), 'BW'),
+  PaymentMethodInfo('betjam', 'BetJam', MethodKind.platform, Color(0xFFF5B301), 'BJ'),
+  PaymentMethodInfo('betongame', 'BetOnGame', MethodKind.platform, Color(0xFF2EE6C5), 'BG'),
   PaymentMethodInfo('dbbet', 'DBbet', MethodKind.platform, Color(0xFFDC2626), 'DB'),
   PaymentMethodInfo('888starz', '888STARZ', MethodKind.platform, Color(0xFF7C3AED), '888'),
 ];
@@ -68,7 +70,8 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
 
 /// Methods with a logo in assets/methods/<id>.png; others show initials.
 const _logos = {
-  'evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet', 'winwin', 'dbbet', 'betwinner', '888starz',
+  'evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet', 'winwin', 'dbbet', 'betwinner', 'betjam', 'betongame',
+  '888starz',
 };
 
 /// Small rounded badge: the method's logo, or its initials in its color.
