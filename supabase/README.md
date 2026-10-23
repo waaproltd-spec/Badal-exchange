@@ -127,7 +127,8 @@ same SMS parsers, the same matching rules, and the same USSD payout.
 2. For EVC Plus and eDahab, the agent phone with Baari's wallet SIM pays it
    out automatically: `agent_payout_start_dial`, then the carrier's USSD with
    the PIN, then `agent_payout_report_step1`/`step2`. EVC uses the agent
-   withdraw code `*736*number*amount*PIN#` (the phone swaps in the PIN, and
+   withdraw code `*736*number*amount*PIN#` (EVC numbers as `61…`, Zaad and
+   Golis with their 0: `063…`, `090…`; the phone swaps in the PIN, and
    types it again when EVC asks); eDahab uses `*110*number*amount#`.
 3. The wallet is debited only on a confirmed payout: either the carrier's
    success screen, or its "you transferred" SMS

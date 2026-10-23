@@ -1,13 +1,24 @@
 -- EVC payouts are sent with the agent withdraw code, PIN included:
---   *736*0905999914*1*{PIN}#
+--   EVC Plus  *736*610625955*1*{PIN}#
+--   Golis     *736*0905999914*1*{PIN}#
+--   Zaad      *736*0638882065*1*{PIN}#
 -- EVC still answers with "Fadlan Geli PIN-kaaga", which the phone fills in
 -- as before. {PIN} is a placeholder the agent phone swaps for the PIN right
 -- before dialing, so the PIN is never stored in payout_dial_attempts.
 -- eDahab keeps *110*number*amount#.
+
+-- The receiver as *736 wants it: Hormuud numbers as is (610625955), other
+-- networks' numbers (Zaad 63, Golis 90) with their leading 0.
+CREATE OR REPLACE FUNCTION private.agent_withdraw_phone(p_phone text)
+RETURNS text LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+  SELECT CASE WHEN left(private.phone_key(p_phone), 2) IN ('63', '90') THEN '0' ELSE '' END
+         || private.phone_key(p_phone)
+$$;
+
 CREATE OR REPLACE FUNCTION private.payout_ussd(p_method public.order_method, p_phone text, p_amount numeric)
 RETURNS text LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
   SELECT CASE p_method
-    WHEN 'evc_plus' THEN '*736*0' || private.phone_key(p_phone) || '*' || private.ussd_amount(p_amount) || '*{PIN}#'
+    WHEN 'evc_plus' THEN '*736*' || private.agent_withdraw_phone(p_phone) || '*' || private.ussd_amount(p_amount) || '*{PIN}#'
     ELSE '*' || private.payout_dial_prefix(p_method) || '*' || private.phone_key(p_phone) || '*' || private.ussd_amount(p_amount) || '#'
   END
 $$;
