@@ -8,6 +8,7 @@ import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../services/push_notifications.dart';
 import '../models/auth_user.dart';
+import '../l10n/strings.dart';
 import '../screens/auth/login_screen.dart';
 
 /// Session state: current user, and the login/register/logout flows.
@@ -16,6 +17,7 @@ import '../screens/auth/login_screen.dart';
 class AuthProvider extends ChangeNotifier {
   AuthProvider({required this.apiClient, required this.customerApi, this.navigatorKey}) {
     apiClient.onSessionExpired = _handleSessionExpired;
+    apiClient.onSessionReplaced = _handleSessionReplaced;
   }
 
   final ApiClient apiClient;
@@ -146,6 +148,20 @@ class AuthProvider extends ChangeNotifier {
     await apiClient.secureStorage.delete(key: 'refreshToken');
     _user = null;
     notifyListeners();
+  }
+
+  /// The account was opened on another phone: this phone signs out (its
+  /// own session only) and shows why.
+  void _handleSessionReplaced() {
+    if (_user == null) return;
+    unawaited(() async {
+      await customerApi.logout();
+      await _clearSession();
+      navigatorKey?.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => LoginScreen(message: AppStrings.openedOnAnotherPhone)),
+        (route) => false,
+      );
+    }());
   }
 
   void _handleSessionExpired() {

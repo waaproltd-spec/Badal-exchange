@@ -97,6 +97,8 @@ class AppStrings {
       'Wada-hadalka taageerada weli lama diyaarin. Fadlan isku day mar dambe.');
   static String couldNotOpen(String app, String link) =>
       _t('Could not open $app. Contact us at $link', 'Lama furi karo $app. Nagala soo xiriir $link');
+  static String get openedOnAnotherPhone => _t('This account was opened on another phone. Log in again to use it here.',
+      'Akoonkan taleefan kale ayaa laga galay. Dib u gal si aad halkan uga isticmaasho.');
   static String get invalidLogin =>
       _t('Wrong phone number or password.', 'Lambarka taleefanka ama erayga sirta waa khalad.');
   static String get showPassword => _t('Show password', 'Muuji erayga sirta');

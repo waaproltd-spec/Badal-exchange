@@ -31,6 +31,8 @@ class CustomerApi {
       if (me['role'] != 'customer') {
         throw const ApiException(status: 401, code: 'UNAUTHORIZED', message: 'Invalid credentials');
       }
+      // One phone per account: the other phones are signed out.
+      await _client.signOutOtherPhones();
       return (name: (me['name'] as String?) ?? '');
     } catch (_) {
       await _client.signOut();

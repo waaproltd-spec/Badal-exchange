@@ -43,6 +43,10 @@ class ApiClient {
   /// screen. Set by `AuthProvider`.
   void Function()? onSessionExpired;
 
+  /// Called when the server says this account was opened on another phone
+  /// (SESSION_REPLACED). Set by `AuthProvider`.
+  void Function()? onSessionReplaced;
+
   static Future<void> initialize() async {
     if (AppConfig.supabaseAnonKey.isEmpty) {
       debugPrint('SUPABASE_ANON_KEY is not set; build with --dart-define=SUPABASE_ANON_KEY=...');
@@ -76,7 +80,7 @@ class ApiClient {
   /// Calls an Edge Function with a JSON body. Returns its JSON result; its
   /// `{error:{code,message}}` answers become [ApiException]s.
   Future<dynamic> invoke(String function, Map<String, dynamic> body) {
-    return guard(() async {
+    return _watchReplaced(() async {
       try {
         final res = await supabase.functions.invoke(function, body: body).timeout(AppConfig.requestTimeout);
         return res.data;
@@ -93,7 +97,26 @@ class ApiClient {
 
   /// Calls a backend function. Returns its JSON result (Map, List or null).
   Future<dynamic> rpc(String function, [Map<String, dynamic>? params]) {
-    return guard(() => supabase.rpc(function, params: params).timeout(AppConfig.requestTimeout));
+    return _watchReplaced(() => supabase.rpc(function, params: params).timeout(AppConfig.requestTimeout));
+  }
+
+  /// [guard], and a SESSION_REPLACED answer tells [onSessionReplaced].
+  Future<T> _watchReplaced<T>(Future<T> Function() call) async {
+    try {
+      return await guard(call);
+    } on ApiException catch (e) {
+      if (e.code == 'SESSION_REPLACED') onSessionReplaced?.call();
+      rethrow;
+    }
+  }
+
+  /// One phone per account: ends this account's sessions on other phones.
+  Future<void> signOutOtherPhones() async {
+    try {
+      await supabase.auth.signOut(scope: SignOutScope.others).timeout(AppConfig.requestTimeout);
+    } catch (_) {
+      // The server already refuses the other phones' sessions.
+    }
   }
 
   Future<void> signIn({required String phone, required String password}) async {

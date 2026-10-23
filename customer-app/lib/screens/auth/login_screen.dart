@@ -18,7 +18,10 @@ import 'register_screen.dart';
 /// Log In: +252 phone (9 digits typed) and password, Remember me, Forgot
 /// password (support contacts), and Create Account.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// Shown above the form, e.g. why the app came back here.
+  final String? message;
+
+  const LoginScreen({super.key, this.message});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -30,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _rememberMe = true;
   bool _submitting = false;
-  String? _error;
+  late String? _error = widget.message;
 
   @override
   void dispose() {

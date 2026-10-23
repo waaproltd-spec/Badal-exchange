@@ -101,6 +101,20 @@ Future<void> _logIn(WidgetTester tester, {String phone = '612345678', String pw 
 }
 
 void main() {
+  testWidgets('opened on another phone: the login screen says why', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(_app());
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        Provider<CustomerApi>.value(value: _api),
+        ChangeNotifierProvider<AuthProvider>.value(value: _auth),
+      ],
+      child: MaterialApp(theme: AppTheme.current, home: LoginScreen(message: AppStrings.openedOnAnotherPhone)),
+    ));
+    await tester.pump();
+    expect(find.text(AppStrings.openedOnAnotherPhone), findsOneWidget);
+  });
+
   setUp(() {
     AppLanguage.current.value = AppLanguage.english;
     SharedPreferences.setMockInitialValues({});
