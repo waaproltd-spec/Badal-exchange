@@ -274,6 +274,7 @@ test('"Send to all customers": one message to every customer device (topic), wit
   if (skipUnlessServed(t)) return;
   const manager = client();
   await manager.auth.signInWithPassword({ email: '252610000002@phone.baari.invalid', password: PASSWORD });
+  const existing = await customer();
   const n1 = await rpc(manager, 'manage_send_notification', { p_title: 'Badal', p_body: 'kuso dhawo' });
   const queuedBroadcast = (await db.query(`SELECT kind, status FROM push_notifications WHERE notification_id = $1`, [n1.id])).rows;
   assert.deepEqual(queuedBroadcast, [{ kind: 'broadcast', status: 'pending' }]);
@@ -288,9 +289,11 @@ test('"Send to all customers": one message to every customer device (topic), wit
   assert.equal((await db.query(`SELECT status FROM push_notifications WHERE notification_id = $1`, [n1.id])).rows[0].status, 'sent');
   await runSender();
   assert.equal(sent.length, 1, 'sent once');
-  // It is still shown in the app's Notifications screen as before.
-  const cu = await customer();
-  assert.ok((await rpc(cu.c, 'customer_notifications')).some((x) => x.id === n1.id));
+  // Shown in the Notifications screen of customers who were already there;
+  // a customer who joins later does not see older messages.
+  assert.ok((await rpc(existing.c, 'customer_notifications')).some((x) => x.id === n1.id));
+  const newcomer = await customer();
+  assert.ok(!(await rpc(newcomer.c, 'customer_notifications')).some((x) => x.id === n1.id));
 });
 
 test('a broadcast and order notifications go out in the same run', async (t) => {
