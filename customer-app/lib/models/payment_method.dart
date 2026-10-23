@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/strings.dart';
+
 /// Payment methods. The backend is the single source of truth
 /// (backend/src/lib/methods.ts, served at GET /meta/payment-methods); the
 /// app loads that catalog at startup (CustomerApi.loadMethodCatalog).
@@ -18,12 +20,12 @@ class PaymentMethodInfo {
   final String initials;
 
   /// What the customer types for this method.
-  String get identifierLabel => isPlatform ? '$label Account ID' : '$label Phone Number';
+  String get identifierLabel => AppStrings.identifierLabel(label, isPlatform);
 
   /// Deposits for this method are collected automatically with the
   /// withdrawal code the customer gets from the platform's cash desk.
-  bool get usesWithdrawalCode => id == '888starz' || id == 'onexbet';
-  String get identifierHint => isPlatform ? 'e.g. 7841228' : 'e.g. 2526XXXXXXX';
+  bool get usesWithdrawalCode => const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame'}.contains(id);
+  String get identifierHint => AppStrings.identifierHint(isPlatform);
 }
 
 /// Bundled copy of the backend catalog, used only until the startup load
@@ -31,13 +33,15 @@ class PaymentMethodInfo {
 List<PaymentMethodInfo> paymentMethods = const <PaymentMethodInfo>[
   PaymentMethodInfo('evc_plus', 'EVC Plus', false, Color(0xFF16A34A), 'EVC'),
   PaymentMethodInfo('golis', 'Golis', false, Color(0xFF0EA5E9), 'GO'),
-  PaymentMethodInfo('telesom', 'Telesom', false, Color(0xFF2563EB), 'TE'),
+  PaymentMethodInfo('telesom', 'ZAAD', false, Color(0xFFEAB308), 'ZA'),
   PaymentMethodInfo('edahab', 'eDahab', false, Color(0xFFD97706), 'eD'),
-  PaymentMethodInfo('winwin', 'WinWin', true, Color(0xFF059669), 'WW'),
   PaymentMethodInfo('onexbet', '1XBET', true, Color(0xFF1D4ED8), '1X'),
   PaymentMethodInfo('melbet', 'MELBET', true, Color(0xFFCA8A04), 'MB'),
-  PaymentMethodInfo('betwinner', 'Betwinner', true, Color(0xFF15803D), 'BW'),
+  PaymentMethodInfo('winwin', 'WinWin', true, Color(0xFF059669), 'WW'),
   PaymentMethodInfo('dbbet', 'DBbet', true, Color(0xFFDC2626), 'DB'),
+  PaymentMethodInfo('betwinner', 'Betwinner', true, Color(0xFF15803D), 'BW'),
+  PaymentMethodInfo('betjam', 'BetJam', true, Color(0xFFF5B301), 'BJ'),
+  PaymentMethodInfo('betongame', 'BetOnGame', true, Color(0xFF2EE6C5), 'BG'),
   PaymentMethodInfo('888starz', '888STARZ', true, Color(0xFF7C3AED), '888'),
 ];
 
@@ -70,10 +74,32 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
 /// A method the backend currently offers (enabled), with the numbers or
 /// accounts customers send deposits to.
 class PaymentMethodOption {
-  const PaymentMethodOption({required this.info, required this.depositNumbers});
+  const PaymentMethodOption({
+    required this.info,
+    required this.depositNumbers,
+    this.minWithdraw,
+    this.maxWithdraw,
+    this.paymentCity,
+    this.paymentStreet,
+    this.merchantUssd,
+  });
 
   final PaymentMethodInfo info;
   final List<({String number, String? label})> depositNumbers;
+
+  /// Withdrawal limits the server enforces, when it sends them.
+  final String? minWithdraw;
+  final String? maxWithdraw;
+
+  /// Cash-desk Payment Location (1XBET, 888STARZ), set by management.
+  final String? paymentCity;
+  final String? paymentStreet;
+
+  /// Merchant code to dial for a deposit, '{amount}' standing for the
+  /// amount; only sent while management has it switched on for the method.
+  final String? merchantUssd;
+
+  bool get hasPaymentLocation => (paymentCity ?? '').isNotEmpty || (paymentStreet ?? '').isNotEmpty;
 
   factory PaymentMethodOption.fromJson(Map<String, dynamic> json) {
     return PaymentMethodOption(
@@ -84,6 +110,11 @@ class PaymentMethodOption {
           .map((e) => e as Map<String, dynamic>)
           .map((e) => (number: e['number'] as String, label: e['label'] as String?))
           .toList(),
+      minWithdraw: json['minWithdraw'] as String?,
+      maxWithdraw: json['maxWithdraw'] as String?,
+      paymentCity: (json['paymentLocation'] as Map<String, dynamic>?)?['city'] as String?,
+      paymentStreet: (json['paymentLocation'] as Map<String, dynamic>?)?['street'] as String?,
+      merchantUssd: json['merchantUssd'] as String?,
     );
   }
 }

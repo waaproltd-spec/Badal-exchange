@@ -1,11 +1,14 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../api/customer_api.dart';
+import '../services/push_notifications.dart';
 import '../models/auth_user.dart';
+import '../l10n/strings.dart';
 import '../screens/auth/login_screen.dart';
 
 /// Session state: current user, and the login/register/logout flows.
@@ -14,6 +17,7 @@ import '../screens/auth/login_screen.dart';
 class AuthProvider extends ChangeNotifier {
   AuthProvider({required this.apiClient, required this.customerApi, this.navigatorKey}) {
     apiClient.onSessionExpired = _handleSessionExpired;
+    apiClient.onSessionReplaced = _handleSessionReplaced;
   }
 
   final ApiClient apiClient;
@@ -39,7 +43,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       final phone = await apiClient.secureStorage.read(key: SecureStorageKeys.userPhone);
       final name = await apiClient.secureStorage.read(key: SecureStorageKeys.userName);
-      if (apiClient.hasSession && phone != null) {
+      if (apiClient.hasSession && phone != null && !await _rememberMe()) {
+        // "Remember me" was off: start from the login screen.
+        await _setRememberMe(true);
+        await logout();
+      } else if (apiClient.hasSession && phone != null) {
         _user = AuthUser(phone: phone, name: name ?? '');
         unawaited(apiClient.startLive());
         unawaited(_verifyRestoredSession());
@@ -69,6 +77,45 @@ class AuthProvider extends ChangeNotifier {
     await _persistSession(phone: phone, name: resolvedName);
   }
 
+  /// Logs in with the 9 local digits typed after +252. Accounts are stored
+  /// as 252XXXXXXXXX; older ones may have been registered as 0XXXXXXXXX or
+  /// the 9 digits alone, so those are tried when the first is refused.
+  Future<void> loginWithLocalNumber({
+    required String local,
+    required String password,
+    bool rememberMe = true,
+  }) async {
+    ApiException? refused;
+    for (final phone in ['252$local', '0$local', local]) {
+      try {
+        await login(phone: phone, password: password);
+        await _setRememberMe(rememberMe);
+        return;
+      } on ApiException catch (e) {
+        if (e.status != 401) rethrow;
+        refused = e;
+      }
+    }
+    throw refused!;
+  }
+
+  static const String _rememberMeKey = 'remember_me';
+
+  /// Off: the session is not restored the next time the app starts.
+  Future<void> _setRememberMe(bool value) async {
+    try {
+      await (await SharedPreferences.getInstance()).setBool(_rememberMeKey, value);
+    } catch (_) {}
+  }
+
+  Future<bool> _rememberMe() async {
+    try {
+      return (await SharedPreferences.getInstance()).getBool(_rememberMeKey) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   Future<void> register({
     required String phone,
     required String name,
@@ -79,6 +126,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // While still signed in: this device stops getting the notifications.
+    await PushNotifications.instance?.stop(customerApi);
     await customerApi.logout();
     await _clearSession();
   }
@@ -99,6 +148,20 @@ class AuthProvider extends ChangeNotifier {
     await apiClient.secureStorage.delete(key: 'refreshToken');
     _user = null;
     notifyListeners();
+  }
+
+  /// The account was opened on another phone: this phone signs out (its
+  /// own session only) and shows why.
+  void _handleSessionReplaced() {
+    if (_user == null) return;
+    unawaited(() async {
+      await customerApi.logout();
+      await _clearSession();
+      navigatorKey?.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => LoginScreen(message: AppStrings.openedOnAnotherPhone)),
+        (route) => false,
+      );
+    }());
   }
 
   void _handleSessionExpired() {

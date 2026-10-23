@@ -6,6 +6,7 @@ import '../../models/order.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/transaction_views.dart';
 import 'withdraw_result_screen.dart';
 
 /// Centered spinner while the withdrawal is submitted; on success replaces
@@ -14,9 +15,13 @@ import 'withdraw_result_screen.dart';
 /// shows the backend's message with a retry (same idempotency key) or a
 /// way back to the confirm screen.
 class WithdrawProcessingScreen extends StatefulWidget {
-  const WithdrawProcessingScreen({super.key, required this.action});
+  const WithdrawProcessingScreen({super.key, required this.action, this.method, this.amount});
 
   final Future<Order> Function() action;
+
+  /// Shown while submitting: the method's icon and the amount, when known.
+  final String? method;
+  final String? amount;
 
   @override
   State<WithdrawProcessingScreen> createState() => _WithdrawProcessingScreenState();
@@ -44,7 +49,7 @@ class _WithdrawProcessingScreenState extends State<WithdrawProcessingScreen> {
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.somethingWentWrong);
     }
   }
 
@@ -56,28 +61,13 @@ class _WithdrawProcessingScreenState extends State<WithdrawProcessingScreen> {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: _error == null ? _buildProcessing() : _buildError(_error!),
-            ),
+            child: _error == null
+                ? ProcessingView(method: widget.method, amount: widget.amount, deposit: false)
+                : Column(mainAxisSize: MainAxisSize.min, children: _buildError(_error!)),
           ),
         ),
       ),
     );
-  }
-
-  List<Widget> _buildProcessing() {
-    return [
-      const SizedBox(
-        width: 64,
-        height: 64,
-        child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 4),
-      ),
-      const SizedBox(height: 28),
-      Text(AppStrings.processing, style: AppTextStyles.headline, textAlign: TextAlign.center),
-      const SizedBox(height: 12),
-      Text(AppStrings.pleaseWait, style: AppTextStyles.muted, textAlign: TextAlign.center),
-    ];
   }
 
   List<Widget> _buildError(String message) {
@@ -89,7 +79,7 @@ class _WithdrawProcessingScreenState extends State<WithdrawProcessingScreen> {
         child: const Icon(Icons.priority_high_rounded, color: AppColors.statusFailed, size: 36),
       ),
       const SizedBox(height: 24),
-      Text('We could not complete this', style: AppTextStyles.title, textAlign: TextAlign.center),
+      Text(AppStrings.couldNotComplete, style: AppTextStyles.title, textAlign: TextAlign.center),
       const SizedBox(height: 8),
       Text(message, style: AppTextStyles.muted, textAlign: TextAlign.center),
       const SizedBox(height: 28),

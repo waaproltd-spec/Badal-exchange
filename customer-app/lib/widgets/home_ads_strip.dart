@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/app_content.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
+import '../l10n/strings.dart';
 
 /// Horizontally swipeable home-screen ads (managed from the Agent App).
 /// An ad with a link opens it in the browser when tapped.
@@ -17,7 +18,7 @@ class HomeAdsStrip extends StatelessWidget {
     if (uri == null || !uri.hasScheme) return;
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the link.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.couldNotOpenLink)));
     }
   }
 
@@ -83,7 +84,7 @@ class HomeAdsStrip extends StatelessWidget {
                             if (ad.linkUrl != null) ...[
                               const SizedBox(height: 8),
                               Text(
-                                'Learn more ›',
+                                AppStrings.learnMore,
                                 style: AppTextStyles.body.copyWith(color: AppColors.lightGold, fontWeight: FontWeight.w800),
                               ),
                             ],

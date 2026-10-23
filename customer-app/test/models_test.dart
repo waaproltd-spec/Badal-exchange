@@ -18,6 +18,29 @@ void main() {
       expect(wallet.totalDeposit, '9.80');
       expect(wallet.totalWithdraw, '0.00');
     });
+
+    test('parses Wallet ID, promo code and bonus', () {
+      final wallet = Wallet.fromJson(const {
+        'availableBalance': '4.83',
+        'pendingBalance': '0.80',
+        'totalDeposit': '9.80',
+        'totalWithdraw': '0.00',
+        'bonusBalance': '2.50',
+        'walletId': 'BE482913',
+        'promoCode': 'RAMADAN26',
+      });
+      expect(wallet.walletId, 'BE482913');
+      expect(wallet.promoCode, 'RAMADAN26');
+      expect(wallet.bonusBalance, '2.50');
+    });
+
+    test('no promo code is null, not a made-up value', () {
+      final wallet = Wallet.fromJson(const {
+        'availableBalance': '0.00', 'pendingBalance': '0.00', 'totalDeposit': '0.00', 'totalWithdraw': '0.00',
+        'bonusBalance': '0.00', 'walletId': 'BE000001', 'promoCode': null,
+      });
+      expect(wallet.promoCode, isNull);
+    });
   });
 
   group('Quote.fromJson', () {
@@ -159,6 +182,26 @@ void main() {
       expect(order.isDeposit, isFalse);
       expect(order.status, 'failed');
       expect(order.failureReason, 'Provider payout rejected');
+    });
+
+    test('parses a code-only cash-desk deposit whose amount is pending', () {
+      final order = Order.fromJson(const {
+        'id': 'cd1',
+        'orderCode': 'EX5678CD',
+        'direction': 'deposit',
+        'method': 'onexbet',
+        'status': 'pending',
+        'statusMessage': 'Pending',
+        'accountId': '7841228',
+        'amount': '0.00',
+        'fee': '0.00',
+        'netAmount': '0.00',
+        'amountPending': true,
+        'createdAt': '2026-10-21T10:00:00.000Z',
+      });
+
+      expect(order.amountPending, isTrue);
+      expect(order.accountId, '7841228');
     });
   });
 }

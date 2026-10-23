@@ -52,6 +52,13 @@ class Session extends ChangeNotifier {
   String? loginError;
   bool isBusy = false;
 
+  /// Company Balances: managers and agents given 'view_company_balances'
+  /// (the server checks it again on every request).
+  bool get canViewCompanyBalances {
+    final r = profile?.responsibilities ?? const [];
+    return r.contains('manage_settings') || r.contains('view_company_balances');
+  }
+
   String get agentDisplayName => profile?.name ?? _agentName ?? 'Agent';
 
   /// Restores a previously persisted session on app startup.

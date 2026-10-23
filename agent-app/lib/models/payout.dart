@@ -170,6 +170,69 @@ class PayoutWallet {
       );
 }
 
+/// The server's safeguards for one method's automatic payouts.
+class AutoPayoutSettings {
+  final String method;
+
+  /// off | test | live
+  final String mode;
+  final String dailyLimit;
+  final String minBalance;
+  final String testAmount;
+  final String paidToday;
+
+  /// The payout wallet's estimated balance; null when never read.
+  final String? balance;
+  final DateTime? balanceSeenAt;
+  final bool hasWallet;
+  final String? walletPhone;
+  final bool testPassed;
+  final String? testOrderCode;
+  final bool liveNeedsRetest;
+  final int waiting;
+
+  /// Why the oldest waiting withdrawal is not paid automatically.
+  final String? heldReason;
+
+  const AutoPayoutSettings({
+    required this.method,
+    required this.mode,
+    required this.dailyLimit,
+    required this.minBalance,
+    required this.testAmount,
+    required this.paidToday,
+    this.balance,
+    this.balanceSeenAt,
+    this.hasWallet = false,
+    this.walletPhone,
+    this.testPassed = false,
+    this.testOrderCode,
+    this.liveNeedsRetest = false,
+    this.waiting = 0,
+    this.heldReason,
+  });
+
+  String get methodLabel => method == 'edahab' ? 'eDahab' : 'EVC Plus';
+
+  factory AutoPayoutSettings.fromJson(Map<String, dynamic> j) => AutoPayoutSettings(
+        method: j['method'] as String,
+        mode: j['mode'] as String? ?? 'off',
+        dailyLimit: j['dailyLimit'] as String? ?? '0.00',
+        minBalance: j['minBalance'] as String? ?? '0.00',
+        testAmount: j['testAmount'] as String? ?? '0.10',
+        paidToday: j['paidToday'] as String? ?? '0.00',
+        balance: j['balance'] as String?,
+        balanceSeenAt: j['balanceSeenAt'] == null ? null : DateTime.tryParse(j['balanceSeenAt'] as String)?.toLocal(),
+        hasWallet: j['hasWallet'] as bool? ?? false,
+        walletPhone: j['walletPhone'] as String?,
+        testPassed: j['testPassed'] as bool? ?? false,
+        testOrderCode: j['testOrderCode'] as String?,
+        liveNeedsRetest: j['liveNeedsRetest'] as bool? ?? false,
+        waiting: (j['waiting'] as num?)?.toInt() ?? 0,
+        heldReason: j['heldReason'] as String?,
+      );
+}
+
 /// One stored payment SMS (manager review).
 class PaymentSmsLog {
   final String id;

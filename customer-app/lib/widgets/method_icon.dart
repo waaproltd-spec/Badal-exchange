@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/payment_method.dart';
 
-/// A payment method's mark: its short initials on a tile in the method's
-/// color. Mobile money is a rounded square, betting platforms a circle.
+/// Methods with a logo in assets/methods/<id>.png; others show initials.
+const _logos = {
+  'evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet', 'winwin', 'dbbet', 'betwinner', 'betjam', 'betongame',
+  '888starz',
+};
+
+/// A payment method's mark: its logo on a rounded tile, or (for a method
+/// without one) its initials on a tile in the method's color.
 class MethodIcon extends StatelessWidget {
   const MethodIcon({super.key, required this.method, this.size = 48});
 
@@ -12,6 +18,21 @@ class MethodIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_logos.contains(method)) {
+      return Container(
+        key: Key('logo-$method'),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.24),
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.24),
+          child: Image.asset('assets/methods/$method.png', fit: BoxFit.cover, filterQuality: FilterQuality.medium),
+        ),
+      );
+    }
     final info = methodInfo(method);
     return Container(
       width: size,
@@ -29,6 +50,41 @@ class MethodIcon extends StatelessWidget {
             info.initials,
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.34),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A method's full logo on a wide white (or the logo's own dark) rounded
+/// tile, 2.4 : 1, never cropped or stretched. Methods without a logo show
+/// their [MethodIcon] instead.
+class MethodLogo extends StatelessWidget {
+  const MethodLogo({super.key, required this.method, this.radius = 12});
+
+  final String method;
+  final double radius;
+
+  static const aspect = 2.4;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_logos.contains(method)) {
+      return LayoutBuilder(
+        builder: (context, box) => Center(child: MethodIcon(method: method, size: box.maxHeight)),
+      );
+    }
+    return AspectRatio(
+      aspectRatio: aspect,
+      child: DecoratedBox(
+        key: Key('wide-logo-$method'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium),
         ),
       ),
     );

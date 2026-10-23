@@ -7,9 +7,12 @@ import '../theme/text_styles.dart';
 /// colors: pending=amber, processing=blue, completed=green,
 /// failed=red, cancelled/expired=gray.
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({super.key, required this.status});
+  const StatusBadge({super.key, required this.status, this.compact = false});
 
   final String status;
+
+  /// Smaller padding and text, for dense lists like the home screen.
+  final bool compact;
 
   Color get _color {
     switch (status) {
@@ -51,14 +54,16 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _color;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: compact
+          ? const EdgeInsets.symmetric(horizontal: 10, vertical: 3)
+          : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         _label,
-        style: AppTextStyles.label.copyWith(color: color, letterSpacing: 0.2),
+        style: AppTextStyles.label.copyWith(color: color, letterSpacing: 0.2, fontSize: compact ? 11.5 : null),
       ),
     );
   }

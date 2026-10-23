@@ -1,0 +1,111 @@
+name: Build Customer App for Play Store
+
+# Manual-only. Builds the Customer App as an Android App Bundle (.aab)
+# signed with the Play Store upload key, and publishes it as a GitHub
+# Release asset (customer-app-release.aab) to upload in Google Play Console.
+#
+# Repository secrets (Settings -> Secrets and variables -> Actions):
+#   UPLOAD_KEYSTORE_BASE64   the upload keystore (.jks), base64-encoded
+#   UPLOAD_KEYSTORE_PASSWORD its password
+#   UPLOAD_KEY_ALIAS         the key's alias (upload)
+#   UPLOAD_KEY_PASSWORD      the key's password
+# plus SUPABASE_ANON_KEY, as for the APK build.
+#
+# The version code is this workflow's run number (+100), so every build
+# Play receives is higher than the last; the version name comes from
+# customer-app/pubspec.yaml.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Check secrets
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        run: |
+          missing=""
+          for n in SUPABASE_ANON_KEY UPLOAD_KEYSTORE_BASE64 UPLOAD_KEYSTORE_PASSWORD UPLOAD_KEY_ALIAS UPLOAD_KEY_PASSWORD; do
+            [ -z "${!n}" ] && missing="$missing $n"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Add these repository secrets first:$missing"
+            exit 1
+          fi
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+
+      - name: Firebase config
+        working-directory: customer-app
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then exit 0; fi
+          if printf '%s' "$GOOGLE_SERVICES_JSON" | grep -q '"project_info"'; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+          fi
+
+      - name: Upload key
+        working-directory: customer-app/android
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > upload.keystore
+          {
+            echo "storeFile=upload.keystore"
+            echo "storePassword=$UPLOAD_KEYSTORE_PASSWORD"
+            echo "keyAlias=$UPLOAD_KEY_ALIAS"
+            echo "keyPassword=$UPLOAD_KEY_PASSWORD"
+          } > key.properties
+          keytool -list -keystore upload.keystore -storepass "$UPLOAD_KEYSTORE_PASSWORD" -alias "$UPLOAD_KEY_ALIAS" > /dev/null \
+            || { echo "::error::The upload keystore, its password or the alias is wrong."; exit 1; }
+
+      - name: Build app bundle
+        working-directory: customer-app
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://onbezsojnpsrtuxzwsjr.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+        run: |
+          flutter pub get
+          flutter build appbundle --release \
+            --build-number=$(( ${{ github.run_number }} + 100 )) \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+          rm -f android/key.properties android/upload.keystore
+          # Signed with the upload key, not the debug key.
+          jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab | grep -q "CN=Android Debug" \
+            && { echo "::error::The bundle is signed with the debug key"; exit 1; } || true
+
+      - name: Publish as a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="play-store-${{ github.run_number }}"
+          cp customer-app/build/app/outputs/bundle/release/app-release.aab customer-app-release.aab
+          gh release create "$TAG" customer-app-release.aab \
+            --title "Customer App for Play Store (build $(( ${{ github.run_number }} + 100 )))" \
+            --notes "Upload customer-app-release.aab in Google Play Console. Signed with the upload key." \
+            --target "${{ github.sha }}"

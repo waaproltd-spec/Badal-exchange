@@ -35,7 +35,7 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
             children: [
               for (final m in methods)
                 SwitchListTile(
-                  secondary: MethodBadge(method: m.method, size: 36),
+                  secondary: MethodLogo(method: m.method, width: 84),
                   title: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
                   subtitle: Text(m.enabled ? 'ON — customers can use it' : 'OFF — hidden from customers'),
                   value: m.enabled,
@@ -121,9 +121,9 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
               ConsoleCard(
                 onTap: () => _open(m),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    MethodBadge(method: m.method),
+                    MethodLogo(method: m.method),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -132,7 +132,7 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
                           Row(
                             children: [
                               Expanded(
-                                child: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                child: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                               ),
                               StatusPill(m.enabled ? 'active' : 'off'),
                             ],
@@ -171,11 +171,17 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
   late bool _enabled = widget.settings.enabled;
   late final _min = TextEditingController(text: widget.settings.minWithdraw ?? '');
   late final _max = TextEditingController(text: widget.settings.maxWithdraw ?? '');
+  late final _city = TextEditingController(text: widget.settings.paymentCity ?? '');
+  late final _street = TextEditingController(text: widget.settings.paymentStreet ?? '');
+  late final _merchant = TextEditingController(text: widget.settings.merchantUssd ?? '');
+  late bool _merchantOn = widget.settings.merchantUssdEnabled;
   bool _saving = false;
+
+  static final _merchantPattern = RegExp(r'^\*[0-9]+(\*[0-9]+)*\*\{amount\}#$');
 
   @override
   void dispose() {
-    for (final c in [_min, _max]) {
+    for (final c in [_min, _max, _city, _street, _merchant]) {
       c.dispose();
     }
     super.dispose();
@@ -210,6 +216,14 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
       if (_min.text.trim() != (s.minWithdraw ?? '') || _max.text.trim() != (s.maxWithdraw ?? '')) {
         await api.setWithdrawalLimits(m, min: min, max: max);
       }
+      if (s.hasPaymentLocation &&
+          (_city.text.trim() != (s.paymentCity ?? '') || _street.text.trim() != (s.paymentStreet ?? ''))) {
+        await api.setPaymentLocation(m, city: _city.text.trim(), street: _street.text.trim());
+      }
+      final merchant = _merchant.text.replaceAll(RegExp(r'\s'), '');
+      if (!s.isPlatform && (merchant != (s.merchantUssd ?? '') || _merchantOn != s.merchantUssdEnabled)) {
+        await api.setMerchantUssd(m, code: merchant, enabled: _merchantOn);
+      }
       if (!mounted) return;
       showSnack(context, '${s.label} settings saved.');
       Navigator.of(context).pop(true);
@@ -233,7 +247,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
             ConsoleCard(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: SwitchListTile(
-                secondary: MethodBadge(method: s.method, size: 40),
+                secondary: MethodLogo(method: s.method, width: 84),
                 title: Text(s.label, style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text(
                   '${s.isPlatform ? 'Betting platform' : 'Mobile money'} • ${_enabled ? 'ON' : 'OFF'}',
@@ -266,6 +280,73 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                 ],
               ),
             ),
+            if (!s.isPlatform) ...[
+              const GroupLabel('Merchant code'),
+              ConsoleCard(
+                child: Column(
+                  children: [
+                    TextFormField(
+                      key: const Key('merchant-ussd'),
+                      controller: _merchant,
+                      decoration: const InputDecoration(
+                        labelText: 'Code to dial',
+                        hintText: '*789*090353102*{amount}#',
+                        prefixIcon: Icon(Icons.dialpad_rounded),
+                      ),
+                      validator: (v) {
+                        final t = (v ?? '').replaceAll(RegExp(r'\s'), '');
+                        if (t.isEmpty) return _merchantOn ? 'Enter the code before switching it on' : null;
+                        return _merchantPattern.hasMatch(t) ? null : 'Write it like *789*090353102*{amount}#';
+                      },
+                    ),
+                    SwitchListTile(
+                      key: const Key('merchant-ussd-on'),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Show customers this code'),
+                      value: _merchantOn,
+                      onChanged: (v) => setState(() => _merchantOn = v),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Off: customers send money to the deposit number as before'
+                '${s.method == 'evc_plus' ? ' (*712*, confirmed automatically from the SMS)' : ''}. '
+                'On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms '
+                'each deposit from the merchant account; they wait up to 24 hours.',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+              ),
+            ],
+            if (s.hasPaymentLocation) ...[
+              const GroupLabel('Payment Location'),
+              ConsoleCard(
+                child: Column(
+                  children: [
+                    TextFormField(
+                      key: const Key('payment-city'),
+                      controller: _city,
+                      decoration: const InputDecoration(labelText: 'City', prefixIcon: Icon(Icons.location_city_rounded)),
+                      textCapitalization: TextCapitalization.words,
+                      validator: (v) => (v ?? '').trim().length > 60 ? 'At most 60 characters' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      key: const Key('payment-street'),
+                      controller: _street,
+                      decoration: const InputDecoration(labelText: 'Street', prefixIcon: Icon(Icons.add_road_rounded)),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v ?? '').trim().length > 80 ? 'At most 80 characters' : null,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Shown to customers on ${s.label} Complete Deposit, with a Copy button each. Leave both empty to hide it.',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+              ),
+            ],
             const SizedBox(height: 12),
             const Text(
               'Deposits and withdrawals are 1:1 with no fee: the customer gets exactly the amount sent.',

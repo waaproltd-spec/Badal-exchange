@@ -20,6 +20,9 @@ class Order {
     this.failureReason,
     required this.createdAt,
     this.completedAt,
+    this.amountPending = false,
+    this.balanceBefore,
+    this.balanceAfter,
   });
 
   final String id;
@@ -39,6 +42,14 @@ class Order {
   final String? failureReason;
   final DateTime createdAt;
   final DateTime? completedAt;
+  /// A code-only cash-desk deposit whose amount the platform has not told
+  /// us yet; amount/netAmount are placeholders until then.
+  final bool amountPending;
+
+  /// The wallet's available balance before and after this order moved it
+  /// (a deposit's credit, a withdrawal's reservation); null when it didn't.
+  final String? balanceBefore;
+  final String? balanceAfter;
 
   bool get isDeposit => direction == 'deposit';
   pm.PaymentMethodInfo get methodInfo => pm.methodInfo(method);
@@ -64,6 +75,9 @@ class Order {
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'] as String)
           : null,
+      amountPending: json['amountPending'] as bool? ?? false,
+      balanceBefore: json['balanceBefore'] as String?,
+      balanceAfter: json['balanceAfter'] as String?,
     );
   }
 }

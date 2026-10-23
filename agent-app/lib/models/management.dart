@@ -36,6 +36,15 @@ class MethodSettings {
   final String? minWithdraw;
   final String? maxWithdraw;
 
+  /// Payment Location customers see on Complete Deposit (1XBET, 888STARZ).
+  final String? paymentCity;
+  final String? paymentStreet;
+
+  /// Merchant code customers dial for a deposit ('{amount}' is filled in),
+  /// shown to them only while [merchantUssdEnabled].
+  final String? merchantUssd;
+  final bool merchantUssdEnabled;
+
   const MethodSettings({
     required this.method,
     required this.label,
@@ -47,9 +56,16 @@ class MethodSettings {
     this.withdrawFee,
     this.minWithdraw,
     this.maxWithdraw,
+    this.paymentCity,
+    this.paymentStreet,
+    this.merchantUssd,
+    this.merchantUssdEnabled = false,
   });
 
   bool get isPlatform => kind == 'platform';
+
+  /// Cash-desk companies, where the customer makes a payment code.
+  bool get hasPaymentLocation => const {'onexbet', '888starz', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame'}.contains(method);
 
   factory MethodSettings.fromJson(Map<String, dynamic> j) => MethodSettings(
         method: j['method'] as String,
@@ -62,6 +78,10 @@ class MethodSettings {
         withdrawFee: FeeSetting.fromJson(j['withdrawFee']),
         minWithdraw: j['minWithdraw'] as String?,
         maxWithdraw: j['maxWithdraw'] as String?,
+        paymentCity: (j['paymentLocation'] as Map<String, dynamic>?)?['city'] as String?,
+        paymentStreet: (j['paymentLocation'] as Map<String, dynamic>?)?['street'] as String?,
+        merchantUssd: j['merchantUssd'] as String?,
+        merchantUssdEnabled: j['merchantUssdEnabled'] as bool? ?? false,
       );
 }
 
@@ -307,4 +327,53 @@ class TelegramLinkCode {
 
   factory TelegramLinkCode.fromJson(Map<String, dynamic> j) =>
       TelegramLinkCode(j['code'] as String? ?? '', _date(j['expiresAt']));
+}
+
+/// The Sahal merchant transaction feed (read-only for now).
+class MerchantFeedStatus {
+  /// ready | ok | stopped | not_configured | needs_code | code_entered
+  final String state;
+  final String? message;
+  final DateTime? lastOkAt;
+  final DateTime? codeAskedAt;
+  final int rowsSeen;
+
+  /// Whether matching payments credit customers' deposits.
+  final bool creditOn;
+  final int creditedToday;
+  /// Merchant payments of the last 24 hours with no deposit to credit.
+  final int unmatchedToday;
+
+  /// Whether withdrawals sent from Sahal complete themselves.
+  final bool payoutsOn;
+  final int payoutsCompletedToday;
+
+  const MerchantFeedStatus({
+    required this.state,
+    this.message,
+    this.lastOkAt,
+    this.codeAskedAt,
+    this.rowsSeen = 0,
+    this.creditOn = false,
+    this.creditedToday = 0,
+    this.unmatchedToday = 0,
+    this.payoutsOn = false,
+    this.payoutsCompletedToday = 0,
+  });
+
+  bool get needsCode => state == 'needs_code';
+  bool get working => state == 'ok';
+
+  factory MerchantFeedStatus.fromJson(Map<String, dynamic> j) => MerchantFeedStatus(
+        state: j['state'] as String? ?? 'ready',
+        message: j['message'] as String?,
+        lastOkAt: DateTime.tryParse(j['lastOkAt'] as String? ?? '')?.toLocal(),
+        codeAskedAt: DateTime.tryParse(j['codeAskedAt'] as String? ?? '')?.toLocal(),
+        rowsSeen: (j['rowsSeen'] as num?)?.toInt() ?? 0,
+        creditOn: j['creditOn'] as bool? ?? false,
+        creditedToday: (j['creditedToday'] as num?)?.toInt() ?? 0,
+        unmatchedToday: (j['unmatchedToday'] as num?)?.toInt() ?? 0,
+        payoutsOn: j['payoutsOn'] as bool? ?? false,
+        payoutsCompletedToday: (j['payoutsCompletedToday'] as num?)?.toInt() ?? 0,
+      );
 }

@@ -5,9 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/colors.dart';
 
-/// The BAARI logo mark: a purple gradient squircle carrying a geometric
-/// white "B" monogram, with a gold five-pointed star (a nod to the Somali
-/// star) at its top right. Mirrors the Android launcher icon.
+/// The Badal Exchange logo mark: the white "b" on a rounded brand-purple
+/// tile. Same artwork as the Android launcher icon.
 class BaariLogoMark extends StatelessWidget {
   const BaariLogoMark({super.key, this.size = 48, this.onDark = false});
 
@@ -19,12 +18,12 @@ class BaariLogoMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(size * 0.22);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.circular(size * 0.3),
+        borderRadius: radius,
         border: onDark
             ? Border.all(color: Colors.white.withOpacity(0.35), width: math.max(1, size * 0.03))
             : null,
@@ -36,73 +35,21 @@ class BaariLogoMark extends StatelessWidget {
           ),
         ],
       ),
-      child: CustomPaint(painter: _BaariMarkPainter()),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: Image.asset('assets/brand/logo.png', width: size, height: size, fit: BoxFit.cover),
+      ),
     );
   }
 }
 
-class _BaariMarkPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.width;
-    final stroke = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s * 0.1
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final left = s * 0.28;
-    final top = s * 0.26;
-    final mid = s * 0.49;
-    final bottom = s * 0.74;
-    final upperR = (mid - top) / 2;
-    final lowerR = (bottom - mid) / 2;
-    final upperX = s * 0.58 - upperR;
-    final lowerX = s * 0.66 - lowerR;
-
-    // Geometric "B": stem, a smaller upper bowl and a wider lower bowl.
-    final b = Path()
-      ..moveTo(left, mid)
-      ..lineTo(upperX, mid)
-      ..arcToPoint(Offset(upperX, top), radius: Radius.circular(upperR), clockwise: false)
-      ..lineTo(left, top)
-      ..lineTo(left, bottom)
-      ..lineTo(lowerX, bottom)
-      ..arcToPoint(Offset(lowerX, mid), radius: Radius.circular(lowerR), clockwise: false)
-      ..lineTo(left, mid);
-    canvas.drawPath(b, stroke);
-
-    // Gold star.
-    final star = Paint()..color = AppColors.gold;
-    canvas.drawPath(_star(Offset(s * 0.76, s * 0.27), s * 0.1), star);
-  }
-
-  Path _star(Offset c, double r) {
-    final path = Path();
-    for (var i = 0; i < 10; i++) {
-      final radius = i.isEven ? r : r * 0.45;
-      final angle = -math.pi / 2 + i * math.pi / 5;
-      final p = Offset(c.dx + radius * math.cos(angle), c.dy + radius * math.sin(angle));
-      if (i == 0) {
-        path.moveTo(p.dx, p.dy);
-      } else {
-        path.lineTo(p.dx, p.dy);
-      }
-    }
-    return path..close();
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// "BAARI" wordmark with a short orange accent bar underneath.
+/// "BADAL EXCHANGE" wordmark with a short orange accent bar underneath.
 class BaariWordmark extends StatelessWidget {
-  const BaariWordmark({super.key, this.fontSize = 26, this.color = AppColors.primaryDark});
+  const BaariWordmark({super.key, this.fontSize = 26, this.color});
 
   final double fontSize;
-  final Color color;
+  /// Defaults to [AppColors.primaryDark].
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -111,12 +58,14 @@ class BaariWordmark extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'BAARI',
+          'BADAL EXCHANGE',
+          maxLines: 1,
+          softWrap: false,
           style: GoogleFonts.plusJakartaSans(
             fontSize: fontSize,
             fontWeight: FontWeight.w800,
-            letterSpacing: fontSize * 0.12,
-            color: color,
+            letterSpacing: fontSize * 0.04,
+            color: color ?? AppColors.primaryDark,
             height: 1.0,
           ),
         ),
@@ -148,9 +97,15 @@ class BaariLogo extends StatelessWidget {
       children: [
         BaariLogoMark(size: markSize, onDark: onDark),
         SizedBox(width: markSize * 0.28),
-        BaariWordmark(
-          fontSize: markSize * 0.52,
-          color: onDark ? Colors.white : AppColors.primaryDark,
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: BaariWordmark(
+              fontSize: markSize * 0.52,
+              color: onDark ? Colors.white : AppColors.primaryDark,
+            ),
+          ),
         ),
       ],
     );
