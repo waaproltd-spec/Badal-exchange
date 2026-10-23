@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../models/wallet_adjustment.dart';
 import '../models/agent_profile.dart';
 import '../models/payout.dart';
 import '../models/match_result.dart';
@@ -7,6 +8,7 @@ import '../models/console.dart';
 import '../models/management.dart';
 import '../models/payment_methods.dart';
 import '../models/order.dart';
+import '../models/company_balance.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 import 'token_storage.dart';
@@ -134,6 +136,7 @@ class AgentApi {
     String? provider,
     String? reference,
     DateTime? receivedAt,
+    String? deviceId,
   }) =>
       _map('agent_payout_confirmation', {
         'p_receiver_phone': receiverPhone,
@@ -142,6 +145,7 @@ class AgentApi {
         'p_provider': provider,
         'p_reference': reference,
         'p_received_at': receivedAt?.toUtc().toIso8601String(),
+        'p_device_id': deviceId,
       });
 
   // ---- Withdrawal payouts (this phone dials them) ----
@@ -207,6 +211,24 @@ class AgentApi {
   Future<void> setPayoutWalletPin(String id, String pin) async {
     await _client.rpc('manage_set_payout_wallet_pin', {'p_id': id, 'p_pin': pin});
   }
+
+  /// Server safeguards for automatic payouts, per method.
+  Future<List<AutoPayoutSettings>> getAutoPayouts() async =>
+      (await _list('manage_auto_payouts')).map((e) => AutoPayoutSettings.fromJson(e as Map<String, dynamic>)).toList();
+
+  /// [mode] off | test | live (live only after a passed $0.10 test).
+  /// Limits in dollars; null keeps them.
+  Future<AutoPayoutSettings> setAutoPayout(String method, {String? mode, double? dailyLimit, double? minBalance}) async =>
+      AutoPayoutSettings.fromJson(await _map('manage_set_auto_payout', {
+        'p_method': method,
+        'p_mode': mode,
+        'p_daily_limit': dailyLimit,
+        'p_min_balance': minBalance,
+      }));
+
+  /// The payout wallet's balance as read on the phone.
+  Future<AutoPayoutSettings> setPayoutBalance(String method, double balance) async =>
+      AutoPayoutSettings.fromJson(await _map('manage_set_payout_balance', {'p_method': method, 'p_balance': balance}));
 
   /// Submits a WinWin/MobCash deposit confirmation the agent manually keyed
   /// in after observing the real transaction in the WinWin manager app.
@@ -326,6 +348,29 @@ class AgentApi {
     return data.map((e) => HistoryItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  // Company Balances (admins, managers, and 'view_company_balances').
+
+  /// Every company's cash register balance; [refresh] reads the connected
+  /// ones again (the server limits how often).
+  Future<CompanyBalancesOverview> getCompanyBalances({bool refresh = false, DateTime? from, DateTime? to}) async {
+    final data = await _client.getFunction('company-balances', {
+      if (refresh) 'refresh': '1',
+      if (from != null) 'from': from.toUtc().toIso8601String(),
+      if (to != null) 'to': to.toUtc().toIso8601String(),
+    });
+    return CompanyBalancesOverview.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  /// One company: balance, recent balance reads, and its orders in the
+  /// period ([status] 'open' | 'completed' | 'failed').
+  Future<CompanyDetail> getCompanyDetail(String method, {DateTime? from, DateTime? to, String? status}) async =>
+      CompanyDetail.fromJson(await _map('agent_company_detail', {
+        'p_method': method,
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+        'p_status': status,
+      }));
+
   Future<AgentAccount> getAccount() async => AgentAccount.fromJson(await _map('agent_account'));
 
   Future<void> changePassword({required String currentPassword, required String newPassword}) async {
@@ -353,6 +398,38 @@ class AgentApi {
   Future<void> setMethodEnabled(String method, bool enabled) async {
     await _client.rpc('manage_set_payment_method', {'p_method': method, 'p_enabled': enabled});
   }
+
+  /// City and street shown as Payment Location on 1XBET / 888STARZ
+  /// deposits; empty clears a value.
+  Future<void> setPaymentLocation(String method, {required String city, required String street}) async {
+    await _client.rpc('manage_set_payment_location', {'p_method': method, 'p_city': city, 'p_street': street});
+  }
+
+  /// Mobile-money merchant code (e.g. *789*090353102*{amount}#) and whether
+  /// customers are shown it on Complete Deposit.
+  Future<void> setMerchantUssd(String method, {required String code, required bool enabled}) async {
+    await _client.rpc('manage_set_merchant_ussd', {'p_method': method, 'p_code': code, 'p_enabled': enabled});
+  }
+
+  /// Sahal merchant feed: state, last read, whether an access code is due.
+  Future<MerchantFeedStatus> getMerchantFeedStatus() async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_status', {'p_provider': 'golis'}));
+
+  /// Starts a Sahal sign-in; Sahal texts an access code to the merchant phone.
+  Future<MerchantFeedStatus> merchantFeedSignIn() async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_sign_in', {'p_provider': 'golis'}));
+
+  /// Whether matching Sahal merchant payments credit deposits.
+  Future<MerchantFeedStatus> merchantFeedCredit(bool on) async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_credit', {'p_provider': 'golis', 'p_on': on}));
+
+  /// Whether withdrawals sent by hand from Sahal complete themselves.
+  Future<MerchantFeedStatus> merchantFeedPayouts(bool on) async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_payouts', {'p_provider': 'golis', 'p_on': on}));
+
+  /// The access code from Sahal's SMS.
+  Future<MerchantFeedStatus> merchantFeedCode(String code) async =>
+      MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_code', {'p_provider': 'golis', 'p_code': code}));
 
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
@@ -525,6 +602,40 @@ class AgentApi {
     });
     return Contacts.fromJson(data);
   }
+
+  /// The promo code customers see on their wallet card ('' / null = none).
+  Future<String?> getPromoCode() async => (await _map('manage_promo_code'))['promoCode'] as String?;
+
+  /// Add or deduct money on a customer's wallet. [idempotencyKey] makes a
+  /// retried request apply once.
+  Future<WalletAdjustment> adjustWallet({
+    required String customerId,
+    required bool add,
+    required String amount,
+    required String reason,
+    required String idempotencyKey,
+  }) async =>
+      WalletAdjustment.fromJson(await _map('agent_wallet_adjust', {
+        'p_customer_id': customerId,
+        'p_direction': add ? 'add' : 'deduct',
+        'p_amount': amount,
+        'p_reason': reason,
+        'p_idempotency_key': idempotencyKey,
+      }));
+
+  /// Wallet adjustments, newest first: an agent's own, or everyone's for
+  /// managers.
+  Future<List<WalletAdjustment>> getWalletAdjustments({String? customerId, String? direction}) async =>
+      (await _list('agent_wallet_adjustments', {'p_customer_id': customerId, 'p_direction': direction}))
+          .map((e) => WalletAdjustment.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<String?> setPromoCode(String code) async =>
+      (await _map('manage_set_promo_code', {'p_code': code}))['promoCode'] as String?;
+
+  /// Sets a new password for a customer who asked support (management only).
+  Future<void> resetCustomerPassword(String customerId, String newPassword) async =>
+      _client.rpc('manage_reset_customer_password', {'p_customer_id': customerId, 'p_new_password': newPassword});
 
   Future<TelegramLink> getTelegramLink() async => TelegramLink.fromJson(await _map('manage_telegram_status'));
 

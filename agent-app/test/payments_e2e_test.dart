@@ -66,7 +66,13 @@ void main() {
   late SmsBridge bridge;
   late FakePayoutDevice device;
   late PayoutRunner runner;
+  // Mobile money only ever uses the customer's registered number, so there
+  // is one customer per wallet kind, each paying from and paid to its own.
   late SupabaseClient customer;
+  late SupabaseClient evcCustomer;
+  late SupabaseClient edahabCustomer;
+  late String evcOwn;
+  late String edahabOwn;
 
   Future<Map<String, dynamic>> deposit(String method, String amount, String phone) async =>
       await customer.rpc('customer_create_deposit', params: {
@@ -116,14 +122,23 @@ void main() {
       await api.failWithdrawal(o.id, reason: 'e2e cleanup');
     }
 
-    final phone = '2526${digits(8)}';
-    customer = newClient();
-    await customer.rpc('register_customer', params: {'p_phone': phone, 'p_name': 'Payments E2E', 'p_password': 'Customer-Pass-1'});
-    await customer.auth.signInWithPassword(email: authEmailFor(phone), password: 'Customer-Pass-1');
+    Future<SupabaseClient> register(String number) async {
+      final c = newClient();
+      final phone = '252$number';
+      await c.rpc('register_customer', params: {'p_phone': phone, 'p_name': 'Payments E2E', 'p_password': 'Customer-Pass-1'});
+      await c.auth.signInWithPassword(email: authEmailFor(phone), password: 'Customer-Pass-1');
+      return c;
+    }
+
+    evcOwn = evcNumber();
+    edahabOwn = edahabNumber();
+    evcCustomer = await register(evcOwn);
+    edahabCustomer = await register(edahabOwn);
   });
 
   test('EVC Plus deposit: the real SMS (0-prefixed phone, no reference) credits the wallet once', () async {
-    final from = evcNumber();
+    customer = evcCustomer;
+    final from = evcOwn;
     final d = await deposit('evc_plus', '30', '252$from');
     expect(d['status'], 'pending');
     await evcPayment('30', from);
@@ -139,8 +154,9 @@ void main() {
   }, skip: skip);
 
   test('eDahab: SMS arrives before the deposit order; the order completes when created', () async {
+    customer = edahabCustomer;
     final before = double.parse(await balance());
-    final from = edahabNumber();
+    final from = edahabOwn;
     await edahabPayment('20', from);
     final d = await deposit('edahab', '20', from);
     expect(d['status'], 'completed');
@@ -148,7 +164,8 @@ void main() {
   }, skip: skip);
 
   test('wrong amount and wrong phone never credit', () async {
-    final from = evcNumber();
+    customer = evcCustomer;
+    final from = evcOwn;
     final d = await deposit('evc_plus', '5', from);
     await evcPayment('5.50', from);
     await evcPayment('5', evcNumber());
@@ -156,7 +173,8 @@ void main() {
   }, skip: skip);
 
   test('withdrawal: paid out automatically from the agent phone, debited once, never twice', () async {
-    final to = edahabNumber();
+    customer = edahabCustomer;
+    final to = edahabOwn;
     final w = await withdraw('edahab', '10', to);
     final afterReserve = await balance();
     await runner.sweep(deviceId: payoutPhone);
@@ -172,7 +190,8 @@ void main() {
   }, skip: skip);
 
   test('payout fails after the PIN: held, not redialed; retry needs confirmation and pays once', () async {
-    final w = await withdraw('evc_plus', '6', evcNumber());
+    customer = evcCustomer;
+    final w = await withdraw('evc_plus', '6', evcOwn);
     final id = w['id'] as String;
     device.next = (_) => const UssdPayoutResult(
         outcome: 'STEP2_FAILED', step1Status: 'step1_success', step1Text: 'Geli PIN', step2Status: 'failed', step2Text: 'Haraagaagu kuma filna');
@@ -200,8 +219,9 @@ void main() {
   }, skip: skip);
 
   test('payout fails before the PIN: withdrawal failed and the customer refunded', () async {
+    customer = edahabCustomer;
     final before = await balance();
-    final w = await withdraw('edahab', '4', edahabNumber());
+    final w = await withdraw('edahab', '4', edahabOwn);
     device.next = (_) => const UssdPayoutResult(outcome: 'TIMEOUT', step1Status: 'failed', step1Text: 'No response from the carrier');
     await runner.sweep(deviceId: payoutPhone);
     expect((await order(w['id'] as String))['status'], 'failed');
@@ -209,7 +229,8 @@ void main() {
   }, skip: skip);
 
   test('unclear payout: the carrier\'s "you transferred" SMS on the payout phone completes it', () async {
-    final to = evcNumber();
+    customer = evcCustomer;
+    final to = evcOwn;
     final w = await withdraw('evc_plus', '7', to);
     device.next = (_) => const UssdPayoutResult(
         outcome: 'TIMEOUT', step1Status: 'step1_success', step2Status: 'ambiguous', step2Text: 'No final confirmation received');

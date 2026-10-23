@@ -174,7 +174,7 @@ class PayoutRunner {
     try {
       final status = await device.status();
       if (!status.accessibilityEnabled) {
-        return const PayoutOutcome(false, 'Automatic payout is not enabled on this phone. Turn on "Baari payouts" in Accessibility settings.');
+        return const PayoutOutcome(false, 'Automatic payout is not enabled on this phone. Turn on "Badal Exchange payouts" in Accessibility settings.');
       }
       if (!status.permissionsGranted) {
         return const PayoutOutcome(false, 'Phone and call permissions are needed to send payouts.');

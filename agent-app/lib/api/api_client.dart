@@ -55,6 +55,26 @@ class ApiClient {
 
   String? get userId => supabase.auth.currentUser?.id;
 
+  /// GETs an Edge Function. Returns its JSON; its `{error:{code,message}}`
+  /// answers become [ApiException]s.
+  Future<dynamic> getFunction(String function, [Map<String, String>? query]) {
+    return guard(() async {
+      try {
+        final res = await supabase.functions
+            .invoke(function, method: HttpMethod.get, queryParameters: query)
+            .timeout(ApiConfig.requestTimeout);
+        return res.data;
+      } on FunctionException catch (e) {
+        final error = e.details is Map ? (e.details as Map)['error'] : null;
+        throw ApiException(
+          statusCode: e.status,
+          code: error is Map ? '${error['code'] ?? 'ERROR'}' : 'ERROR',
+          message: error is Map ? '${error['message'] ?? 'Request failed'}' : (e.reasonPhrase ?? 'Request failed'),
+        );
+      }
+    });
+  }
+
   /// Calls a backend function. Returns its JSON result (Map, List or null).
   Future<dynamic> rpc(String function, [Map<String, dynamic>? params]) {
     return guard(() => supabase.rpc(function, params: params).timeout(ApiConfig.requestTimeout));

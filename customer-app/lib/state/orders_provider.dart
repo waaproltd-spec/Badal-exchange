@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../models/order.dart';
+import '../l10n/strings.dart';
 
 class OrdersProvider extends ChangeNotifier {
   OrdersProvider({required this.customerApi}) {
@@ -42,7 +43,7 @@ class OrdersProvider extends ChangeNotifier {
       if (!silent) _error = e.message;
     } catch (_) {
       if (silent) return;
-      _error = 'Could not load your orders. Check your connection and try again.';
+      _error = AppStrings.couldNotLoadOrders;
     } finally {
       _loading = false;
       notifyListeners();

@@ -18,7 +18,7 @@ void main() {
   SupabaseClient newClient() => SupabaseClient(url!, key!, authOptions: const AuthClientOptions(autoRefreshToken: false));
 
   test('customer flow: register, login, deposit, live update, orders', () async {
-    final phone = '2527${DateTime.now().millisecondsSinceEpoch % 100000000}';
+    final phone = '2527${(DateTime.now().millisecondsSinceEpoch % 100000000).toString().padLeft(8, '0')}';
     final client = ApiClient(supabase: newClient());
     final api = CustomerApi(client);
 
@@ -28,6 +28,9 @@ void main() {
 
     final wallet = await api.getWallet();
     expect(wallet.availableBalance, '0.00');
+    expect(wallet.bonusBalance, '0.00');
+    expect(wallet.walletId, matches(RegExp(r'^BE\d{6}$')));
+    expect((await api.getWallet()).walletId, wallet.walletId, reason: 'the Wallet ID is permanent');
 
     final methods = await api.getPaymentMethods();
     expect(methods.map((m) => m.info.id), contains('evc_plus'));

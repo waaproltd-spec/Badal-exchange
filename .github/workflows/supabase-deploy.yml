@@ -28,7 +28,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.121.0
 
       - name: Check secrets
         env:
@@ -62,6 +62,16 @@ jobs:
           supabase functions deploy telegram-bot --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Called by the database (pg_net) with its own worker secret.
           supabase functions deploy platform-orders --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Customer App player search; the database checks the caller.
+          supabase functions deploy player-lookup --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Agent App Company Balances; the database checks the caller.
+          supabase functions deploy company-balances --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Customer push notifications; woken by the database with the worker secret.
+          supabase functions deploy push-notifications --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Sahal merchant feed (read-only stage); woken by the database with the worker secret.
+          supabase functions deploy golis-merchant --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # Withdrawal alerts on Telegram (TELEGRAM_N8N_BOT_TOKEN); woken by the database with the worker secret.
+          supabase functions deploy withdrawal-alerts --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:
@@ -82,4 +92,75 @@ jobs:
             AND proname ~ '^(customer|agent|manage|admin|session|register|payment_method|change_password|cashdeskbot|telegram|platform)';
           SELECT 'tables in Realtime: ' || string_agg(tablename, ', ' ORDER BY tablename)
             FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public';
+          SQL
+
+      - name: Betting-platform automation status (read-only)
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          # Order codes only -- no names or phone numbers.
+          psql "$SUPABASE_DATABASE_URL" -P pager=off <<'SQL'
+          SELECT key, value FROM public.app_settings
+            WHERE key LIKE 'platform_auto_since%' OR key = 'edge_functions_url' OR key LIKE 'cashdesk_low_alert%' ORDER BY key;
+          SELECT order_code, method, direction, status, amount_unknown,
+                 platform_code IS NOT NULL AS has_code, winwin_id IS NOT NULL AS has_account,
+                 to_char(created_at, 'MM-DD HH24:MI:SS') AS created, to_char(auto_claimed_at, 'MM-DD HH24:MI:SS') AS claimed,
+                 payout_review, low_funds_since IS NOT NULL AS low_funds, left(failure_reason, 160) AS note
+            FROM public.orders WHERE method IN ('888starz', 'onexbet')
+            ORDER BY created_at DESC LIMIT 12;
+          SELECT to_char(created_at, 'MM-DD HH24:MI:SS') AS at, action, entity_id,
+                 left((after_json - 'raw_sms')::text, 300) AS detail
+            FROM public.audit_logs WHERE action LIKE 'order.auto_cashdesk%' ORDER BY created_at DESC LIMIT 8;
+          SELECT order_code, status, private.money(net_cents) AS amount FROM public.orders WHERE order_code IN ('EXEHGN3B', 'EXKEKGJ2');
+          -- Latest read of every cash register.
+          SELECT DISTINCT ON (method) method, ok, private.money(balance_cents) AS balance, private.money(limit_cents) AS "limit",
+                 left(error, 100) AS error, to_char(checked_at, 'MM-DD HH24:MI:SS') AS checked
+            FROM public.cashdesk_balances ORDER BY method, checked_at DESC;
+          SELECT method, kind, count(*) AS movements, private.money(sum(amount_cents)) AS total
+            FROM public.cashdesk_movements GROUP BY method, kind ORDER BY method, kind;
+          SELECT kind, status, count(*) AS notifications, max(left(last_error, 80)) AS last_error
+            FROM public.push_notifications GROUP BY kind, status ORDER BY kind, status;
+          SELECT count(*) AS devices_registered FROM public.push_tokens;
+          -- Payment SMS from the agent phones (sender numbers masked).
+          SELECT to_char(received_at, 'MM-DD HH24:MI:SS') AS received, parsed_provider, parsed_amount,
+                 '...' || right(parsed_phone, 3) AS sender, match_status, left(match_failure_reason, 110) AS reason,
+                 left(device_id::text, 8) AS device,
+                 (SELECT o.order_code || ' ' || o.status || ' created ' || to_char(o.created_at, 'MM-DD HH24:MI')
+                    || ' wallet ' || COALESCE((SELECT w.wallet_code FROM public.wallets w WHERE w.customer_id = o.customer_id), '?')
+                  FROM public.orders o WHERE o.id = sms_logs.matched_order_id) AS matched_order
+            FROM public.sms_logs ORDER BY received_at DESC LIMIT 6;
+          SELECT order_code, method, direction, status, private.money(amount_cents) AS amount,
+                 to_char(created_at, 'MM-DD HH24:MI:SS') AS created
+            FROM public.orders WHERE method NOT IN ('888starz', 'onexbet') ORDER BY created_at DESC LIMIT 5;
+          SELECT left(device_id::text, 8) AS device, device_label, status, to_char(last_seen_at, 'MM-DD HH24:MI') AS last_seen
+            FROM public.agent_devices ORDER BY last_seen_at DESC NULLS LAST LIMIT 4;
+          SELECT jobname, schedule, active FROM cron.job WHERE jobname LIKE 'baari-%' ORDER BY jobname;
+          SELECT j.jobname, d.status, left(d.return_message, 120) AS message, to_char(d.start_time, 'MM-DD HH24:MI:SS') AS at
+            FROM cron.job_run_details d JOIN cron.job j USING (jobid)
+            WHERE j.jobname IN ('baari-platform-orders', 'baari-company-balances')
+            ORDER BY d.start_time DESC LIMIT 6;
+          SELECT id, status_code, left(content::text, 300) AS content, timed_out, left(error_msg, 120) AS error,
+                 to_char(created, 'MM-DD HH24:MI:SS') AS at
+            FROM net._http_response ORDER BY created DESC LIMIT 6;
+          -- Sahal merchant feed (read-only stage). Long digit runs (phones, ids) masked.
+          SELECT provider, state, result_code, left(message, 160) AS message,
+                 to_char(checked_at, 'MM-DD HH24:MI:SS') AS checked, to_char(last_ok_at, 'MM-DD HH24:MI:SS') AS last_ok, rows_seen
+            FROM public.merchant_feed_status;
+          SELECT to_char(first_seen_at, 'MM-DD HH24:MI') AS seen,
+                 left(regexp_replace(raw::text, '[0-9]{6,}', '#', 'g'), 400) AS row_masked
+            FROM public.merchant_transactions ORDER BY first_seen_at DESC LIMIT 5;
+          -- Automatic payouts from the payout phone: switch, limits, wallet set up (no PINs, numbers masked).
+          SELECT s.method, s.mode, private.money(s.daily_limit_cents) AS daily_limit, private.money(s.min_balance_cents) AS min_balance,
+                 (w.id IS NOT NULL) AS has_wallet, right(w.phone_number, 3) AS wallet_end,
+                 private.money(private.payout_paid_today(s.method)) AS paid_today,
+                 private.payout_balance(s.method) ->> 'estimatedCents' AS balance_cents,
+                 (private.payout_test_order(s.method) IS NOT NULL) AS test_passed
+            FROM public.payout_auto_settings s LEFT JOIN LATERAL (SELECT * FROM private.payout_wallet(s.method)) w ON true;
+          SELECT a.status, count(*) AS attempts, to_char(max(a.created_at), 'MM-DD HH24:MI') AS last
+            FROM public.payout_dial_attempts a WHERE a.created_at > now() - interval '30 days' GROUP BY a.status;
+          -- Withdrawal alerts bot: linked chat (name only), last check, last error; alerts sent.
+          SELECT (chat_id IS NOT NULL) AS linked, chat_name, to_char(linked_at, 'MM-DD HH24:MI') AS linked_at,
+                 to_char(checked_at, 'MM-DD HH24:MI:SS') AS checked, left(last_error, 200) AS last_error
+            FROM public.withdrawal_alert_chat;
+          SELECT shown_status, count(*) AS alerts FROM public.withdrawal_alerts GROUP BY shown_status;
           SQL

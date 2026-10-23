@@ -44,7 +44,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+              return Center(child: CircularProgressIndicator(color: AppColors.primary));
             }
             if (snapshot.hasError) {
               final e = snapshot.error;
@@ -52,7 +52,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 const SizedBox(height: 140),
                 Center(
                   child: Text(
-                    e is ApiException ? e.message : 'Could not load notifications.',
+                    e is ApiException ? e.message : AppStrings.couldNotLoadNotifications,
                     style: AppTextStyles.muted,
                   ),
                 ),
@@ -74,7 +74,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.cardBorder, width: 1.5),
                   ),
@@ -84,7 +84,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       Container(
                         width: 40,
                         height: 40,
-                        decoration: const BoxDecoration(color: AppColors.goldTint, shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: AppColors.goldTint, shape: BoxShape.circle),
                         child: const Icon(Icons.notifications_rounded, color: AppColors.accentOrange, size: 22),
                       ),
                       const SizedBox(width: 12),

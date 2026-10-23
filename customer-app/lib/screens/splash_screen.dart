@@ -59,14 +59,14 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.screenBackground,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            BaariLogo(markSize: 64),
-            SizedBox(height: 40),
+            const BaariLogo(markSize: 64),
+            const SizedBox(height: 40),
             SizedBox(
               width: 26,
               height: 26,

@@ -1,10 +1,12 @@
 import '../models/app_content.dart';
 import '../models/order.dart';
 import '../models/payment_method.dart';
+import '../models/player.dart';
 import '../models/quote.dart';
 import '../models/wallet.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
+import '../l10n/strings.dart';
 
 /// Typed methods for every backend call the customer app makes (Supabase
 /// Auth and RPC functions returning the same JSON the REST API did). Pure request/response mapping -- no business logic
@@ -28,8 +30,10 @@ class CustomerApi {
     try {
       final me = await _client.rpc('session_profile', {'p_record_login': true}) as Map<String, dynamic>;
       if (me['role'] != 'customer') {
-        throw const ApiException(status: 401, code: 'UNAUTHORIZED', message: 'Invalid credentials');
+        throw ApiException(status: 401, code: 'UNAUTHORIZED', message: AppStrings.invalidLogin);
       }
+      // One phone per account: the other phones are signed out.
+      await _client.signOutOtherPhones();
       return (name: (me['name'] as String?) ?? '');
     } catch (_) {
       await _client.signOut();
@@ -49,6 +53,19 @@ class CustomerApi {
 
   Future<void> logout() => _client.signOut();
 
+  /// Changes the password; this phone stays signed in. A wrong
+  /// [currentPassword] is INVALID_PASSWORD.
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await _client.rpc('change_password', {'p_current_password': currentPassword, 'p_new_password': newPassword});
+  }
+
+  /// Support links (whatsapp, telegram, facebook; empty when not set),
+  /// readable before logging in.
+  Future<Map<String, String>> getSupportContacts() async {
+    final data = await _client.rpc('support_contacts') as Map<String, dynamic>;
+    return {for (final e in data.entries) e.key: (e.value as String?)?.trim() ?? ''};
+  }
+
   /// Realtime changes to this customer's orders and wallet, and new
   /// notifications ('orders' | 'wallets' | 'notifications').
   Stream<String> get liveChanges => _client.liveChanges;
@@ -62,6 +79,20 @@ class CustomerApi {
   // ---------------------------------------------------------------------
   // Wallet & quotes
   // ---------------------------------------------------------------------
+
+  /// The betting-platform account ID this customer used before with
+  /// [method], or null the first time.
+  Future<String?> getPlatformAccount(String method) async {
+    final data = await _client.rpc('customer_platform_account', {'p_method': method}) as Map<String, dynamic>;
+    return data['accountId'] as String?;
+  }
+
+  /// "Find a Player": the 888STARZ / 1XBET player with [accountId], asked
+  /// of the platform's cash register.
+  Future<PlayerLookup> findPlayer(String method, String accountId) async {
+    final data = await _client.invoke('player-lookup', {'method': method, 'accountId': accountId});
+    return PlayerLookup.fromJson(Map<String, dynamic>.from(data as Map));
+  }
 
   Future<Wallet> getWallet() async {
     final data = await _client.rpc('customer_wallet') as Map<String, dynamic>;
@@ -94,7 +125,8 @@ class CustomerApi {
     required String method,
     String? phoneNumber,
     String? accountId,
-    required String amount,
+    /// Null for a cash-desk deposit by withdrawal code: the platform says it.
+    required String? amount,
     required String idempotencyKey,
     String? platformCode,
   }) =>
@@ -114,7 +146,7 @@ class CustomerApi {
     String method,
     String? phoneNumber,
     String? accountId,
-    String amount,
+    String? amount,
     String idempotencyKey, {
     String? platformCode,
   }) async {
@@ -169,6 +201,12 @@ class CustomerApi {
     final data = await _client.rpc('customer_orders') as List<dynamic>;
     return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// This device's push notification token, for the signed-in customer.
+  Future<void> registerPushToken(String token) =>
+      _client.rpc('customer_register_push_token', {'p_token': token, 'p_platform': 'android'});
+
+  Future<void> unregisterPushToken(String token) => _client.rpc('customer_unregister_push_token', {'p_token': token});
 
   Future<Order> getOrder(String id) async {
     final data = await _client.rpc('customer_order', {'p_id': id}) as Map<String, dynamic>;

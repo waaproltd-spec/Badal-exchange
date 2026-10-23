@@ -34,6 +34,8 @@ List<PaymentMethodInfo> paymentMethods = const [
   PaymentMethodInfo('onexbet', '1XBET', MethodKind.platform, Color(0xFF1D4ED8), '1X'),
   PaymentMethodInfo('melbet', 'MELBET', MethodKind.platform, Color(0xFFCA8A04), 'MB'),
   PaymentMethodInfo('betwinner', 'Betwinner', MethodKind.platform, Color(0xFF15803D), 'BW'),
+  PaymentMethodInfo('betjam', 'BetJam', MethodKind.platform, Color(0xFFF5B301), 'BJ'),
+  PaymentMethodInfo('betongame', 'BetOnGame', MethodKind.platform, Color(0xFF2EE6C5), 'BG'),
   PaymentMethodInfo('dbbet', 'DBbet', MethodKind.platform, Color(0xFFDC2626), 'DB'),
   PaymentMethodInfo('888starz', '888STARZ', MethodKind.platform, Color(0xFF7C3AED), '888'),
 ];
@@ -66,7 +68,13 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
       orElse: () => PaymentMethodInfo(id, id, MethodKind.mobileMoney, const Color(0xFF6B7280), id.isEmpty ? '?' : id[0].toUpperCase()),
     );
 
-/// Small rounded badge with the method's initials in its color.
+/// Methods with a logo in assets/methods/<id>.png; others show initials.
+const _logos = {
+  'evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet', 'winwin', 'dbbet', 'betwinner', 'betjam', 'betongame',
+  '888starz',
+};
+
+/// Small rounded badge: the method's logo, or its initials in its color.
 class MethodBadge extends StatelessWidget {
   final String method;
   final double size;
@@ -75,6 +83,20 @@ class MethodBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_logos.contains(method)) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.26),
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.26),
+          child: Image.asset('assets/methods/$method.png', fit: BoxFit.cover, filterQuality: FilterQuality.medium),
+        ),
+      );
+    }
     final info = methodInfo(method);
     return Container(
       width: size,
@@ -87,6 +109,36 @@ class MethodBadge extends StatelessWidget {
       child: Text(
         info.initials,
         style: TextStyle(color: info.color, fontWeight: FontWeight.w800, fontSize: size * 0.3),
+      ),
+    );
+  }
+}
+
+/// A method's full logo on a wide rounded tile (2.4 : 1), never cropped or
+/// stretched; [MethodBadge] for a method without a logo.
+class MethodLogo extends StatelessWidget {
+  final String method;
+  final double width;
+
+  const MethodLogo({super.key, required this.method, this.width = 96});
+
+  @override
+  Widget build(BuildContext context) {
+    final height = width / 2.4;
+    if (!_logos.contains(method)) {
+      return SizedBox(width: width, height: height, child: Center(child: MethodBadge(method: method, size: height)));
+    }
+    return Container(
+      key: Key('wide-logo-$method'),
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium),
       ),
     );
   }

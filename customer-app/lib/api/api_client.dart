@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
 import 'api_exception.dart';
+import '../l10n/strings.dart';
+import '../l10n/server_text.dart';
 
 /// Storage keys for what the app remembers about the signed-in customer.
 /// The session itself is kept by Supabase Auth ([SecureSessionStorage]).
@@ -43,6 +45,10 @@ class ApiClient {
   /// screen. Set by `AuthProvider`.
   void Function()? onSessionExpired;
 
+  /// Called when the server says this account was opened on another phone
+  /// (SESSION_REPLACED). Set by `AuthProvider`.
+  void Function()? onSessionReplaced;
+
   static Future<void> initialize() async {
     if (AppConfig.supabaseAnonKey.isEmpty) {
       debugPrint('SUPABASE_ANON_KEY is not set; build with --dart-define=SUPABASE_ANON_KEY=...');
@@ -73,9 +79,48 @@ class ApiClient {
   /// Emits 'orders', 'wallets' or 'notifications' when one changes.
   Stream<String> get liveChanges => _live.stream;
 
+  /// Calls an Edge Function with a JSON body. Returns its JSON result; its
+  /// `{error:{code,message}}` answers become [ApiException]s.
+  Future<dynamic> invoke(String function, Map<String, dynamic> body) {
+    return _watchReplaced(() async {
+      try {
+        final res = await supabase.functions.invoke(function, body: body).timeout(AppConfig.requestTimeout);
+        return res.data;
+      } on FunctionException catch (e) {
+        final error = e.details is Map ? (e.details as Map)['error'] : null;
+        throw ApiException(
+          status: e.status,
+          code: error is Map ? '${error['code'] ?? 'ERROR'}' : 'ERROR',
+          message: error is Map
+              ? serverText('${error['message'] ?? ''}', code: '${error['code'] ?? ''}')
+              : (e.reasonPhrase ?? AppStrings.somethingWentWrong),
+        );
+      }
+    });
+  }
+
   /// Calls a backend function. Returns its JSON result (Map, List or null).
   Future<dynamic> rpc(String function, [Map<String, dynamic>? params]) {
-    return guard(() => supabase.rpc(function, params: params).timeout(AppConfig.requestTimeout));
+    return _watchReplaced(() => supabase.rpc(function, params: params).timeout(AppConfig.requestTimeout));
+  }
+
+  /// [guard], and a SESSION_REPLACED answer tells [onSessionReplaced].
+  Future<T> _watchReplaced<T>(Future<T> Function() call) async {
+    try {
+      return await guard(call);
+    } on ApiException catch (e) {
+      if (e.code == 'SESSION_REPLACED') onSessionReplaced?.call();
+      rethrow;
+    }
+  }
+
+  /// One phone per account: ends this account's sessions on other phones.
+  Future<void> signOutOtherPhones() async {
+    try {
+      await supabase.auth.signOut(scope: SignOutScope.others).timeout(AppConfig.requestTimeout);
+    } catch (_) {
+      // The server already refuses the other phones' sessions.
+    }
   }
 
   Future<void> signIn({required String phone, required String password}) async {
@@ -147,17 +192,18 @@ class ApiClient {
     try {
       return await call();
     } on PostgrestException catch (e) {
-      throw ApiException(status: _statusFor(e.code), code: e.hint ?? e.code ?? 'ERROR', message: e.message, details: e.details);
+      final code = e.hint ?? e.code ?? 'ERROR';
+      throw ApiException(status: _statusFor(e.code), code: code, message: serverText(e.message, code: code), details: e.details);
     } on AuthException catch (e) {
       final code = e.code ?? '';
       if (code == 'user_banned') {
-        throw const ApiException(status: 403, code: 'FORBIDDEN', message: 'Account is disabled');
+        throw ApiException(status: 403, code: 'FORBIDDEN', message: serverText('Account is disabled'));
       }
       if (code == 'invalid_credentials' || e.statusCode == '400') {
-        throw const ApiException(status: 401, code: 'UNAUTHORIZED', message: 'Invalid credentials');
+        throw ApiException(status: 401, code: 'UNAUTHORIZED', message: AppStrings.invalidLogin);
       }
       if (code == 'over_request_rate_limit') {
-        throw const ApiException(status: 429, code: 'RATE_LIMITED', message: 'Too many attempts, try again later.');
+        throw ApiException(status: 429, code: 'RATE_LIMITED', message: serverText('Too many attempts, try again later.', code: 'RATE_LIMITED'));
       }
       throw ApiException(status: int.tryParse(e.statusCode ?? '') ?? 401, code: 'UNAUTHORIZED', message: e.message);
     } on ApiException {
@@ -175,11 +221,7 @@ class ApiClient {
     }
   }
 
-  static const _network = ApiException(
-    status: 0,
-    code: 'NETWORK_ERROR',
-    message: 'Could not reach the server. Check your internet connection and try again.',
-  );
+  static ApiException get _network => ApiException(status: 0, code: 'NETWORK_ERROR', message: AppStrings.networkError);
 
   /// SQLSTATE 'PTxyz' from the backend means HTTP status xyz.
   static int _statusFor(String? sqlState) {

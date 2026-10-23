@@ -88,7 +88,9 @@ after(async () => {
 test('catalog is public; customer data is not', async () => {
   const anon = client();
   const catalog = await rpc(anon, 'payment_method_catalog');
-  assert.equal(catalog.length, 10);
+  assert.equal(catalog.length, 12);
+  assert.deepEqual(catalog.map((m) => m.label),
+    ['EVC Plus', 'Golis', 'ZAAD', 'eDahab', '1XBET', 'MELBET', 'WinWin', 'DBbet', 'Betwinner', 'BetJam', 'BetOnGame', '888STARZ']);
   assert.deepEqual(catalog.map((m) => m.method).slice(0, 4), ['evc_plus', 'golis', 'telesom', 'edahab']);
   assert.equal(catalog.find((m) => m.method === 'onexbet').label, '1XBET');
   const { error } = await anon.rpc('customer_wallet');
@@ -101,11 +103,54 @@ test('register: validation, duplicate phone, session profile', async () => {
   const anon = client();
   await rejects(rpc(anon, 'register_customer', { p_phone: phone(1), p_name: 'Dup', p_password: PASSWORD }), 'PHONE_TAKEN');
   await rejects(rpc(anon, 'register_customer', { p_phone: phone(3), p_name: 'Short', p_password: 'short' }), 'VALIDATION_ERROR');
+  // Somali numbers only: 252 + 9 digits; the same number in another form is a duplicate.
+  const local = phone(1).slice(3);
+  for (const same of [`+252 ${local}`, `0${local}`, `2520${local}`, local]) {
+    await rejects(rpc(anon, 'register_customer', { p_phone: same, p_name: 'Dup', p_password: PASSWORD }), 'PHONE_TAKEN');
+  }
+  for (const bad of [local.slice(1), `252${local.slice(1)}`, `252${local}1`, `252${local.slice(0, 8)}x`, '']) {
+    await rejects(rpc(anon, 'register_customer', { p_phone: bad, p_name: 'Bad', p_password: PASSWORD }), 'VALIDATION_ERROR');
+  }
+  await rejects(rpc(anon, 'register_customer', { p_phone: phone(3), p_name: '   ', p_password: PASSWORD }), 'VALIDATION_ERROR');
   const me = await rpc(customer, 'session_profile', { p_record_login: true });
   assert.equal(me.role, 'customer');
   assert.equal(me.phone, phone(1));
   const w = await rpc(customer, 'customer_wallet');
-  assert.deepEqual(w, { availableBalance: '0.00', pendingBalance: '0.00', totalDeposit: '0.00', totalWithdraw: '0.00' });
+  const { walletId, promoCode, ...balances } = w;
+  assert.deepEqual(balances,
+    { availableBalance: '0.00', pendingBalance: '0.00', totalDeposit: '0.00', totalWithdraw: '0.00', bonusBalance: '0.00' });
+  assert.match(walletId, /^BE\d{6}$/);
+});
+
+test('wallet ID: unique per customer, permanent; bonus and promo code from the backend', async () => {
+  const mine = (await rpc(customer, 'customer_wallet')).walletId;
+  const theirs = (await rpc(customer2, 'customer_wallet')).walletId;
+  assert.notEqual(mine, theirs);
+  assert.equal((await rpc(customer, 'customer_wallet')).walletId, mine, 'same ID on every call');
+  // Balance changes and attempts to rewrite it keep it.
+  await db.query(`UPDATE public.wallets SET wallet_code = 'BE000000', updated_at = now() WHERE customer_id = $1`, [customerId]);
+  assert.equal((await rpc(customer, 'customer_wallet')).walletId, mine);
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM public.wallets WHERE wallet_code IS NULL`);
+  assert.equal(rows[0].n, 0, 'every wallet has one');
+  const { rows: dup } = await db.query(
+    `SELECT count(*)::int AS n FROM (SELECT wallet_code FROM public.wallets GROUP BY 1 HAVING count(*) > 1) d`);
+  assert.equal(dup[0].n, 0, 'no two wallets share one');
+
+  // Bonus: the stored value, per customer.
+  await db.query(`UPDATE public.wallets SET bonus_cents = 250 WHERE customer_id = $1`, [customerId]);
+  assert.equal((await rpc(customer, 'customer_wallet')).bonusBalance, '2.50');
+  assert.equal((await rpc(customer2, 'customer_wallet')).bonusBalance, '0.00');
+  await db.query(`UPDATE public.wallets SET bonus_cents = 0 WHERE customer_id = $1`, [customerId]);
+
+  // Promo code: none until management sets one; customers can't set it.
+  await rpc(agent, 'manage_set_promo_code', { p_code: '' });
+  assert.equal((await rpc(customer, 'customer_wallet')).promoCode, null);
+  await rejects(rpc(customer, 'manage_set_promo_code', { p_code: 'FREE' }), 'FORBIDDEN');
+  await rejects(rpc(agent, 'manage_set_promo_code', { p_code: 'bad code!' }), 'VALIDATION_ERROR');
+  assert.deepEqual(await rpc(agent, 'manage_set_promo_code', { p_code: ' ramadan26 ' }), { promoCode: 'RAMADAN26' });
+  assert.equal((await rpc(customer2, 'customer_wallet')).promoCode, 'RAMADAN26');
+  assert.deepEqual(await rpc(agent, 'manage_promo_code'), { promoCode: 'RAMADAN26' });
+  await rpc(agent, 'manage_set_promo_code', { p_code: '' });
 });
 
 test('wrong password and role separation', async () => {
@@ -143,7 +188,8 @@ test('mobile-money deposit: idempotency, SMS match, wallet credit, dedupe', asyn
   const k = key();
   const args = { p_method: 'evc_plus', p_amount: '25', p_idempotency_key: k, p_phone_number: phone(1) };
   await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_idempotency_key: null }), 'IDEMPOTENCY_KEY_REQUIRED');
-  await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_phone_number: null }), 'VALIDATION_ERROR');
+  // Mobile money always uses the registered number; another one is refused.
+  await rejects(rpc(customer, 'customer_create_deposit', { ...args, p_idempotency_key: key(), p_phone_number: '252619999999' }), 'PHONE_NOT_OWN');
   const order = await rpc(customer, 'customer_create_deposit', args);
   assert.equal(order.status, 'pending');
   assert.equal(order.netAmount, '25.00');
@@ -489,4 +535,29 @@ test('realtime: customers get their own order and wallet changes only', async ()
   assert.ok(mine.some((p) => p.table === 'orders' && p.new?.id === order.id && p.new.status === 'completed'));
   assert.ok(mine.some((p) => p.table === 'wallets' && p.new?.customer_id === customerId));
   assert.equal(theirs.length, 0, 'another customer receives nothing');
+});
+
+test('log-in help: support contacts before login; management resets a customer password', async () => {
+  const contacts = await rpc(client(), 'support_contacts');
+  assert.deepEqual(Object.keys(contacts).sort(), ['facebook', 'telegram', 'whatsapp']);
+
+  const p = phone(7);
+  const { rows } = await db.query(
+    `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
+                VALUES ('customer', $1, 'Forgot', private.hash_password($2)) RETURNING id)
+     INSERT INTO public.wallets (customer_id) SELECT id FROM u RETURNING customer_id`, [p, PASSWORD]);
+  const id = rows[0].customer_id;
+  const before = await login(p);
+
+  await rejects(rpc(customer, 'manage_reset_customer_password', { p_customer_id: id, p_new_password: 'New-Pass-123' }), 'FORBIDDEN');
+  await rejects(rpc(agent, 'manage_reset_customer_password', { p_customer_id: id, p_new_password: 'short' }), 'VALIDATION_ERROR');
+  await rejects(rpc(agent, 'manage_reset_customer_password', { p_customer_id: randomUUID(), p_new_password: 'New-Pass-123' }), 'NOT_FOUND');
+  await rpc(agent, 'manage_reset_customer_password', { p_customer_id: id, p_new_password: 'New-Pass-123' });
+
+  await assert.rejects(login(p), 'the old password no longer works');
+  const after = await login(p, 'New-Pass-123');
+  assert.equal((await rpc(after, 'session_profile')).role, 'customer');
+  const { error } = await before.auth.refreshSession();
+  assert.ok(error, 'existing sessions are signed out');
+  for (const c of [before, after]) await c.removeAllChannels();
 });

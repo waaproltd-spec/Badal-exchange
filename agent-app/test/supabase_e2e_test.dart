@@ -39,7 +39,7 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 3));
 
     // A customer places a deposit and a withdrawal.
-    final phone = '2528${DateTime.now().millisecondsSinceEpoch % 100000000}';
+    final phone = '2528${(DateTime.now().millisecondsSinceEpoch % 100000000).toString().padLeft(8, '0')}';
     final customer = newClient();
     await customer.rpc('register_customer', params: {'p_phone': phone, 'p_name': 'Agent E2E', 'p_password': 'Customer-Pass-1'});
     await customer.auth.signInWithPassword(email: authEmailFor(phone), password: 'Customer-Pass-1');
@@ -73,6 +73,40 @@ void main() {
     final detail = await api.getCustomer(customers.single.id);
     expect(detail.recentOrders, isNotEmpty);
     expect(await api.getCustomerLedger(customers.single.id), isNotEmpty);
+
+    // Forgot password: management sets a new one; only it works now.
+    await api.resetCustomerPassword(customers.single.id, 'Reset-Pass-22');
+    final relogin = newClient();
+    await expectLater(
+      relogin.auth.signInWithPassword(email: authEmailFor(phone), password: 'Customer-Pass-1'),
+      throwsA(isA<AuthException>()),
+    );
+    await relogin.auth.signInWithPassword(email: authEmailFor(phone), password: 'Reset-Pass-22');
+
+    // Wallet Add / Deduct Money: server-side, once per request, private.
+    final before = (await customer.rpc('customer_wallet'))['availableBalance'] as String;
+    final key = uniq();
+    final added = await api.adjustWallet(
+        customerId: customers.single.id, add: true, amount: '5.00', reason: 'E2E PRIVATE reason', idempotencyKey: key);
+    expect(added.balanceBefore, before);
+    expect(added.reference, startsWith('WAL'));
+    final replay = await api.adjustWallet(
+        customerId: customers.single.id, add: true, amount: '5.00', reason: 'E2E PRIVATE reason', idempotencyKey: key);
+    expect(replay.id, added.id);
+    expect(replay.replayed, isTrue);
+    final deducted = await api.adjustWallet(
+        customerId: customers.single.id, add: false, amount: '2.00', reason: 'E2E deduct', idempotencyKey: uniq());
+    expect(deducted.balanceBefore, added.balanceAfter);
+    await expectLater(
+      api.adjustWallet(customerId: customers.single.id, add: false, amount: '100000.00', reason: 'Too much', idempotencyKey: uniq()),
+      throwsA(isA<ApiException>().having((e) => e.code, 'code', 'INSUFFICIENT_BALANCE')),
+    );
+    final adjustments = await api.getWalletAdjustments(customerId: customers.single.id);
+    expect(adjustments.map((a) => a.id), [deducted.id, added.id]);
+    final customerWallet = await relogin.rpc('customer_wallet');
+    expect(customerWallet['availableBalance'], deducted.balanceAfter);
+    final ledger = await relogin.from('ledger_entries').select();
+    expect(ledger.toString(), isNot(contains('PRIVATE')));
     final report = await api.getReport(period: 'monthly');
     expect(report.series.length, 30);
     final history = await api.getHistory(query: phone);
@@ -95,6 +129,11 @@ void main() {
     await api.sendNotification(title: 'E2E', body: 'Hello from the agent app test');
     expect((await api.getSentNotifications()).first.title, 'E2E');
     await api.saveContacts(account.contacts);
+
+    // Promo code shown to customers: set, read back, cleared.
+    expect(await api.setPromoCode(' welcome26 '), 'WELCOME26');
+    expect(await api.getPromoCode(), 'WELCOME26');
+    expect(await api.setPromoCode(''), isNull);
     expect(await api.getAgents(), isNotEmpty);
     expect(await api.getIntegrations(), hasLength(2));
     await api.testIntegration('evc_plus');

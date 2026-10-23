@@ -9,7 +9,7 @@ import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/method_icon.dart';
 import '../../widgets/status_badge.dart';
-import 'order_detail_screen.dart';
+import '../../widgets/transaction_views.dart';
 
 class OrdersListScreen extends StatefulWidget {
   const OrdersListScreen({super.key});
@@ -18,7 +18,11 @@ class OrdersListScreen extends StatefulWidget {
   State<OrdersListScreen> createState() => _OrdersListScreenState();
 }
 
+enum _Filter { all, deposits, withdrawals }
+
 class _OrdersListScreenState extends State<OrdersListScreen> {
+  _Filter _filter = _Filter.all;
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +42,12 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
         child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: () => context.read<OrdersProvider>().load(),
-          child: _buildBody(ordersState),
+          child: Column(
+            children: [
+              _FilterBar(value: _filter, onChanged: (f) => setState(() => _filter = f)),
+              Expanded(child: _buildBody(ordersState)),
+            ],
+          ),
         ),
       ),
     );
@@ -47,8 +56,8 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
   Widget _buildBody(OrdersProvider state) {
     if (state.loading && state.orders.isEmpty) {
       return ListView(
-        children: const [
-          SizedBox(height: 160),
+        children: [
+          const SizedBox(height: 160),
           Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
       );
@@ -61,7 +70,12 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
         ],
       );
     }
-    if (state.orders.isEmpty) {
+    final orders = switch (_filter) {
+      _Filter.all => state.orders,
+      _Filter.deposits => state.orders.where((o) => o.isDeposit).toList(),
+      _Filter.withdrawals => state.orders.where((o) => !o.isDeposit).toList(),
+    };
+    if (orders.isEmpty) {
       return ListView(
         children: [
           const SizedBox(height: 140),
@@ -70,10 +84,55 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: state.orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _OrderTile(order: state.orders[index]),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+      itemCount: orders.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) => _OrderTile(order: orders[index]),
+    );
+  }
+}
+
+/// All / Deposits / Withdrawals.
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({required this.value, required this.onChanged});
+
+  final _Filter value;
+  final ValueChanged<_Filter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = {
+      _Filter.all: AppStrings.allHistory,
+      _Filter.deposits: AppStrings.depositsTab,
+      _Filter.withdrawals: AppStrings.withdrawalsTab,
+    };
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      child: Row(
+        children: [
+          for (final f in _Filter.values) ...[
+            ChoiceChip(
+              key: Key('filter-${f.name}'),
+              label: Text(labels[f]!),
+              selected: value == f,
+              onSelected: (_) => onChanged(f),
+              showCheckmark: false,
+              selectedColor: AppColors.purpleDark,
+              backgroundColor: AppColors.surface,
+              side: BorderSide(color: value == f ? AppColors.primaryDark : AppColors.cardBorder),
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              labelStyle: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: value == f ? Colors.white : AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -91,13 +150,11 @@ class _OrderTile extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: order.id)),
-      ),
+      onTap: () => showTransactionDetails(context, order),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.cardBorder, width: 1.5),
         ),
@@ -125,7 +182,7 @@ class _OrderTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
+                  order.amountPending ? AppStrings.amountPending : '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w800,
                     color: isDeposit ? AppColors.statusCompleted : AppColors.textPrimary,

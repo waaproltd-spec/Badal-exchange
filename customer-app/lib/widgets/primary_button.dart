@@ -11,9 +11,17 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.loading = false,
+    this.trailingIcon,
+    this.gradient,
   });
 
+  /// Optional purple gradient fill instead of the solid color.
+  final Gradient? gradient;
+
   final String label;
+
+  /// Optional icon after the label (e.g. an arrow).
+  final IconData? trailingIcon;
   final VoidCallback? onPressed;
   final bool loading;
 
@@ -26,6 +34,7 @@ class PrimaryButton extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
+          gradient: isDisabled ? null : gradient,
           boxShadow: isDisabled
               ? const []
               : [
@@ -39,7 +48,7 @@ class PrimaryButton extends StatelessWidget {
         child: ElevatedButton(
           onPressed: isDisabled ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: gradient != null ? Colors.transparent : AppColors.primary,
             disabledBackgroundColor: AppColors.primary.withOpacity(0.45),
             foregroundColor: Colors.white,
             elevation: 0,
@@ -55,7 +64,16 @@ class PrimaryButton extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : Text(label, style: AppTextStyles.button),
+              : trailingIcon == null
+                  ? Text(label, style: AppTextStyles.button)
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: Text(label, style: AppTextStyles.button, overflow: TextOverflow.ellipsis)),
+                        const SizedBox(width: 10),
+                        Icon(trailingIcon, size: 22),
+                      ],
+                    ),
         ),
       ),
     );

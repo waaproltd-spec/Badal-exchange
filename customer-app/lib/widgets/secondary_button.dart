@@ -11,15 +11,17 @@ class SecondaryButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onPressed,
-    this.color = AppColors.primary,
+    this.color,
   });
 
   final String label;
   final VoidCallback? onPressed;
-  final Color color;
+  /// Defaults to [AppColors.primary].
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final color = this.color ?? AppColors.primary;
     return SizedBox(
       width: double.infinity,
       height: 58,
