@@ -112,9 +112,10 @@ jobs:
                  left((after_json - 'raw_sms')::text, 300) AS detail
             FROM public.audit_logs WHERE action LIKE 'order.auto_cashdesk%' ORDER BY created_at DESC LIMIT 8;
           SELECT order_code, status, private.money(net_cents) AS amount FROM public.orders WHERE order_code IN ('EXEHGN3B', 'EXKEKGJ2');
-          SELECT method, ok, private.money(balance_cents) AS balance, private.money(limit_cents) AS "limit", left(error, 100) AS error,
-                 to_char(checked_at, 'MM-DD HH24:MI:SS') AS checked
-            FROM public.cashdesk_balances ORDER BY checked_at DESC LIMIT 6;
+          -- Latest read of every cash register.
+          SELECT DISTINCT ON (method) method, ok, private.money(balance_cents) AS balance, private.money(limit_cents) AS "limit",
+                 left(error, 100) AS error, to_char(checked_at, 'MM-DD HH24:MI:SS') AS checked
+            FROM public.cashdesk_balances ORDER BY method, checked_at DESC;
           SELECT method, kind, count(*) AS movements, private.money(sum(amount_cents)) AS total
             FROM public.cashdesk_movements GROUP BY method, kind ORDER BY method, kind;
           SELECT kind, status, count(*) AS notifications, max(left(last_error, 80)) AS last_error
