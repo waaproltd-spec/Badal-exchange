@@ -180,6 +180,23 @@ test('withdrawal completed: one notification in Somali', async (t) => {
   assert.equal((await queued(o.id))[0].status, 'sent');
 });
 
+test('own deposit and withdrawal messages are in the Notifications list too (only the customer\'s own)', async (t) => {
+  if (skipUnlessServed(t)) return;
+  const cu = await customer(0);
+  const other = await customer(0);
+  const d = await completed(cu, 'deposit');
+  const w = await completed(cu, 'withdraw');
+  const list = await rpc(cu.c, 'customer_notifications');
+  const dep = list.find((x) => x.body.includes(d.orderCode));
+  const wd = list.find((x) => x.body.includes(w.orderCode));
+  assert.equal(dep.title, DEPOSIT.title);
+  assert.ok(dep.body.startsWith(DEPOSIT.body));
+  assert.equal(wd.title, WITHDRAW.title);
+  assert.ok(list.indexOf(wd) < list.indexOf(dep), 'newest first');
+  const theirs = JSON.stringify(await rpc(other.c, 'customer_notifications'));
+  assert.ok(!theirs.includes(d.orderCode) && !theirs.includes(w.orderCode), 'not in another customer\'s list');
+});
+
 test('pending, processing, failed and cancelled orders are never notified', async (t) => {
   if (skipUnlessServed(t)) return;
   const cu = await customer();
