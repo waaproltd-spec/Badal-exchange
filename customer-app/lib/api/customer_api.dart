@@ -52,6 +52,12 @@ class CustomerApi {
 
   Future<void> logout() => _client.signOut();
 
+  /// Changes the password; this phone stays signed in. A wrong
+  /// [currentPassword] is INVALID_PASSWORD.
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await _client.rpc('change_password', {'p_current_password': currentPassword, 'p_new_password': newPassword});
+  }
+
   /// Support links (whatsapp, telegram, facebook; empty when not set),
   /// readable before logging in.
   Future<Map<String, String>> getSupportContacts() async {

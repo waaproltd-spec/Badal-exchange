@@ -74,6 +74,16 @@ class AppStrings {
   static String get enterPhone9 => _t('Enter the 9 digits after +252', 'Geli 9-ka god ee ka dambeeya +252');
   static String get passwordTooShort =>
       _t('Password must be at least 8 characters', 'Erayga sirtu waa inuu ahaadaa ugu yaraan 8 xaraf');
+  static String get changePassword => _t('Change Password', 'Beddel Erayga Sirta');
+  static String get currentPassword => _t('Current Password', 'Erayga Sirta Hadda');
+  static String get currentPasswordHint => _t('The password you log in with', 'Erayga aad hadda ku gasho');
+  static String get newPassword => _t('New Password', 'Erayga Sirta Cusub');
+  static String get wrongCurrentPassword =>
+      _t('The current password is wrong.', 'Erayga sirta ee hadda waa khalad.');
+  static String get newPasswordSame =>
+      _t('Choose a password different from the current one.', 'Dooro eray sir ah oo ka duwan kan hadda.');
+  static String get passwordChanged =>
+      _t('Your password was changed.', 'Erayga sirta waa la beddelay.');
   static String get passwordsDontMatch => _t('Passwords do not match', 'Erayada sirta isma laha');
   static String get accountCreated =>
       _t('Account created. Welcome to Badal Exchange!', 'Akoonka waa la sameeyay. Ku soo dhawoow Badal Exchange!');
