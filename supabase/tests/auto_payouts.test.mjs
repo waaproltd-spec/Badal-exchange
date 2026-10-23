@@ -152,7 +152,7 @@ test('test mode pays only $0.10; live opens once that payout completed AND its c
   const dial = await start(t.w.id);
   assert.equal(dial.isNew, true);
   assert.equal(dial.pin, PIN);
-  assert.equal(dial.step1UssdString, `*736*${t.to}*0*10*{PIN}#`);
+  assert.equal(dial.step1UssdString, `*736*${t.to}*01*{PIN}#`);
   await step1(dial.id);
   await step2(dial.id, 'success', `$0.1 ayaad uwareejisay TEST (${t.to}) PIN ${PIN}`);
   assert.equal((await order(t.customer, t.w.id)).status, 'completed');
