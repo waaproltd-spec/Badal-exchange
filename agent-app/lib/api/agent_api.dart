@@ -212,6 +212,11 @@ class AgentApi {
     await _client.rpc('manage_set_payout_wallet_pin', {'p_id': id, 'p_pin': pin});
   }
 
+  /// The number EVC's *736 code carries (*736*number*amount*CODE#), apart from the PIN.
+  Future<void> setPayoutWalletUssdCode(String id, String code) async {
+    await _client.rpc('manage_set_payout_wallet_ussd_code', {'p_id': id, 'p_code': code});
+  }
+
   /// Server safeguards for automatic payouts, per method.
   Future<List<AutoPayoutSettings>> getAutoPayouts() async =>
       (await _list('manage_auto_payouts')).map((e) => AutoPayoutSettings.fromJson(e as Map<String, dynamic>)).toList();

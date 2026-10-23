@@ -116,6 +116,7 @@ void main() {
       final w = wallets.first; // the oldest: the one withdrawals are paid from
       await api.savePayoutWallet(id: w.id, method: method, phoneNumber: w.phoneNumber, deviceId: payoutPhone, simSlot: slot);
       await api.setPayoutWalletPin(w.id, pin);
+      if (method == 'evc_plus') await api.setPayoutWalletUssdCode(w.id, '5566');
     }
     // Withdrawals left waiting by earlier runs would be swept too.
     for (final o in await api.getPayoutQueue()) {
