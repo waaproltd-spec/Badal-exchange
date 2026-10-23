@@ -123,7 +123,8 @@ object PayoutRunner {
         PayoutUssdBridge.arm()
         try {
             try {
-                dial(context, subscriptionId, ussd)
+                // EVC's *736 code carries the PIN; the server only sends a {PIN} placeholder.
+                dial(context, subscriptionId, ussd.replace("{PIN}", pin))
             } catch (e: Exception) {
                 return result("STEP1_FAILED", "failed", "Could not start the dial: ${e.javaClass.simpleName}")
             }

@@ -377,7 +377,7 @@ test('payout SMS alone never completes a withdrawal that was not dialed', async 
 test('interrupted payout (phone never reports): review after 10 minutes; a late success still counts', async () => {
   const { customer, w } = await startedPayout(16, 'evc_plus');
   const dial = await rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE });
-  assert.match(dial.step1UssdString, /^\*712\*/);
+  assert.match(dial.step1UssdString, /^\*736\*61\d{7}\*16\*\{PIN\}#$/);
   await rpc(agent, 'agent_payout_report_step1', { p_attempt_id: dial.id, p_status: 'step1_success' });
   await db.query(`UPDATE payout_dial_attempts SET created_at = now() - interval '11 minutes' WHERE id = $1`, [dial.id]);
   await db.query('SELECT private.resweep_unmatched_sms()');
