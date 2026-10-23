@@ -49,6 +49,7 @@ const golisNumber = () => `90${String(seed * 10 + n++).padStart(7, '0').slice(-7
 
 const PHONE = 'payout-phone';
 const PIN = '4321';
+const CODE = '7788';
 let agent;
 
 /**
@@ -98,6 +99,7 @@ before(async () => {
   for (const [method, number, slot] of [['evc_plus', '617000001', 1], ['edahab', '627000001', 2]]) {
     const w = await rpc(agent, 'manage_save_payout_wallet', { p_id: null, p_method: method, p_phone_number: number, p_device_id: PHONE, p_sim_slot: slot });
     await rpc(agent, 'manage_set_payout_wallet_pin', { p_id: w.id, p_pin: PIN });
+    if (method === 'evc_plus') await rpc(agent, 'manage_set_payout_wallet_ussd_code', { p_id: w.id, p_code: CODE });
     await db.query(`UPDATE public.payout_wallets SET created_at = now() - interval '10 years' WHERE id = $1`, [w.id]);
     await db.query(`UPDATE public.payout_wallets SET device_id = NULL WHERE method = $1 AND id <> $2`, [method, w.id]);
     // Automatic payouts live for these wallets, no limit in the way
@@ -536,7 +538,7 @@ test('payout SMS alone never completes a withdrawal that was not dialed', async 
 test('interrupted payout (phone never reports): review after 10 minutes; a late success still counts', async () => {
   const { customer, w } = await startedPayout(16, 'evc_plus');
   const dial = await rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE });
-  assert.match(dial.step1UssdString, /^\*736\*61\d{7}\*16\*\{PIN\}#$/);
+  assert.match(dial.step1UssdString, /^\*736\*61\d{7}\*16\*\{CODE\}#$/);
   await rpc(agent, 'agent_payout_report_step1', { p_attempt_id: dial.id, p_status: 'step1_success' });
   await db.query(`UPDATE payout_dial_attempts SET created_at = now() - interval '11 minutes' WHERE id = $1`, [dial.id]);
   await db.query('SELECT private.resweep_unmatched_sms()');

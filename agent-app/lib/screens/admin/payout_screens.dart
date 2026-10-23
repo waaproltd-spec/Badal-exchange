@@ -602,6 +602,31 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     if (ok == true) await _run(() => _session.api.setPayoutWalletPin(w.id, pin.text.trim()), 'PIN saved.');
   }
 
+  Future<void> _setCode(PayoutWallet w) async {
+    final code = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('*736 code for ${w.methodLabel} ${w.phoneNumber}'),
+        content: TextField(
+          controller: code,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: '*736 code',
+            helperText: 'The last number in *736*number*amount*CODE#. The PIN is typed after it.\nStored encrypted; it is never shown again.',
+            helperMaxLines: 3,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save code')),
+        ],
+      ),
+    );
+    if (ok == true) await _run(() => _session.api.setPayoutWalletUssdCode(w.id, code.text.trim()), '*736 code saved.');
+  }
+
   Future<void> _setMode(AutoPayoutSettings g, String mode) async {
     if (mode == g.mode) return;
     if (mode == 'test' &&
@@ -832,6 +857,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                             ]),
                           ),
                           TextButton(onPressed: () => _setPin(w), child: Text(w.hasPin ? 'Change PIN' : 'Set PIN')),
+                          if (w.method == 'evc_plus')
+                            TextButton(onPressed: () => _setCode(w), child: Text(w.hasCode ? '*736 code' : 'Set *736 code')),
                           IconButton(
                               tooltip: 'Remove', onPressed: () => _delete(w), icon: const Icon(Icons.delete_outline_rounded)),
                         ]),

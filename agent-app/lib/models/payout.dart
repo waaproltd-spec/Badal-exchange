@@ -115,8 +115,9 @@ class PayoutAttempt {
       );
 }
 
-/// Result of agent_payout_start_dial. [pin] is present only for a new
-/// attempt; an unfinished earlier attempt comes back without it.
+/// Result of agent_payout_start_dial. [pin] (and, for EVC's *736, [code])
+/// is present only for a new attempt; an unfinished earlier attempt comes
+/// back without it.
 class PayoutDialStart {
   final String attemptId;
   final String ussd;
@@ -124,7 +125,14 @@ class PayoutDialStart {
   final bool isNew;
   final String? pin;
 
-  const PayoutDialStart({required this.attemptId, required this.ussd, required this.simSlot, required this.isNew, this.pin});
+  /// Fills the {CODE} placeholder of EVC's *736*number*amount*{CODE}#.
+  final String? code;
+
+  const PayoutDialStart(
+      {required this.attemptId, required this.ussd, required this.simSlot, required this.isNew, this.pin, this.code});
+
+  /// What the phone dials: the server's string with the *736 code filled in.
+  String get dialString => code == null ? ussd : ussd.replaceAll('{CODE}', code!);
 
   factory PayoutDialStart.fromJson(Map<String, dynamic> j) => PayoutDialStart(
         attemptId: j['id'] as String,
@@ -132,6 +140,7 @@ class PayoutDialStart {
         simSlot: j['simSlot'] as int? ?? 1,
         isNew: j['isNew'] as bool? ?? false,
         pin: j['pin'] as String?,
+        code: j['code'] as String?,
       );
 }
 
@@ -144,6 +153,9 @@ class PayoutWallet {
   final int? simSlot;
   final bool hasPin;
 
+  /// The *736 code of an EVC Plus wallet is set.
+  final bool hasCode;
+
   /// This is the wallet the method's withdrawals are paid from.
   final bool paysWithdrawals;
 
@@ -154,6 +166,7 @@ class PayoutWallet {
     this.deviceId,
     this.simSlot,
     required this.hasPin,
+    this.hasCode = false,
     this.paysWithdrawals = false,
   });
 
@@ -166,6 +179,7 @@ class PayoutWallet {
         deviceId: j['deviceId'] as String?,
         simSlot: j['simSlot'] as int?,
         hasPin: j['hasPin'] as bool? ?? false,
+        hasCode: j['hasCode'] as bool? ?? false,
         paysWithdrawals: j['paysWithdrawals'] as bool? ?? false,
       );
 }

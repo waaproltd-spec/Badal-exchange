@@ -46,6 +46,7 @@ const evcNumber = () => `61${String(seed * 10 + n++).padStart(7, '0').slice(-7)}
 
 const PHONE = 'auto-payout-phone';
 const PIN = '9182';
+const CODE = '5566';
 const WALLET = '617700001';
 let agent;
 let walletId;
@@ -101,6 +102,7 @@ before(async () => {
   const w = await rpc(agent, 'manage_save_payout_wallet', {
     p_id: null, p_method: 'evc_plus', p_phone_number: WALLET, p_device_id: PHONE, p_sim_slot: 1 });
   await rpc(agent, 'manage_set_payout_wallet_pin', { p_id: w.id, p_pin: PIN });
+  await rpc(agent, 'manage_set_payout_wallet_ussd_code', { p_id: w.id, p_code: CODE });
   walletId = w.id;
   await db.query(`UPDATE payout_wallets SET created_at = now() - interval '20 years' WHERE id = $1`, [w.id]);
   await db.query(`UPDATE payout_wallets SET device_id = NULL WHERE method = 'evc_plus' AND id <> $1`, [w.id]);
@@ -152,7 +154,8 @@ test('test mode pays only $0.10; live opens once that payout completed AND its c
   const dial = await start(t.w.id);
   assert.equal(dial.isNew, true);
   assert.equal(dial.pin, PIN);
-  assert.equal(dial.step1UssdString, `*736*${t.to}*01*{PIN}#`);
+  assert.equal(dial.code, CODE);
+  assert.equal(dial.step1UssdString, `*736*${t.to}*01*{CODE}#`);
   await step1(dial.id);
   await step2(dial.id, 'success', `$0.1 ayaad uwareejisay TEST (${t.to}) PIN ${PIN}`);
   assert.equal((await order(t.customer, t.w.id)).status, 'completed');
@@ -404,4 +407,19 @@ test('only managers see or change the safeguards; the PIN never appears', async 
   const { rows } = await db.query(`SELECT count(*)::int AS n FROM audit_logs WHERE after_json::text LIKE '%' || $1 || '%'
                                    AND created_at > now() - interval '1 hour' AND action LIKE '%payout%'`, [`PIN ${PIN}`]);
   assert.equal(rows[0].n, 0, 'PIN never in audit logs');
+});
+
+test('EVC needs its *736 code: without it nothing is dialed and the withdrawal stays pending', async () => {
+  await live();
+  const { customer, w } = await withdrawal(3);
+  const { rows: [{ code_id }] } = await db.query('SELECT ussd_code_secret_id AS code_id FROM payout_wallets WHERE id = $1', [walletId]);
+  await db.query('UPDATE payout_wallets SET ussd_code_secret_id = NULL WHERE id = $1', [walletId]);
+  try {
+    await rejects(start(w.id), 'NOT_CONFIGURED');
+    assert.equal((await order(customer, w.id)).status, 'pending');
+    assert.equal((await rpc(agent, 'manage_payout_wallets')).find((x) => x.id === walletId).hasCode, false);
+  } finally {
+    await db.query('UPDATE payout_wallets SET ussd_code_secret_id = $2 WHERE id = $1', [walletId, code_id]);
+  }
+  assert.equal((await rpc(agent, 'manage_payout_wallets')).find((x) => x.id === walletId).hasCode, true);
 });
