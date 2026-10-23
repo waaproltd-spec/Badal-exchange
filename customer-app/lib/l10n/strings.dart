@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// The app's language: English or Somali. Chosen in Profile and remembered
-/// on the device; until then it follows the phone's language.
+/// The app's language: Somali (the default) or English. Chosen in Profile
+/// and remembered on the device.
 class AppLanguage {
   AppLanguage._();
 
@@ -11,7 +11,7 @@ class AppLanguage {
   static const String _prefsKey = 'app_language';
 
   /// The whole app rebuilds when this changes (see main.dart).
-  static final ValueNotifier<String> current = ValueNotifier(english);
+  static final ValueNotifier<String> current = ValueNotifier(somali);
 
   static bool get isSomali => current.value == somali;
 
@@ -20,7 +20,7 @@ class AppLanguage {
     try {
       saved = (await SharedPreferences.getInstance()).getString(_prefsKey);
     } catch (_) {}
-    current.value = saved ?? (PlatformDispatcher.instance.locale.languageCode == somali ? somali : english);
+    current.value = saved == english ? english : somali;
   }
 
   static Future<void> set(String code) async {
@@ -160,6 +160,19 @@ class AppStrings {
   static String get done => _t('Done', 'Dhammee');
   static String get tryAgain => _t('Try Again', 'Isku day mar kale');
   static String get back => _t('Back', 'Dib u noqo');
+  static String get networkError => _t('Could not reach the server. Check your internet connection and try again.',
+      'Server-ka lama gaarin. Hubi internet-kaaga, kadibna mar kale isku day.');
+  static String get couldNotLoadOrders => _t('Could not load your orders. Check your connection and try again.',
+      'Dalabaadkaaga lama soo gelin. Hubi internet-kaaga, kadibna mar kale isku day.');
+  static String get couldNotLoadWallet => _t('Could not load your wallet. Check your connection and try again.',
+      'Boorsadaada lama soo gelin. Hubi internet-kaaga, kadibna mar kale isku day.');
+  static String get couldNotLoadNotifications =>
+      _t('Could not load notifications.', 'Ogeysiisyada lama soo gelin.');
+  static String get couldNotOpenLink => _t('Could not open the link.', 'Linkiga lama furi karo.');
+  static String get learnMore => _t('Learn more ›', 'Wax badan ka ogow ›');
+  static String get statusFailed => _t('Failed', 'Wuu fashilmay');
+  static String get statusCancelled => _t('Cancelled', 'Waa la joojiyay');
+  static String get statusExpired => _t('Expired', 'Waqtigii wuu dhacay');
   static String get somethingWentWrong =>
       _t('Something went wrong. Please try again.', 'Wax baa khaldamay. Fadlan isku day mar kale.');
   static String get couldNotComplete => _t('We could not complete this', 'Tan lama dhammaystiri karin');
@@ -267,7 +280,7 @@ class AppStrings {
   static String get withdrawalsTab => _t('Withdrawals', 'Bixinno');
   static String withdrawLimits(String min, String max) => _t(
         'Minimum withdrawal is $min, maximum is $max',
-        'Labixida ugu yar waa $min, labixida ugu badan waa $max',
+        'Bixinta ugu yar waa $min, tan ugu badan waa $max',
       );
 
   // Orders

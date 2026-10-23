@@ -279,7 +279,7 @@ void main() {
     expect(find.text('Dhammaystir Bixinta'), findsOneWidget);
     // The balance, then account and amount side by side, then the limits.
     expect(find.text('\$1.25'), findsOneWidget);
-    expect(find.text('Labixida ugu yar waa \$0.30, labixida ugu badan waa \$4000.00'), findsOneWidget);
+    expect(find.text('Bixinta ugu yar waa \$0.30, tan ugu badan waa \$4000.00'), findsOneWidget);
     final fieldsRow = find.byType(TextFormField);
     expect(tester.getTopLeft(fieldsRow.at(0)).dy, tester.getTopLeft(fieldsRow.at(1)).dy);
     final fields = find.byType(TextFormField);

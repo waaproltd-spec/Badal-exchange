@@ -6,6 +6,7 @@ import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 import '../utils/formatters.dart';
 import 'method_icon.dart';
+import '../l10n/server_text.dart';
 
 /// Where the money went to or came from: +252 number or platform account.
 String orderAccount(Order order) {
@@ -35,7 +36,12 @@ String orderStatusText(Order order) {
   }
   if (order.status == 'pending' && order.isDeposit && !order.methodInfo.isPlatform) return AppStrings.waitingForPayment;
   if (order.status == 'pending' || order.status == 'processing') return AppStrings.inProgress;
-  return order.statusMessage.isNotEmpty ? order.statusMessage : order.status;
+  return switch (order.status) {
+    'failed' => AppStrings.statusFailed,
+    'cancelled' => AppStrings.statusCancelled,
+    'expired' => AppStrings.statusExpired,
+    _ => serverText(order.statusMessage.isNotEmpty ? order.statusMessage : order.status),
+  };
 }
 
 class StatusPill extends StatelessWidget {
@@ -357,7 +363,7 @@ List<Widget> _rows(Order order, {required bool includeType}) => [
           strong: true,
         ),
       if (order.failureReason != null && order.failureReason!.isNotEmpty)
-        DetailRow(label: AppStrings.status, value: order.failureReason!, valueColor: AppColors.statusFailed),
+        DetailRow(label: AppStrings.status, value: serverText(order.failureReason!), valueColor: AppColors.statusFailed),
       DetailRow(label: AppStrings.dateTime, value: Formatters.dateTime(order.createdAt)),
     ];
 

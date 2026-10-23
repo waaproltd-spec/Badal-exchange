@@ -6,6 +6,7 @@ import '../models/quote.dart';
 import '../models/wallet.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
+import '../l10n/strings.dart';
 
 /// Typed methods for every backend call the customer app makes (Supabase
 /// Auth and RPC functions returning the same JSON the REST API did). Pure request/response mapping -- no business logic
@@ -29,7 +30,7 @@ class CustomerApi {
     try {
       final me = await _client.rpc('session_profile', {'p_record_login': true}) as Map<String, dynamic>;
       if (me['role'] != 'customer') {
-        throw const ApiException(status: 401, code: 'UNAUTHORIZED', message: 'Invalid credentials');
+        throw ApiException(status: 401, code: 'UNAUTHORIZED', message: AppStrings.invalidLogin);
       }
       // One phone per account: the other phones are signed out.
       await _client.signOutOtherPhones();

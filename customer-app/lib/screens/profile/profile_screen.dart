@@ -93,9 +93,9 @@ class ProfileScreen extends StatelessWidget {
                   SegmentedButton<String>(
                     showSelectedIcon: false,
                     segments: const [
+                      ButtonSegment(value: AppLanguage.somali, label: FittedBox(child: Text(AppStrings.somaliName))),
                       ButtonSegment(
                           value: AppLanguage.english, label: FittedBox(child: Text(AppStrings.englishName))),
-                      ButtonSegment(value: AppLanguage.somali, label: FittedBox(child: Text(AppStrings.somaliName))),
                     ],
                     selected: {AppLanguage.current.value},
                     onSelectionChanged: (s) => AppLanguage.set(s.first),

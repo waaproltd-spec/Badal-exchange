@@ -52,7 +52,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 const SizedBox(height: 140),
                 Center(
                   child: Text(
-                    e is ApiException ? e.message : 'Could not load notifications.',
+                    e is ApiException ? e.message : AppStrings.couldNotLoadNotifications,
                     style: AppTextStyles.muted,
                   ),
                 ),

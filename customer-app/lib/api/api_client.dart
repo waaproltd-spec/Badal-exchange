@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
 import 'api_exception.dart';
+import '../l10n/strings.dart';
+import '../l10n/server_text.dart';
 
 /// Storage keys for what the app remembers about the signed-in customer.
 /// The session itself is kept by Supabase Auth ([SecureSessionStorage]).
@@ -89,7 +91,9 @@ class ApiClient {
         throw ApiException(
           status: e.status,
           code: error is Map ? '${error['code'] ?? 'ERROR'}' : 'ERROR',
-          message: error is Map ? '${error['message'] ?? ''}' : (e.reasonPhrase ?? 'Request failed'),
+          message: error is Map
+              ? serverText('${error['message'] ?? ''}', code: '${error['code'] ?? ''}')
+              : (e.reasonPhrase ?? AppStrings.somethingWentWrong),
         );
       }
     });
@@ -188,17 +192,18 @@ class ApiClient {
     try {
       return await call();
     } on PostgrestException catch (e) {
-      throw ApiException(status: _statusFor(e.code), code: e.hint ?? e.code ?? 'ERROR', message: e.message, details: e.details);
+      final code = e.hint ?? e.code ?? 'ERROR';
+      throw ApiException(status: _statusFor(e.code), code: code, message: serverText(e.message, code: code), details: e.details);
     } on AuthException catch (e) {
       final code = e.code ?? '';
       if (code == 'user_banned') {
-        throw const ApiException(status: 403, code: 'FORBIDDEN', message: 'Account is disabled');
+        throw ApiException(status: 403, code: 'FORBIDDEN', message: serverText('Account is disabled'));
       }
       if (code == 'invalid_credentials' || e.statusCode == '400') {
-        throw const ApiException(status: 401, code: 'UNAUTHORIZED', message: 'Invalid credentials');
+        throw ApiException(status: 401, code: 'UNAUTHORIZED', message: AppStrings.invalidLogin);
       }
       if (code == 'over_request_rate_limit') {
-        throw const ApiException(status: 429, code: 'RATE_LIMITED', message: 'Too many attempts, try again later.');
+        throw ApiException(status: 429, code: 'RATE_LIMITED', message: serverText('Too many attempts, try again later.', code: 'RATE_LIMITED'));
       }
       throw ApiException(status: int.tryParse(e.statusCode ?? '') ?? 401, code: 'UNAUTHORIZED', message: e.message);
     } on ApiException {
@@ -216,11 +221,7 @@ class ApiClient {
     }
   }
 
-  static const _network = ApiException(
-    status: 0,
-    code: 'NETWORK_ERROR',
-    message: 'Could not reach the server. Check your internet connection and try again.',
-  );
+  static ApiException get _network => ApiException(status: 0, code: 'NETWORK_ERROR', message: AppStrings.networkError);
 
   /// SQLSTATE 'PTxyz' from the backend means HTTP status xyz.
   static int _statusFor(String? sqlState) {
