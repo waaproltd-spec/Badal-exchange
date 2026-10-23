@@ -5,7 +5,8 @@
 -- EVC still answers with "Fadlan Geli PIN-kaaga", which the phone fills in
 -- as before. {PIN} is a placeholder the agent phone swaps for the PIN right
 -- before dialing, so the PIN is never stored in payout_dial_attempts.
--- eDahab keeps *110*number*amount#.
+-- eDahab keeps *110*number*amount#. agent_payout_start_dial is the
+-- 20261022001300 (auto payout safeguards) version with only v_ussd changed.
 
 -- The receiver as *736 wants it: Hormuud numbers as is (610625955), other
 -- networks' numbers (Zaad 63, Golis 90) with their leading 0.
@@ -32,6 +33,7 @@ DECLARE
   o public.orders := private.lock_order(p_order_id);
   w public.payout_wallets;
   v_latest public.payout_dial_attempts;
+  v_block jsonb;
   v_ussd text;
   v_id uuid;
   v_next int;
@@ -61,9 +63,15 @@ BEGIN
     RETURN jsonb_build_object('id', v_latest.id, 'step1UssdString', v_latest.step1_ussd_string,
       'simSlot', v_latest.sim_slot, 'isNew', false);
   END IF;
-  -- Already dialed and not asked to try again: never dial on its own again.
   IF v_latest.id IS NOT NULL AND (o.payout_requested_at IS NULL OR v_latest.created_at >= o.payout_requested_at) THEN
     PERFORM private.raise_api(409, 'ALREADY_DIALED', 'This payout was already attempted; a manager must retry it');
+  END IF;
+  -- Serialise new payouts of a method, so two phones / passes can't both
+  -- fit under the daily limit or minimum balance at the same moment.
+  PERFORM 1 FROM public.payout_auto_settings WHERE method = o.method FOR UPDATE;
+  v_block := private.payout_block(o);
+  IF v_block IS NOT NULL THEN
+    PERFORM private.raise_api(409, v_block ->> 'code', v_block ->> 'message');
   END IF;
 
   IF o.status = 'pending' THEN
@@ -76,7 +84,8 @@ BEGIN
   RETURNING id INTO v_id;
   PERFORM private.order_audit(o.id, 'withdrawal_payout_dial_started', NULL,
     jsonb_build_object('attempt', v_next, 'payoutProvider', o.method, 'payoutAmount', private.money(o.net_cents),
-      'payoutDestination', o.phone_number, 'payoutWallet', w.phone_number, 'deviceId', p_device_id, 'simSlot', w.sim_slot), v_agent);
+      'payoutDestination', o.phone_number, 'payoutWallet', w.phone_number, 'deviceId', p_device_id, 'simSlot', w.sim_slot,
+      'mode', (SELECT mode FROM public.payout_auto_settings WHERE method = o.method)), v_agent);
   RETURN jsonb_build_object('id', v_id, 'step1UssdString', v_ussd, 'simSlot', w.sim_slot, 'isNew', true,
     'pin', private.payout_pin(o.method));
 END
