@@ -65,8 +65,8 @@ void main() {
   testWidgets('Sahal card: off by default, Test is confirmed first, the last transfers show', (tester) async {
     await tester.pumpWidget(_app(_sahal()));
     await tester.pumpAndSettle();
-    expect(find.text('Golis & ZAAD (from Sahal)'), findsOneWidget);
-    expect(find.text('Nothing is sent from Sahal automatically. Golis and ZAAD withdrawals wait to be paid by hand.'), findsOneWidget);
+    expect(find.text('Golis, ZAAD & EVC Plus (from Sahal)'), findsOneWidget);
+    expect(find.text('Nothing is sent from Sahal automatically.'), findsOneWidget);
     expect(find.textContaining('EXGOLIS1 · \$0.10 → 905999914 (YAASIIN) · sent · 7501066868'), findsOneWidget);
 
     await tester.tap(find.text('Test'));
@@ -75,7 +75,7 @@ void main() {
     await tester.tap(find.text('Start test'));
     await tester.pumpAndSettle();
     expect(_api.calls, ['sahal test -']);
-    expect(find.text('Only a \$0.10 Golis or ZAAD withdrawal is sent from Sahal.'), findsOneWidget);
+    expect(find.text('Only a \$0.10 Golis, ZAAD or EVC Plus withdrawal is sent from Sahal.'), findsOneWidget);
   });
 
   testWidgets('Sahal live is confirmed; the daily limit is entered in dollars', (tester) async {

@@ -784,11 +784,12 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
         !await _confirm(
           context,
           'Test Sahal payouts',
-          'Only a \$${g.testAmount} Golis or ZAAD withdrawal is sent automatically from Sahal in Test mode.\n\n'
-              '1. Set the Golis minimum withdrawal to \$${g.testAmount} (Payment methods).\n'
-              '2. From a customer account, withdraw \$${g.testAmount} by Golis.\n'
+          'Only a \$${g.testAmount} Golis, ZAAD or EVC Plus withdrawal is sent automatically from Sahal in Test mode. '
+              'While Sahal is on, the phone does not pay EVC Plus withdrawals.\n\n'
+              '1. Set that method\'s minimum withdrawal to \$${g.testAmount} (Payment methods).\n'
+              '2. From a customer account, withdraw \$${g.testAmount} by Golis, ZAAD or EVC Plus.\n'
               '3. The server sends it from Sahal within a minute and completes the withdrawal.\n\n'
-              'Then switch to Live. Stop paying Golis and ZAAD withdrawals by hand from then on.',
+              'Then switch to Live. Stop paying these withdrawals by hand from then on.',
           'Start test',
         )) {
       return;
@@ -797,7 +798,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
         !await _confirm(
           context,
           'Go live?',
-          'Every Golis and ZAAD withdrawal will be sent automatically from Sahal, up to \$${g.dailyLimit} a day. '
+          'Every Golis, ZAAD and EVC Plus withdrawal will be sent automatically from Sahal, up to \$${g.dailyLimit} a day. '
               'Do not also pay them by hand.',
           'Go live',
         )) {
@@ -836,9 +837,9 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
 
   Widget _sahalCard(SahalPayoutSettings g) {
     final help = switch (g.mode) {
-      'live' => 'Every Golis and ZAAD withdrawal is sent from Sahal by the server, within the daily limit.',
-      'test' => 'Only a \$${g.testAmount} Golis or ZAAD withdrawal is sent from Sahal.',
-      _ => 'Nothing is sent from Sahal automatically. Golis and ZAAD withdrawals wait to be paid by hand.',
+      'live' => 'Every Golis, ZAAD and EVC Plus withdrawal is sent from Sahal by the server, within the daily limit.',
+      'test' => 'Only a \$${g.testAmount} Golis, ZAAD or EVC Plus withdrawal is sent from Sahal.',
+      _ => 'Nothing is sent from Sahal automatically.',
     };
     String label(String s) => switch (s) {
           'success' => 'sent',
@@ -851,7 +852,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       child: ConsoleCard(
         key: const Key('auto-sahal'),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Golis & ZAAD (from Sahal)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const Text('Golis, ZAAD & EVC Plus (from Sahal)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
           SegmentedButton<String>(
             key: const Key('auto-mode-sahal'),

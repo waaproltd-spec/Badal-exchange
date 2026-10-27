@@ -1,4 +1,4 @@
-// Golis / ZAAD withdrawals sent automatically from Sahal
+// Golis, ZAAD and EVC Plus withdrawals sent automatically from Sahal
 // (migrations/*_sahal_payouts.sql): what the golis-merchant function is
 // handed and what its reports do. Off / Test / Live, the $0.10 test, the
 // daily limit, one attempt per withdrawal, refusals, unclear answers, and
@@ -47,6 +47,7 @@ async function rejects(promise, code) {
 const seed = Number(Date.now().toString().slice(-6));
 let n = 0;
 const golisNumber = () => `90${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
+const evcNumber = () => `61${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
 const zaadNumber = () => `63${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
 
 let manager;
@@ -76,7 +77,7 @@ const order = async (id) => (await db.query('SELECT status, transaction_ref FROM
 const setMode = (p_mode, extra = {}) => rpc(manager, 'manage_set_sahal_payouts', { p_mode, ...extra });
 /** Hands out every waiting withdrawal of other runs first, so each test sees only its own. */
 async function clearQueue() {
-  await db.query(`UPDATE orders SET status = 'cancelled' WHERE direction = 'withdraw' AND method IN ('golis', 'telesom') AND status = 'pending'`);
+  await db.query(`UPDATE orders SET status = 'cancelled' WHERE direction = 'withdraw' AND method IN ('golis', 'telesom', 'evc_plus') AND status = 'pending'`);
   await db.query(`UPDATE sahal_payout_attempts SET status = 'failed' WHERE status = 'pending'`);
 }
 
@@ -104,7 +105,12 @@ check('off by default: nothing is handed out; only the service can ask', async (
 check('test mode sends only the $0.10 one; live needs that test sent first', async () => {
   await clearQueue();
   await rejects(setMode('live'), 'TEST_REQUIRED');
+  const evc = await withdrawal('evc_plus', evcNumber(), 2);
+  const phoneBlock = async () => (await db.query('SELECT private.payout_block(o) AS b FROM orders o WHERE id = $1', [evc.w.id])).rows[0].b;
+  assert.notEqual((await phoneBlock())?.code, 'SENT_FROM_SAHAL', 'Sahal off: the phone may pay EVC');
   await setMode('test');
+  assert.equal((await phoneBlock())?.code, 'SENT_FROM_SAHAL', 'Sahal on: never from the phone too');
+  await db.query(`UPDATE orders SET status = 'cancelled' WHERE id = $1`, [evc.w.id]);
   const big = await withdrawal('golis', golisNumber(), 2);
   const number = golisNumber();
   const small = await withdrawal('golis', number, 0.1);
@@ -131,6 +137,16 @@ check('test mode sends only the $0.10 one; live needs that test sent first', asy
   assert.equal(b.amount, '2');
   await say(b.attemptId, 'success', { p_transfer_id: '7501066869' });
   assert.equal((await order(big.w.id)).status, 'completed');
+});
+
+check('EVC Plus numbers go with their 0, as typed in Sahal', async () => {
+  await clearQueue();
+  const number = evcNumber();
+  const { w } = await withdrawal('evc_plus', number, 0.1);
+  const a = await next();
+  assert.equal(a.orderCode, w.orderCode);
+  assert.equal(a.receiverMobile, `0${number}`);
+  await say(a.attemptId, 'failed', { p_result_code: '4001', p_reply: 'test' });
 });
 
 check('ZAAD numbers go with their 0; a refusal leaves the withdrawal for an agent, never retried', async () => {

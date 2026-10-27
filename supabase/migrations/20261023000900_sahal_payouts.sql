@@ -1,4 +1,4 @@
--- Golis and ZAAD withdrawals sent automatically from Sahal.
+-- Golis, ZAAD and EVC Plus withdrawals sent automatically from Sahal.
 --
 -- The golis-merchant function already keeps a signed-in Sahal session. It
 -- now also sends waiting withdrawals the way the portal's Customer Fund
@@ -19,11 +19,13 @@
 --   * A transfer the feed later reads back (same Sahal id) completes only
 --     the withdrawal it was sent for, never another one with the same
 --     number and amount.
--- EVC Plus and eDahab stay with the agent phone (*736 / *110).
+-- While Sahal sends a method (not Off), the agent phone does not pay it
+-- (payout_block), so no withdrawal is paid twice; eDahab stays with the
+-- phone (*110).
 CREATE TABLE IF NOT EXISTS public.sahal_payout_settings (
   id                BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
   mode              TEXT NOT NULL DEFAULT 'off' CHECK (mode IN ('off', 'test', 'live')),
-  methods           public.order_method[] NOT NULL DEFAULT ARRAY['golis', 'telesom']::public.order_method[],
+  methods           public.order_method[] NOT NULL DEFAULT ARRAY['golis', 'telesom', 'evc_plus']::public.order_method[],
   daily_limit_cents BIGINT NOT NULL DEFAULT 50000 CHECK (daily_limit_cents >= 0),
   test_amount_cents BIGINT NOT NULL DEFAULT 10 CHECK (test_amount_cents > 0),
   test_started_at   TIMESTAMPTZ,
@@ -236,6 +238,49 @@ BEGIN
   PERFORM private.complete_withdraw_order(o.id, 'Sahal ' || t.transaction_id, NULL, NULL);
 END $$;
 
+-- As before, plus: a method Sahal sends is not paid from the phone.
+CREATE OR REPLACE FUNCTION private.payout_block(o public.orders)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  s public.payout_auto_settings;
+  w public.payout_wallets := private.payout_wallet(o.method);
+  v_label text := CASE o.method WHEN 'edahab' THEN 'eDahab' ELSE 'EVC Plus' END;
+  v_bal jsonb;
+BEGIN
+  -- Sent from Sahal instead (or already tried there): never from the phone too.
+  IF EXISTS (SELECT 1 FROM public.sahal_payout_settings x WHERE x.id AND x.mode <> 'off' AND o.method = ANY (x.methods))
+     OR EXISTS (SELECT 1 FROM public.sahal_payout_attempts y WHERE y.order_id = o.id) THEN
+    RETURN jsonb_build_object('code', 'SENT_FROM_SAHAL', 'message', v_label || ' withdrawals are sent from Sahal');
+  END IF;
+  SELECT * INTO s FROM public.payout_auto_settings WHERE method = o.method;
+  IF s.method IS NULL OR s.mode = 'off' THEN
+    RETURN jsonb_build_object('code', 'AUTO_PAYOUT_OFF', 'message', 'Automatic ' || v_label || ' payouts are switched off');
+  END IF;
+  IF s.mode = 'test' AND o.net_cents > s.test_amount_cents THEN
+    RETURN jsonb_build_object('code', 'TEST_MODE', 'message',
+      format('Test mode: only a $%s test withdrawal is paid automatically', private.money(s.test_amount_cents)));
+  END IF;
+  IF s.mode = 'live' AND (s.live_wallet_id IS DISTINCT FROM w.id OR s.live_device_id IS DISTINCT FROM w.device_id) THEN
+    RETURN jsonb_build_object('code', 'RETEST_NEEDED', 'message',
+      'The payout wallet or phone changed after the test payout. Switch to Test and send a new $0.10 test.');
+  END IF;
+  IF private.payout_paid_today(o.method, o.id) + o.net_cents > s.daily_limit_cents THEN
+    RETURN jsonb_build_object('code', 'DAILY_LIMIT', 'message',
+      format('Daily automatic payout limit reached ($%s)', private.money(s.daily_limit_cents)));
+  END IF;
+  v_bal := private.payout_balance(o.method);
+  IF v_bal IS NULL THEN
+    IF s.mode = 'live' THEN
+      RETURN jsonb_build_object('code', 'BALANCE_UNKNOWN', 'message',
+        'The payout wallet''s balance is not known yet (no balance SMS on the payout phone)');
+    END IF;
+  ELSIF (v_bal ->> 'estimatedCents')::bigint - o.net_cents < s.min_balance_cents THEN
+    RETURN jsonb_build_object('code', 'LOW_BALANCE', 'message',
+      format('The payout wallet would go below its minimum balance ($%s)', private.money(s.min_balance_cents)));
+  END IF;
+  RETURN NULL;
+END $$;
+
 -- ---------------------------------------------------------------------------
 -- Management
 -- ---------------------------------------------------------------------------
@@ -299,7 +344,7 @@ END $$;
 
 REVOKE ALL ON FUNCTION private.sahal_mobile(text), private.sahal_amount(bigint), private.sahal_paid_today(),
   private.sahal_test_passed(), private.sahal_hold(public.sahal_payout_attempts, text), private.sahal_payouts_json(),
-  private.merchant_match_out(uuid) FROM PUBLIC, anon, authenticated;
+  private.merchant_match_out(uuid), private.payout_block(public.orders) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.sahal_payout_next(), public.sahal_payout_report(uuid, text, text, text, text, text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.sahal_payout_next(), public.sahal_payout_report(uuid, text, text, text, text, text)

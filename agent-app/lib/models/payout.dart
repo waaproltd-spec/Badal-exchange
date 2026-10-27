@@ -295,7 +295,7 @@ class PaymentSmsLog {
       );
 }
 
-/// Golis / ZAAD withdrawals sent automatically from Sahal (manage_sahal_payouts).
+/// Golis / ZAAD / EVC Plus withdrawals sent automatically from Sahal (manage_sahal_payouts).
 class SahalPayoutSettings {
   /// off | test | live
   final String mode;

@@ -231,7 +231,7 @@ class AgentApi {
         'p_min_balance': minBalance,
       }));
 
-  /// Golis / ZAAD withdrawals sent from Sahal by the server.
+  /// Golis / ZAAD / EVC Plus withdrawals sent from Sahal by the server.
   Future<SahalPayoutSettings> getSahalPayouts() async => SahalPayoutSettings.fromJson(await _map('manage_sahal_payouts'));
 
   /// [mode] off | test | live (live only after a $0.10 test went out); [dailyLimit] in dollars.
