@@ -142,7 +142,7 @@ check('test mode sends only the $0.10 one; live needs that test sent first', asy
 check('EVC Plus numbers go with their 0, as typed in Sahal', async () => {
   await clearQueue();
   const number = evcNumber();
-  const { w } = await withdrawal('evc_plus', number, 0.1);
+  const { w } = await withdrawal('evc_plus', number, 1);
   const a = await next();
   assert.equal(a.orderCode, w.orderCode);
   assert.equal(a.receiverMobile, `0${number}`);
