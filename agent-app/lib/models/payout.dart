@@ -294,3 +294,77 @@ class PaymentSmsLog {
         reason: j['reason'] as String?,
       );
 }
+
+/// Golis / ZAAD withdrawals sent automatically from Sahal (manage_sahal_payouts).
+class SahalPayoutSettings {
+  /// off | test | live
+  final String mode;
+  final String dailyLimit;
+  final String testAmount;
+  final String paidToday;
+  final bool testPassed;
+  final int waiting;
+
+  /// Transfers with no clear answer from Sahal: check them in Sahal.
+  final int unclear;
+  final List<SahalPayoutAttempt> recent;
+
+  const SahalPayoutSettings({
+    required this.mode,
+    required this.dailyLimit,
+    required this.testAmount,
+    required this.paidToday,
+    required this.testPassed,
+    required this.waiting,
+    required this.unclear,
+    required this.recent,
+  });
+
+  factory SahalPayoutSettings.fromJson(Map<String, dynamic> j) => SahalPayoutSettings(
+        mode: j['mode'] as String? ?? 'off',
+        dailyLimit: j['dailyLimit'] as String? ?? '0.00',
+        testAmount: j['testAmount'] as String? ?? '0.10',
+        paidToday: j['paidToday'] as String? ?? '0.00',
+        testPassed: j['testPassed'] as bool? ?? false,
+        waiting: (j['waiting'] as num?)?.toInt() ?? 0,
+        unclear: (j['unclear'] as num?)?.toInt() ?? 0,
+        recent: ((j['recent'] as List?) ?? const [])
+            .map((e) => SahalPayoutAttempt.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class SahalPayoutAttempt {
+  final String orderCode;
+
+  /// pending | success | failed | ambiguous
+  final String status;
+  final String receiver;
+  final String? receiverName;
+  final String amount;
+  final String? transferId;
+  final String? reply;
+  final DateTime? createdAt;
+
+  const SahalPayoutAttempt({
+    required this.orderCode,
+    required this.status,
+    required this.receiver,
+    this.receiverName,
+    required this.amount,
+    this.transferId,
+    this.reply,
+    this.createdAt,
+  });
+
+  factory SahalPayoutAttempt.fromJson(Map<String, dynamic> j) => SahalPayoutAttempt(
+        orderCode: j['orderCode'] as String? ?? '',
+        status: j['status'] as String? ?? '',
+        receiver: j['receiver'] as String? ?? '',
+        receiverName: j['receiverName'] as String?,
+        amount: j['amount'] as String? ?? '',
+        transferId: j['transferId'] as String?,
+        reply: j['reply'] as String?,
+        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '')?.toLocal(),
+      );
+}

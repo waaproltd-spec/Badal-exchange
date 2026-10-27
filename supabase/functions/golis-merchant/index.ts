@@ -17,10 +17,21 @@
 // the feed until a manager signs in again, so the merchant phone is never
 // flooded with codes.
 //
-// The transactions are only stored; nothing is matched or credited.
+// The transactions are stored and matched by the database.
+//
+// With the session open, it then sends waiting Golis / ZAAD withdrawals
+// (migrations/*_sahal_payouts.sql) the way the portal's Customer Fund
+// Transfer page does (b2pfundTransferCtrl): POST /api/account/find
+// {type: 'internetwork', mobileNo} for the receiver's name, then
+// POST /api/money/b2p {receiverMobile, receiverName, pin, amount,
+// description, isInterNetwork}; 2001 with transferInfo["Transfer-Id"] is
+// sent. The database decides what may go (Off/Test/Live, daily limit, one
+// attempt per withdrawal); anything unclear is reported as such and never
+// sent again.
 //
 // Secrets: GOLIS_MERCHANT_USERNAME, GOLIS_MERCHANT_PASSWORD
-//          [, GOLIS_MERCHANT_CURRENCY (else the portal's USD entry), GOLIS_MERCHANT_BASE_URL]
+//          [, GOLIS_MERCHANT_PIN (the merchant PIN; no PIN, nothing is sent),
+//           GOLIS_MERCHANT_CURRENCY (else the portal's USD entry), GOLIS_MERCHANT_BASE_URL]
 const PROVIDER = 'golis';
 const BASE = (Deno.env.get('GOLIS_MERCHANT_BASE_URL') || 'https://mymerchant.golis.so').replace(/\/$/, '');
 
@@ -214,13 +225,81 @@ async function run() {
   }
   const rows = rowArrays(tx)[0] ?? [];
   await saveCookies();
-  return report({
+  const result = await report({
     state: 'ok',
     code,
     message: `${rows.length} rows; reply keys: ${shape(tx)}`,
     session,
     rows: await withIds([...firstRows, ...rows]),
   });
+  // A payout problem must not look like a feed problem (the feed read fine).
+  const payouts = await sendPayouts(session!).catch((err) => ({ error: (err as Error).message }));
+  return { feed: result, payouts };
+}
+
+const MAX_PAYOUTS_PER_RUN = 3;
+
+/** Sends the withdrawals the database hands out, one at a time. */
+async function sendPayouts(session: string) {
+  const pin = Deno.env.get('GOLIS_MERCHANT_PIN');
+  if (!pin) return { skipped: 'no GOLIS_MERCHANT_PIN' };
+  const done: string[] = [];
+  for (let i = 0; i < MAX_PAYOUTS_PER_RUN; i++) {
+    const next = await rpc('sahal_payout_next', {});
+    if (!next?.attemptId) break;
+    const say = (p_status: string, extra: Record<string, unknown> = {}) =>
+      rpc('sahal_payout_report', { p_attempt_id: next.attemptId, p_status, ...extra });
+
+    // 1. The receiver's name. Nothing is sent yet, so any trouble here is a refusal.
+    let find: any;
+    try {
+      find = await portal('/api/account/find', { sessionId: session, type: 'internetwork', mobileNo: next.receiverMobile });
+    } catch (err) {
+      await say('failed', { p_reply: `Receiver not checked: ${(err as Error).message}` });
+      done.push(`${next.orderCode}: failed`);
+      break;
+    }
+    const name = find?.ReceiverInfo?.NAME;
+    if (String(find?.resultCode ?? '') !== '2001' || !name) {
+      await say('failed', { p_result_code: String(find?.resultCode ?? ''), p_reply: find?.replyMessage ?? `No receiver (${shape(find)})` });
+      done.push(`${next.orderCode}: failed`);
+      continue;
+    }
+
+    // 2. The transfer. From here on, only a clear answer counts.
+    let sent: any;
+    try {
+      sent = await portal('/api/money/b2p', {
+        sessionId: session,
+        receiverMobile: next.receiverMobile,
+        receiverName: name,
+        pin,
+        amount: next.amount,
+        description: next.description,
+        isInterNetwork: find.ReceiverInfo.ISINTERNETWORKRECEIVER,
+      });
+    } catch (err) {
+      await say('ambiguous', { p_receiver_name: name, p_reply: `No answer to the transfer: ${(err as Error).message}` });
+      done.push(`${next.orderCode}: unclear`);
+      break;
+    }
+    const resultCode = String(sent?.resultCode ?? '');
+    const transferId = sent?.transferInfo?.['Transfer-Id'];
+    const reply = String(sent?.replyMessage ?? '').split(pin).join('••••');
+    if (resultCode === '2001' && transferId) {
+      await say('success', { p_receiver_name: name, p_transfer_id: String(transferId), p_result_code: resultCode, p_reply: reply });
+      done.push(`${next.orderCode}: sent`);
+    } else if (resultCode && resultCode !== '2001' && !['4005', '7777'].includes(resultCode) && reply) {
+      // Sahal said no, with its reason: nothing was sent.
+      await say('failed', { p_receiver_name: name, p_result_code: resultCode, p_reply: reply });
+      done.push(`${next.orderCode}: refused`);
+    } else {
+      await say('ambiguous', { p_receiver_name: name, p_result_code: resultCode, p_reply: reply || `Unclear answer (${shape(sent)})` });
+      done.push(`${next.orderCode}: unclear`);
+      break;
+    }
+  }
+  return done;
 }
 
 Deno.serve(async (req) => {

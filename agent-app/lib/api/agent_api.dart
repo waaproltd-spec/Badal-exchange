@@ -231,6 +231,13 @@ class AgentApi {
         'p_min_balance': minBalance,
       }));
 
+  /// Golis / ZAAD withdrawals sent from Sahal by the server.
+  Future<SahalPayoutSettings> getSahalPayouts() async => SahalPayoutSettings.fromJson(await _map('manage_sahal_payouts'));
+
+  /// [mode] off | test | live (live only after a $0.10 test went out); [dailyLimit] in dollars.
+  Future<SahalPayoutSettings> setSahalPayouts({String? mode, double? dailyLimit}) async =>
+      SahalPayoutSettings.fromJson(await _map('manage_set_sahal_payouts', {'p_mode': mode, 'p_daily_limit': dailyLimit}));
+
   /// The payout wallet's balance as read on the phone.
   Future<AutoPayoutSettings> setPayoutBalance(String method, double balance) async =>
       AutoPayoutSettings.fromJson(await _map('manage_set_payout_balance', {'p_method': method, 'p_balance': balance}));
