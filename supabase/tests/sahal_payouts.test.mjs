@@ -84,7 +84,7 @@ async function clearQueue() {
 before(async () => {
   manager = await login('252610000002');
   await db.query(`UPDATE withdrawal_limits SET min_cents = 10 WHERE method IN ('golis', 'telesom')`);
-  await db.query(`UPDATE sahal_payout_settings SET mode = 'off', test_started_at = NULL, daily_limit_cents = 50000`);
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'off', test_started_at = NULL, daily_limit_cents = 50000, test_amount_cents = 10`);
   await db.query(`DELETE FROM sahal_payout_attempts`);
   await clearQueue();
 });
