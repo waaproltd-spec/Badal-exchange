@@ -198,7 +198,7 @@ check('the feed reading back our transfer completes only its own withdrawal, not
     p_rows: [{ _id: id, tranID: id, sender: '252905999914', receiver: number, tranDate: sahalTime(),
                description: one.w.orderCode, credit: '-', debit: '2.00' }],
   });
-  assert.equal((await order(two.w.id)).status, 'pending', 'the second $2 withdrawal is not paid by the first transfer');
+  assert.equal((await order(two.id)).status, 'pending', 'the second $2 withdrawal is not paid by the first transfer');
   const { rows } = await db.query('SELECT matched_order_id FROM merchant_transactions WHERE provider = $1 AND transaction_id = $2', ['golis', id]);
   assert.equal(rows[0]?.matched_order_id, one.w.id, 'the read-back is tied to the withdrawal it paid');
 });
