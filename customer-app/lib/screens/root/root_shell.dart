@@ -69,11 +69,14 @@ class _RootShellState extends State<RootShell> {
     }
   }
 
-  /// Arrived while the app is open: a banner that opens the details.
+  /// Arrived while the app is open: a message to all customers shows as a
+  /// banner. A deposit or withdrawal shows nothing more: the app already
+  /// shows it (its result screen, Orders, the balance).
   void _showForeground() {
     final m = _push?.foreground.value;
     if (m == null || !mounted) return;
     _push?.foreground.value = null;
+    if (!m.isBroadcast) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       key: Key('push-banner-${m.isBroadcast ? 'broadcast' : m.orderId}'),
       duration: const Duration(seconds: 6),

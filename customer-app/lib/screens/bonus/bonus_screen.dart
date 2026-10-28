@@ -125,7 +125,6 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final off = info.rate == '0%';
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(gradient: AppColors.cardGradient, borderRadius: BorderRadius.circular(22)),
@@ -142,9 +141,6 @@ class _BalanceCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text('${AppStrings.totalEarned}: ${Formatters.money(info.totalEarned)}',
             style: AppTextStyles.muted.copyWith(color: Colors.white70)),
-        const SizedBox(height: 10),
-        Text(off ? AppStrings.bonusOff : AppStrings.bonusRateInfo(info.rate),
-            style: AppTextStyles.muted.copyWith(color: Colors.white, fontSize: 13)),
       ]),
     );
   }

@@ -53,7 +53,7 @@ void main() {
     await tester.pumpWidget(_app(_FakeApi(_info('3.00', [_earned]))));
     await tester.pumpAndSettle();
     expect(find.text('\$3.00'), findsOneWidget);
-    expect(find.textContaining('You earn 1% on every completed eligible transaction'), findsOneWidget);
+    expect(find.textContaining('You earn'), findsNothing, reason: 'no rate line on the card');
     expect(find.text('Bonus earned (1%)'), findsOneWidget);
     expect(find.text('On \$100.00 withdrawal • eDahab'), findsOneWidget);
     expect(find.text('+\$1.00'), findsOneWidget);
@@ -78,7 +78,6 @@ void main() {
     await tester.pumpWidget(_app(_FakeApi(_info('0.00', [], rate: '0%'))));
     await tester.pumpAndSettle();
     expect(find.text('No bonus yet'), findsOneWidget);
-    expect(find.text('The bonus is off for your account.'), findsOneWidget);
     expect(tester.widget<PrimaryButton>(find.byKey(const Key('move-bonus'))).onPressed, isNull);
   });
 
