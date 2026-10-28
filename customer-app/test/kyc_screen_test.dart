@@ -106,17 +106,17 @@ void main() {
 
   testWidgets('approved, rejected with the reason (submit again), resubmission', (tester) async {
     await _pump(tester, KycStatus.fromJson({'status': 'approved', 'canSubmit': false, 'decidedAt': '2026-10-28T14:25:00Z'}));
-    expect(find.text('KYC Approved'), findsOneWidget);
+    expect(find.text('KYC Approved'), findsWidgets); // the heading and the timeline
     expect(find.byKey(const Key('kyc-resubmit')), findsNothing);
 
     await _pump(tester, KycStatus.fromJson({'status': 'rejected', 'canSubmit': true, 'reason': 'Document does not match the person'}));
-    expect(find.text('KYC Rejected'), findsOneWidget);
+    expect(find.text('KYC Rejected'), findsWidgets); // the heading and the timeline
     expect(find.text('Document does not match the person'), findsOneWidget);
     await _tap(tester, find.byKey(const Key('kyc-resubmit')));
     expect(find.text('Select Document Type'), findsOneWidget);
 
     await _pump(tester, KycStatus.fromJson({'status': 'resubmission_required', 'canSubmit': true, 'reason': 'Photo is blurred'}));
-    expect(find.text('Resubmission Required'), findsOneWidget);
+    expect(find.text('Resubmission Required'), findsWidgets); // the heading and the timeline
     expect(find.text('Photo is blurred'), findsOneWidget);
   });
 }
