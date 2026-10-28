@@ -24,7 +24,7 @@ class PaymentMethodInfo {
 
   /// Deposits for this method are collected automatically with the
   /// withdrawal code the customer gets from the platform's cash desk.
-  bool get usesWithdrawalCode => const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame'}.contains(id);
+  bool get usesWithdrawalCode => const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet'}.contains(id);
   String get identifierHint => AppStrings.identifierHint(isPlatform);
 }
 

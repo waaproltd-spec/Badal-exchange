@@ -123,6 +123,7 @@ const TELEGRAM_TOKENS: Record<string, string> = {
   dbbet: 'TELEGRAM_BOT_TOKEN_DBBET',
   betjam: 'TELEGRAM_BOT_TOKEN_BETJAM',
   betongame: 'TELEGRAM_BOT_TOKEN_BETONGAME',
+  melbet: 'TELEGRAM_BOT_TOKEN_MELBET',
 };
 
 /** Tells the managers, through the brand's bot, to top up its register. */

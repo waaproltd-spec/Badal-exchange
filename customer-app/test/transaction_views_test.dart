@@ -155,7 +155,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('deposit code: shown for MELBET, not for the cash-desk companies (they use the customer\'s own code)', (tester) async {
+  testWidgets('deposit code box: no betting company shows it (they use the customer\'s own code)', (tester) async {
     await _phone(tester);
     Order withCode(String method) => Order(
           id: 'd-$method',
@@ -172,10 +172,7 @@ void main() {
           createdAt: DateTime(2026, 10, 22, 4),
         );
 
-    await tester.pumpWidget(_host(DepositResultScreen(order: withCode('melbet'))));
-    expect(find.text('KSBW'), findsOneWidget);
-
-    for (final method in ['888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame']) {
+    for (final method in ['melbet', '888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame']) {
       await tester.pumpWidget(_host(DepositResultScreen(order: withCode(method))));
       expect(find.text('KSBW'), findsNothing, reason: method);
       expect(find.text('DEPOSIT CODE'), findsNothing, reason: method);
