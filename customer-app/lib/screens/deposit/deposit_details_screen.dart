@@ -12,6 +12,7 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/flow_header.dart';
+import '../../widgets/own_phone_box.dart';
 import '../../widgets/payment_location_card.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
@@ -235,7 +236,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 3, child: _PhoneBox(local: _ownLocal)),
+                    Expanded(flex: 3, child: OwnPhoneBox(key: const Key('own-number'), local: _ownLocal)),
                     const SizedBox(width: 12),
                     Expanded(flex: 2, child: _amountBox()),
                   ],
@@ -329,44 +330,6 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
         border: InputBorder.none,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
-      ),
-    );
-  }
-}
-
-/// The registered number mobile money is paid from: +252, the number, and a
-/// lock -- shown, never edited.
-class _PhoneBox extends StatelessWidget {
-  const _PhoneBox({required this.local});
-
-  final String? local;
-
-  @override
-  Widget build(BuildContext context) {
-    return _FieldBox(
-      key: const Key('own-number'),
-      label: AppStrings.phoneNumber,
-      child: SizedBox(
-        height: 58,
-        child: Row(
-          children: [
-            const SizedBox(width: 14),
-            Text('+252', style: AppTextStyles.muted.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
-            Container(width: 1, height: 22, margin: const EdgeInsets.symmetric(horizontal: 10), color: AppColors.cardBorder),
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(local ?? '—',
-                    style: AppTextStyles.fieldValue.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimary.withOpacity(0.8))),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.textMuted),
-            ),
-          ],
-        ),
       ),
     );
   }

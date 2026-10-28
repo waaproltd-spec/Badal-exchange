@@ -10,6 +10,7 @@ import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/flow_header.dart';
+import '../../widgets/own_phone_box.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'withdraw_confirm_screen.dart';
@@ -184,27 +185,16 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                     Expanded(flex: 2, child: amount),
                   ],
                 )
-              else ...[
-                Container(
-                  key: const Key('withdraw-own-number'),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryTint,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.verified_user_outlined, color: AppColors.primary),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text(AppStrings.receiveToOwnNumber, style: AppTextStyles.muted)),
-                      Text(_ownLocal == null ? '—' : '+252 $_ownLocal',
-                          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-                    ],
-                  ),
+              else
+                // The registered number (locked) beside the amount, as on Deposit.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: OwnPhoneBox(key: const Key('withdraw-own-number'), local: _ownLocal)),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 2, child: amount),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                amount,
-              ],
               if (min != null && max != null) ...[
                 const SizedBox(height: 8),
                 Text(

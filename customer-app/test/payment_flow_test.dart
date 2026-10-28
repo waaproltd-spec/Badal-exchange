@@ -397,10 +397,13 @@ void main() {
         expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
         expect(fields, findsNWidgets(2));
       } else {
-        // No phone field: the registered number is shown, not editable.
+        // The registered number beside the amount: shown locked, not a field.
         expect(find.text('$label Phone Number'.toUpperCase()), findsNothing);
         expect(fields, findsOneWidget);
-        expect(find.text('+252 610338686'), findsOneWidget);
+        expect(find.text('610338686'), findsOneWidget);
+        expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
+        expect(tester.getRect(find.byKey(const Key('withdraw-own-number'))).right,
+            lessThan(tester.getRect(fields.first).left), reason: 'side by side');
       }
       // Validation before anything is sent.
       await tester.tap(find.text('Continue'));
