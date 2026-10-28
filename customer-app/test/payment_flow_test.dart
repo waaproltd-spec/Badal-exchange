@@ -18,7 +18,7 @@ import 'package:provider/provider.dart';
 /// The twelve methods, in the order the backend serves them.
 
 /// Cash-desk companies: the customer's own payment code, a Payment Location.
-const _cashdesk = {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame'};
+const _cashdesk = {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet'};
 const _catalog = [
   ('evc_plus', 'EVC Plus', 'mobile_money', '#16A34A', 'EVC'),
   ('golis', 'Golis', 'mobile_money', '#0EA5E9', 'GO'),

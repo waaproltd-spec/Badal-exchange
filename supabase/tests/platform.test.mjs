@@ -73,7 +73,7 @@ before(async () => {
   const { error } = await agent.auth.signInWithPassword({ email: '252610000002@phone.baari.invalid', password: PASSWORD });
   if (error) throw error;
   // Nothing from other test files may be waiting for the worker.
-  await db.query(`UPDATE public.orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame')`);
+  await db.query(`UPDATE public.orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet')`);
 });
 
 after(async () => {
@@ -330,7 +330,7 @@ test('Betwinner orders from before its own start time stay manual', { skip }, as
   await rpc(agent, 'agent_withdrawal_fail', { p_order_id: o.id, p_reason: 'test cleanup' });
 });
 
-for (const [method, label, code] of [['dbbet', 'DBbet', 'DB42'], ['betjam', 'BetJam', 'BJ42'], ['betongame', 'BetOnGame', 'BG42']]) {
+for (const [method, label, code] of [['dbbet', 'DBbet', 'DB42'], ['betjam', 'BetJam', 'BJ42'], ['betongame', 'BetOnGame', 'BG42'], ['melbet', 'MELBET', 'MB42']]) {
   test(`${label} orders go through the worker too, named as ${label}`, { skip }, async () => {
     const c = await newCustomer(1000);
     const w = await withdraw(c, 2, '55443322', method);
@@ -474,20 +474,16 @@ test('payment code only: the account ID is the one the customer used before with
   }
 });
 
-test('an amount is still required without a code, or for other platforms', async () => {
+test('an amount is still required without a code', async () => {
   const c = await newCustomer(0);
   await rejects(rpc(c, 'customer_create_deposit', {
     p_method: 'onexbet', p_amount: null, p_account_id: '98765432', p_idempotency_key: randomUUID() }), 'VALIDATION_ERROR');
-  await rejects(rpc(c, 'customer_create_deposit', {
-    p_method: 'melbet', p_amount: null, p_account_id: '98765432', p_platform_code: 'X', p_idempotency_key: randomUUID() }), 'VALIDATION_ERROR');
 });
 
-test('deposits without a code and other platforms stay manual', { skip }, async () => {
+test('deposits without a code stay manual', { skip }, async () => {
   const c = await newCustomer(1000);
   await rpc(c, 'customer_create_deposit', {
     p_method: '888starz', p_amount: '5', p_account_id: '1847412855', p_idempotency_key: randomUUID() });
-  await rpc(c, 'customer_create_withdrawal', {
-    p_method: 'melbet', p_amount: '5', p_account_id: '1234567', p_idempotency_key: randomUUID() });
   assert.equal(await rpc(worker, 'platform_claim_next'), null);
 });
 

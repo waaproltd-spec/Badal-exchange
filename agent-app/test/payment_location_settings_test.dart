@@ -88,7 +88,7 @@ void main() {
   });
 
   testWidgets('other methods have no Payment Location', (tester) async {
-    await tester.pumpWidget(_app(_settings('melbet', 'MELBET')));
+    await tester.pumpWidget(_app(_mobile('golis', 'Golis')));
     expect(find.text('PAYMENT LOCATION'), findsNothing);
     expect(find.byKey(const Key('payment-city')), findsNothing);
   });
