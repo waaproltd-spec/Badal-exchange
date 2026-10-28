@@ -248,6 +248,26 @@ check('a refused transfer can be tried again by a manager; a sent or unclear one
   await rejects(rpc(manager, 'manage_sahal_retry', { p_order_id: w.id }), 'INVALID_STATE');
 });
 
+check('refused only because Sahal ended the session (ER0654): tried again by itself after 2 minutes, nothing else is', async () => {
+  await clearQueue();
+  const { w } = await withdrawal('golis', golisNumber(), 2);
+  const a = await next();
+  await say(a.attemptId, 'failed', { p_result_code: 'ER0654', p_reply: 'Session data is not found, please sign in again!' });
+  assert.equal(await next(), null, 'not straight away');
+  await db.query(`UPDATE sahal_payout_attempts SET completed_at = now() - interval '3 minutes' WHERE id = $1`, [a.attemptId]);
+  const b = await next();
+  assert.equal(b?.orderCode, w.orderCode, 'tried again, no Try again needed');
+  await say(b.attemptId, 'success', { p_transfer_id: `T${seed}s` });
+  assert.equal((await order(w.id)).status, 'completed');
+  // Another refusal reason still waits for a manager.
+  const other = await withdrawal('golis', golisNumber(), 2);
+  const c = await next();
+  await say(c.attemptId, 'failed', { p_result_code: '4001', p_reply: 'Insufficient balance' });
+  await db.query(`UPDATE sahal_payout_attempts SET completed_at = now() - interval '3 minutes' WHERE id = $1`, [c.attemptId]);
+  assert.equal(await next(), null);
+  assert.equal((await order(other.w.id)).status, 'pending');
+});
+
 check('only managers see or change it', async () => {
   const number = golisNumber();
   const c = await customer(number);
