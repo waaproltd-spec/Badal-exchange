@@ -69,7 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Deposit and Withdraw both pick a method in the bottom sheet, then open
   /// that method's form.
   Future<void> _goDeposit() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit,
+        ownPhone: context.read<AuthProvider>().user?.phone);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(

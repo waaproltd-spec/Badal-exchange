@@ -73,6 +73,24 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
 
 /// A method the backend currently offers (enabled), with the numbers or
 /// accounts customers send deposits to.
+/// The customer's own mobile-money network, from their registered number's
+/// prefix (last 9 digits): 61 EVC Plus, 90 Golis, 63 ZAAD, 62 eDahab. Null
+/// for any other number, or none.
+String? ownMobileMethod(String? phone) {
+  final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+  if (digits.length < 9) return null;
+  return const {'61': 'evc_plus', '90': 'golis', '63': 'telesom', '62': 'edahab'}[digits.substring(digits.length - 9, digits.length - 7)];
+}
+
+/// Deposits are paid from the customer's own number, so of the mobile-money
+/// methods only their own network is offered; betting platforms all stay.
+/// A number of no known network keeps every method.
+List<PaymentMethodOption> depositMethodsFor(List<PaymentMethodOption> methods, String? phone) {
+  final own = ownMobileMethod(phone);
+  if (own == null) return methods;
+  return [for (final m in methods) if (m.info.isPlatform || m.info.id == own) m];
+}
+
 class PaymentMethodOption {
   const PaymentMethodOption({
     required this.info,

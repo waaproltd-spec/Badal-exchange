@@ -118,7 +118,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   }
 
   Future<void> _change() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit, ownPhone: widget.ownPhone);
     if (option == null || !mounted || option.info.id == _info.id) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => DepositDetailsScreen(option: option, ownPhone: widget.ownPhone),
