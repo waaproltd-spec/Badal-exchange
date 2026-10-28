@@ -112,3 +112,15 @@ ORDER BY s.received_at DESC LIMIT 40;
 SELECT left(coalesce(s.device_id, '?'), 12) AS device, to_char(max(s.received_at), 'MM-DD HH24:MI:SS') AS last_sms,
        to_char(max(s.created_at), 'MM-DD HH24:MI:SS') AS last_upload, count(*) FILTER (WHERE s.received_at > now() - interval '24 hours') AS last_24h
 FROM public.sms_logs s GROUP BY 1 ORDER BY max(s.created_at) DESC LIMIT 10;
+
+\echo '== 13. Largest completed orders, all time (to check report figures; numbers: last 4 digits) =='
+SELECT o.order_code, o.direction, o.method, private.money(o.amount_cents) AS amount, private.money(o.fee_cents) AS fee,
+       u.role, left(coalesce(u.name, ''), 20) AS customer, right(u.phone, 4) AS phone_end,
+       to_char(o.created_at, 'YYYY-MM-DD HH24:MI') AS created, left(coalesce(o.transaction_ref, ''), 30) AS ref,
+       (SELECT count(*) FROM public.ledger_entries l WHERE l.order_id = o.id) AS ledger_rows
+FROM public.orders o JOIN public.users u ON u.id = o.customer_id
+WHERE o.status = 'completed' ORDER BY o.amount_cents DESC LIMIT 12;
+\echo '-- completed orders by amount band'
+SELECT CASE WHEN amount_cents >= 10000000 THEN '>= $100,000' WHEN amount_cents >= 100000 THEN '$1,000 - $99,999'
+            WHEN amount_cents >= 10000 THEN '$100 - $999' ELSE '< $100' END AS band, count(*) AS n, private.money(sum(amount_cents)) AS total
+FROM public.orders WHERE status = 'completed' GROUP BY 1 ORDER BY min(amount_cents) DESC;
