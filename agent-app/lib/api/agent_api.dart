@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../models/deposit_board.dart';
 import '../models/wallet_adjustment.dart';
 import '../models/agent_profile.dart';
 import '../models/payout.dart';
@@ -63,6 +64,18 @@ class AgentApi {
 
   Future<List<Order>> getPendingDeposits() async =>
       (await _list('agent_pending_deposits')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+
+  /// The "Lacagaha Sugaya Xaqiijinta" board: summary and the deposits of [from, to).
+  Future<DepositBoard> getDepositBoard({DateTime? from, DateTime? to}) async =>
+      DepositBoard.fromJson(await _map('agent_deposit_board', {
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+      }));
+
+  /// Rejects a waiting deposit (nothing was credited, no money moves).
+  Future<void> rejectDeposit(String orderId, {required String reason}) async {
+    await _map('agent_reject_deposit', {'p_order_id': orderId, 'p_reason': reason});
+  }
 
   Future<List<Order>> getPendingWithdrawals() async =>
       (await _list('agent_pending_withdrawals')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
