@@ -51,6 +51,13 @@ function telegram(token: string) {
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
 
+const STUCK: Record<string, string> = {
+  withdrawal_unresolved: 'not paid yet (see the earlier alert for why); held, never resent or refunded without a result',
+  deposit_processing: 'the deposit is still processing',
+  expiry_not_running: 'unpaid deposit should have expired: check the server jobs',
+  platform_deposit_open: 'platform deposit open for hours: check with the cashier',
+};
+
 type Order = {
   orderId: string; orderCode: string; method: string; status: string; payout: string; amount: string;
   phone: string | null; customerName: string | null; customerPhone: string | null; reference: string | null;
@@ -160,6 +167,18 @@ async function run() {
   if (todo.sahal) {
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML', text: (SAHAL[todo.sahal.kind] ?? SAHAL.refused)(todo.sahal) });
     await rpc('withdrawal_alerts_sahal_sent', { p_key: todo.sahal.key ?? null });
+    sent++;
+  }
+  // Anything still unresolved far longer than it should be, for any order
+  // (said once an hour). Only said: nothing is resent, refunded or changed.
+  const stuck: any[] = (await rpc('stuck_orders_todo')) ?? [];
+  if (stuck.length > 0) {
+    const lines = stuck.map((o) =>
+      `• <code>${esc(o.orderCode)}</code> ${esc(o.direction)} ${esc(METHOD[o.method] ?? o.method)} $${esc(o.amount)} ` +
+      `${esc(o.status)} for ${esc(o.hours)} h: ${esc(STUCK[o.reason] ?? STUCK.withdrawal_unresolved)}`);
+    await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
+      text: `⏳ <b>Still unresolved</b> (this alert changes nothing: no resend, no refund)\n${lines.join('\n')}` });
+    await rpc('stuck_orders_sent', { p_ids: stuck.map((o) => o.orderId) });
     sent++;
   }
   const s = todo.summary;

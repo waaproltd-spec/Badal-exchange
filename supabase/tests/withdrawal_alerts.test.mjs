@@ -177,6 +177,79 @@ test('not paid after 30 seconds: one reminder, with why', async (t) => {
   assert.match(reminders[0].body.text, /Needs an agent/);
 });
 
+test('unresolved for far too long: said once an hour, with why, changing nothing; final orders are not mentioned', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const { customer, w } = await withdrawal(3);
+  const wallet = async () => (await customer.rpc('customer_wallet')).data;
+  const before = await wallet();
+  await run();
+  tg.calls.length = 0;
+  const said = () => sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Still unresolved') && c.body.text.includes(w.orderCode));
+  await db.query(`UPDATE orders SET created_at = now() - interval '10 minutes' WHERE id = $1`, [w.id]);
+  await run();
+  assert.equal(said().length, 0, 'not before 15 minutes');
+  await db.query(`UPDATE orders SET created_at = now() - interval '16 minutes' WHERE id = $1`, [w.id]);
+  await run();
+  await run();
+  assert.equal(said().length, 1, 'once');
+  assert.match(said()[0].body.text, /not paid yet/);
+  assert.match(said()[0].body.text, /never resent or refunded/);
+  // Not again within the hour; again after it.
+  await run();
+  assert.equal(said().length, 1);
+  await db.query(`UPDATE stuck_order_alerts SET last_alert_at = now() - interval '61 minutes' WHERE order_id = $1`, [w.id]);
+  await run();
+  assert.equal(said().length, 2, 'an hour later');
+  // It only said it: the order and the money are as they were.
+  assert.equal((await db.query('SELECT status FROM orders WHERE id = $1', [w.id])).rows[0].status, 'pending');
+  assert.deepEqual(await wallet(), before);
+  // At most 24 reminders.
+  await db.query(`UPDATE stuck_order_alerts SET alerts = 24, last_alert_at = now() - interval '2 hours' WHERE order_id = $1`, [w.id]);
+  await run();
+  assert.equal(said().length, 2, 'capped');
+  // Once final, never mentioned.
+  const other = await withdrawal(2);
+  await db.query(`UPDATE orders SET created_at = now() - interval '20 minutes' WHERE id = $1`, [other.w.id]);
+  await db.query(`UPDATE orders SET status = 'completed', completed_at = now() WHERE id = $1`, [other.w.id]);
+  await run();
+  assert.equal(sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Still unresolved') && c.body.text.includes(other.w.orderCode)).length, 0);
+});
+
+test('stuck_reason: the times for each kind of order, and managers can list them', async () => {
+  const { w } = await withdrawal(1);
+  // The order with some fields changed, only in the query: nothing is written.
+  const reason = async (patch, minutes) => (await db.query(
+    `SELECT private.stuck_reason(jsonb_populate_record(NULL::public.orders, to_jsonb(o) || $2::jsonb)) AS r FROM orders o WHERE id = $1`,
+    [w.id, JSON.stringify({ ...patch, created_at: new Date(Date.now() - minutes * 60000).toISOString() })])).rows[0].r;
+
+  // A withdrawal by mobile money: 15 minutes.
+  assert.equal(await reason({}, 14), null);
+  assert.equal(await reason({}, 16), 'withdrawal_unresolved');
+  assert.equal(await reason({ status: 'processing' }, 16), 'withdrawal_unresolved');
+  // A betting-platform withdrawal is a cashier's: 60 minutes.
+  assert.equal(await reason({ method: 'winwin' }, 30), null);
+  assert.equal(await reason({ method: 'winwin' }, 61), 'withdrawal_unresolved');
+  // Final orders are never stuck, however old.
+  for (const status of ['completed', 'failed', 'cancelled', 'expired']) {
+    assert.equal(await reason({ status }, 60 * 24 * 5), null, status);
+  }
+  // Deposits.
+  const dep = { direction: 'deposit' };
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'evc_plus' }, 31), null, 'it expires at 30; the job has a few minutes');
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'evc_plus' }, 36), 'expiry_not_running');
+  assert.equal(await reason({ ...dep, status: 'processing', method: 'evc_plus' }, 16), 'deposit_processing');
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'winwin' }, 300), null);
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'winwin' }, 361), 'platform_deposit_open');
+  assert.equal((await db.query('SELECT status, direction FROM orders WHERE id = $1', [w.id])).rows[0].status, 'pending', 'nothing was written');
+
+  // Managers see the list; a customer does not.
+  const list = (await agent.rpc('manage_stuck_orders')).data;
+  assert.ok(Array.isArray(list));
+  const { customer } = await withdrawal(1);
+  assert.notEqual((await customer.rpc('manage_stuck_orders')).error, null);
+  assert.notEqual((await customer.rpc('stuck_orders_todo')).error, null, 'the worker function is service-only');
+});
+
 test('Sahal needing a person is said at once, once, and the all-clear after', async (t) => {
   if (!served) return t.skip('withdrawal-alerts is not served');
   const feed = (await db.query(`SELECT state, result_code, message FROM merchant_feed_status WHERE provider = 'golis'`)).rows[0];
