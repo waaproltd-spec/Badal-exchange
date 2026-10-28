@@ -65,7 +65,7 @@ class _FakeApi extends AgentApi {
 
 Future<_FakeApi> _pump(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
-  tester.view.physicalSize = const Size(1080, 4000);
+  tester.view.physicalSize = const Size(1080, 7000); // the whole screen, history included
   tester.view.devicePixelRatio = 2.5;
   addTearDown(tester.view.reset);
   final api = _FakeApi(_settings());
