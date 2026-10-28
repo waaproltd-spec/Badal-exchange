@@ -14,9 +14,9 @@
 --   * only while Sahal is waiting for a code, asked within the last 10
 --     minutes, and only for an SMS received after it was asked (no old
 --     code is ever used, and no SMS is used when no code was asked for);
---   * only from an authorized sender: one listed in app_settings
---     sahal_sms_senders (comma separated) or, when none is listed, an SMS
---     that says it is from Sahal ("SAHAL SERVICES", or "access code");
+--   * only an SMS that says it is Sahal's ("SAHAL SERVICES", "access code")
+--     from an authorized sender: app_settings sahal_sms_senders, comma
+--     separated, set to 898 (empty: any sender);
 --   * the code is the number after "code", or the only 4-8 digit number;
 --     two different numbers and no "code" is refused, not guessed;
 --   * once: the code is cleared as the worker takes it, and a second SMS
@@ -26,7 +26,8 @@
 --   * app_settings sahal_auto_code = 'off' turns the automatic entry off.
 
 INSERT INTO public.app_settings (key, value) VALUES ('sahal_auto_code', 'on') ON CONFLICT (key) DO NOTHING;
-INSERT INTO public.app_settings (key, value) VALUES ('sahal_sms_senders', '') ON CONFLICT (key) DO NOTHING;
+-- Sahal's access-code SMS comes from 898: "-SAHAL SERVICES- Access code is 123456 DIGNIIN FADLAN QOFNA HALA WADAAGIN NUMBERADAN".
+INSERT INTO public.app_settings (key, value) VALUES ('sahal_sms_senders', '898') ON CONFLICT (key) DO NOTHING;
 
 -- The rules, shared by both ways in. p_actor is whoever the SMS came through
 -- (the agent signed in on the phone, or the manager who made the hook's
@@ -51,12 +52,12 @@ BEGIN
     RETURN jsonb_build_object('result', 'off');
   END IF;
 
-  -- The sender.
-  IF btrim(v_senders) <> '' THEN
-    IF NOT (v_sender = ANY (SELECT lower(btrim(x)) FROM unnest(string_to_array(v_senders, ',')) AS x)) THEN
-      RETURN jsonb_build_object('result', 'ignored', 'reason', 'sender');
-    END IF;
-  ELSIF v_body !~* '(sahal|access\s*code)' THEN
+  -- Sahal's SMS: it says so, and when senders are listed (898) it comes from one of them.
+  IF v_body !~* '(sahal|access\s*code)' THEN
+    RETURN jsonb_build_object('result', 'ignored', 'reason', 'sender');
+  END IF;
+  IF btrim(v_senders) <> ''
+     AND NOT (v_sender = ANY (SELECT lower(btrim(x)) FROM unnest(string_to_array(v_senders, ',')) AS x)) THEN
     RETURN jsonb_build_object('result', 'ignored', 'reason', 'sender');
   END IF;
 

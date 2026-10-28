@@ -44,10 +44,10 @@ class _Api extends AgentApi {
   }
 }
 
-PendingSms _sms(String body, {String sender = 'SAHAL', Duration age = Duration.zero}) =>
+PendingSms _sms(String body, {String sender = '898', Duration age = Duration.zero}) =>
     PendingSms(sender: sender, body: body, receivedAt: DateTime.now().subtract(age), deviceId: 'dev-1');
 
-const _code = '-SAHAL SERVICES- Access code is 654321';
+const _code = '-SAHAL SERVICES- Access code is 654321 DIGNIIN FADLAN QOFNA HALA WADAAGIN NUMBERADAN';
 
 SmsBridge _bridge(_Api api) => SmsBridge(api: api, logStore: SmsLogStore.instance)
   ..sahalRetryEvery = const Duration(milliseconds: 1);
@@ -57,6 +57,7 @@ void main() {
 
   group('SahalSms.looksLikeCode', () {
     test('Sahal\'s access-code SMS', () {
+      expect(SahalSms.looksLikeCode('898', _code), isTrue, reason: 'as Sahal sends it');
       expect(SahalSms.looksLikeCode('SAHAL', _code), isTrue);
       expect(SahalSms.looksLikeCode('+252900000001', 'Your access code is 8712. Do not share it.'), isTrue);
       expect(SahalSms.looksLikeCode('sahal', 'Verification 123456'), isTrue);

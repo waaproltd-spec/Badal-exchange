@@ -644,9 +644,9 @@ test('nothing to send: the session is checked anyway, and a lost one is renewed 
 // ---- Sahal's SMS access code, read from the merchant phone ----
 // (migrations/*_sahal_auto_code.sql: agent_sahal_sms_code)
 
-const SAHAL_SMS = '-SAHAL SERVICES- Access code is 654321';
+const SAHAL_SMS = '-SAHAL SERVICES- Access code is 654321 DIGNIIN FADLAN QOFNA HALA WADAAGIN NUMBERADAN'; // as Sahal sends it, from 898
 const smsCode = (c, body, extra = {}) =>
-  c.rpc('agent_sahal_sms_code', { p_sender: 'SAHAL', p_body: body, p_received_at: new Date().toISOString(), p_device_id: 'dev-1', ...extra });
+  c.rpc('agent_sahal_sms_code', { p_sender: '898', p_body: body, p_received_at: new Date().toISOString(), p_device_id: 'dev-1', ...extra });
 const setSetting = (key, value) =>
   db.query(`INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [key, value]);
 
@@ -712,13 +712,16 @@ test('SMS code: only an authorized sender, and only a clear code', async (t) => 
   assert.deepEqual((await smsCode(a, 'SAHAL SERVICES: welcome')).data, { result: 'ignored', reason: 'no_code' });
   assert.equal((await status()).state, 'needs_code', 'none of these changed anything');
 
-  // With a sender list set, only those senders count, whatever the words.
-  await setSetting('sahal_sms_senders', 'SAHAL, 252888');
+  // Sahal's own words from another sender, or its sender without its words.
+  assert.equal((await smsCode(a, SAHAL_SMS, { p_sender: '192' })).data.reason, 'sender');
+  assert.equal((await smsCode(a, 'Your code is 654321', { p_sender: '898' })).data.reason, 'sender');
+  assert.equal((await status()).state, 'needs_code');
+  // With no sender listed, the words alone decide.
+  await setSetting('sahal_sms_senders', '');
   try {
-    assert.equal((await smsCode(a, SAHAL_SMS, { p_sender: '192' })).data.reason, 'sender');
-    assert.deepEqual((await smsCode(a, 'Verification code: 654321', { p_sender: 'sahal' })).data, { result: 'submitted' });
+    assert.deepEqual((await smsCode(a, SAHAL_SMS, { p_sender: 'SAHAL' })).data, { result: 'submitted' });
   } finally {
-    await setSetting('sahal_sms_senders', '');
+    await setSetting('sahal_sms_senders', '898');
   }
 });
 
@@ -837,15 +840,15 @@ test('SMS forwarder: the posted SMS enters the code once and the session is used
   const token = await newToken();
   await waitForCode();
   // Nobody without the token gets anything.
-  assert.equal((await hook(null, { from: 'SAHAL', text: SAHAL_SMS })).status, 403);
-  assert.equal((await hook('shk_wrong', { from: 'SAHAL', text: SAHAL_SMS })).status, 403);
+  assert.equal((await hook(null, { from: '898', text: SAHAL_SMS })).status, 403);
+  assert.equal((await hook('shk_wrong', { from: '898', text: SAHAL_SMS })).status, 403);
   assert.equal((await status()).state, 'needs_code');
 
-  const ok = await hook(token, { from: 'SAHAL', text: SAHAL_SMS });
+  const ok = await hook(token, { from: '898', text: SAHAL_SMS });
   assert.deepEqual([ok.status, ok.body], [200, { result: 'submitted' }]);
   assert.ok(!JSON.stringify(ok).includes('654321'), 'the answer never has the code');
   // The same SMS again (a forwarder's retry): Sahal is no longer waiting.
-  assert.deepEqual((await hook(token, { from: 'SAHAL', text: SAHAL_SMS })).body, { result: 'not_waiting' });
+  assert.deepEqual((await hook(token, { from: '898', text: SAHAL_SMS })).body, { result: 'not_waiting' });
   await run();
   assert.equal(calls('/api/account/2auth'), 1, 'sent once');
   assert.deepEqual(seen.find((x) => x.path === '/api/account/2auth').body,
@@ -859,7 +862,7 @@ test('SMS forwarder: forms, text and GET with other field names also work; other
   if (!served || !hookServed) return t.skip('the functions are not served');
   const old = await newToken();
   const token = await newToken();
-  assert.equal((await hook(old, { from: 'SAHAL', text: SAHAL_SMS })).status, 403, 'a new token revokes the old one');
+  assert.equal((await hook(old, { from: '898', text: SAHAL_SMS })).status, 403, 'a new token revokes the old one');
 
   await waitForCode();
   // Not Sahal's: nothing.
@@ -867,14 +870,14 @@ test('SMS forwarder: forms, text and GET with other field names also work; other
     { result: 'ignored', reason: 'sender' });
   assert.equal((await status()).state, 'needs_code');
   // Token in a header, the SMS as a form.
-  const r = await hook(null, { address: 'SAHAL', body: SAHAL_SMS }, { as: 'form', headers: { 'X-Hook-Token': token } });
+  const r = await hook(null, { address: '898', body: SAHAL_SMS }, { as: 'form', headers: { 'X-Hook-Token': token } });
   assert.deepEqual(r.body, { result: 'submitted' });
   assert.equal((await status()).state, 'code_entered');
 
   // GET with the token in the query (some forwarders can only do that).
   await db.query(`UPDATE merchant_feed_status SET state = 'ready' WHERE provider = 'golis'`);
   await waitForCode();
-  const g = await hook(null, { token, from: 'SAHAL', msg: 'Sahal access code is 246810' }, { as: 'get' });
+  const g = await hook(null, { token, from: '898', msg: 'Sahal access code is 246810' }, { as: 'get' });
   assert.deepEqual(g.body, { result: 'submitted' });
   assert.equal((await db.query(`SELECT code FROM private.merchant_feed_sessions WHERE provider = 'golis'`)).rows[0].code, '246810');
 });
@@ -885,6 +888,6 @@ test('SMS forwarder: revoked, nothing gets in', async (t) => {
   const m = await managerClient();
   assert.equal((await m.rpc('manage_sahal_sms_hook_revoke')).data.configured, false);
   await waitForCode();
-  assert.equal((await hook(token, { from: 'SAHAL', text: SAHAL_SMS })).status, 403);
+  assert.equal((await hook(token, { from: '898', text: SAHAL_SMS })).status, 403);
   assert.equal((await status()).state, 'needs_code');
 });
