@@ -61,6 +61,11 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   bool _submitting = false;
   String? _error;
 
+  /// What was last sent to the server about this form (Unconfirmed Deposits).
+  String? _tracked;
+  Future<void>? _tracking;
+  late final CustomerApi _api;
+
 
   PaymentMethodInfo get _info => widget.option.info;
 
@@ -70,6 +75,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     for (final c in [_accountController, _amountController, _codeController]) {
       c.addListener(() => setState(() {}));
     }
+    _api = context.read<CustomerApi>();
+    _amountController.addListener(_track);
+    _accountController.addListener(_track);
     if (_cashDesk) _fillSavedAccount();
   }
 
@@ -82,6 +90,18 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     } catch (_) {
       // Left empty: the customer types it.
     }
+  }
+
+  /// The form as it is now: a valid amount (or, for a cash desk, an
+  /// account ID) is recorded as a deposit the customer has not confirmed.
+  void _track() {
+    final amount = _cashDesk ? null : (_amount == null ? null : _amountText);
+    final account = _info.isPlatform ? _accountController.text.trim() : null;
+    if (amount == null && (account == null || account.isEmpty)) return;
+    final now = '$amount|$account';
+    if (now == _tracked) return;
+    _tracked = now;
+    _tracking = _api.trackDepositDraft(method: _info.id, amount: amount, accountId: account);
   }
 
   @override
@@ -145,6 +165,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       _error = null;
     });
     final api = context.read<CustomerApi>();
+    // The form is recorded before the request, so the request is tied to it.
+    await _tracking;
+    if (!mounted) return;
     try {
       // The backend checks the method and amount before anything is created.
       // A cash-desk deposit has no amount: the platform says it.

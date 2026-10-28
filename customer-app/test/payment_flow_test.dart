@@ -55,6 +55,13 @@ class FakeCustomerApi extends CustomerApi {
 
   final submitted = <Map<String, Object?>>[];
 
+  /// The deposit form as recorded before Confirm (Unconfirmed Deposits).
+  final drafts = <String>[];
+
+  @override
+  Future<void> trackDepositDraft({required String method, String? amount, String? accountId}) async =>
+      drafts.add('$method|$amount|$accountId|before:${submitted.length}');
+
   /// Account IDs the customer used before, per platform.
   final savedAccounts = <String, String>{for (final m in _cashdesk) m: '7841228'};
 
@@ -519,6 +526,11 @@ void main() {
       expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', usesCode ? '7841228' : identifier));
       expect(api.submitted.single, containsPair('amount', usesCode ? null : '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
+      // The form was recorded (not confirmed yet) before the request; only
+      // what the customer typed: the server takes the phone.
+      expect(api.drafts, isNotEmpty);
+      expect(api.drafts.last, endsWith('before:0'));
+      expect(api.drafts.last, startsWith(usesCode ? '$id|null|7841228' : (isPlatform ? '$id|5|$identifier' : '$id|5|null')));
       expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
       expect(find.text('USD Deposited'), findsOneWidget);
     });

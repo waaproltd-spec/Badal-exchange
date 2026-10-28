@@ -72,6 +72,13 @@ class AgentApi {
         'p_to': to?.toUtc().toIso8601String(),
       }));
 
+  /// Admin: Unconfirmed Deposits started in [from, to) (default: the last 7 days).
+  Future<UnconfirmedDeposits> getUnconfirmedDeposits({DateTime? from, DateTime? to}) async =>
+      UnconfirmedDeposits.fromJson(await _map('manage_unconfirmed_deposits', {
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+      }));
+
   /// Rejects a waiting deposit (nothing was credited, no money moves).
   Future<void> rejectDeposit(String orderId, {required String reason}) async {
     await _map('agent_reject_deposit', {'p_order_id': orderId, 'p_reason': reason});

@@ -209,6 +209,18 @@ class CustomerApi {
 
   Future<void> unregisterPushToken(String token) => _client.rpc('customer_unregister_push_token', {'p_token': token});
 
+  /// Records the deposit form as the customer fills it in, before
+  /// "Confirm Deposit" (Admin Dashboard -> Unconfirmed Deposits). Only the
+  /// method, amount and account ID: the server takes the registered phone.
+  /// Never fails the form: any error is ignored.
+  Future<void> trackDepositDraft({required String method, String? amount, String? accountId}) async {
+    try {
+      await _client.rpc('customer_track_deposit_draft', {'p_method': method, 'p_amount': amount, 'p_account_id': accountId});
+    } catch (_) {
+      // Monitoring only.
+    }
+  }
+
   Future<Order> getOrder(String id) async {
     final data = await _client.rpc('customer_order', {'p_id': id}) as Map<String, dynamic>;
     return Order.fromJson(data);
