@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:badal_agent_app/api/agent_api.dart';
 import 'package:badal_agent_app/models/kyc.dart';
 import 'package:badal_agent_app/screens/admin/kyc_screens.dart';
@@ -91,5 +93,16 @@ void main() {
     expect(find.text('Resubmission Required'), findsOneWidget);
     expect(find.text('Demo Agent'), findsOneWidget);
     expect(find.byKey(const Key('kyc-approve')), findsNothing, reason: 'decided: no more buttons');
+  });
+
+  test('photos with line breaks in their base64 (as Postgres writes it) still load', () {
+    final clean = base64Decode(_png);
+    final wrapped = [for (var i = 0; i < _png.length; i += 76) _png.substring(i, i + 76 > _png.length ? _png.length : i + 76)].join('\n');
+    final app = KycApplication.fromJson({
+      'id': 'k1', 'status': 'pending_review',
+      'documents': {'front': {'mime': 'image/png', 'data': wrapped}, 'selfie': {'mime': 'image/png', 'data': '$wrapped\r\n'}},
+    });
+    expect(app.documents['front'], clean);
+    expect(app.documents['selfie'], clean);
   });
 }

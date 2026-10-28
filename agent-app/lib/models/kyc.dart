@@ -98,7 +98,7 @@ class KycApplication {
       decisionReason: j['decisionReason'] as String?,
       documents: {
         for (final e in docs.entries)
-          if ((e.value as Map?)?['data'] is String) e.key: base64Decode((e.value as Map)['data'] as String),
+          if ((e.value as Map?)?['data'] is String) e.key: base64Decode(((e.value as Map)['data'] as String).replaceAll(RegExp(r'\s'), '')),
       },
       history: ((j['history'] as List?) ?? const []).map((e) => (e as Map).cast<String, dynamic>()).toList(),
     );

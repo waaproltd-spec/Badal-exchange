@@ -111,6 +111,9 @@ test('valid passport, no identity service configured: Admin Review, never approv
   assert.deepEqual(failed(d), [], 'every check passed');
   assert.match(d.reviewReason, /No identity-verification service/);
   assert.equal(d.documents.front.mime, 'image/png');
+  // One line of base64 (no line breaks): the Agent App's decoder refuses them.
+  assert.ok(d.documents.front.data.length > 76 && !/\s/.test(d.documents.front.data), 'no line breaks');
+  assert.equal(Buffer.from(d.documents.front.data, 'base64').subarray(1, 4).toString(), 'PNG');
   assert.deepEqual([d.documents.front.width, d.documents.front.height], [800, 600]);
   assert.equal(d.documents.back, undefined, 'a passport has no back');
   assert.ok(d.autoCheckedAt);
