@@ -138,6 +138,28 @@ class FakeCustomerApi extends CustomerApi {
     });
     return _order('withdraw', method, amount);
   }
+
+  /// Followed by the withdrawal screen: the server reports it paid, with Sahal's transfer number.
+  final followed = <String>[];
+
+  @override
+  Future<Order> getOrder(String id) async {
+    followed.add(id);
+    final w = submitted.lastWhere((x) => x['kind'] == 'withdraw');
+    return Order(
+      id: id,
+      orderCode: 'EXTEST1',
+      direction: 'withdraw',
+      method: w['method'] as String,
+      status: 'completed',
+      statusMessage: 'Completed',
+      amount: w['amount'] as String,
+      fee: '0.00',
+      netAmount: w['amount'] as String,
+      transactionRef: 'Sahal 7517291272',
+      createdAt: DateTime.utc(2026, 10, 21),
+    );
+  }
 }
 
 Widget _app(FakeCustomerApi api, Widget home) => Provider<CustomerApi>.value(
@@ -403,6 +425,10 @@ void main() {
       expect(api.submitted.single, containsPair('amount', '2.50'));
       expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
       expect(find.text('USD Withdrawn'), findsOneWidget);
+      // It followed the withdrawal until paid: confirmed, with the transfer number.
+      expect(api.followed, isNotEmpty);
+      expect(find.text('Withdrawal Confirmed'), findsOneWidget);
+      expect(find.text('7517291272'), findsOneWidget);
     });
 
     testWidgets('deposit $label: Complete Deposit form -> one deposit', (tester) async {

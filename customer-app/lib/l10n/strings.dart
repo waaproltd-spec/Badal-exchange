@@ -274,6 +274,13 @@ class AppStrings {
       _t("Hang tight, we're processing your deposit", 'Fadlan sug, dhigashadaada waa la shaqeynayaa');
   static String get hangTightWithdraw =>
       _t("Hang tight, we're processing your withdrawal", 'Fadlan sug, bixintaada waa la shaqeynayaa');
+  // Withdrawal steps while it is sent
+  static String get stepCheckFunds => _t('Checking your balance', 'Lacagaha ayaan baarayaa');
+  static String get stepSendMoney => _t('Sending the money now', 'Lacagta ayaan dirayaa hadda');
+  static String get stepConfirmSent => _t('Confirming it went through', 'Waa xaqiijinayaa inay ku guuleysatay');
+  static String get stepDone => _t('DONE', 'LA DHAMMEEYAY');
+  static String get stepActive => _t('IN PROGRESS', 'SOCDA');
+  static String get stepWaiting => _t('WAITING', 'SUGAYA');
   static String get completeWithdrawal => _t('Complete Withdrawal', 'Dhammaystir Bixinta');
   static String get allHistory => _t('All', 'Dhammaan');
   static String get depositsTab => _t('Deposits', 'Dhigashooyin');

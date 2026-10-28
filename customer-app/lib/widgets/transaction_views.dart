@@ -182,13 +182,17 @@ class DetailsCard extends StatelessWidget {
 }
 
 /// Submitting a deposit or withdrawal: the method's icon inside a spinning
-/// ring, the amount, and a progress bar.
+/// ring, the amount, and a progress bar. With [step] (a withdrawal being
+/// sent), the three steps show instead of the "hang tight" line: checking
+/// the balance, sending the money, confirming it went through; [step] is
+/// the one in progress (0-2), 3 when all are done.
 class ProcessingView extends StatelessWidget {
-  const ProcessingView({super.key, required this.method, required this.amount, required this.deposit});
+  const ProcessingView({super.key, required this.method, required this.amount, required this.deposit, this.step});
 
   final String? method;
   final String? amount;
   final bool deposit;
+  final int? step;
 
   @override
   Widget build(BuildContext context) {
@@ -227,8 +231,11 @@ class ProcessingView extends StatelessWidget {
         const SizedBox(height: 10),
         Text(title, style: AppTextStyles.title.copyWith(fontSize: 18), textAlign: TextAlign.center),
         const SizedBox(height: 6),
-        Text(deposit ? AppStrings.hangTightDeposit : AppStrings.hangTightWithdraw,
-            style: AppTextStyles.muted, textAlign: TextAlign.center),
+        if (step == null)
+          Text(deposit ? AppStrings.hangTightDeposit : AppStrings.hangTightWithdraw,
+              style: AppTextStyles.muted, textAlign: TextAlign.center)
+        else
+          _Steps(step: step!),
         const Spacer(flex: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
@@ -242,6 +249,68 @@ class ProcessingView extends StatelessWidget {
         Text(title, style: AppTextStyles.muted.copyWith(fontSize: 13)),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+/// The withdrawal's three steps, each done, in progress or waiting.
+class _Steps extends StatelessWidget {
+  const _Steps({required this.step});
+
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = [AppStrings.stepCheckFunds, AppStrings.stepSendMoney, AppStrings.stepConfirmSent];
+    return Container(
+      key: const Key('withdraw-steps'),
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == labels.length - 1 ? 0 : 12),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: i < step
+                        ? CircleAvatar(
+                            backgroundColor: AppColors.primary,
+                            child: const Icon(Icons.check_rounded, size: 18, color: Colors.white))
+                        : i == step
+                            ? CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3)
+                            : CircleAvatar(
+                                backgroundColor: AppColors.primaryTint,
+                                child: Text('${i + 1}', style: AppTextStyles.muted.copyWith(fontSize: 13))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels[i],
+                            style: AppTextStyles.body.copyWith(
+                                fontWeight: i == step ? FontWeight.w700 : FontWeight.w500,
+                                color: i > step ? AppColors.textMuted : AppColors.textPrimary)),
+                        Text(i < step ? AppStrings.stepDone : (i == step ? AppStrings.stepActive : AppStrings.stepWaiting),
+                            key: Key('withdraw-step-$i'),
+                            style: AppTextStyles.muted.copyWith(fontSize: 11, letterSpacing: 0.6)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -338,6 +407,14 @@ class TransactionResultView extends StatelessWidget {
   }
 }
 
+/// The carrier's or Sahal's transfer number for the order ("Sahal 7517287329"
+/// -> 7517287329); null when there is none, or only an internal reference.
+String? transferIdOf(Order order) {
+  final ref = order.transactionRef?.trim() ?? '';
+  if (ref.isEmpty || ref.startsWith('USSD-')) return null;
+  return ref.startsWith('Sahal ') ? ref.substring(6).trim() : ref;
+}
+
 List<Widget> _rows(Order order, {required bool includeType}) => [
       DetailRow(label: AppStrings.transactionId, value: order.orderCode, mono: true),
       if (includeType)
@@ -350,8 +427,7 @@ List<Widget> _rows(Order order, {required bool includeType}) => [
           value: _signedAmount(order),
           valueColor: order.isDeposit ? AppColors.statusCompleted : AppColors.textPrimary,
         ),
-      if (order.transactionRef != null && order.transactionRef!.isNotEmpty)
-        DetailRow(label: AppStrings.transferId, value: order.transactionRef!, mono: true),
+      if (transferIdOf(order) != null) DetailRow(label: AppStrings.transferId, value: transferIdOf(order)!, mono: true),
       if (order.balanceBefore != null)
         DetailRow(label: AppStrings.balanceBefore, value: Formatters.money(order.balanceBefore!), strong: true),
       if (order.balanceAfter != null)
