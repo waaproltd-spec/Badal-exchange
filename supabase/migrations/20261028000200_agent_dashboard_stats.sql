@@ -48,16 +48,20 @@ BEGIN
     'newCustomersThisMonth', (SELECT count(*) FROM public.users WHERE role = 'customer' AND created_at >= v_month),
     'days', (
       SELECT jsonb_agg(jsonb_build_object(
-          'day', d.day::date,
-          'deposits', count(o.id) FILTER (WHERE o.direction = 'deposit' AND m.kind <> 'platform'),
-          'withdrawals', count(o.id) FILTER (WHERE o.direction = 'withdraw' AND m.kind <> 'platform'),
-          'orders', count(o.id) FILTER (WHERE m.kind = 'platform'))
-        ORDER BY d.day)
-      FROM generate_series(v_day - 6, v_day, interval '1 day') AS d(day)
-      LEFT JOIN public.orders o
-        ON (o.created_at AT TIME ZONE 'Africa/Mogadishu')::date = d.day::date
-      LEFT JOIN public.payment_methods m ON m.method = o.method
-      GROUP BY d.day),
+          'day', t.day, 'deposits', t.deposits, 'withdrawals', t.withdrawals, 'orders', t.orders)
+        ORDER BY t.day)
+      FROM (
+        SELECT d.day::date AS day,
+          count(o.id) FILTER (WHERE o.direction = 'deposit' AND m.kind <> 'platform') AS deposits,
+          count(o.id) FILTER (WHERE o.direction = 'withdraw' AND m.kind <> 'platform') AS withdrawals,
+          count(o.id) FILTER (WHERE m.kind = 'platform') AS orders
+        FROM generate_series(v_day - 6, v_day, interval '1 day') AS d(day)
+        LEFT JOIN public.orders o
+          ON o.created_at >= v_from AND o.created_at < v_to
+         AND (o.created_at AT TIME ZONE 'Africa/Mogadishu')::date = d.day::date
+        LEFT JOIN public.payment_methods m ON m.method = o.method
+        GROUP BY d.day
+      ) t),
     'topServices', COALESCE((
       SELECT jsonb_agg(jsonb_build_object('method', t.method, 'label', t.label, 'orders', t.n, 'amount', private.money(t.cents))
         ORDER BY t.n DESC, t.cents DESC)
