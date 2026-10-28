@@ -68,6 +68,8 @@ void main() {
     expect(find.text('Golis, ZAAD & EVC Plus (from Sahal)'), findsOneWidget);
     expect(find.text('Nothing is sent from Sahal automatically.'), findsOneWidget);
     expect(find.textContaining('EXGOLIS1 · \$0.10 → 905999914 (YAASIIN) · sent · 7501066868'), findsOneWidget);
+    expect(find.text('Not read yet'), findsOneWidget, reason: 'Sahal balance not read yet');
+    expect(find.text('Try again'), findsNothing, reason: 'a sent transfer cannot be sent again');
 
     await tester.tap(find.text('Test'));
     await tester.pumpAndSettle();

@@ -309,6 +309,13 @@ class SahalPayoutSettings {
   final int unclear;
   final List<SahalPayoutAttempt> recent;
 
+  /// Sahal's balance when last read before a transfer; null when never read.
+  final String? balance;
+  final DateTime? balanceSeenAt;
+
+  /// Withdrawals waiting because Sahal's balance is too low.
+  final int needsBalance;
+
   const SahalPayoutSettings({
     required this.mode,
     required this.dailyLimit,
@@ -318,6 +325,9 @@ class SahalPayoutSettings {
     required this.waiting,
     required this.unclear,
     required this.recent,
+    this.balance,
+    this.balanceSeenAt,
+    this.needsBalance = 0,
   });
 
   factory SahalPayoutSettings.fromJson(Map<String, dynamic> j) => SahalPayoutSettings(
@@ -331,11 +341,18 @@ class SahalPayoutSettings {
         recent: ((j['recent'] as List?) ?? const [])
             .map((e) => SahalPayoutAttempt.fromJson(e as Map<String, dynamic>))
             .toList(),
+        balance: j['balance'] as String?,
+        balanceSeenAt: DateTime.tryParse(j['balanceSeenAt'] as String? ?? '')?.toLocal(),
+        needsBalance: (j['needsBalance'] as num?)?.toInt() ?? 0,
       );
 }
 
 class SahalPayoutAttempt {
+  final String? orderId;
   final String orderCode;
+
+  /// The withdrawal's own status (pending, processing, completed, ...).
+  final String? orderStatus;
 
   /// pending | success | failed | ambiguous
   final String status;
@@ -347,7 +364,9 @@ class SahalPayoutAttempt {
   final DateTime? createdAt;
 
   const SahalPayoutAttempt({
+    this.orderId,
     required this.orderCode,
+    this.orderStatus,
     required this.status,
     required this.receiver,
     this.receiverName,
@@ -358,7 +377,9 @@ class SahalPayoutAttempt {
   });
 
   factory SahalPayoutAttempt.fromJson(Map<String, dynamic> j) => SahalPayoutAttempt(
+        orderId: j['orderId'] as String?,
         orderCode: j['orderCode'] as String? ?? '',
+        orderStatus: j['orderStatus'] as String?,
         status: j['status'] as String? ?? '',
         receiver: j['receiver'] as String? ?? '',
         receiverName: j['receiverName'] as String?,
@@ -367,4 +388,7 @@ class SahalPayoutAttempt {
         reply: j['reply'] as String?,
         createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '')?.toLocal(),
       );
+
+  /// Refused (nothing was sent) and the withdrawal still waits: it may go again.
+  bool get canRetry => status == 'failed' && orderStatus == 'pending' && orderId != null;
 }

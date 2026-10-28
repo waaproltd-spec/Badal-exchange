@@ -239,13 +239,25 @@ async function run() {
 
 const MAX_PAYOUTS_PER_RUN = 3;
 
+/** POST /api/account/balance -> currentBalance; null when it cannot be read. */
+async function balance(session: string): Promise<number | null> {
+  try {
+    const res = await portal('/api/account/balance', { sessionId: session });
+    const value = Number(String(res?.currentBalance ?? '').replace(/,/g, ''));
+    return String(res?.resultCode ?? '') === '2001' && Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Sends the withdrawals the database hands out, one at a time. */
 async function sendPayouts(session: string) {
   const pin = Deno.env.get('GOLIS_MERCHANT_PIN');
   if (!pin) return { skipped: 'no GOLIS_MERCHANT_PIN' };
   const done: string[] = [];
   for (let i = 0; i < MAX_PAYOUTS_PER_RUN; i++) {
-    const next = await rpc('sahal_payout_next', {});
+    // Sahal's balance first (like the portal's dashboard): what it cannot pay waits.
+    const next = await rpc('sahal_payout_next', { p_balance: await balance(session) });
     if (!next?.attemptId) break;
     const say = (p_status: string, extra: Record<string, unknown> = {}) =>
       rpc('sahal_payout_report', { p_attempt_id: next.attemptId, p_status, ...extra });

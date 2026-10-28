@@ -238,6 +238,10 @@ class AgentApi {
   Future<SahalPayoutSettings> setSahalPayouts({String? mode, double? dailyLimit}) async =>
       SahalPayoutSettings.fromJson(await _map('manage_set_sahal_payouts', {'p_mode': mode, 'p_daily_limit': dailyLimit}));
 
+  /// Sends a withdrawal Sahal refused (nothing was sent) again.
+  Future<SahalPayoutSettings> retrySahalPayout(String orderId) async =>
+      SahalPayoutSettings.fromJson(await _map('manage_sahal_retry', {'p_order_id': orderId}));
+
   /// The payout wallet's balance as read on the phone.
   Future<AutoPayoutSettings> setPayoutBalance(String method, double balance) async =>
       AutoPayoutSettings.fromJson(await _map('manage_set_payout_balance', {'p_method': method, 'p_balance': balance}));

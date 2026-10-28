@@ -219,6 +219,35 @@ check('the feed reading back our transfer completes only its own withdrawal, not
   assert.equal(rows[0]?.matched_order_id, one.w.id, 'the read-back is tied to the withdrawal it paid');
 });
 
+check('not enough Sahal balance: it waits (its try is not used), then goes once topped up', async () => {
+  await clearQueue();
+  const { w } = await withdrawal('golis', golisNumber(), 7);
+  assert.equal(await rpc(service, 'sahal_payout_next', { p_balance: 5 }), null);
+  const shown = await rpc(manager, 'manage_sahal_payouts');
+  assert.equal(shown.balance, '5.00');
+  assert.ok(shown.needsBalance >= 1);
+  assert.equal((await order(w.id)).status, 'pending');
+  const a = await rpc(service, 'sahal_payout_next', { p_balance: 20 });
+  assert.equal(a.orderCode, w.orderCode);
+  await say(a.attemptId, 'success', { p_transfer_id: `T${seed}e` });
+});
+
+check('a refused transfer can be tried again by a manager; a sent or unclear one cannot', async () => {
+  await clearQueue();
+  const { w } = await withdrawal('golis', golisNumber(), 2);
+  const a = await next();
+  await say(a.attemptId, 'failed', { p_result_code: '4001', p_reply: 'Insufficient balance' });
+  assert.equal(await next(), null);
+  const row = (await rpc(manager, 'manage_sahal_payouts')).recent.find((r) => r.orderCode === w.orderCode);
+  assert.equal(row.status, 'failed');
+  assert.equal(row.orderStatus, 'pending');
+  await rpc(manager, 'manage_sahal_retry', { p_order_id: w.id });
+  const b = await next();
+  assert.equal(b.orderCode, w.orderCode, 'sent again');
+  await say(b.attemptId, 'success', { p_transfer_id: `T${seed}f` });
+  await rejects(rpc(manager, 'manage_sahal_retry', { p_order_id: w.id }), 'INVALID_STATE');
+});
+
 check('only managers see or change it', async () => {
   const number = golisNumber();
   const c = await customer(number);

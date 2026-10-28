@@ -867,18 +867,37 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           const SizedBox(height: 6),
           Text(help, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
           InfoRow('Sent today', '\$${g.paidToday} of \$${g.dailyLimit}'),
+          InfoRow(
+            'Sahal balance',
+            g.balance == null
+                ? 'Not read yet'
+                : '\$${g.balance}${g.balanceSeenAt != null ? ' (${formatDateTime(g.balanceSeenAt!)})' : ''}',
+          ),
+          if (g.needsBalance > 0)
+            Text('${g.needsBalance} waiting for more Sahal balance: top up Sahal and they go out.',
+                key: const Key('sahal-needs-balance'), style: const TextStyle(color: AppColors.statusPending)),
           InfoRow('\$${g.testAmount} test', g.testPassed ? 'Passed' : 'Not passed yet'),
           if (g.waiting > 0) InfoRow('Waiting', '${g.waiting}'),
           if (g.unclear > 0)
             Text('${g.unclear} transfer(s) without a clear answer: check them in Sahal before paying again.',
                 style: const TextStyle(color: AppColors.statusFailed)),
-          for (final a in g.recent.take(5))
+          for (final a in g.recent.take(5)) ...[
             Text(
               '${a.orderCode} · \$${a.amount} → ${a.receiver}${a.receiverName != null ? ' (${a.receiverName})' : ''} · '
               '${label(a.status)}${a.transferId != null ? ' · ${a.transferId}' : ''}'
               '${a.status == 'failed' && a.reply != null ? ' · ${a.reply}' : ''}',
               style: const TextStyle(fontSize: 12.5),
             ),
+            if (a.canRetry)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: Key('sahal-retry-${a.orderCode}'),
+                  onPressed: () => _run(() => _session.api.retrySahalPayout(a.orderId!), '${a.orderCode} will be sent again.'),
+                  child: const Text('Try again'),
+                ),
+              ),
+          ],
           Wrap(spacing: 8, children: [
             TextButton(onPressed: () => _editSahalLimit(g), child: const Text('Limit')),
           ]),
