@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../models/commission.dart';
 import '../models/deposit_board.dart';
 import '../models/report_overview.dart';
 import '../models/wallet_adjustment.dart';
@@ -397,6 +398,13 @@ class AgentApi {
       (await _list('agent_customer_ledger', {'p_id': id}))
           .map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>))
           .toList();
+
+  /// Commission: today | yesterday | this_month | last_3_months | last_6_months |
+  /// last_1_year | all_time | custom (from/to YYYY-MM-DD); [method] one company
+  /// (null: all); [agent] (managers) an agent id, 'automatic', or null for everyone.
+  Future<CommissionReport> getCommission({required String range, String? from, String? to, String? method, String? agent}) async =>
+      CommissionReport.fromJson(await _map('agent_commission',
+          {'p_range': range, 'p_from': from, 'p_to': to, 'p_method': method, 'p_agent': agent}));
 
   /// Reports: today | yesterday | last_month | all_time | custom (from/to YYYY-MM-DD).
   Future<ReportOverview> getReportOverview({required String range, String? from, String? to}) async =>
