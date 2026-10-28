@@ -78,15 +78,7 @@ class _RootShellState extends State<RootShell> {
     final m = _push?.foreground.value;
     if (m == null || !mounted) return;
     _push?.foreground.value = null;
-    if (!m.isBroadcast) {
-      // Completed? The server's word on it decides the cha-ching.
-      context
-          .read<CustomerApi>()
-          .getOrder(m.orderId)
-          .then((order) => SuccessSound.instance.observe([order]))
-          .catchError((Object _) {});
-      return;
-    }
+    if (!m.isBroadcast) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       key: Key('push-banner-${m.isBroadcast ? 'broadcast' : m.orderId}'),
       duration: const Duration(seconds: 6),
