@@ -271,6 +271,24 @@ class AppStrings {
   static String get confirmingWithdrawal => _t('Confirming Withdrawal...', 'Bixinta waa la xaqiijinayaa...');
   static String get hangTightDeposit =>
       _t("Hang tight, we're processing your deposit", 'Fadlan sug, dhigashadaada waa la shaqeynayaa');
+  // Why a withdrawal still waits after 30 seconds (Order.delay).
+  static String get delayTitle => _t('Why is it taking longer?', 'Maxay u daahday?');
+  static String delayReason(String code) => switch (code) {
+        'provider_unavailable' => _t(
+            'The payment service (Sahal) is not responding right now. Your money is safe and will be sent automatically as soon as it is back.',
+            'Adeegga lacag-dirista (Sahal) hadda ma shaqaynayo. Lacagtaadu way badbaadsan tahay, si toos ah ayaana loo diri doonaa marka uu soo laabto.'),
+        'provider_balance' => _t(
+            'Your withdrawal is waiting for the payment account to be topped up. It will then be sent automatically.',
+            'Bixintaadu waxay sugaysaa in koontada lacag-bixinta lagu shubo. Kadib si toos ah ayaa loo diri doonaa.'),
+        'confirming' => _t(
+            'We are confirming the transfer with the payment service. It will never be sent twice.',
+            'Waxaan la xaqiijinaynaa adeegga lacag-dirista in lacagta la diray. Marna labo jeer lama diri doono.'),
+        'manual' => _t(
+            'A member of our team is completing your withdrawal. If it cannot be paid, your money is returned to your wallet.',
+            'Shaqaalaheena ayaa dhammaystiraya bixintaada. Haddii aan la bixin karin, lacagtaada waxaa lagu celin doonaa boorsadaada.'),
+        _ => _t('Your withdrawal is in the queue and will be sent shortly.',
+            'Bixintaadu waa safka, dhawaan ayaa la diri doonaa.'),
+      };
   static String get hangTightWithdraw =>
       _t("Hang tight, we're processing your withdrawal", 'Fadlan sug, bixintaada waa la shaqeynayaa');
   // Withdrawal steps while it is sent

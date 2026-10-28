@@ -29,9 +29,20 @@
 // attempt per withdrawal); anything unclear is reported as such and never
 // sent again.
 //
+// Sahal ends the session it accepts transfers with every few hours while
+// the list still reads ("Session data is not found, please sign in again",
+// ER0654). Then it signs in again at once by itself and the refused
+// withdrawal goes out with the new session; when Sahal asks for its SMS code
+// the old session keeps reading (deposits) until a manager has typed it
+// (migrations/*_withdrawal_speed.sql), and the alert chat is told. While
+// nothing waits, a receiver look-up (no money) checks the session, so a lost
+// one is found before a customer waits.
+//
 // Secrets: GOLIS_MERCHANT_USERNAME, GOLIS_MERCHANT_PASSWORD
 //          [, GOLIS_MERCHANT_PIN (the merchant PIN; no PIN, nothing is sent),
-//           GOLIS_MERCHANT_CURRENCY (else the portal's USD entry), GOLIS_MERCHANT_BASE_URL]
+//           GOLIS_MERCHANT_CURRENCY (else the portal's USD entry), GOLIS_MERCHANT_BASE_URL,
+//           GOLIS_MERCHANT_PROBE_MOBILE (the number looked up to check the
+//           session; else the login, when it is a phone number)]
 const PROVIDER = 'golis';
 const BASE = (Deno.env.get('GOLIS_MERCHANT_BASE_URL') || 'https://mymerchant.golis.so').replace(/\/$/, '');
 
@@ -153,7 +164,10 @@ async function run() {
     return report({ state: 'not_configured', message: 'Set GOLIS_MERCHANT_USERNAME and GOLIS_MERCHANT_PASSWORD' });
   }
   const feed = await rpc('merchant_feed_get', { p_provider: PROVIDER });
-  if (feed?.state === 'stopped' || feed?.state === 'needs_code') return { skipped: feed.state };
+  if (feed?.state === 'stopped' || feed?.state === 'needs_code') {
+    // Waiting for a person; a kept session still reads Sahal's list.
+    return feed?.readSessionId ? { readOnly: await readWithKeptSession(feed) } : { skipped: feed.state };
+  }
 
   jar.clear();
   for (const part of String(feed?.cookies ?? '').split(';')) {
@@ -162,6 +176,8 @@ async function run() {
   }
   let session: string | null = feed?.sessionId ?? null;
   let claimed = false;
+  // Signed in during this run: what the old session was refused goes again now.
+  let fresh = false;
   let firstRows: Record<string, unknown>[] = [];
   if (feed?.state === 'code_entered') {
     // The manager's access code, sent with Sahal's pending session (once).
@@ -179,6 +195,7 @@ async function run() {
       });
     }
     session = String(auth.sessionId);
+    fresh = true;
     // The page shows the list that comes with this answer (transactionInfo).
     firstRows = rowArrays(auth.transactionInfo ?? [])[0] ?? [];
   }
@@ -197,9 +214,7 @@ async function run() {
     // One sign-in at a time: each one makes Sahal text a new code.
     if (!(await rpc('merchant_feed_claim_sign_in', { p_provider: PROVIDER }))) return { skipped: 'sign-in running' };
     jar.clear();
-    const login = await portal('/api/account/login', {
-      type: 'MERCHANT', username, password, currency: await currency(),
-    });
+    const login = await signIn();
     const code = String(login?.resultCode ?? '');
     await saveCookies();
     if (code === '1001' && login.sessionId) {
@@ -217,6 +232,7 @@ async function run() {
       return report({ state: 'stopped', code, message: why[code] ?? (login?.replyMessage || `Sign-in refused (${shape(login)})`) });
     }
     session = String(login.sessionId);
+    fresh = true;
     tx = await portal('/api/account/transactions', { sessionId: session });
   }
   const code = String(tx?.resultCode ?? '');
@@ -232,6 +248,7 @@ async function run() {
     session,
     rows: await withIds([...firstRows, ...rows]),
   });
+  if (fresh) await rpc('sahal_payout_retry_now', {}).catch(() => null);
   // A payout problem must not look like a feed problem (the feed read fine).
   const payouts = await sendPayouts(session!).catch((err) => ({ error: (err as Error).message }));
   return { feed: result, payouts };
@@ -239,21 +256,67 @@ async function run() {
 
 const MAX_PAYOUTS_PER_RUN = 3;
 
+const signIn = async () =>
+  portal('/api/account/login', {
+    type: 'MERCHANT',
+    username: Deno.env.get('GOLIS_MERCHANT_USERNAME'),
+    password: Deno.env.get('GOLIS_MERCHANT_PASSWORD'),
+    currency: await currency(),
+  });
+
+/** Reads Sahal's list with the session kept while a sign-in waits for a
+ *  person; the rows are stored and matched, the feed's state is left as is. */
+async function readWithKeptSession(feed: any) {
+  jar.clear();
+  for (const part of String(feed.readCookies ?? '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) jar.set(part.slice(0, i).trim(), part.slice(i + 1).trim());
+  }
+  const tx = await portal('/api/account/transactions', { sessionId: feed.readSessionId });
+  if (['4005', '7777'].includes(String(tx?.resultCode ?? ''))) {
+    // That one has ended too: nothing to read with until the sign-in is done.
+    await rpc('merchant_feed_keep_reading', { p_provider: PROVIDER, p_session_id: null, p_cookies: null });
+    return { ended: String(tx?.resultCode ?? '') };
+  }
+  return rpc('merchant_feed_store_rows', { p_provider: PROVIDER, p_rows: await withIds(rowArrays(tx)[0] ?? []) });
+}
+
+/** Sahal refuses transfers for this session: sign in again now. The session
+ *  is kept for reading meanwhile. Returns the new session, or null when
+ *  Sahal wants its SMS code (or refused), which the alert chat is told. */
+async function signInAgain(session: string): Promise<string | null> {
+  await rpc('merchant_feed_keep_reading', { p_provider: PROVIDER, p_session_id: session, p_cookies: cookieHeader() });
+  if (!(await rpc('merchant_feed_claim_sign_in', { p_provider: PROVIDER }))) return null;
+  jar.clear();
+  const login = await signIn();
+  const code = String(login?.resultCode ?? '');
+  await saveCookies();
+  if (code === '2001' && login.sessionId) {
+    const fresh = String(login.sessionId);
+    await report({ state: 'ok', code, message: 'Signed in again: Sahal had ended the session for transfers', session: fresh });
+    await rpc('sahal_payout_retry_now', {});
+    return fresh;
+  }
+  if (code === '1001' && login.sessionId) {
+    await rpc('merchant_feed_wait_code', { p_provider: PROVIDER, p_second_session_id: String(login.sessionId) });
+    return null;
+  }
+  await report({ state: 'stopped', code, message: `Sahal ended the session for transfers and refused a new sign-in: ${login?.replyMessage || shape(login)}` });
+  return null;
+}
+
+/** The number looked up to check the session (no money moves). */
+function probeMobile(): string | null {
+  const set = Deno.env.get('GOLIS_MERCHANT_PROBE_MOBILE');
+  if (set) return set;
+  const login = String(Deno.env.get('GOLIS_MERCHANT_USERNAME') ?? '');
+  return /^(252)?\d{9}$/.test(login) ? login.replace(/^252/, '') : null;
+}
+
 /** Sahal no longer lets this session send money ("Session data is not found,
  *  please sign in again!"), although reading may still work. */
 const sessionLost = (r: any) =>
   ['4005', '7777'].includes(String(r?.resultCode ?? '')) || /sign in again|session/i.test(String(r?.replyMessage ?? ''));
-
-/** Says so on the Sahal Sign-in screen; the feed keeps reading (deposits are
- *  still credited). The refused withdrawal is tried again by itself
- *  (sahal_payout_next) and goes out once a manager has signed in again. */
-const askForSignIn = (session: string) =>
-  report({
-    state: 'ok',
-    code: 'ER0654',
-    message: 'Sahal refuses transfers: press "Sign in again (new code)". Waiting withdrawals then go out by themselves.',
-    session,
-  });
 
 /** POST /api/account/balance -> currentBalance; null when it cannot be read. */
 async function balance(session: string): Promise<number | null> {
@@ -271,6 +334,20 @@ async function sendPayouts(session: string) {
   const pin = Deno.env.get('GOLIS_MERCHANT_PIN');
   if (!pin) return { skipped: 'no GOLIS_MERCHANT_PIN' };
   const done: string[] = [];
+  let signedInAgain = false;
+  /** Lost for transfers: sign in again (once a run); true to go on with the new session. */
+  const renew = async () => {
+    if (signedInAgain) return false;
+    signedInAgain = true;
+    const fresh = await signInAgain(session);
+    if (!fresh) {
+      done.push('Sahal session lost: signing in again');
+      return false;
+    }
+    session = fresh;
+    done.push('signed in again');
+    return true;
+  };
   for (let i = 0; i < MAX_PAYOUTS_PER_RUN; i++) {
     // Sahal's balance first (like the portal's dashboard): what it cannot pay waits.
     // No balance usually means the session has ended: take nothing now, so no
@@ -281,7 +358,15 @@ async function sendPayouts(session: string) {
       break;
     }
     const next = await rpc('sahal_payout_next', { p_balance: available });
-    if (!next?.attemptId) break;
+    if (!next?.attemptId) {
+      // Nothing to send: check the session now rather than when a customer waits.
+      const probe = i === 0 && !signedInAgain ? probeMobile() : null;
+      if (probe) {
+        const found = await portal('/api/account/find', { sessionId: session, type: 'internetwork', mobileNo: probe }).catch(() => null);
+        if (sessionLost(found) && (await renew())) continue;
+      }
+      break;
+    }
     const say = (p_status: string, extra: Record<string, unknown> = {}) =>
       rpc('sahal_payout_report', { p_attempt_id: next.attemptId, p_status, ...extra });
 
@@ -290,8 +375,9 @@ async function sendPayouts(session: string) {
     try {
       find = await portal('/api/account/find', { sessionId: session, type: 'internetwork', mobileNo: next.receiverMobile });
     } catch (err) {
-      await say('failed', { p_reply: `Receiver not checked: ${(err as Error).message}` });
-      done.push(`${next.orderCode}: failed`);
+      // Sahal not reached (timeout, network): nothing was sent, tried again in a minute.
+      await say('failed', { p_result_code: 'NETWORK', p_reply: `Sahal not reached: ${(err as Error).message}` });
+      done.push(`${next.orderCode}: Sahal not reached`);
       break;
     }
     const name = find?.ReceiverInfo?.NAME;
@@ -299,7 +385,7 @@ async function sendPayouts(session: string) {
       await say('failed', { p_result_code: String(find?.resultCode ?? ''), p_reply: find?.replyMessage ?? `No receiver (${shape(find)})` });
       done.push(`${next.orderCode}: failed`);
       if (sessionLost(find)) {
-        await askForSignIn(session);
+        if (await renew()) continue;
         break;
       }
       continue;
@@ -333,7 +419,7 @@ async function sendPayouts(session: string) {
       await say('failed', { p_receiver_name: name, p_result_code: resultCode, p_reply: reply });
       done.push(`${next.orderCode}: refused`);
       if (sessionLost(sent)) {
-        await askForSignIn(session);
+        if (await renew()) continue;
         break;
       }
     } else {

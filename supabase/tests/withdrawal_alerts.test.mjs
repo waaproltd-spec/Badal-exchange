@@ -81,6 +81,8 @@ before(async () => {
   await db.query(`UPDATE withdrawal_alert_chat SET chat_id = NULL, chat_name = NULL, linked_at = NULL, update_offset = 0,
                     summary_day = (now() AT TIME ZONE 'Africa/Mogadishu')::date`);
   await db.query(`DELETE FROM withdrawal_alerts`);
+  // Sahal's own alerts are tested on their own below.
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
 });
 beforeEach(() => { tg.calls.length = 0; });
 after(async () => {
@@ -159,16 +161,47 @@ test('completed: the message turns into "paid" with the reference; failed shows 
   assert.equal(sent('editMessageText').length, 0, 'edited once');
 });
 
-test('still waiting after 15 minutes: one reminder', async (t) => {
+test('not paid after 30 seconds: one reminder, with why', async (t) => {
   if (!served) return t.skip('withdrawal-alerts is not served');
   const { w } = await withdrawal(2);
   await run();
-  await db.query(`UPDATE orders SET created_at = now() - interval '16 minutes' WHERE id = $1`, [w.id]);
   tg.calls.length = 0;
   await run();
+  assert.equal(sent('sendMessage', CHAT).filter((c) => c.body.text.includes(w.orderCode)).length, 0, 'not before 30 s');
+  await db.query(`UPDATE orders SET created_at = now() - interval '31 seconds' WHERE id = $1`, [w.id]);
   await run();
-  const reminders = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(`${w.orderCode} is still waiting`));
+  await run();
+  const reminders = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(`${w.orderCode} not paid after`));
   assert.equal(reminders.length, 1);
+  // Sahal is off here: an agent pays it.
+  assert.match(reminders[0].body.text, /Needs an agent/);
+});
+
+test('Sahal needing a person is said at once, once, and the all-clear after', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const feed = (await db.query(`SELECT state, result_code, message FROM merchant_feed_status WHERE provider = 'golis'`)).rows[0];
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'live' WHERE id`);
+  await db.query(`INSERT INTO private.merchant_feed_sessions (provider, second_at) VALUES ('golis', now())
+                  ON CONFLICT (provider) DO UPDATE SET second_at = now()`);
+  await db.query(`UPDATE merchant_feed_status SET state = 'needs_code', result_code = '1001' WHERE provider = 'golis'`);
+  try {
+    await run();
+    await run();
+    const asks = sent('sendMessage', CHAT).filter((c) => /Sahal needs its SMS code/.test(c.body.text));
+    assert.equal(asks.length, 1, 'once');
+    assert.match(asks[0].body.text, /Sahal Sign-in/);
+
+    tg.calls.length = 0;
+    await db.query(`UPDATE merchant_feed_status SET state = 'ok', result_code = '2001' WHERE provider = 'golis'`);
+    await run();
+    await run();
+    assert.equal(sent('sendMessage', CHAT).filter((c) => /Sahal works again/.test(c.body.text)).length, 1);
+  } finally {
+    await db.query(`UPDATE merchant_feed_status SET state = $1, result_code = $2, message = $3 WHERE provider = 'golis'`,
+      [feed.state, feed.result_code, feed.message]);
+    await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
+    await db.query(`UPDATE withdrawal_alert_chat SET sahal_alert_key = NULL WHERE id`);
+  }
 });
 
 test('a Sahal transfer that matched no withdrawal is reported once', async (t) => {

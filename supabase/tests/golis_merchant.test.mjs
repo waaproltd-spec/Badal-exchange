@@ -44,6 +44,7 @@ const standIn = http.createServer((req, res) => {
       }
       const s = `S${portal.next++}`;
       portal.sessions.add(s);
+      portal.canSend.add(s);
       return reply({ resultCode: 2001, sessionId: s, name: 'BULSHO AGENT' });
     }
     if (req.url === '/api/account/2auth') {
@@ -51,6 +52,7 @@ const standIn = http.createServer((req, res) => {
       if (cookie !== `${portal.pending}-cookie`) return reply({ resultCode: 4005, replyMessage: 'Session expired' });
       const s = `S${portal.next++}`;
       portal.sessions.add(s);
+      portal.canSend.add(s);
       portal.cookieFor[s] = cookie;
       return reply({ resultCode: 2001, sessionId: s, transactionInfo: portal.firstRows });
     }
@@ -61,6 +63,22 @@ const standIn = http.createServer((req, res) => {
       }
       if (portal.refuseList) return reply({ resultCode: 4005, replyMessage: 'Your Session has expired. Please login again.' });
       return reply({ resultCode: 2001, transactionInfo: portal.rows });
+    }
+    // Sending money (Sahal payouts): only when a test switches it on.
+    if (portal.payouts && req.url === '/api/account/balance') {
+      if (!portal.sessions.has(b.sessionId)) return reply({ resultCode: 4005, replyMessage: 'Session expired' });
+      return reply({ resultCode: 2001, currentBalance: '1,000.00' });
+    }
+    if (portal.payouts && (req.url === '/api/account/find' || req.url === '/api/money/b2p')) {
+      // Sahal's ER0654: the list still reads, transfers are refused.
+      if (!portal.canSend.has(b.sessionId)) return reply({ resultCode: 'ER0654', replyMessage: 'Session data is not found, please sign in again!' });
+      if (req.url === '/api/account/find') {
+        if (portal.findDown) return req.socket.destroy();
+        return reply({ resultCode: 2001, ReceiverInfo: { NAME: 'TEST RECEIVER', ISINTERNETWORKRECEIVER: true } });
+      }
+      portal.transfers.push({ mobile: b.receiverMobile, amount: b.amount, description: b.description });
+      if (portal.unclear) return reply({ resultCode: 2001, replyMessage: 'Processing' });
+      return reply({ resultCode: 2001, replyMessage: 'Done', transferInfo: { 'Transfer-Id': `TR${portal.next++}` } });
     }
     res.writeHead(404).end();
   });
@@ -88,7 +106,8 @@ beforeEach(async () => {
   await db.query(`UPDATE merchant_feed_status SET state = 'ready', result_code = NULL, message = NULL, rows_seen = 0 WHERE provider = 'golis'`);
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
-  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false, cookieFor: {}, firstRows: [], refuseList: false });
+  Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false, cookieFor: {}, firstRows: [], refuseList: false,
+    payouts: false, canSend: new Set(), transfers: [], findDown: false, unclear: false });
   seen.length = 0;
 });
 after(async () => {
@@ -469,4 +488,151 @@ test('another amount, a transfer older than the withdrawal, or the switch off: n
   await run();
   assert.equal((await order(w.id)).status, 'completed');
   assert.equal((await m.rpc('manage_merchant_feed_status', { p_provider: 'golis' })).data.payoutsCompletedToday, 1);
+});
+
+// ---- Sahal payouts: a lost session, retries, never twice ----
+// (migrations/*_withdrawal_speed.sql)
+
+/** Sahal sends EVC Plus here; every other waiting withdrawal is out of the way. */
+async function sahalOn() {
+  await db.query(`UPDATE orders SET status = 'cancelled' WHERE direction = 'withdraw' AND status = 'pending'
+                    AND method IN ('golis', 'telesom', 'evc_plus')`);
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'test', test_started_at = now(), test_amount_cents = 100000,
+                    daily_limit_cents = 10000000 WHERE id`);
+  portal.payouts = true;
+}
+const sahalOff = () => db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
+const delayOf = async (c, id) => (await c.rpc('customer_order', { p_id: id })).data.delay;
+
+test('Sahal ends the session for transfers: signed in again at once, the withdrawal goes out in the same run, once', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run(); // signed in, reading
+    assert.equal(calls('/api/account/login'), 1);
+    portal.canSend.clear(); // Sahal: "Session data is not found" for transfers; the list still reads
+    const local = evcLocal();
+    const c = await richCustomer(local);
+    const w = await withdrawalOf(c, local, 2);
+    await run();
+    assert.equal(calls('/api/account/login'), 2, 'signed in again by itself');
+    const o = await order(w.id);
+    assert.equal(o.status, 'completed');
+    assert.match(o.transaction_ref, /^Sahal TR\d+$/);
+    assert.deepEqual(portal.transfers.map((x) => [x.mobile, x.amount, x.description]), [[`0${local}`, '2', w.orderCode]]);
+    assert.equal(await walletOf(c), '8.00', 'taken once, not refunded');
+    const { rows } = await db.query(`SELECT count(*)::int AS n FROM audit_logs WHERE entity_id = $1 AND action = 'withdrawal_sahal_retry'`, [w.id]);
+    assert.equal(rows[0].n, 1);
+    // Later runs send nothing more.
+    await run();
+    await run();
+    assert.equal(portal.transfers.length, 1);
+  } finally {
+    await sahalOff();
+  }
+});
+
+test('Sahal wants its SMS code: deposits keep reading, the customer is told why, it goes out once the code is typed', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run();
+    portal.canSend.clear();
+    portal.login = 'sms';
+    const local = evcLocal();
+    const c = await richCustomer(local);
+    const w = await withdrawalOf(c, local, 3);
+    await run();
+    assert.equal((await status()).state, 'needs_code');
+    assert.equal((await order(w.id)).status, 'pending');
+    assert.equal(portal.transfers.length, 0, 'nothing sent');
+
+    // Waiting for the code: the old session still reads Sahal's list, no new SMS.
+    portal.rows = [row('7600000001', '4.00', '252610000999')];
+    await run();
+    assert.ok((await stored()).some((x) => x.transaction_id === '7600000001'), 'read while waiting');
+    assert.equal((await status()).state, 'needs_code');
+    assert.equal(calls('/api/account/login'), 2);
+
+    // After 30 seconds the customer sees why.
+    await db.query(`UPDATE orders SET created_at = now() - interval '40 seconds' WHERE id = $1`, [w.id]);
+    assert.equal(await delayOf(c, w.id), 'provider_unavailable');
+
+    const m = await managerClient();
+    assert.equal((await m.rpc('manage_merchant_feed_code', { p_provider: 'golis', p_code: '654321' })).error, null);
+    await run();
+    assert.equal((await status()).state, 'ok');
+    assert.equal((await order(w.id)).status, 'completed', 'sent right after the code');
+    assert.equal(portal.transfers.length, 1);
+    assert.equal(await delayOf(c, w.id), null);
+  } finally {
+    await sahalOff();
+  }
+});
+
+test('Sahal not reached: nothing sent, tried again after a minute, sent once', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run();
+    portal.findDown = true;
+    const local = evcLocal();
+    const c = await richCustomer(local);
+    const w = await withdrawalOf(c, local, 1);
+    await run();
+    const { rows: [a] } = await db.query(`SELECT status, result_code FROM sahal_payout_attempts WHERE order_id = $1`, [w.id]);
+    assert.deepEqual([a.status, a.result_code], ['failed', 'NETWORK']);
+    assert.equal((await order(w.id)).status, 'pending', 'not refunded: it will be sent');
+    assert.equal(await walletOf(c), '9.00');
+
+    portal.findDown = false;
+    await run();
+    assert.equal((await order(w.id)).status, 'pending', 'not before a minute');
+    await db.query(`UPDATE sahal_payout_attempts SET completed_at = now() - interval '61 seconds' WHERE order_id = $1`, [w.id]);
+    await run();
+    assert.equal((await order(w.id)).status, 'completed');
+    assert.equal(portal.transfers.length, 1);
+  } finally {
+    await sahalOff();
+  }
+});
+
+test('an unclear answer to a transfer: held, never sent again, never refunded', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run();
+    portal.unclear = true;
+    const local = evcLocal();
+    const c = await richCustomer(local);
+    const w = await withdrawalOf(c, local, 2);
+    await run();
+    await run();
+    await db.query(`UPDATE sahal_payout_attempts SET completed_at = now() - interval '10 minutes' WHERE order_id = $1`, [w.id]);
+    await run();
+    assert.equal(portal.transfers.length, 1, 'sent once only');
+    assert.equal((await order(w.id)).status, 'processing');
+    assert.equal(await walletOf(c), '8.00');
+    await db.query(`UPDATE orders SET created_at = now() - interval '40 seconds' WHERE id = $1`, [w.id]);
+    assert.equal(await delayOf(c, w.id), 'confirming');
+  } finally {
+    await sahalOff();
+  }
+});
+
+test('nothing to send: the session is checked anyway, and a lost one is renewed before a customer waits', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run();
+    assert.equal(calls('/api/account/login'), 1);
+    portal.canSend.clear();
+    await run();
+    assert.equal(calls('/api/account/login'), 2);
+    const probe = seen.filter((x) => x.path === '/api/account/find').map((x) => x.body.mobileNo);
+    assert.ok(probe.every((x) => x === '900000099'), 'only the merchant\'s own number is looked up');
+    assert.equal(portal.transfers.length, 0);
+  } finally {
+    await sahalOff();
+  }
 });

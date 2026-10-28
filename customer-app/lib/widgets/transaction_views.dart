@@ -369,6 +369,7 @@ class TransactionResultView extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Center(child: StatusPill.forOrder(order, key: const Key('result-status'))),
+        if (order.delay != null) ...[const SizedBox(height: 16), DelayNotice(code: order.delay!)],
         const SizedBox(height: 22),
         DetailsCard(
           header: Padding(
@@ -448,6 +449,43 @@ List<Widget> _rows(Order order, {required bool includeType}) => [
       DetailRow(label: AppStrings.dateTime, value: Formatters.dateTime(order.createdAt)),
     ];
 
+/// Why a withdrawal still waits (Order.delay), in plain words.
+class DelayNotice extends StatelessWidget {
+  const DelayNotice({super.key, required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('delay-notice'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.statusPending.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.statusPending.withOpacity(0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: AppColors.statusPending, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppStrings.delayTitle, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text(AppStrings.delayReason(code), style: AppTextStyles.muted.copyWith(fontSize: 13.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Transaction Details as a bottom sheet over the list.
 Future<void> showTransactionDetails(BuildContext context, Order order) {
   return showModalBottomSheet<void>(
@@ -518,6 +556,7 @@ class TransactionDetailsSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Center(child: StatusPill.forOrder(order)),
+                if (order.delay != null) ...[const SizedBox(height: 14), DelayNotice(code: order.delay!)],
                 const SizedBox(height: 16),
                 DetailsCard(rows: _rows(order, includeType: true)),
               ],

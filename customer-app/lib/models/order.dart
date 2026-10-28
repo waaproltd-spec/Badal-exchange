@@ -23,6 +23,7 @@ class Order {
     this.amountPending = false,
     this.balanceBefore,
     this.balanceAfter,
+    this.delay,
   });
 
   final String id;
@@ -51,6 +52,10 @@ class Order {
   final String? balanceBefore;
   final String? balanceAfter;
 
+  /// Why a withdrawal still waits after 30 seconds (provider_unavailable,
+  /// provider_balance, confirming, manual, waiting); null when it is not late.
+  final String? delay;
+
   bool get isDeposit => direction == 'deposit';
   pm.PaymentMethodInfo get methodInfo => pm.methodInfo(method);
   String get methodLabel => methodInfo.label;
@@ -78,6 +83,7 @@ class Order {
       amountPending: json['amountPending'] as bool? ?? false,
       balanceBefore: json['balanceBefore'] as String?,
       balanceAfter: json['balanceAfter'] as String?,
+      delay: json['delay'] as String?,
     );
   }
 }

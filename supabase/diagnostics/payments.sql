@@ -90,3 +90,7 @@ WHERE EXISTS (SELECT 1 FROM public.sahal_payout_attempts a WHERE a.order_id = o.
 SELECT 'merchant transfers matched to two orders: ' || count(*) FROM (
   SELECT matched_order_id FROM public.merchant_transactions WHERE matched_order_id IS NOT NULL
   GROUP BY 1 HAVING count(*) > 1) x;
+
+\echo '== 11. Alerts: is the Telegram withdrawal chat linked, and Sahal alert state =='
+SELECT chat_id IS NOT NULL AS linked, checked_at, left(last_error, 120) AS last_error,
+       to_jsonb(c) ->> 'sahal_alert_key' AS sahal_alert FROM public.withdrawal_alert_chat c;

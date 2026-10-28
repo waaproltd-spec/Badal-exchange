@@ -186,4 +186,34 @@ void main() {
     expect(find.text('Dhigashada waa la xaqiijiyay'), findsOneWidget);
     expect(find.text('USD la dhigay'), findsOneWidget);
   });
+
+  testWidgets('a late withdrawal says why; an on-time one says nothing extra', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    await _phone(tester);
+    final late = Order(
+      id: 'w-late', orderCode: 'EX8N5NPM', direction: 'withdraw', method: 'evc_plus', status: 'pending',
+      statusMessage: 'pending', phoneNumber: '252610346060', amount: '1.00', fee: '0.00', netAmount: '1.00',
+      createdAt: DateTime(2026, 10, 28, 16, 44), delay: 'provider_unavailable');
+    await tester.pumpWidget(_host(WithdrawResultScreen(order: late)));
+    expect(find.byKey(const Key('delay-notice')), findsOneWidget);
+    expect(find.text('Maxay u daahday?'), findsOneWidget);
+    expect(find.textContaining('Lacagtaadu way badbaadsan tahay'), findsOneWidget);
+
+    final onTime = _order(id: 'w-ok', direction: 'withdraw', status: 'pending');
+    await tester.pumpWidget(_host(WithdrawResultScreen(order: onTime)));
+    expect(find.byKey(const Key('delay-notice')), findsNothing);
+  });
+
+  test('every delay code has its own words, and an unknown one still reads well', () {
+    AppLanguage.current.value = AppLanguage.english;
+    final texts = ['provider_unavailable', 'provider_balance', 'confirming', 'manual', 'waiting', 'something_new']
+        .map(AppStrings.delayReason)
+        .toList();
+    expect(texts.toSet().length, 5, reason: 'waiting and an unknown code share the queue text');
+    expect(texts[0], contains('will be sent automatically'));
+    expect(Order.fromJson({
+      'id': 'x', 'orderCode': 'EXX', 'direction': 'withdraw', 'method': 'golis', 'status': 'pending',
+      'amount': '1.00', 'fee': '0.00', 'netAmount': '1.00', 'createdAt': '2026-10-28T13:44:00Z', 'delay': 'manual',
+    }).delay, 'manual');
+  });
 }

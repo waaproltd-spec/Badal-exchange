@@ -1,5 +1,7 @@
 // Withdrawal alerts on Telegram (migrations/*_withdrawal_alerts.sql). Woken
-// every minute by the database with the platform worker secret.
+// every 30 seconds, and by each new withdrawal, by the database with the
+// platform worker secret. A withdrawal not paid after 30 seconds is
+// reminded once with why; Sahal needing a person is said at once.
 //
 // Alerts only: reads withdrawals and Sahal transfers, sends/edits messages.
 // Nothing here sends money or changes an order, and no PIN, password or
@@ -53,6 +55,26 @@ type Order = {
   orderId: string; orderCode: string; method: string; status: string; payout: string; amount: string;
   phone: string | null; customerName: string | null; customerPhone: string | null; reference: string | null;
   reason: string | null; review: boolean; messageId?: number;
+  delay?: { code: string; note: string | null; seconds: number } | null;
+};
+
+/** Why it still waits (migrations/*_withdrawal_speed.sql, withdrawal_delay). */
+const DELAY: Record<string, string> = {
+  provider_unavailable: 'Sahal is refusing or not answering; it goes out by itself once Sahal works again.',
+  provider_balance: 'Sahal balance is below this amount: top up Sahal; it then goes out by itself.',
+  confirming: 'The transfer is being confirmed. It is never resent: check Sahal before paying by hand.',
+  manual: 'Needs an agent: pay it by hand or reject it (the customer is refunded).',
+  waiting: 'In the queue for Sahal.',
+};
+const delayText = (o: Order) =>
+  o.delay ? `${DELAY[o.delay.code] ?? o.delay.code}${o.delay.note ? `\nSahal said: ${esc(o.delay.note)}` : ''}` : '';
+
+const SAHAL: Record<string, (s: any) => string> = {
+  code: (s) => `🔐 <b>Sahal needs its SMS code</b>\nOpen the Agent App → Sahal Sign-in and type the code sent to the merchant phone (10 minutes).\nWithdrawals waiting: ${s.waitingCount}`,
+  stopped: (s) => `⛔ <b>Sahal sign-in stopped</b>\n${esc(s.message ?? '')}\nOpen the Agent App → Sahal Sign-in → Sign in again.\nWithdrawals waiting: ${s.waitingCount}`,
+  refused: (s) => `⚠️ <b>Sahal refuses transfers</b>\n${esc(s.message ?? '')}\nWithdrawals waiting: ${s.waitingCount}`,
+  unreachable: (s) => `📡 <b>Sahal cannot be reached</b>\n${esc(s.message ?? '')}\nWithdrawals wait and go out by themselves when it answers.`,
+  ok: () => '✅ <b>Sahal works again</b>: waiting withdrawals are being sent.',
 };
 
 const shownStatus = (o: Order) => o.status + (o.review ? ':review' : '');
@@ -123,7 +145,8 @@ async function run() {
   }
   for (const o of (todo.remind ?? []) as Order[]) {
     await tg('sendMessage', { chat_id: chat, reply_to_message_id: o.messageId,
-      text: `⏰ ${o.orderCode} is still waiting: $${o.payout} to ${o.phone}.` });
+      parse_mode: 'HTML',
+      text: `⏰ <b>${esc(o.orderCode)} not paid after ${esc(o.delay?.seconds ?? 30)} s</b>: $${esc(o.payout)} to <code>${esc(o.phone)}</code>.\n${delayText(o)}` });
     await rpc('withdrawal_alerts_sent', { p_kind: 'remind', p_id: o.orderId });
     sent++;
   }
@@ -132,6 +155,11 @@ async function run() {
       text: `⚠️ <b>Sahal transfer matched no withdrawal</b>\n$${esc(t.amount)} to <code>${esc(t.receiver)}</code>\n` +
         `Sahal ref: <code>${esc(t.transactionId)}</code>\nCheck the amount and number (or a second payment).` });
     await rpc('withdrawal_alerts_sent', { p_kind: 'stray', p_id: t.id });
+    sent++;
+  }
+  if (todo.sahal) {
+    await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML', text: (SAHAL[todo.sahal.kind] ?? SAHAL.refused)(todo.sahal) });
+    await rpc('withdrawal_alerts_sahal_sent', { p_key: todo.sahal.key ?? null });
     sent++;
   }
   const s = todo.summary;

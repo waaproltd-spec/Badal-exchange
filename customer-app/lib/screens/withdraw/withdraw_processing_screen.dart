@@ -15,7 +15,8 @@ import 'withdraw_result_screen.dart';
 /// balance, sending the money, confirming it went through. It follows the
 /// order until it is completed or failed (at most [maxWait]), then replaces
 /// itself with [WithdrawResultScreen], which then shows the transfer number;
-/// a withdrawal paid later by hand shows there as in progress. On failure -- INSUFFICIENT_BALANCE,
+/// a withdrawal paid later by hand shows there as in progress, with why
+/// it is late once the server says so (Order.delay). On failure -- INSUFFICIENT_BALANCE,
 /// BELOW_MIN_WITHDRAWAL, ABOVE_MAX_WITHDRAWAL, DUPLICATE_WITHDRAWAL, etc --
 /// shows the backend's message with a retry (same idempotency key) or a
 /// way back to the confirm screen.
@@ -87,7 +88,9 @@ class _WithdrawProcessingScreenState extends State<WithdrawProcessingScreen> {
         await Future<void>.delayed(const Duration(milliseconds: 700));
         return latest;
       }
-      if (const {'failed', 'cancelled', 'expired'}.contains(latest.status) || DateTime.now().isAfter(until)) {
+      // Late with a reason (after 30 s): the result says why instead of a spinner.
+      if (const {'failed', 'cancelled', 'expired'}.contains(latest.status) || latest.delay != null ||
+          DateTime.now().isAfter(until)) {
         return latest;
       }
       try {
