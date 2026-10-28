@@ -232,12 +232,12 @@ BEGIN
     PERFORM private.raise_api(400, 'VALIDATION_ERROR', 'A value is too long');
   END IF;
 
-  IF v_url IS DISTINCT FROM i.api_url THEN v_changed := v_changed || 'apiUrl'; END IF;
-  IF v_account IS NOT NULL AND v_account IS DISTINCT FROM i.account_id THEN v_changed := v_changed || 'accountId'; END IF;
-  IF v_login IS NOT NULL THEN v_changed := v_changed || 'login'; END IF;
-  IF NULLIF(p_password, '') IS NOT NULL THEN v_changed := v_changed || 'password'; END IF;
-  IF NULLIF(p_api_secret, '') IS NOT NULL THEN v_changed := v_changed || 'apiSecret'; END IF;
-  IF NULLIF(p_api_key, '') IS NOT NULL THEN v_changed := v_changed || 'apiKey'; END IF;
+  IF v_url IS DISTINCT FROM i.api_url THEN v_changed := array_append(v_changed, 'apiUrl'); END IF;
+  IF v_account IS NOT NULL AND v_account IS DISTINCT FROM i.account_id THEN v_changed := array_append(v_changed, 'accountId'); END IF;
+  IF v_login IS NOT NULL THEN v_changed := array_append(v_changed, 'login'); END IF;
+  IF NULLIF(p_password, '') IS NOT NULL THEN v_changed := array_append(v_changed, 'password'); END IF;
+  IF NULLIF(p_api_secret, '') IS NOT NULL THEN v_changed := array_append(v_changed, 'apiSecret'); END IF;
+  IF NULLIF(p_api_key, '') IS NOT NULL THEN v_changed := array_append(v_changed, 'apiKey'); END IF;
 
   UPDATE public.payment_integrations SET
     api_url = v_url,
