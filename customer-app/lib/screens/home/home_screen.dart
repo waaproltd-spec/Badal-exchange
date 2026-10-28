@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/app_content.dart';
-import '../../models/bonus.dart';
 import '../../models/order.dart';
 import '../../state/auth_provider.dart';
 import '../../state/orders_provider.dart';
@@ -14,7 +13,6 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/support_button.dart';
-import '../../widgets/bonus_widgets.dart';
 import '../../widgets/brand/baari_logo.dart';
 import '../../widgets/home_ads_strip.dart';
 import '../../widgets/method_icon.dart';
@@ -43,12 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
   static const int _recentOrdersCount = 3;
   List<HomeAd> _ads = const [];
 
-  /// The bonus wallet; null until read (or when it can't be), and the card hidden.
-  BonusInfo? _bonus;
-
-  /// The wallet's bonus balance the card was last read for: when it changes
-  /// (a bonus earned or transferred), the card is read again.
-  String? _bonusSeenFor;
 
   @override
   void initState() {
@@ -62,15 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
         context.read<WalletProvider>().load(),
         context.read<OrdersProvider>().load(),
         _loadAds(),
-        _loadBonus(),
       ]);
-
-  Future<void> _loadBonus() async {
-    try {
-      final bonus = await context.read<CustomerApi>().getBonus();
-      if (mounted) setState(() => _bonus = bonus);
-    } catch (_) {}
-  }
 
   Future<void> _openBonus() async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BonusScreen()));
@@ -124,13 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final walletState = context.watch<WalletProvider>();
     final ordersState = context.watch<OrdersProvider>();
-    final bonusBalance = walletState.wallet?.bonusBalance;
-    if (bonusBalance != null && bonusBalance != _bonusSeenFor) {
-      _bonusSeenFor = bonusBalance;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _loadBonus();
-      });
-    }
     final topInset = MediaQuery.of(context).padding.top;
 
     // Light status-bar icons over the dark purple header.
@@ -154,11 +131,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   onNotifications: _openNotifications,
                   onBonus: _openBonus,
                 ),
-                if (_bonus != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: HomeBonusCard(info: _bonus!, onOpen: _openBonus),
-                  ),
                 if (_ads.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
