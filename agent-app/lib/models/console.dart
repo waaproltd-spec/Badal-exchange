@@ -458,3 +458,21 @@ class DashboardTop {
         amount: '${j['amount'] ?? '0.00'}',
       );
 }
+
+/// Users screen counts (agent_customer_overview): all-time totals, and the
+/// customers who joined between [from] and [to].
+class CustomerOverview {
+  final int total;
+  final int active;
+  final int blocked;
+  final int joined;
+
+  const CustomerOverview({required this.total, required this.active, required this.blocked, required this.joined});
+
+  factory CustomerOverview.fromJson(Map<String, dynamic> j) => CustomerOverview(
+        total: (j['total'] as num?)?.toInt() ?? 0,
+        active: (j['active'] as num?)?.toInt() ?? 0,
+        blocked: (j['blocked'] as num?)?.toInt() ?? 0,
+        joined: (j['new'] as num?)?.toInt() ?? 0,
+      );
+}

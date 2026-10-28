@@ -9,8 +9,10 @@ import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'customer_info_screen.dart';
 
-/// Users = Customer App customers (not agents). Searchable by name or phone,
-/// filterable by status. Tapping a customer opens read-only Customer Info.
+/// Users = Customer App customers (not agents). Customer counts (total,
+/// active, blocked, and new in the chosen period), then the list: searchable
+/// by name or phone, filterable by status. Tapping a customer opens
+/// read-only Customer Info.
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
 
@@ -28,11 +30,71 @@ class _UsersScreenState extends State<UsersScreen> {
   bool _loadingMore = false;
   bool _hasMore = false;
   String? _error;
+  CustomerOverview? _overview;
+
+  /// The period "New Customers" counts: a preset, or a custom range.
+  String _period = 'today';
+  DateTimeRange? _custom;
+
+  static const _periods = [
+    ('today', 'Today', 'Maanta'),
+    ('yesterday', 'Yesterday', 'Shalay'),
+    ('month', 'This Month', 'Bishan'),
+    ('3m', '3 Months', '3 Bilood'),
+    ('6m', '6 Months', '6 Bilood'),
+    ('1y', '1 Year', 'Sanad'),
+    ('custom', 'Custom', 'Taariikh Gaar ah'),
+  ];
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadOverview();
+  }
+
+  DateTimeRange _range() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    return switch (_period) {
+      'yesterday' => DateTimeRange(start: yesterday, end: yesterday),
+      'month' => DateTimeRange(start: DateTime(today.year, today.month, 1), end: today),
+      '3m' => DateTimeRange(start: DateTime(today.year, today.month - 3, today.day), end: today),
+      '6m' => DateTimeRange(start: DateTime(today.year, today.month - 6, today.day), end: today),
+      '1y' => DateTimeRange(start: DateTime(today.year - 1, today.month, today.day), end: today),
+      'custom' => _custom ?? DateTimeRange(start: today, end: today),
+      _ => DateTimeRange(start: today, end: today),
+    };
+  }
+
+  /// The counts; their failure (or an older server) never hides the list.
+  Future<void> _loadOverview() async {
+    final r = _range();
+    try {
+      final o = await context.read<Session>().api.getCustomerOverview(from: r.start, to: r.end);
+      if (mounted) setState(() => _overview = o);
+    } catch (_) {}
+  }
+
+  Future<void> _choosePeriod(String p) async {
+    if (p == 'custom') {
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2026, 1, 1),
+        lastDate: DateTime.now(),
+        initialDateRange: _custom,
+      );
+      if (picked == null || !mounted) return;
+      _custom = picked;
+    }
+    setState(() => _period = p);
+    _loadOverview();
+  }
+
+  Future<void> _refresh() async {
+    _loadOverview();
+    await _load();
   }
 
   @override
@@ -74,13 +136,82 @@ class _UsersScreenState extends State<UsersScreen> {
     }
   }
 
+  void _setStatus(String v) {
+    setState(() => _status = v);
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final o = _overview;
+    String count(int? n) => n == null ? '' : ' ($n)';
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: _refresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
+          SingleChildScrollView(
+            key: const Key('users-periods'),
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final (id, en, so) in _periods)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    key: Key('users-period-$id'),
+                    avatar: Icon(Icons.calendar_month_rounded,
+                        size: 18, color: _period == id ? AppColors.onPrimary : AppColors.textSecondary),
+                    label: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                      Text(en, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(so, style: const TextStyle(fontSize: 11)),
+                    ]),
+                    selected: _period == id,
+                    showCheckmark: false,
+                    selectedColor: AppColors.primaryDark,
+                    labelStyle: TextStyle(color: _period == id ? AppColors.onPrimary : AppColors.textPrimary),
+                    onSelected: (_) => _choosePeriod(id),
+                  ),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          if (o != null) ...[
+            TwoColumnGrid(children: [
+              StatCard(
+                icon: Icons.groups_rounded,
+                color: AppColors.purple,
+                value: '${o.total}',
+                label: 'Total Customers',
+                caption: 'Wadarta Macaamiisha',
+                onTap: () => _setStatus('all'),
+              ),
+              StatCard(
+                icon: Icons.person_rounded,
+                color: AppColors.statusCompleted,
+                value: '${o.active}',
+                label: 'Active Customers',
+                caption: 'Macaamiisha Firfircoon',
+                onTap: () => _setStatus('active'),
+              ),
+              StatCard(
+                icon: Icons.block_rounded,
+                color: AppColors.statusFailed,
+                value: '${o.blocked}',
+                label: 'Blocked Customers',
+                caption: 'Macaamiisha La Xannibay',
+                onTap: () => _setStatus('blocked'),
+              ),
+              StatCard(
+                key: const Key('users-new'),
+                icon: Icons.person_add_alt_1_rounded,
+                color: AppColors.statusProcessing,
+                value: '${o.joined}',
+                label: 'New Customers',
+                caption: _periods.firstWhere((p) => p.$1 == _period).$2,
+              ),
+            ]),
+            const SizedBox(height: 12),
+          ],
           SearchField(
             hint: 'Search by name or phone number',
             controller: _search,
@@ -91,12 +222,13 @@ class _UsersScreenState extends State<UsersScreen> {
             children: [
               Expanded(
                 child: ChoiceChipsRow<String>(
-                  options: const [('all', 'All'), ('active', 'Active'), ('blocked', 'Blocked')],
+                  options: [
+                    ('all', 'All${count(o?.total)}'),
+                    ('active', 'Active${count(o?.active)}'),
+                    ('blocked', 'Blocked${count(o?.blocked)}'),
+                  ],
                   selected: _status,
-                  onSelected: (v) {
-                    setState(() => _status = v);
-                    _load();
-                  },
+                  onSelected: _setStatus,
                 ),
               ),
               PopupMenuButton<String>(
@@ -182,12 +314,13 @@ class _CustomerTile extends StatelessWidget {
                     'Joined ${formatDate(customer.registeredAt!)}',
                     style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                   ),
-                const SizedBox(height: 4),
-                Text(
-                  '${customer.orders} orders • ${customer.deposits} deposits • '
-                  '${customer.withdrawals} withdrawals • ${customer.transactions} transactions',
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-                ),
+                const SizedBox(height: 6),
+                Wrap(spacing: 12, runSpacing: 2, children: [
+                  _Count(Icons.receipt_long_outlined, '${customer.orders} orders'),
+                  _Count(Icons.south_rounded, '${customer.deposits} deposits'),
+                  _Count(Icons.north_rounded, '${customer.withdrawals} withdrawals'),
+                  _Count(Icons.history_rounded, '${customer.transactions} transactions'),
+                ]),
               ],
             ),
           ),
@@ -207,5 +340,22 @@ class _CustomerTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// A small icon and a count under a customer's name.
+class _Count extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _Count(this.icon, this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 13, color: AppColors.textFaint),
+      const SizedBox(width: 3),
+      Text(text, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+    ]);
   }
 }

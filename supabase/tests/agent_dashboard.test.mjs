@@ -80,3 +80,20 @@ test('an earlier day; only staff may see it', async () => {
   const c = await login(`252${number}`);
   await assert.rejects(rpc(c, 'agent_dashboard_stats'));
 });
+
+test('Users overview: totals all time, new customers in the period', async () => {
+  const today = await rpc(agent, 'agent_customer_overview');
+  assert.equal(today.total, today.active + today.blocked);
+  assert.ok(today.new <= today.total);
+  const number = `61${String(Date.now() + 13).slice(-7)}`;
+  await db.query(
+    `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
+                VALUES ('customer', $1, 'Overview Test', private.hash_password($2)) RETURNING id)
+     INSERT INTO public.wallets (customer_id) SELECT id FROM u`, [`252${number}`, PASSWORD]);
+  const after = await rpc(agent, 'agent_customer_overview');
+  assert.equal(after.total, today.total + 1);
+  assert.equal(after.new, today.new + 1, 'joined today');
+  const old = await rpc(agent, 'agent_customer_overview', { p_from: '2026-01-01', p_to: '2026-01-02' });
+  assert.equal(old.total, after.total, 'totals are all time');
+  await assert.rejects(rpc(agent, 'agent_customer_overview', { p_from: '2026-02-02', p_to: '2026-02-01' }));
+});

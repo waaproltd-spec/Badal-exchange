@@ -335,6 +335,13 @@ class AgentApi {
     return data.map((e) => CustomerSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Customer totals, and how many joined from [from] to [to] (days, inclusive).
+  Future<CustomerOverview> getCustomerOverview({required DateTime from, required DateTime to}) async =>
+      CustomerOverview.fromJson(await _map('agent_customer_overview', {'p_from': _isoDay(from), 'p_to': _isoDay(to)}));
+
+  static String _isoDay(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   Future<CustomerDetail> getCustomer(String id) async =>
       CustomerDetail.fromJson(await _map('agent_customer', {'p_id': id}));
 
