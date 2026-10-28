@@ -20,6 +20,9 @@ BonusSettings _settings({bool enabled = true, int bp = 100, Set<String> eligible
       'defaultRateBp': bp,
       'totalBalance': '1.006',
       'totalEarned': '3.006',
+      'totalMoved': '2.00',
+      'dailyLimit': '1.50',
+      'monthlyLimit': null,
       'types': [
         for (final d in ['deposit', 'withdraw'])
           for (final (m, label, kind) in _methods)
@@ -42,6 +45,12 @@ class _FakeApi extends AgentApi {
 
   @override
   Future<BonusSettings> getBonusSettings() async => settings;
+
+  @override
+  Future<BonusSettings> setBonusLimits({required String daily, required String monthly}) async {
+    calls.add('limits $daily $monthly');
+    return settings;
+  }
 
   @override
   Future<BonusSettings> setBonusSettings({bool? enabled, int? defaultRateBp, List<String>? eligible}) async {
@@ -96,5 +105,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.calls.last, 'false - -');
     expect(find.textContaining('Off: nobody earns a bonus'), findsOneWidget);
+  });
+
+  testWidgets('bonus limits: shown, changed in a dialog that checks the amounts', (tester) async {
+    final api = await _pump(tester);
+    expect(find.text('\$1.50'), findsOneWidget);
+    expect(find.text('No limit'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('bonus-limits-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('bonus-monthly-limit')), 'abc');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter an amount, or leave empty'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('bonus-monthly-limit')), '20');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(api.calls.last, 'limits 1.50 20');
   });
 }

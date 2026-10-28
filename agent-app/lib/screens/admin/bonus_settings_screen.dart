@@ -67,6 +67,25 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
     }
   }
 
+  Future<void> _editLimits(BonusSettings s) async {
+    final result = await showDialog<(String, String)>(
+      context: context,
+      builder: (_) => _LimitsDialog(daily: s.dailyLimit ?? '', monthly: s.monthlyLimit ?? ''),
+    );
+    if (result == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      final updated = await context.read<Session>().api.setBonusLimits(daily: result.$1, monthly: result.$2);
+      if (mounted) setState(() => _settings = updated);
+      messenger.showSnackBar(const SnackBar(content: Text('Bonus limits saved.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not save.')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   void _toggleType(BonusSettings s, BonusType t, bool on) {
     final keys = s.eligibleKeys.toSet();
     on ? keys.add(t.key) : keys.remove(t.key);
@@ -130,6 +149,27 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
           ]),
         ),
         const SizedBox(height: 12),
+        ConsoleCard(
+          key: const Key('bonus-limits'),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Expanded(
+                child: Text('Limits per customer',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              ),
+              TextButton(
+                key: const Key('bonus-limits-edit'),
+                onPressed: _saving ? null : () => _editLimits(s),
+                child: const Text('Change'),
+              ),
+            ]),
+            InfoRow('Per day', s.dailyLimit == null ? 'No limit' : '\$${s.dailyLimit}'),
+            InfoRow('Per month', s.monthlyLimit == null ? 'No limit' : '\$${s.monthlyLimit}'),
+            const Text('Over a limit, the rest of a bonus is not credited; the history says so.',
+                style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
+          ]),
+        ),
+        const SizedBox(height: 12),
         TwoColumnGrid(children: [
           StatCard(
               icon: Icons.account_balance_wallet_rounded,
@@ -141,6 +181,11 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               color: AppColors.statusCompleted,
               value: '\$${s.totalEarned}',
               label: 'Earned in total'),
+          StatCard(
+              icon: Icons.account_balance_wallet_outlined,
+              color: AppColors.accentOrange,
+              value: '\$${s.totalMoved}',
+              label: 'Moved to main wallets'),
         ]),
         const SizedBox(height: 8),
         const SectionHeader(title: 'Transactions that earn a bonus'),
@@ -223,11 +268,77 @@ class _HistoryTile extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(e.customerName ?? '', style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             Text(what, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+            if (e.note != null) Text(e.note!, style: const TextStyle(fontSize: 12, color: AppColors.statusPending)),
             Text(formatDateTime(e.createdAt), style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
           ]),
         ),
         Text('${e.earned ? '+' : '-'}\$${e.amount}', style: TextStyle(fontWeight: FontWeight.w800, color: color)),
       ]),
+    );
+  }
+}
+
+/// Daily and monthly bonus limits per customer, in dollars; empty: no limit.
+class _LimitsDialog extends StatefulWidget {
+  final String daily;
+  final String monthly;
+  const _LimitsDialog({required this.daily, required this.monthly});
+
+  @override
+  State<_LimitsDialog> createState() => _LimitsDialogState();
+}
+
+class _LimitsDialogState extends State<_LimitsDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final _daily = TextEditingController(text: widget.daily);
+  late final _monthly = TextEditingController(text: widget.monthly);
+
+  @override
+  void dispose() {
+    _daily.dispose();
+    _monthly.dispose();
+    super.dispose();
+  }
+
+  String? _check(String? v) {
+    final t = (v ?? '').trim();
+    if (t.isEmpty) return null;
+    final n = double.tryParse(t);
+    return n == null || n <= 0 ? 'Enter an amount, or leave empty' : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Bonus limits'),
+      content: Form(
+        key: _formKey,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextFormField(
+            key: const Key('bonus-daily-limit'),
+            controller: _daily,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Per customer per day (\$)', helperText: 'Empty: no limit'),
+            validator: _check,
+          ),
+          TextFormField(
+            key: const Key('bonus-monthly-limit'),
+            controller: _monthly,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Per customer per month (\$)', helperText: 'Empty: no limit'),
+            validator: _check,
+          ),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) Navigator.of(context).pop((_daily.text.trim(), _monthly.text.trim()));
+          },
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

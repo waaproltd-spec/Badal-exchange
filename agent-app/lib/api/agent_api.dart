@@ -360,6 +360,10 @@ class AgentApi {
   Future<CustomerBonus> getCustomerBonus(String id) async =>
       CustomerBonus.fromJson(await _map('manage_customer_bonus', {'p_customer_id': id}));
 
+  /// Bonus limits per customer, in dollars; empty clears one.
+  Future<BonusSettings> setBonusLimits({required String daily, required String monthly}) async =>
+      BonusSettings.fromJson(await _map('manage_set_bonus_limits', {'p_daily': daily, 'p_monthly': monthly}));
+
   /// Sets their rate (50, 100, 150 or 200 basis points) and/or turns it on or off.
   Future<CustomerBonus> setCustomerBonus(String id, {int? rateBp, bool? enabled}) async =>
       CustomerBonus.fromJson(await _map('manage_set_customer_bonus', {
@@ -515,6 +519,30 @@ class AgentApi {
   Future<void> setAgentResponsibilities(String id, List<String> responsibilities) async {
     await _client.rpc('admin_set_agent_responsibilities', {'p_id': id, 'p_responsibilities': responsibilities});
   }
+
+  Future<void> updateAgent(String id, {required String name, required String phone}) async {
+    await _client.rpc('admin_update_agent', {'p_id': id, 'p_name': name, 'p_phone': phone});
+  }
+
+  /// A new password for another agent; they are signed out everywhere.
+  Future<void> resetAgentPassword(String id, String newPassword) async {
+    await _client.rpc('admin_reset_agent_password', {'p_id': id, 'p_new_password': newPassword});
+  }
+
+  /// Hidden and unable to log in; kept with its orders and audit trail.
+  Future<void> deleteAgent(String id, String reason) async {
+    await _client.rpc('admin_delete_agent', {'p_id': id, 'p_reason': reason});
+  }
+
+  Future<List<LoginEvent>> getLoginHistory({String? userId}) async =>
+      (await _list('admin_login_history', {'p_user_id': userId}))
+          .map((e) => LoginEvent.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<List<AgentPerformance>> getAgentPerformance({required DateTime from, required DateTime to}) async =>
+      (await _list('admin_agent_performance', {'p_from': _isoDay(from), 'p_to': _isoDay(to)}))
+          .map((e) => AgentPerformance.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   Future<List<AgentDevice>> getAgentDevices(String id) async =>
       (await _list('admin_agent_devices', {'p_id': id}))

@@ -543,6 +543,9 @@ class CustomerBonusEntry {
   final String? customerName;
   final String? customerPhone;
 
+  /// Why it is less than the rate gives ("Daily bonus limit reached").
+  final String? note;
+
   const CustomerBonusEntry({
     required this.kind,
     required this.amount,
@@ -555,6 +558,7 @@ class CustomerBonusEntry {
     this.movedToMain,
     this.customerName,
     this.customerPhone,
+    this.note,
   });
 
   bool get earned => kind == 'earned';
@@ -571,6 +575,7 @@ class CustomerBonusEntry {
         movedToMain: j['movedToMain'] as String?,
         customerName: j['customerName'] as String?,
         customerPhone: j['customerPhone'] as String?,
+        note: j['note'] as String?,
       );
 }
 
@@ -637,6 +642,13 @@ class BonusSettings {
   final List<BonusType> types;
   final String totalBalance;
   final String totalEarned;
+
+  /// Moved by customers to their main wallets ("used").
+  final String totalMoved;
+
+  /// Per customer; null: no limit.
+  final String? dailyLimit;
+  final String? monthlyLimit;
   final List<BonusCustomer> customers;
   final List<CustomerBonusEntry> history;
 
@@ -648,6 +660,9 @@ class BonusSettings {
     required this.totalEarned,
     required this.customers,
     required this.history,
+    this.totalMoved = '0.00',
+    this.dailyLimit,
+    this.monthlyLimit,
   });
 
   List<String> get eligibleKeys => [for (final t in types) if (t.eligible) t.key];
@@ -658,6 +673,9 @@ class BonusSettings {
         types: [for (final t in (j['types'] as List? ?? const [])) BonusType.fromJson(t as Map<String, dynamic>)],
         totalBalance: j['totalBalance'] as String? ?? '0.00',
         totalEarned: j['totalEarned'] as String? ?? '0.00',
+        totalMoved: j['totalMoved'] as String? ?? '0.00',
+        dailyLimit: j['dailyLimit'] as String?,
+        monthlyLimit: j['monthlyLimit'] as String?,
         customers: [
           for (final c in (j['customers'] as List? ?? const [])) BonusCustomer.fromJson(c as Map<String, dynamic>),
         ],

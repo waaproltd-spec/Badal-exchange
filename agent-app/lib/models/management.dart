@@ -93,6 +93,10 @@ class AgentListItem {
   final List<String> responsibilities;
   final DateTime? createdAt;
   final DateTime? lastSeenAt;
+  final DateTime? lastLoginAt;
+
+  /// Active with Manage settings (or an admin): can manage everything.
+  final bool fullAdmin;
 
   const AgentListItem({
     required this.id,
@@ -102,6 +106,8 @@ class AgentListItem {
     required this.responsibilities,
     this.createdAt,
     this.lastSeenAt,
+    this.lastLoginAt,
+    this.fullAdmin = false,
   });
 
   bool get isActive => status == 'active';
@@ -115,6 +121,75 @@ class AgentListItem {
         responsibilities: (j['responsibilities'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
         createdAt: _date(j['created_at']),
         lastSeenAt: _date(j['last_seen_at']),
+        lastLoginAt: _date(j['last_login_at']),
+        fullAdmin: j['full_admin'] as bool? ?? false,
+      );
+}
+
+/// A login or a security change of an agent account (admin_login_history).
+class LoginEvent {
+  final String action;
+  final DateTime createdAt;
+  final String? actorName;
+  final String? userName;
+
+  const LoginEvent({required this.action, required this.createdAt, this.actorName, this.userName});
+
+  String get label => switch (action) {
+        'user.login' => 'Logged in',
+        'user.change_password' => 'Changed own password',
+        'agent.reset_password' => 'Password reset',
+        'agent.create' => 'Account created',
+        'agent.update' => 'Details edited',
+        'agent.enable' => 'Enabled',
+        'agent.disable' => 'Disabled',
+        'agent.delete' => 'Deleted',
+        'agent.update_responsibilities' => 'Responsibilities changed',
+        _ => action,
+      };
+
+  factory LoginEvent.fromJson(Map<String, dynamic> j) => LoginEvent(
+        action: j['action'] as String? ?? '',
+        createdAt: _date(j['createdAt']) ?? DateTime.now(),
+        actorName: j['actorName'] as String?,
+        userName: j['userName'] as String?,
+      );
+}
+
+/// One agent's work over a period (admin_agent_performance).
+class AgentPerformance {
+  final String id;
+  final String name;
+  final String status;
+  final int deposits;
+  final String depositAmount;
+  final int withdrawals;
+  final String withdrawalAmount;
+  final int failed;
+  final int adjustments;
+
+  const AgentPerformance({
+    required this.id,
+    required this.name,
+    required this.status,
+    required this.deposits,
+    required this.depositAmount,
+    required this.withdrawals,
+    required this.withdrawalAmount,
+    required this.failed,
+    required this.adjustments,
+  });
+
+  factory AgentPerformance.fromJson(Map<String, dynamic> j) => AgentPerformance(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '—',
+        status: j['status'] as String? ?? 'active',
+        deposits: (j['deposits'] as num?)?.toInt() ?? 0,
+        depositAmount: j['depositAmount'] as String? ?? '0.00',
+        withdrawals: (j['withdrawals'] as num?)?.toInt() ?? 0,
+        withdrawalAmount: j['withdrawalAmount'] as String? ?? '0.00',
+        failed: (j['failed'] as num?)?.toInt() ?? 0,
+        adjustments: (j['adjustments'] as num?)?.toInt() ?? 0,
       );
 }
 
