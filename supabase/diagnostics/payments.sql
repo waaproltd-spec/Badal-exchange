@@ -136,3 +136,44 @@ SELECT right(u.phone, 4) AS phone_end, left(coalesce(u.name, ''), 20) AS name, t
        (SELECT count(*) FROM public.orders o WHERE o.customer_id = u.id AND o.status = 'completed') AS completed_orders
 FROM public.users u LEFT JOIN public.wallets w ON w.customer_id = u.id
 WHERE u.role = 'customer' AND private.customer_network(u.phone) IS NULL ORDER BY u.created_at DESC LIMIT 50;
+
+\echo '== 15. Orders that are not final: how many, how old, and why (read-only; numbers: last 4 digits) =='
+\echo '-- pending / processing by direction, method and age'
+SELECT o.direction, o.method, o.status, count(*) AS n,
+       count(*) FILTER (WHERE o.created_at > now() - interval '30 minutes') AS under_30m,
+       count(*) FILTER (WHERE o.created_at <= now() - interval '30 minutes' AND o.created_at > now() - interval '2 hours') AS m30_2h,
+       count(*) FILTER (WHERE o.created_at <= now() - interval '2 hours' AND o.created_at > now() - interval '24 hours') AS h2_24h,
+       count(*) FILTER (WHERE o.created_at <= now() - interval '24 hours') AS over_24h,
+       to_char(min(o.created_at), 'MM-DD HH24:MI') AS oldest
+FROM public.orders o WHERE o.status IN ('pending', 'processing')
+GROUP BY 1, 2, 3 ORDER BY 1, 2, 3;
+\echo '-- the 40 oldest (withdrawals: delay = what the customer is told; sahal = the last transfer attempt)'
+SELECT o.order_code, o.direction, o.method, o.status, private.money(o.amount_cents) AS amount,
+       to_char(o.created_at, 'MM-DD HH24:MI') AS created, round(extract(epoch FROM now() - o.created_at) / 3600, 1) AS hours_old,
+       right(coalesce(o.phone_number, ''), 4) AS phone_end,
+       CASE WHEN o.direction = 'withdraw' THEN private.withdrawal_delay(o) END AS delay,
+       (SELECT a.status || '/' || coalesce(a.result_code, '') FROM public.sahal_payout_attempts a WHERE a.order_id = o.id ORDER BY a.created_at DESC LIMIT 1) AS sahal,
+       (SELECT count(*) FROM public.payout_dial_attempts d WHERE d.order_id = o.id) AS dials,
+       left(coalesce(o.failure_reason, ''), 40) AS note
+FROM public.orders o WHERE o.status IN ('pending', 'processing') ORDER BY o.created_at LIMIT 40;
+\echo '-- consistency: money and status that disagree (should all be 0)'
+SELECT 'withdrawal failed/cancelled/expired but the reserved money was never released' AS check,
+       count(*) AS n
+FROM public.orders o
+WHERE o.direction = 'withdraw' AND o.status IN ('failed', 'cancelled', 'expired')
+  AND EXISTS (SELECT 1 FROM public.ledger_entries l WHERE l.order_id = o.id AND l.entry_type = 'reserve')
+  AND NOT EXISTS (SELECT 1 FROM public.ledger_entries l WHERE l.order_id = o.id AND l.entry_type = 'release')
+UNION ALL
+SELECT 'completed deposit with no credit in the ledger', count(*)
+FROM public.orders o WHERE o.direction = 'deposit' AND o.status = 'completed'
+  AND NOT EXISTS (SELECT 1 FROM public.ledger_entries l WHERE l.order_id = o.id AND l.entry_type = 'credit')
+UNION ALL
+SELECT 'completed without a completed_at', count(*) FROM public.orders o WHERE o.status = 'completed' AND o.completed_at IS NULL
+UNION ALL
+SELECT 'pending/processing with a completed_at', count(*) FROM public.orders o WHERE o.status IN ('pending', 'processing') AND o.completed_at IS NOT NULL
+UNION ALL
+SELECT 'withdrawal completed with no debit/reserve', count(*)
+FROM public.orders o WHERE o.direction = 'withdraw' AND o.status = 'completed'
+  AND NOT EXISTS (SELECT 1 FROM public.ledger_entries l WHERE l.order_id = o.id AND l.entry_type IN ('debit', 'reserve'));
+\echo '-- final statuses over all time'
+SELECT direction, status, count(*) AS n FROM public.orders GROUP BY 1, 2 ORDER BY 1, 2;
