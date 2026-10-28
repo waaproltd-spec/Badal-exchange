@@ -91,7 +91,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(_api.calls, ['sahal live -']);
 
+    // The "Live." message would sit over the button.
+    ScaffoldMessenger.of(tester.element(find.text('Limit'))).clearSnackBars();
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Limit'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Limit'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('sahal-daily')), '250');

@@ -98,11 +98,11 @@ void main() {
 
     await expectLater(
       api.login(phone: phone, password: 'wrong-password'),
-      throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Invalid credentials')),
+      throwsA(isA<ApiException>().having((e) => e.message, 'message', AppStrings.invalidLogin)),
     );
     await expectLater(
       api.login(phone: '252610000002', password: 'ChangeMe123!'), // an agent, not a customer
-      throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Invalid credentials')),
+      throwsA(isA<ApiException>().having((e) => e.message, 'message', AppStrings.invalidLogin)),
     );
     await api.login(phone: phone, password: 'Flutter-Pass-1');
     expect(await api.verifySession(), isTrue);

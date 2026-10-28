@@ -136,11 +136,12 @@ test('wallet ID: unique per customer, permanent; bonus and promo code from the b
     `SELECT count(*)::int AS n FROM (SELECT wallet_code FROM public.wallets GROUP BY 1 HAVING count(*) > 1) d`);
   assert.equal(dup[0].n, 0, 'no two wallets share one');
 
-  // Bonus: the stored value, per customer.
-  await db.query(`UPDATE public.wallets SET bonus_cents = 250 WHERE customer_id = $1`, [customerId]);
+  // Bonus: the bonus wallet's balance (micro-dollars), per customer.
+  await db.query(`INSERT INTO public.bonus_wallets (customer_id, balance_micros) VALUES ($1, 2500000)
+                  ON CONFLICT (customer_id) DO UPDATE SET balance_micros = 2500000`, [customerId]);
   assert.equal((await rpc(customer, 'customer_wallet')).bonusBalance, '2.50');
   assert.equal((await rpc(customer2, 'customer_wallet')).bonusBalance, '0.00');
-  await db.query(`UPDATE public.wallets SET bonus_cents = 0 WHERE customer_id = $1`, [customerId]);
+  await db.query(`UPDATE public.bonus_wallets SET balance_micros = 0 WHERE customer_id = $1`, [customerId]);
 
   // Promo code: none until management sets one; customers can't set it.
   await rpc(agent, 'manage_set_promo_code', { p_code: '' });

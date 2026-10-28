@@ -102,6 +102,9 @@ void main() {
     api = AgentApi(client: ApiClient(supabase: newClient()));
     await api.login(phone: '252610000002', password: 'ChangeMe123!');
     await api.loadMethodCatalog();
+    // The backend suites may leave Sahal payouts on, and Sahal then takes the
+    // EVC Plus withdrawals these tests pay from the phone.
+    await api.setSahalPayouts(mode: 'off');
     bridge = SmsBridge(api: api, logStore: SmsLogStore.instance);
     device = FakePayoutDevice();
     runner = PayoutRunner(api: api, device: device);
