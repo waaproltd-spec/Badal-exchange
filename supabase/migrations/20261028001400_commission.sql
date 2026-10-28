@@ -225,11 +225,17 @@ BEGIN
           'commission', private.money_micros(COALESCE(sum(net_micros), 0)::bigint),
           'transactions', count(*))
         FROM e),
-      'companies', COALESCE((SELECT jsonb_agg(jsonb_build_object('method', m.method, 'label', m.label) ORDER BY m.sort_order)
-          FROM public.payment_methods m
-          WHERE m.kind = 'platform'
-            AND NOT EXISTS (SELECT 1 FROM public.payment_integrations i
-                            WHERE i.kind = 'betting' AND i.method_key = m.method::text AND i.deleted_at IS NOT NULL)), '[]'::jsonb),
+      -- Every company; a removed one stays while it has commission (its history adds up in All Companies).
+      'companies', COALESCE((SELECT jsonb_agg(jsonb_build_object('method', x.method, 'label', x.label, 'removed', x.removed)
+                                ORDER BY x.removed, x.sort_order)
+          FROM (SELECT m.method, m.sort_order,
+                       EXISTS (SELECT 1 FROM public.payment_integrations i
+                               WHERE i.kind = 'betting' AND i.method_key = m.method::text AND i.deleted_at IS NOT NULL) AS removed,
+                       m.label || CASE WHEN EXISTS (SELECT 1 FROM public.payment_integrations i
+                               WHERE i.kind = 'betting' AND i.method_key = m.method::text AND i.deleted_at IS NOT NULL)
+                               THEN ' (removed)' ELSE '' END AS label
+                FROM public.payment_methods m WHERE m.kind = 'platform') x
+          WHERE NOT x.removed OR EXISTS (SELECT 1 FROM public.commission_entries c WHERE c.method = x.method)), '[]'::jsonb),
       'agents', CASE WHEN v_manager THEN COALESCE((SELECT jsonb_agg(jsonb_build_object('id', u.id, 'name', u.name, 'phone', u.phone) ORDER BY u.name)
           FROM public.users u WHERE u.role IN ('agent', 'admin')
             AND NOT EXISTS (SELECT 1 FROM public.agent_profiles p WHERE p.user_id = u.id AND p.deleted_at IS NOT NULL)), '[]'::jsonb) END,
