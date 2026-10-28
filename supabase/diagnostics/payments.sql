@@ -94,3 +94,21 @@ SELECT 'merchant transfers matched to two orders: ' || count(*) FROM (
 \echo '== 11. Alerts: is the Telegram withdrawal chat linked, and Sahal alert state =='
 SELECT chat_id IS NOT NULL AS linked, checked_at, left(last_error, 120) AS last_error,
        to_jsonb(c) ->> 'sahal_alert_key' AS sahal_alert FROM public.withdrawal_alert_chat c;
+
+\echo '== 12. Open deposits and the payment SMS of the window, one by one (numbers: last 4 digits) =='
+SELECT o.order_code, o.method, o.status, private.money(o.amount_cents) AS amount,
+       right(regexp_replace(coalesce(o.phone_number, ''), '\D', '', 'g'), 4) AS phone_end,
+       to_char(o.created_at, 'MM-DD HH24:MI:SS') AS created, o.via_merchant
+FROM public.orders o
+WHERE o.direction = 'deposit' AND (o.status IN ('pending', 'processing') OR o.created_at > now() - make_interval(hours => :hours))
+ORDER BY o.created_at DESC LIMIT 30;
+SELECT to_char(s.received_at, 'MM-DD HH24:MI:SS') AS received, s.sender, coalesce(s.parsed_provider, '?') AS provider,
+       s.parsed_amount AS amount, right(regexp_replace(coalesce(s.parsed_phone, ''), '\D', '', 'g'), 4) AS phone_end,
+       s.match_status, left(coalesce(s.match_failure_reason, ''), 90) AS reason,
+       (SELECT o.order_code FROM public.orders o WHERE o.id = s.matched_order_id) AS matched, left(coalesce(s.device_id, ''), 12) AS device
+FROM public.sms_logs s WHERE s.received_at > now() - make_interval(hours => :hours)
+ORDER BY s.received_at DESC LIMIT 40;
+\echo '-- SMS phones: last payment SMS sent in'
+SELECT left(coalesce(s.device_id, '?'), 12) AS device, to_char(max(s.received_at), 'MM-DD HH24:MI:SS') AS last_sms,
+       to_char(max(s.created_at), 'MM-DD HH24:MI:SS') AS last_upload, count(*) FILTER (WHERE s.received_at > now() - interval '24 hours') AS last_24h
+FROM public.sms_logs s GROUP BY 1 ORDER BY max(s.created_at) DESC LIMIT 10;
