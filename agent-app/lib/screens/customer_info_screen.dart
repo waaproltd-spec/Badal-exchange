@@ -6,6 +6,7 @@ import '../models/console.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
+import '../widgets/customer_bonus_card.dart';
 import '../widgets/state_views.dart';
 import '../l10n/wallet_strings.dart';
 import '../models/wallet_adjustment.dart';
@@ -179,6 +180,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ],
         ),
         const SizedBox(height: 12),
+        CustomerBonusCard(api: context.read<Session>().api, customerId: c.id),
         TwoColumnGrid(children: [
           StatCard(icon: Icons.shopping_bag_rounded, color: AppColors.purple, value: '${d.totalOrders}', label: 'Total Orders'),
           StatCard(icon: Icons.south_rounded, color: AppColors.statusCompleted, value: '\$${d.totalDeposits}', label: 'Total Deposits'),
@@ -231,6 +233,8 @@ class _LedgerTile extends StatelessWidget {
   Widget build(BuildContext context) {
     // credit adds to the balance; debit/reserve take from it; release returns it.
     final (String label, IconData icon, Color color, String sign) = switch (entry.type) {
+      'credit' when entry.description == 'Bonus moved to main wallet' =>
+        ('Bonus moved in', Icons.redeem_rounded, AppColors.statusCompleted, '+'),
       'credit' => ('Deposit', Icons.south_rounded, AppColors.statusCompleted, '+'),
       'release' => ('Released', Icons.undo_rounded, AppColors.statusCompleted, '+'),
       'reserve' => ('Held for withdrawal', Icons.lock_clock_rounded, AppColors.statusPending, '-'),

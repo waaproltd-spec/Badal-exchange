@@ -1,4 +1,5 @@
 import '../models/app_content.dart';
+import '../models/bonus.dart';
 import '../models/order.dart';
 import '../models/payment_method.dart';
 import '../models/player.dart';
@@ -211,5 +212,26 @@ class CustomerApi {
   Future<Order> getOrder(String id) async {
     final data = await _client.rpc('customer_order', {'p_id': id}) as Map<String, dynamic>;
     return Order.fromJson(data);
+  }
+
+  // ---------------------------------------------------------------------
+  // Bonus wallet
+  // ---------------------------------------------------------------------
+
+  Future<BonusInfo> getBonus() async {
+    final data = await _client.rpc('customer_bonus') as Map<String, dynamic>;
+    return BonusInfo.fromJson(data);
+  }
+
+  /// Moves the whole bonus balance to the main wallet. Nothing to move is NO_BONUS.
+  Future<BonusInfo> moveBonus() async {
+    final data = await _client.rpc('customer_move_bonus') as Map<String, dynamic>;
+    return BonusInfo.fromJson(data['bonus'] as Map<String, dynamic>);
+  }
+
+  /// The bonus this withdrawal will earn once paid, or null when it earns none.
+  Future<BonusPreview?> getBonusPreview(String method, String amount) async {
+    final data = await _client.rpc('customer_bonus_preview', {'p_method': method, 'p_amount': amount});
+    return data is Map<String, dynamic> ? BonusPreview.fromJson(data) : null;
   }
 }

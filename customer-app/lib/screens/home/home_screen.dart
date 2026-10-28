@@ -20,6 +20,7 @@ import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/transaction_views.dart';
 import '../../widgets/wallet_card.dart';
+import '../bonus/bonus_screen.dart';
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../withdraw/withdraw_details_screen.dart';
@@ -247,7 +248,13 @@ class _WalletHeader extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              WalletCard(wallet: walletState.wallet, loading: walletState.loading, error: walletState.error),
+              WalletCard(
+                wallet: walletState.wallet,
+                loading: walletState.loading,
+                error: walletState.error,
+                onBonusTap: () =>
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BonusScreen())),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [

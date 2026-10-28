@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
+import '../../models/bonus.dart';
 import '../../models/order.dart';
 import '../../models/payment_method.dart';
 import '../../models/player.dart';
@@ -55,6 +56,9 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   String? _playerError;
   bool _checkingPlayer = false;
 
+  /// The bonus this withdrawal earns once paid; null while unknown or none.
+  BonusPreview? _bonus;
+
   bool get _findsPlayer => methodInfo(widget.quote.method).usesWithdrawalCode;
 
   @override
@@ -62,6 +66,15 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
     super.initState();
     _idempotencyKey = const Uuid().v4();
     if (_findsPlayer) _findPlayer();
+    _loadBonus();
+  }
+
+  /// Best effort: without an answer the row is simply not shown.
+  Future<void> _loadBonus() async {
+    try {
+      final bonus = await context.read<CustomerApi>().getBonusPreview(widget.quote.method, widget.quote.amount);
+      if (mounted) setState(() => _bonus = bonus);
+    } catch (_) {}
   }
 
   Future<void> _findPlayer() async {
@@ -204,6 +217,22 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                     value: Formatters.money(quote.netAmount),
                     emphasize: true,
                   ),
+                  if (_bonus != null) ...[
+                    const SummaryDivider(),
+                    SummaryRow(
+                      label: AppStrings.bonusRow(_bonus!.rate),
+                      value: '+${Formatters.money(_bonus!.amount)}',
+                      valueColor: AppColors.success,
+                      valueKey: const Key('withdraw-bonus'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, bottom: 4),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(AppStrings.bonusGoesTo, style: AppTextStyles.muted.copyWith(fontSize: 12.5)),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

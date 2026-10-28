@@ -2,6 +2,7 @@ import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/api_exception.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
+import 'package:badal_exchange_customer/models/bonus.dart';
 import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/payment_method.dart';
 import 'package:badal_exchange_customer/models/player.dart';
@@ -76,6 +77,12 @@ class FakeCustomerApi extends CustomerApi {
     }
     return PlayerLookup(found: players.containsKey(accountId), accountId: accountId, name: players[accountId]);
   }
+
+  /// eDahab earns a bonus; the others (EVC Plus, Golis, ZAAD excluded, the
+  /// rest for this test) none.
+  @override
+  Future<BonusPreview?> getBonusPreview(String method, String amount) async =>
+      method == 'edahab' ? const BonusPreview(rate: '1%', amount: '0.02') : null;
 
   @override
   Future<List<PaymentMethodOption>> getPaymentMethods() async =>
@@ -414,6 +421,12 @@ void main() {
       expect(find.text('Fee'), findsOneWidget);
       expect(find.text('Total Deducted'), findsOneWidget);
       expect(find.text('\$2.50'), findsNWidgets(3)); // amount, total deducted, you receive
+      // The bonus it will earn, only where the backend says there is one.
+      expect(find.byKey(const Key('withdraw-bonus')), id == 'edahab' ? findsOneWidget : findsNothing);
+      if (id == 'edahab') {
+        expect(find.text('Bonus (1%)'), findsOneWidget);
+        expect(find.text('+\$0.02'), findsOneWidget);
+      }
       await tester.tap(find.text('Confirm'));
       await tester.tap(find.text('Confirm'), warnIfMissed: false); // a double tap submits once
       await tester.pumpAndSettle();

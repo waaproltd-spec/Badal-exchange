@@ -476,3 +476,77 @@ class CustomerOverview {
         joined: (j['new'] as num?)?.toInt() ?? 0,
       );
 }
+
+/// One customer's withdrawal bonus, as a manager sees it (manage_customer_bonus).
+class CustomerBonus {
+  final String balance;
+
+  /// The rate they earn now: "1%"; "0%" when off.
+  final String rate;
+  final String totalEarned;
+  final bool enabled;
+
+  /// Their own rate in basis points (50, 100, 150, 200), or null for the default.
+  final int? customRateBp;
+  final int defaultRateBp;
+
+  /// The bonus for everyone; when off nobody earns, whatever is set here.
+  final bool programmeOn;
+  final List<CustomerBonusEntry> entries;
+
+  const CustomerBonus({
+    required this.balance,
+    required this.rate,
+    required this.totalEarned,
+    required this.enabled,
+    required this.customRateBp,
+    required this.defaultRateBp,
+    required this.programmeOn,
+    required this.entries,
+  });
+
+  int get rateBp => customRateBp ?? defaultRateBp;
+
+  factory CustomerBonus.fromJson(Map<String, dynamic> j) => CustomerBonus(
+        balance: j['balance'] as String? ?? '0.00',
+        rate: j['rate'] as String? ?? '0%',
+        totalEarned: j['totalEarned'] as String? ?? '0.00',
+        enabled: j['enabled'] as bool? ?? true,
+        customRateBp: (j['customRateBp'] as num?)?.toInt(),
+        defaultRateBp: (j['defaultRateBp'] as num?)?.toInt() ?? 100,
+        programmeOn: j['programmeOn'] as bool? ?? false,
+        entries: [
+          for (final e in (j['entries'] as List? ?? const [])) CustomerBonusEntry.fromJson(e as Map<String, dynamic>),
+        ],
+      );
+}
+
+class CustomerBonusEntry {
+  /// 'earned' or 'moved'.
+  final String kind;
+  final String amount;
+  final DateTime createdAt;
+  final String? rate;
+  final String? orderCode;
+  final String? withdrawal;
+
+  const CustomerBonusEntry({
+    required this.kind,
+    required this.amount,
+    required this.createdAt,
+    this.rate,
+    this.orderCode,
+    this.withdrawal,
+  });
+
+  bool get earned => kind == 'earned';
+
+  factory CustomerBonusEntry.fromJson(Map<String, dynamic> j) => CustomerBonusEntry(
+        kind: j['kind'] as String,
+        amount: j['amount'] as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+        rate: j['rate'] as String?,
+        orderCode: j['orderCode'] as String?,
+        withdrawal: j['withdrawal'] as String?,
+      );
+}

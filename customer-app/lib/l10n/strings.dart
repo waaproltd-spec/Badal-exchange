@@ -306,4 +306,23 @@ class AppStrings {
   // Profile
   static String get profile => _t('Profile', 'Xogtayda');
   static String get name => _t('Name', 'Magaca');
+
+  // Bonus wallet
+  static String get bonusWallet => _t('Bonus Wallet', 'Boorsada Gunnada');
+  static String bonusRow(String rate) => _t('Bonus ($rate)', 'Gunno ($rate)');
+  static String get bonusGoesTo => _t('You will get it in your Bonus Wallet', 'Waxaad heli doontaa Bonus Wallet');
+  static String bonusRateInfo(String rate) => _t(
+      'You earn $rate of every completed withdrawal (not EVC Plus, Golis or ZAAD).',
+      'Waxaad heshaa $rate lacag-bixin kasta oo dhammaatay (EVC Plus, Golis iyo ZAAD maahan).');
+  static String get bonusOff => _t('The bonus is off for your account.', 'Gunnadu way ka xiran tahay akoonkaaga.');
+  static String get totalEarned => _t('Total earned', 'Wadarta la helay');
+  static String get moveBonus => _t('Transfer Bonus to Main Wallet', 'U wareeji Gunnada Boorsada Weyn');
+  static String bonusMoved(String amount) =>
+      _t('\$$amount moved to your main wallet', '\$$amount waxaa loo wareejiyay boorsadaada weyn');
+  static String get noBonusYet => _t('No bonus yet', 'Weli gunno ma jirto');
+  static String get bonusEarned => _t('Bonus earned', 'Gunno la helay');
+  static String get bonusMovedTitle => _t('Moved to main wallet', 'Loo wareejiyay boorsada weyn');
+  static String bonusOnWithdrawal(String amount, String method) =>
+      _t('On \$$amount withdrawal • $method', 'Lacag-bixin \$$amount • $method');
+  static String get couldNotLoadBonus => _t('Could not load the bonus', 'Gunnada lama soo rarin');
 }

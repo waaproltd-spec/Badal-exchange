@@ -345,6 +345,18 @@ class AgentApi {
   Future<CustomerDetail> getCustomer(String id) async =>
       CustomerDetail.fromJson(await _map('agent_customer', {'p_id': id}));
 
+  /// Managers: one customer's withdrawal bonus and its setting.
+  Future<CustomerBonus> getCustomerBonus(String id) async =>
+      CustomerBonus.fromJson(await _map('manage_customer_bonus', {'p_customer_id': id}));
+
+  /// Sets their rate (50, 100, 150 or 200 basis points) and/or turns it on or off.
+  Future<CustomerBonus> setCustomerBonus(String id, {int? rateBp, bool? enabled}) async =>
+      CustomerBonus.fromJson(await _map('manage_set_customer_bonus', {
+        'p_customer_id': id,
+        'p_rate_bp': rateBp,
+        'p_enabled': enabled,
+      }));
+
   Future<List<LedgerEntry>> getCustomerLedger(String id) async =>
       (await _list('agent_customer_ledger', {'p_id': id}))
           .map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>))
