@@ -257,7 +257,14 @@ async function sendPayouts(session: string) {
   const done: string[] = [];
   for (let i = 0; i < MAX_PAYOUTS_PER_RUN; i++) {
     // Sahal's balance first (like the portal's dashboard): what it cannot pay waits.
-    const next = await rpc('sahal_payout_next', { p_balance: await balance(session) });
+    // No balance usually means the session has ended: take nothing now, so no
+    // withdrawal is refused for it; the next run signs in again.
+    const available = await balance(session);
+    if (available === null) {
+      if (i === 0) done.push('waiting: Sahal balance not read');
+      break;
+    }
+    const next = await rpc('sahal_payout_next', { p_balance: available });
     if (!next?.attemptId) break;
     const say = (p_status: string, extra: Record<string, unknown> = {}) =>
       rpc('sahal_payout_report', { p_attempt_id: next.attemptId, p_status, ...extra });
