@@ -71,6 +71,9 @@ class AppStrings {
   static String get passwordHint => _t('At least 8 characters', 'Ugu yaraan 8 xaraf');
   static String get confirmPasswordHint => _t('Re-enter your password', 'Mar kale geli erayga sirta');
   static String get enterFullName => _t('Enter your full name', 'Geli magacaaga oo buuxa');
+  static String get phonePrefixes => _t(
+      'Phone number must start with 61 or 77 (EVC Plus), 90 (Golis), 63 (ZAAD) or 62 (eDahab)',
+      'Lambarka taleefanku waa inuu ku bilowdaa 61 ama 77 (EVC Plus), 90 (Golis), 63 (ZAAD) ama 62 (eDahab)');
   static String get enterPhone9 => _t('Enter the 9 digits after +252', 'Geli 9-ka god ee ka dambeeya +252');
   static String get passwordTooShort =>
       _t('Password must be at least 8 characters', 'Erayga sirtu waa inuu ahaadaa ugu yaraan 8 xaraf');

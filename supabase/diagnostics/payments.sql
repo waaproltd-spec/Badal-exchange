@@ -124,3 +124,15 @@ WHERE o.status = 'completed' ORDER BY o.amount_cents DESC LIMIT 12;
 SELECT CASE WHEN amount_cents >= 10000000 THEN '>= $100,000' WHEN amount_cents >= 100000 THEN '$1,000 - $99,999'
             WHEN amount_cents >= 10000 THEN '$100 - $999' ELSE '< $100' END AS band, count(*) AS n, private.money(sum(amount_cents)) AS total
 FROM public.orders WHERE status = 'completed' GROUP BY 1 ORDER BY min(amount_cents) DESC;
+
+\echo '== 14. Customers by phone network (read-only; accounts outside 61/77/90/63/62 are only listed, never changed; numbers: last 4 digits) =='
+SELECT coalesce(private.customer_network(u.phone), 'NOT APPROVED') AS network, left(right(regexp_replace(u.phone, '\D', '', 'g'), 9), 2) AS prefix,
+       count(*) AS customers, count(*) FILTER (WHERE w.available_cents <> 0) AS with_balance
+FROM public.users u LEFT JOIN public.wallets w ON w.customer_id = u.id
+WHERE u.role = 'customer' GROUP BY 1, 2 ORDER BY 1, 2;
+\echo '-- customers whose number starts with another prefix'
+SELECT right(u.phone, 4) AS phone_end, left(coalesce(u.name, ''), 20) AS name, to_char(u.created_at, 'YYYY-MM-DD') AS registered,
+       private.money(coalesce(w.available_cents, 0)) AS balance,
+       (SELECT count(*) FROM public.orders o WHERE o.customer_id = u.id AND o.status = 'completed') AS completed_orders
+FROM public.users u LEFT JOIN public.wallets w ON w.customer_id = u.id
+WHERE u.role = 'customer' AND private.customer_network(u.phone) IS NULL ORDER BY u.created_at DESC LIMIT 50;

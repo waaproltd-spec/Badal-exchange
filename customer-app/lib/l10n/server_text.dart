@@ -20,6 +20,8 @@ const _byCode = <String, String>{
   'DUPLICATE_WITHDRAWAL': 'Codsi lacag-bixin oo isku mid ah ayaa horay u socda.',
   'REQUEST_IN_PROGRESS': 'Codsigan horay ayaa loo wadaa.',
   'IDEMPOTENCY_KEY_REUSED': 'Codsigan horay ayaa loo isticmaalay. Mar kale isku day.',
+  'INVALID_PHONE_PREFIX':
+      'Lambarka taleefanku waa inuu ku bilowdaa 61 ama 77 (EVC Plus), 90 (Golis), 63 (ZAAD) ama 62 (eDahab).',
   'PHONE_TAKEN': 'Lambarkan taleefanka horay ayaa loo diiwaangeliyay.',
   'RATE_LIMITED': 'Isku day badan ayaa la sameeyay. Wax yar sug, kadibna mar kale isku day.',
   'INVALID_PASSWORD': 'Erayga sirta ee hadda waa khalad.',

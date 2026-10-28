@@ -20,7 +20,7 @@ void main() {
 
   test('customer flow: register, login, deposit, live update, orders', () async {
     AppLanguage.current.value = AppLanguage.english; // the messages below are checked in English
-    final phone = '2527${(DateTime.now().millisecondsSinceEpoch % 100000000).toString().padLeft(8, '0')}';
+    final phone = '25277${(DateTime.now().millisecondsSinceEpoch % 10000000).toString().padLeft(7, '0')}'; // 77: an approved prefix
     final client = ApiClient(supabase: newClient());
     final api = CustomerApi(client);
 

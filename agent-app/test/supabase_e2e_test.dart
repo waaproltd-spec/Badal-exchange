@@ -39,7 +39,7 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 3));
 
     // A customer places a deposit and a withdrawal.
-    final phone = '2528${(DateTime.now().millisecondsSinceEpoch % 100000000).toString().padLeft(8, '0')}';
+    final phone = '25263${(DateTime.now().millisecondsSinceEpoch % 10000000).toString().padLeft(7, '0')}'; // 63: an approved prefix
     final customer = newClient();
     await customer.rpc('register_customer', params: {'p_phone': phone, 'p_name': 'Agent E2E', 'p_password': 'Customer-Pass-1'});
     await customer.auth.signInWithPassword(email: authEmailFor(phone), password: 'Customer-Pass-1');

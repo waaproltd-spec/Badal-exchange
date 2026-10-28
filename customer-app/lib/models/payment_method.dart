@@ -80,13 +80,28 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
 
 /// A method the backend currently offers (enabled), with the numbers or
 /// accounts customers send deposits to.
+/// The mobile-money network of each approved phone prefix (the first two of
+/// the nine digits after +252). New customers can only register with one of
+/// these; the server applies the same list (private.customer_network).
+const phonePrefixNetworks = <String, String>{
+  '61': 'evc_plus',
+  '77': 'evc_plus',
+  '90': 'golis',
+  '63': 'telesom',
+  '62': 'edahab',
+};
+
+/// Whether the nine digits typed after +252 start with an approved prefix.
+bool hasApprovedPhonePrefix(String nineDigits) =>
+    nineDigits.length >= 2 && phonePrefixNetworks.containsKey(nineDigits.substring(0, 2));
+
 /// The customer's own mobile-money network, from their registered number's
-/// prefix (last 9 digits): 61 EVC Plus, 90 Golis, 63 ZAAD, 62 eDahab. Null
-/// for any other number, or none.
+/// prefix (last 9 digits): 61 and 77 EVC Plus, 90 Golis, 63 ZAAD, 62 eDahab.
+/// Null for any other number (an account registered before the list), or none.
 String? ownMobileMethod(String? phone) {
   final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
   if (digits.length < 9) return null;
-  return const {'61': 'evc_plus', '90': 'golis', '63': 'telesom', '62': 'edahab'}[digits.substring(digits.length - 9, digits.length - 7)];
+  return phonePrefixNetworks[digits.substring(digits.length - 9, digits.length - 7)];
 }
 
 /// Deposits are paid from the customer's own number and withdrawals paid to

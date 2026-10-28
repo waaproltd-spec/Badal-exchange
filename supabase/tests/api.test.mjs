@@ -25,7 +25,8 @@ const PASSWORD = 'ChangeMe123!';
 
 const db = new pg.Pool({ connectionString: DATABASE_URL });
 const run = Date.now().toString().slice(-7);
-const phone = (n) => `2526${run}${n}`;
+// 252 + 61 (EVC Plus: an approved prefix, see the prefix test) + 6 digits + n.
+const phone = (n) => `25261${run.slice(-6)}${n}`;
 
 /** Same derivation the apps use (lib/api/supabase_api.dart authEmailFor). */
 function authEmail(identifier) {
@@ -561,4 +562,58 @@ test('log-in help: support contacts before login; management resets a customer p
   const { error } = await before.auth.refreshSession();
   assert.ok(error, 'existing sessions are signed out');
   for (const c of [before, after]) await c.removeAllChannels();
+});
+
+// ---- New customers: only the approved prefixes (migrations/*_customer_phone_prefixes.sql) ----
+
+test('registration: 61, 77, 90, 63 and 62 are accepted, each in its network; everything else is refused', async () => {
+  const anon = client();
+  const approved = { 61: 'evc_plus', 77: 'evc_plus', 90: 'golis', 63: 'telesom', 62: 'edahab' };
+  let n = 0;
+  const number = (prefix) => `${prefix}${run.slice(-6)}${n++}`; // 9 digits
+  for (const [prefix, network] of Object.entries(approved)) {
+    // As the app sends it (the other forms of the same number are covered above).
+    const local = number(prefix);
+    const reg = await rpc(anon, 'register_customer', { p_phone: `252${local}`, p_name: `Prefix ${prefix}`, p_password: PASSWORD });
+    assert.equal(reg.user.role, 'customer', prefix);
+    const { rows } = await db.query(`SELECT phone, private.customer_network(phone) AS network FROM users WHERE id = $1`, [reg.user.id]);
+    assert.deepEqual([rows[0].phone, rows[0].network], [`252${local}`, network], prefix);
+  }
+  // Refused: a prefix of no network we pay through, in every form, with the message that says which are accepted.
+  for (const prefix of ['60', '64', '65', '66', '67', '68', '69', '70', '71', '76', '78', '79', '91', '99', '10']) {
+    for (const form of ['252', '+252 ', '0', '']) {
+      await assert.rejects(
+        rpc(anon, 'register_customer', { p_phone: `${form}${prefix}${run.slice(-6)}1`, p_name: 'No', p_password: PASSWORD }),
+        (e) => {
+          assert.equal(e.code, 'INVALID_PHONE_PREFIX', `${form}${prefix}: ${e.message}`);
+          assert.match(e.message, /61 or 77 \(EVC Plus\), 90 \(Golis\), 63 \(ZAAD\) or 62 \(eDahab\)/);
+          return true;
+        });
+    }
+  }
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM users WHERE name = 'No'`);
+  assert.equal(rows[0].n, 0, 'nothing was created');
+  // The format rules are as before (wrong length is still a plain validation error).
+  await rejects(rpc(anon, 'register_customer', { p_phone: '25261123', p_name: 'Short', p_password: PASSWORD }), 'VALIDATION_ERROR');
+});
+
+test('registration: the mapping is the same one the app uses, and existing accounts are left alone', async () => {
+  const { rows } = await db.query(`SELECT p, private.customer_network(p) AS net FROM unnest(ARRAY[
+    '252611234567', '0611234567', '611234567', '252771234567', '252901234567', '252631234567', '252621234567',
+    '252601234567', '252711234567', '', NULL, '12345']) AS t(p)`);
+  assert.deepEqual(rows.map((r) => r.net),
+    ['evc_plus', 'evc_plus', 'evc_plus', 'evc_plus', 'golis', 'telesom', 'edahab', null, null, null, null, null]);
+
+  // An account made before the rule, with another prefix: still there, still signs in, nothing changed.
+  const legacy = `25271${run.slice(-6)}9`; // 71: not approved
+  const hash = (await db.query(`SELECT private.hash_password('Legacy-Pass-2') AS h`)).rows[0].h;
+  const { rows: [u] } = await db.query(
+    `INSERT INTO users (role, phone, name, password_hash) VALUES ('customer', $1, 'Before the rule', $2) RETURNING id`, [legacy, hash]);
+  await db.query(`INSERT INTO wallets (customer_id) VALUES ($1)`, [u.id]);
+  const before = (await db.query(`SELECT phone, name, role FROM users WHERE id = $1`, [u.id])).rows[0];
+  const c = await login(legacy, 'Legacy-Pass-2');
+  assert.equal((await rpc(c, 'customer_wallet')).availableBalance, '0.00');
+  assert.deepEqual((await db.query(`SELECT phone, name, role FROM users WHERE id = $1`, [u.id])).rows[0], before);
+  // It cannot register again, and neither is it reported as new.
+  await rejects(rpc(client(), 'register_customer', { p_phone: legacy, p_name: 'Again', p_password: PASSWORD }), 'INVALID_PHONE_PREFIX');
 });
