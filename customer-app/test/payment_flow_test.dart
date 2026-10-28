@@ -354,14 +354,16 @@ void main() {
     await _phone(tester);
     final api = FakeCustomerApi();
     final option = (await api.getPaymentMethods()).first;
-    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
+    // A Golis number: the sheet offers Golis (its own network) and the platforms.
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252907000001')));
     await tester.tap(find.byKey(const Key('change-method')));
     await tester.pumpAndSettle();
     expect(find.text('Choose a deposit method'), findsOneWidget);
+    expect(find.byKey(const Key('method-evc_plus')), findsNothing);
     await tester.tap(find.byKey(const Key('method-golis')));
     await tester.pumpAndSettle();
     expect(find.text('GOLIS'), findsOneWidget);
-    expect(find.text('+252 610338686'), findsOneWidget, reason: 'the registered number carries over');
+    expect(find.text('+252 907000001'), findsOneWidget, reason: 'the registered number carries over');
   });
 
   testWidgets('deposit in Somali on a small phone fits', (tester) async {

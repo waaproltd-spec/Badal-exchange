@@ -197,6 +197,18 @@ class ProcessingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = deposit ? AppStrings.confirmingOrder : AppStrings.confirmingWithdrawal;
+    // Scrolls on a short phone (the three steps are tall); fills the screen otherwise.
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight),
+          child: IntrinsicHeight(child: _column(title)),
+        ),
+      ),
+    );
+  }
+
+  Widget _column(String title) {
     return Column(
       children: [
         const Spacer(flex: 3),

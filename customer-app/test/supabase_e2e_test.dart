@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/api_exception.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
+import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -18,6 +19,7 @@ void main() {
   SupabaseClient newClient() => SupabaseClient(url!, key!, authOptions: const AuthClientOptions(autoRefreshToken: false));
 
   test('customer flow: register, login, deposit, live update, orders', () async {
+    AppLanguage.current.value = AppLanguage.english; // the messages below are checked in English
     final phone = '2527${(DateTime.now().millisecondsSinceEpoch % 100000000).toString().padLeft(8, '0')}';
     final client = ApiClient(supabase: newClient());
     final api = CustomerApi(client);

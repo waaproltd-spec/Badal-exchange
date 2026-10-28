@@ -69,11 +69,13 @@ let code = 0;
 async function order(cu, direction, method, cents, status = 'pending') {
   const { rows: [o] } = await db.query(
     `INSERT INTO orders (order_code, customer_id, direction, method, status, amount_cents, rate, net_cents, wallet_delta_cents)
-     VALUES ($1, $2, $3, $4, $5, $6, 1, $6, 0) RETURNING id`,
+     VALUES ($1, $2, $3::order_direction, $4::order_method, $5::order_status, $6, 1, $6, 0) RETURNING id`,
     [`EXBN${seed}${code++}`, cu.id, direction, method, status, cents]);
   return o.id;
 }
-const setStatus = (id, status) => db.query(`UPDATE orders SET status = $2, completed_at = CASE WHEN $2 = 'completed' THEN now() END WHERE id = $1`, [id, status]);
+const setStatus = (id, status) => db.query(
+  `UPDATE orders SET status = $2::order_status, completed_at = CASE WHEN $2::text = 'completed' THEN now() END WHERE id = $1`,
+  [id, status]);
 
 before(async () => {
   manager = await login('252610000002');
@@ -81,6 +83,8 @@ before(async () => {
 });
 after(async () => {
   await settings({ p_enabled: true, p_default_bp: 100, p_eligible: DEFAULT_ELIGIBLE }).catch(() => {});
+  // Orders made here never reserved money: none may stay open for the payout queue.
+  await db.query(`UPDATE orders SET status = 'failed' WHERE order_code LIKE 'EXBN%' AND status IN ('pending', 'processing')`);
   await db.end();
 });
 

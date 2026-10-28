@@ -117,7 +117,7 @@ void main() {
 
     // Management (Account -> Admin features).
     final methods = await api.getMethodSettings();
-    expect(methods.length, 10);
+    expect(methods.length, 12); // + BetJam, BetOnGame
     await api.setMethodEnabled('golis', false);
     await api.setMethodEnabled('golis', true);
     await api.setWithdrawalLimits('evc_plus', min: 1, max: 500);

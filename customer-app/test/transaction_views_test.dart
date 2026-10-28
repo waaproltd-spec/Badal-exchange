@@ -143,7 +143,7 @@ void main() {
     await tester.pumpWidget(_host(DepositResultScreen(order: deposit)));
     expect(find.text('USD Deposited'), findsOneWidget);
     expect(find.text('Deposit Confirmed'), findsOneWidget);
-    expect(find.text('7497945808'), findsOneWidget);
+    expect(find.text('7497945808'), findsNothing, reason: 'the transfer number is for agents only');
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(_host(WithdrawResultScreen(

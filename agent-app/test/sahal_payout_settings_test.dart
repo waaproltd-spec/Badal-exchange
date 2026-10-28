@@ -91,6 +91,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_api.calls, ['sahal live -']);
 
+    await tester.ensureVisible(find.text('Limit'));
     await tester.tap(find.text('Limit'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('sahal-daily')), '250');

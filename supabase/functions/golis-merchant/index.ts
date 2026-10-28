@@ -239,6 +239,16 @@ async function run() {
 
 const MAX_PAYOUTS_PER_RUN = 3;
 
+/** Sahal no longer lets this session send money ("Session data is not found,
+ *  please sign in again!"), although reading may still work. */
+const sessionLost = (r: any) =>
+  ['4005', '7777'].includes(String(r?.resultCode ?? '')) || /sign in again|session/i.test(String(r?.replyMessage ?? ''));
+
+/** Stops the feed so a manager signs in again (a fresh SMS code); until then
+ *  no other withdrawal is taken and refused for the same reason. */
+const askForSignIn = () =>
+  report({ state: 'stopped', code: 'session', message: 'Sahal ended the session for transfers: sign in again, then Try again.' });
+
 /** POST /api/account/balance -> currentBalance; null when it cannot be read. */
 async function balance(session: string): Promise<number | null> {
   try {
@@ -282,6 +292,10 @@ async function sendPayouts(session: string) {
     if (String(find?.resultCode ?? '') !== '2001' || !name) {
       await say('failed', { p_result_code: String(find?.resultCode ?? ''), p_reply: find?.replyMessage ?? `No receiver (${shape(find)})` });
       done.push(`${next.orderCode}: failed`);
+      if (sessionLost(find)) {
+        await askForSignIn();
+        break;
+      }
       continue;
     }
 
@@ -312,6 +326,10 @@ async function sendPayouts(session: string) {
       // Sahal said no, with its reason: nothing was sent.
       await say('failed', { p_receiver_name: name, p_result_code: resultCode, p_reply: reply });
       done.push(`${next.orderCode}: refused`);
+      if (sessionLost(sent)) {
+        await askForSignIn();
+        break;
+      }
     } else {
       await say('ambiguous', { p_receiver_name: name, p_result_code: resultCode, p_reply: reply || `Unclear answer (${shape(sent)})` });
       done.push(`${next.orderCode}: unclear`);
