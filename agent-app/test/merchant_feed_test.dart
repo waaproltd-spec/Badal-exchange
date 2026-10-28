@@ -143,6 +143,8 @@ void _forwarderTests() {
     expect(find.text('Create token'), findsOneWidget);
     expect(find.textContaining('Not set up'), findsOneWidget);
 
+    await tester.ensureVisible(find.byKey(const Key('forwarder-make')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('forwarder-make')));
     await tester.pumpAndSettle();
     expect(_api.calls, ['hook-make']);
@@ -151,6 +153,8 @@ void _forwarderTests() {
     expect(find.textContaining('shown once'), findsOneWidget);
 
     await tester.scrollUntilVisible(find.byKey(const Key('forwarder-revoke')), 300, scrollable: scroll);
+    await tester.ensureVisible(find.byKey(const Key('forwarder-revoke')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('forwarder-revoke')));
     await tester.pumpAndSettle();
     expect(_api.calls, ['hook-make', 'hook-revoke']);
