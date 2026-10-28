@@ -87,8 +87,8 @@ void main() {
     expect(_api.calls, isEmpty);
   });
 
-  testWidgets('other methods have no Payment Location', (tester) async {
-    await tester.pumpWidget(_app(_settings('melbet', 'MELBET')));
+  testWidgets('mobile-money methods have no Payment Location', (tester) async {
+    await tester.pumpWidget(_app(_mobile('edahab', 'eDahab')));
     expect(find.text('PAYMENT LOCATION'), findsNothing);
     expect(find.byKey(const Key('payment-city')), findsNothing);
   });

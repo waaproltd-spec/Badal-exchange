@@ -21,10 +21,10 @@ const seed = Number(Date.now().toString().slice(-6));
 let n = 0;
 
 // Stand-in CashdeskBot balances: cash desk 1 is 888STARZ, 2 is 1XBET, 3 is WinWin, 4 is Betwinner,
-// 5 DBbet, 6 BetJam, 7 BetOnGame (tests/player_lookup.env).
+// 5 DBbet, 6 BetJam, 7 BetOnGame, 8 MELBET (tests/player_lookup.env).
 const registers = {
   1: { Balance: 850, Limit: 1000 }, 2: 'down', 3: { Balance: 500, Limit: 200 }, 4: { Balance: 300, Limit: 100 },
-  5: { Balance: 100, Limit: 100 }, 6: { Balance: 100, Limit: 100 }, 7: { Balance: 100, Limit: 100 },
+  5: { Balance: 100, Limit: 100 }, 6: { Balance: 100, Limit: 100 }, 7: { Balance: 100, Limit: 100 }, 8: { Balance: 100, Limit: 100 },
 };
 const asked = [];
 const standIn = http.createServer((req, res) => {
@@ -79,9 +79,9 @@ before(async () => {
   if (!served) return;
   await db.query('DELETE FROM cashdesk_balances');
   // Nothing from other test files may be waiting for the worker or a top-up.
-  await db.query(`UPDATE orders SET auto_claimed_at = now(), low_funds_since = NULL WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame')
+  await db.query(`UPDATE orders SET auto_claimed_at = now(), low_funds_since = NULL WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet')
     AND (auto_claimed_at IS NULL OR low_funds_since IS NOT NULL)`);
-  await db.query(`UPDATE orders SET status = 'failed' WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame') AND status IN ('pending', 'processing')`);
+  await db.query(`UPDATE orders SET status = 'failed' WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet') AND status IN ('pending', 'processing')`);
   manager = { c: await signIn('252610000002') };
   worker = client(SERVICE_KEY);
 });
@@ -121,20 +121,20 @@ test('live, offline and not-connected companies; the total only adds verified ba
   assert.deepEqual([winwin.status, winwin.balance, winwin.limit, winwin.connected], ['available', '500.00', '200.00', true]);
   const betwinner = company(body, 'betwinner');
   assert.deepEqual([betwinner.status, betwinner.balance, betwinner.limit, betwinner.connected], ['available', '300.00', '100.00', true]);
-  for (const m of ['dbbet', 'betjam', 'betongame']) {
+  for (const m of ['dbbet', 'betjam', 'betongame', 'melbet']) {
     const x = company(body, m);
     assert.deepEqual([x.status, x.balance, x.connected], ['available', '100.00', true], m);
   }
-  for (const m of ['melbet', 'evc_plus']) {
-    const x = company(body, m);
-    assert.deepEqual([x.status, x.balance, x.connected], ['not_connected', null, false], m);
+  {
+    const x = company(body, 'evc_plus');
+    assert.deepEqual([x.status, x.balance, x.connected], ['not_connected', null, false]);
   }
-  assert.deepEqual(body.companies.slice(0, 7).map((x) => x.method).sort(),
-    ['888starz', 'betjam', 'betongame', 'betwinner', 'dbbet', 'onexbet', 'winwin'], 'connected first');
-  assert.equal(body.total, '1950.00');
-  assert.equal(body.totalCompanies, 6);
+  assert.deepEqual(body.companies.slice(0, 8).map((x) => x.method).sort(),
+    ['888starz', 'betjam', 'betongame', 'betwinner', 'dbbet', 'melbet', 'onexbet', 'winwin'], 'connected first');
+  assert.equal(body.total, '2050.00');
+  assert.equal(body.totalCompanies, 7);
   assert.equal(body.unavailableCount, 1);
-  assert.equal(body.notConnectedCount, 5);
+  assert.equal(body.notConnectedCount, 4);
 });
 
 test('refreshes are limited: a register is read at most every 15 seconds', async (t) => {
@@ -146,7 +146,7 @@ test('refreshes are limited: a register is read at most every 15 seconds', async
   assert.equal(asked.length, before, 'read moments ago');
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '20 seconds'`);
   await balances(manager.c, '?refresh=1');
-  assert.equal(asked.length, before + 7);
+  assert.equal(asked.length, before + 8);
 });
 
 test('withdrawals waiting for a top-up: low, with how much more is needed', async (t) => {
@@ -168,7 +168,7 @@ test('withdrawals waiting for a top-up: low, with how much more is needed', asyn
   assert.deepEqual([starz.waitingWithdrawals, starz.waitingAmount, starz.topUpNeeded], [1, '400.00', '50.00']);
   assert.equal(starz.openWithdrawals, 1);
   assert.equal(body.lowCount, 1);
-  assert.equal(body.total, '2000.00', 'still counted: the balance is verified (plus WinWin\'s 500, Betwinner\'s 300, 3 x 100)');
+  assert.equal(body.total, '2100.00', 'still counted: the balance is verified (plus WinWin\'s 500, Betwinner\'s 300, 4 x 100)');
 
   const detail = (await manager.c.rpc('agent_company_detail', { p_method: '888starz', p_status: 'open' })).data;
   assert.equal(detail.orders[0].id, o.id);
@@ -204,7 +204,7 @@ test('a low balance on its own, and an old read: low, then stale and left out of
   const stale = company(body, '888starz');
   assert.equal(stale.liveBalance, '900.00');
   assert.equal(Number(stale.balance), 900 + Number(stale.salesSinceCheck) - Number(stale.payoutsSinceCheck));
-  assert.equal(body.total, '1100.00', 'only the other fresh reads (WinWin, Betwinner, DBbet, BetJam, BetOnGame)');
+  assert.equal(body.total, '1200.00', 'only the other fresh reads (WinWin, Betwinner, DBbet, BetJam, BetOnGame, MELBET)');
   assert.equal(body.unavailableCount, 2);
 });
 
@@ -215,6 +215,6 @@ test('nobody can set a balance from the app', async (t) => {
   assert.ok(error);
   const { error: e2 } = await manager.c.from('cashdesk_balances').insert({ method: '888starz', ok: true, balance_cents: 1 });
   assert.ok(e2);
-  await assert.rejects(worker.rpc('company_balance_record', { p_method: 'melbet', p_balance: 5, p_limit: null, p_error: null })
+  await assert.rejects(worker.rpc('company_balance_record', { p_method: 'golis', p_balance: 5, p_limit: null, p_error: null })
     .then((r) => { if (r.error) throw r.error; }));
 });
