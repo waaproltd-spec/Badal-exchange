@@ -307,7 +307,6 @@ class AppStrings {
   static String get verifyRestricted => _t('Withdrawals are on hold', 'Bixinta waa la joojiyay');
   static String get contactAdminWhatsapp => _t('Contact Admin on WhatsApp', 'La xiriir Maamulka (WhatsApp)');
   static String get adminWhatsapp => _t("Admin's WhatsApp:", 'WhatsApp-ka Maamulka:');
-  static String get copied => _t('Copied', 'Waa la koobiyeeyay');
   static String get completeWithdrawal => _t('Complete Withdrawal', 'Dhammaystir Bixinta');
   static String get allHistory => _t('All', 'Dhammaan');
   static String get depositsTab => _t('Deposits', 'Dhigashooyin');

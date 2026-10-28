@@ -342,11 +342,11 @@ class _ApprovalSheet extends StatelessWidget {
                   ]),
                 ),
                 IconButton(
-                  tooltip: AppStrings.copied,
+                  tooltip: AppStrings.copied(number),
                   icon: const Icon(Icons.copy_rounded),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: number));
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.copied)));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.copied(number))));
                   },
                 ),
               ]),
