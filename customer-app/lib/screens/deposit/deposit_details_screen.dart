@@ -10,11 +10,16 @@ import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../utils/formatters.dart';
 import '../../widgets/flow_header.dart';
 import '../../widgets/payment_location_card.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'deposit_processing_screen.dart';
+
+/// What one deposit may be, shown under the amount and checked before sending.
+const kDepositMin = '0.01';
+const kDepositMax = '4000.00';
 
 /// "Complete Deposit": the chosen method, the amount (plus the account ID for
 /// betting platforms), and where to send the money -- for EVC Plus and
@@ -89,7 +94,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   String get _amountText => _amountController.text.trim();
   num? get _amount {
     final n = num.tryParse(_amountText);
-    return n != null && n > 0 ? n : null;
+    return n != null && n >= num.parse(kDepositMin) && n <= num.parse(kDepositMax) ? n : null;
   }
 
   /// 888STARZ / 1XBET: the customer withdraws to our cash desk in the
@@ -226,9 +231,21 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 const SizedBox(height: 16),
                 _amountBox(),
               ] else ...[
-                _amountBox(),
-                const SizedBox(height: 12),
-                _OwnNumberLine(local: _ownLocal, text: AppStrings.payFromOwnNumber),
+                // The registered number (locked) beside the amount, then the limits.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: _PhoneBox(local: _ownLocal)),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 2, child: _amountBox()),
+                  ],
+                ),
+                if (_ownLocal == null) ...[
+                  const SizedBox(height: 8),
+                  Text(AppStrings.noRegisteredNumber, style: AppTextStyles.muted.copyWith(color: AppColors.error)),
+                ],
+                const SizedBox(height: 10),
+                _LimitsLine(min: Formatters.money(kDepositMin), max: Formatters.money(kDepositMax)),
               ],
               if (!_cashDesk && _amount != null && (_payTo != null || widget.option.merchantUssd != null)) ...[
                 const SizedBox(height: 22),
@@ -317,27 +334,64 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   }
 }
 
-/// The registered number mobile money is paid from or to: shown, never
-/// edited.
-class _OwnNumberLine extends StatelessWidget {
-  const _OwnNumberLine({required this.local, required this.text});
+/// The registered number mobile money is paid from: +252, the number, and a
+/// lock -- shown, never edited.
+class _PhoneBox extends StatelessWidget {
+  const _PhoneBox({required this.local});
 
   final String? local;
-  final String text;
 
   @override
   Widget build(BuildContext context) {
-    if (local == null) {
-      return Text(AppStrings.noRegisteredNumber, style: AppTextStyles.muted.copyWith(color: AppColors.error));
-    }
-    return Row(
+    return _FieldBox(
       key: const Key('own-number'),
-      children: [
-        Icon(Icons.verified_user_outlined, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Expanded(child: Text(text, style: AppTextStyles.muted.copyWith(fontSize: 13))),
-        Text('+252 $local', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-      ],
+      label: AppStrings.phoneNumber,
+      child: SizedBox(
+        height: 58,
+        child: Row(
+          children: [
+            const SizedBox(width: 14),
+            Text('+252', style: AppTextStyles.muted.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Container(width: 1, height: 22, margin: const EdgeInsets.symmetric(horizontal: 10), color: AppColors.cardBorder),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(local ?? '—',
+                    style: AppTextStyles.fieldValue.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimary.withOpacity(0.8))),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Minimum deposit is $0.01, maximum is $4000.00", the amounts in bold.
+class _LimitsLine extends StatelessWidget {
+  const _LimitsLine({required this.min, required this.max});
+
+  final String min;
+  final String max;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = AppTextStyles.muted.copyWith(fontSize: 12.5);
+    final bold = base.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimary);
+    final (a, b) = AppStrings.depositLimitsParts;
+    return Text.rich(
+      key: const Key('deposit-limits'),
+      TextSpan(style: base, children: [
+        TextSpan(text: a),
+        TextSpan(text: min, style: bold),
+        TextSpan(text: b),
+        TextSpan(text: max, style: bold),
+      ]),
     );
   }
 }

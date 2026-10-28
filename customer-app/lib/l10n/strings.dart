@@ -331,4 +331,9 @@ class AppStrings {
 
   // Receiver name (Golis, ZAAD, EVC Plus)
   static String get receiverName => _t('Receiver Name', 'Magaca Qaataha');
+
+  /// "Minimum deposit is ", ", maximum is ": the amounts go between, in bold.
+  static (String, String) get depositLimitsParts => AppLanguage.isSomali
+      ? ('Dhigashada ugu yar waa ', ' dhigashada ugu badan waa ')
+      : ('Minimum deposit is ', ', maximum is ');
 }

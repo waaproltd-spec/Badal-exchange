@@ -363,7 +363,7 @@ void main() {
     await tester.tap(find.byKey(const Key('method-golis')));
     await tester.pumpAndSettle();
     expect(find.text('GOLIS'), findsOneWidget);
-    expect(find.text('+252 907000001'), findsOneWidget, reason: 'the registered number carries over');
+    expect(find.text('907000001'), findsOneWidget, reason: 'the registered number carries over');
   });
 
   testWidgets('deposit in Somali on a small phone fits', (tester) async {
@@ -477,9 +477,13 @@ void main() {
         expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
         await tester.enterText(find.byType(TextFormField).first, identifier);
       } else {
-        // No phone field: the registered number is shown, not editable.
+        // The registered number beside the amount: shown locked, not a field.
         expect(find.byType(TextFormField), findsOneWidget);
-        expect(find.text('+252 610338686'), findsOneWidget);
+        expect(find.text('610338686'), findsOneWidget);
+        expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
+        expect(tester.getRect(find.byKey(const Key('own-number'))).right,
+            lessThan(tester.getRect(find.byKey(const Key('deposit-amount'))).left), reason: 'side by side');
+        expect(find.byKey(const Key('deposit-limits')), findsOneWidget);
       }
       if (usesCode) {
         // Cash desk: payment code, no amount (the platform's payout decides it).
