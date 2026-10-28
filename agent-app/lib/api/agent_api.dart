@@ -213,6 +213,22 @@ class AgentApi {
         'p_device_id': deviceId,
       });
 
+  /// Sahal's access-code SMS, read on the merchant phone. The server enters
+  /// the code only while Sahal is waiting for one; the answer says what it
+  /// did (submitted / not_waiting / expired / ignored / off), never the code.
+  Future<Map<String, dynamic>> submitSahalSmsCode({
+    required String sender,
+    required String body,
+    required DateTime receivedAt,
+    String? deviceId,
+  }) =>
+      _map('agent_sahal_sms_code', {
+        'p_sender': sender,
+        'p_body': body,
+        'p_received_at': receivedAt.toUtc().toIso8601String(),
+        'p_device_id': deviceId,
+      });
+
   // ---- Withdrawal payouts (this phone dials them) ----
 
   Future<List<PayoutOrder>> getPayoutQueue() async =>

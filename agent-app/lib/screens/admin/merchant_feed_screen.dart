@@ -105,7 +105,9 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const Text('Sahal sent an SMS to the merchant phone (252905999914): '
-                            '"-SAHAL SERVICES- Access code is ……". Type that code here within 10 minutes.'),
+                            '"-SAHAL SERVICES- Access code is ……". The Agent App on that phone enters it by '
+                            'itself when SMS permission is allowed. If it does not, type it here within 10 minutes.',
+                            key: Key('feed-auto-hint')),
                         const SizedBox(height: 12),
                         TextField(
                           key: const Key('feed-code'),

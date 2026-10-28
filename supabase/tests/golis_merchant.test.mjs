@@ -640,3 +640,153 @@ test('nothing to send: the session is checked anyway, and a lost one is renewed 
     await sahalOff();
   }
 });
+
+// ---- Sahal's SMS access code, read from the merchant phone ----
+// (migrations/*_sahal_auto_code.sql: agent_sahal_sms_code)
+
+const SAHAL_SMS = '-SAHAL SERVICES- Access code is 654321';
+const smsCode = (c, body, extra = {}) =>
+  c.rpc('agent_sahal_sms_code', { p_sender: 'SAHAL', p_body: body, p_received_at: new Date().toISOString(), p_device_id: 'dev-1', ...extra });
+const setSetting = (key, value) =>
+  db.query(`INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [key, value]);
+
+async function waitForCode() {
+  portal.login = 'sms';
+  await run();
+  assert.equal((await status()).state, 'needs_code');
+}
+
+test('SMS code: the phone sends it, it is entered by itself, once, and the session is used from then on', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await waitForCode();
+  const a = await managerClient();
+  const r = await smsCode(a, SAHAL_SMS);
+  assert.equal(r.error, null);
+  assert.deepEqual(r.data, { result: 'submitted' });
+  assert.equal((await status()).state, 'code_entered');
+  // A second SMS (or the same one again) finds Sahal no longer waiting.
+  assert.deepEqual((await smsCode(a, SAHAL_SMS)).data, { result: 'not_waiting' });
+  await run();
+  const auth = seen.find((x) => x.path === '/api/account/2auth').body;
+  assert.deepEqual(auth, { userNature: 'MERCHANT', type: 'MERCHANT', code: '654321', sessionId: portal.pending });
+  assert.equal((await status()).state, 'ok');
+  assert.equal(calls('/api/account/2auth'), 1, 'sent once');
+  // The code is nowhere it could be read back.
+  const s = await status();
+  const { rows: [sess] } = await db.query(`SELECT code FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
+  assert.equal(sess.code, null, 'cleared once taken');
+  const { rows: logs } = await db.query(`SELECT before_json::text AS b, after_json::text AS a FROM audit_logs WHERE action = 'merchant_feed.auto_code' ORDER BY created_at DESC LIMIT 1`);
+  assert.equal(logs.length, 1, 'audited');
+  assert.ok(!JSON.stringify([s, logs]).includes('654321'), 'no code in the status or the log');
+});
+
+test('SMS code: not entered when Sahal is not waiting, when it was asked long ago, or when the SMS is old', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  const a = await managerClient();
+  // Nothing asked for: a code-looking SMS changes nothing.
+  assert.deepEqual((await smsCode(a, SAHAL_SMS)).data, { result: 'not_waiting' });
+  assert.equal((await status()).state, 'ready');
+
+  await waitForCode();
+  // An SMS from before Sahal was asked (an old code).
+  const old = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+  assert.deepEqual((await smsCode(a, SAHAL_SMS, { p_received_at: old })).data, { result: 'ignored', reason: 'old' });
+  assert.equal((await status()).state, 'needs_code');
+  // Asked more than 10 minutes ago: expired, the manual sign-in starts again.
+  await db.query(`UPDATE private.merchant_feed_sessions SET second_at = now() - interval '11 minutes' WHERE provider = 'golis'`);
+  assert.deepEqual((await smsCode(a, SAHAL_SMS)).data, { result: 'expired' });
+  assert.notEqual((await status()).state, 'code_entered');
+});
+
+test('SMS code: only an authorized sender, and only a clear code', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  const a = await managerClient();
+  await waitForCode();
+  // Not Sahal's: another SMS with a number in it.
+  assert.deepEqual((await smsCode(a, 'Your balance is 123456', { p_sender: '192' })).data, { result: 'ignored', reason: 'sender' });
+  // A payment SMS that mentions a number.
+  assert.equal((await smsCode(a, '[-EVCPLUS-] waxaad $5 ka heshay 252611234567 haraagaagu waa $9', { p_sender: '192' })).data.reason, 'sender');
+  // Sahal's, but two different numbers and no "code": not guessed.
+  assert.deepEqual((await smsCode(a, 'SAHAL SERVICES 123456 or 654321')).data, { result: 'ignored', reason: 'no_code' });
+  // No code at all.
+  assert.deepEqual((await smsCode(a, 'SAHAL SERVICES: welcome')).data, { result: 'ignored', reason: 'no_code' });
+  assert.equal((await status()).state, 'needs_code', 'none of these changed anything');
+
+  // With a sender list set, only those senders count, whatever the words.
+  await setSetting('sahal_sms_senders', 'SAHAL, 252888');
+  try {
+    assert.equal((await smsCode(a, SAHAL_SMS, { p_sender: '192' })).data.reason, 'sender');
+    assert.deepEqual((await smsCode(a, 'Verification code: 654321', { p_sender: 'sahal' })).data, { result: 'submitted' });
+  } finally {
+    await setSetting('sahal_sms_senders', '');
+  }
+});
+
+test('SMS code: reads "Access code is ..." in other layouts, and can be switched off', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  const a = await managerClient();
+  await waitForCode();
+  await setSetting('sahal_auto_code', 'off');
+  try {
+    assert.deepEqual((await smsCode(a, SAHAL_SMS)).data, { result: 'off' });
+    assert.equal((await status()).state, 'needs_code', 'the manual entry is still there');
+  } finally {
+    await setSetting('sahal_auto_code', 'on');
+  }
+  assert.deepEqual((await smsCode(a, 'SAHAL: Your 2nd step access code: 87 12 34 expires in 10 minutes')).data, { result: 'ignored', reason: 'no_code' });
+  assert.deepEqual((await smsCode(a, 'SAHAL: Your access code is 8712 expires in 10 minutes. Do not share.')).data, { result: 'submitted' });
+  assert.equal((await db.query(`SELECT code FROM private.merchant_feed_sessions WHERE provider = 'golis'`)).rows[0].code, '8712');
+});
+
+test('SMS code: only an agent or manager can send it, not a customer', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await waitForCode();
+  const anon = createClient(URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  assert.notEqual((await smsCode(anon, SAHAL_SMS)).error, null);
+  const c = await customer(evcLocal());
+  assert.notEqual((await smsCode(c, SAHAL_SMS)).error, null);
+  assert.equal((await status()).state, 'needs_code');
+});
+
+test('SMS code: a withdrawal waiting for the session goes out once after the automatic sign-in, and a refused code sends nothing', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run();
+    portal.canSend.clear();
+    portal.login = 'sms';
+    const local = evcLocal();
+    const c = await richCustomer(local);
+    const w = await withdrawalOf(c, local, 3);
+    await run();
+    assert.equal((await status()).state, 'needs_code');
+    assert.equal(portal.transfers.length, 0);
+    const a = await managerClient();
+
+    // A wrong code (Sahal refuses it): the feed stops, nothing is paid, the
+    // customer is not refunded, and the manual sign-in is still there.
+    assert.equal((await smsCode(a, '-SAHAL SERVICES- Access code is 111111')).data.result, 'submitted');
+    await run();
+    assert.equal((await status()).state, 'stopped');
+    assert.equal(portal.transfers.length, 0);
+    assert.equal((await order(w.id)).status, 'pending');
+    assert.equal(await walletOf(c), '7.00');
+
+    // Manual sign-in again; this time the SMS is right.
+    const m = await managerClient();
+    assert.equal((await m.rpc('manage_merchant_feed_sign_in', { p_provider: 'golis' })).error, null);
+    await run();
+    assert.equal((await status()).state, 'needs_code');
+    assert.equal((await smsCode(a, SAHAL_SMS)).data.result, 'submitted');
+    await run();
+    assert.equal((await status()).state, 'ok');
+    assert.equal((await order(w.id)).status, 'completed', 'resumed by itself');
+    assert.equal(portal.transfers.length, 1);
+    assert.equal(await walletOf(c), '7.00', 'taken once');
+    await run();
+    await run();
+    assert.equal(portal.transfers.length, 1, 'never sent again');
+  } finally {
+    await sahalOff();
+  }
+});

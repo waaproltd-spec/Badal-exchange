@@ -12,6 +12,7 @@ import '../models/match_result.dart';
 import '../models/sms_transaction_log.dart';
 import '../services/sms_log_store.dart';
 import 'payment_sms_parsers.dart';
+import 'sahal_sms.dart';
 
 /// Android payment-SMS pipeline, ported from Dalab Internet's SmsReceiver +
 /// SmsUploadFlow + PendingActionQueue + SmsInboxScanner:
@@ -171,6 +172,12 @@ class SmsBridge {
   }
 
   Future<_Outcome> _process(PendingSms sms, {required bool fromQueue}) async {
+    // Sahal's access code: entered for the merchant sign-in, never queued
+    // or stored (it is good for minutes and is a secret).
+    if (SahalSms.looksLikeCode(sms.sender, sms.body)) {
+      await _sendSahalCode(sms);
+      return _Outcome.done;
+    }
     final c = PaymentSmsParsers.classify(sms.sender, sms.body);
     if (!c.isRelevant) return _Outcome.done;
     try {
@@ -254,6 +261,51 @@ class SmsBridge {
       return _Outcome.retry;
     }
   }
+
+  /// Gives Sahal's access code to the server, which enters it only if Sahal
+  /// is waiting for one right now. The SMS can beat the server's note that
+  /// Sahal asked, so "not waiting" is tried again for a short while; any
+  /// other answer is final. Nothing about the SMS is logged.
+  Future<void> _sendSahalCode(PendingSms sms) async {
+    final age = DateTime.now().difference(sms.receivedAt);
+    if (age > SahalSms.validFor) return;
+    String result = 'error';
+    for (var attempt = 0; attempt < sahalAttempts; attempt++) {
+      try {
+        final res = await _api.submitSahalSmsCode(
+          sender: sms.sender,
+          body: sms.body,
+          receivedAt: sms.receivedAt,
+          deviceId: sms.deviceId,
+        );
+        result = res['result'] as String? ?? 'error';
+      } on ApiException catch (e) {
+        result = e.isNetworkError || e.statusCode >= 500 || e.isUnauthorized ? 'retry' : 'error';
+      } catch (_) {
+        result = 'retry';
+      }
+      if (result != 'not_waiting' && result != 'retry') break;
+      if (DateTime.now().difference(sms.receivedAt) > sahalRetryFor) break;
+      await Future<void>.delayed(sahalRetryEvery);
+    }
+    // 'ignored' / 'off' / 'expired' / 'not_waiting': not for us, say nothing.
+    if (result == 'submitted' || result == 'error' || result == 'retry') {
+      await _log(
+        provider: 'Sahal',
+        amount: '',
+        at: sms.receivedAt,
+        status: result == 'submitted' ? MatchStatus.matched : MatchStatus.error,
+        message: result == 'submitted'
+            ? 'Access code sent to Sahal automatically'
+            : 'Could not send the access code automatically: type it in Sahal Sign-in',
+      );
+    }
+  }
+
+  /// How the retries of "Sahal is not waiting yet / no network" go.
+  int sahalAttempts = 12;
+  Duration sahalRetryEvery = const Duration(seconds: 5);
+  Duration sahalRetryFor = const Duration(minutes: 2);
 
   Future<void> _log({
     required String provider,

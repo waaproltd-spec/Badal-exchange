@@ -61,6 +61,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_api.calls, ['sign-in']);
     expect(find.text('Code needed'), findsOneWidget);
+    expect(find.byKey(const Key('feed-auto-hint')), findsOneWidget, reason: 'says the phone enters it, and that it can be typed');
     expect(find.byKey(const Key('feed-sign-in')), findsNothing, reason: 'no second SMS while one is due');
 
     await tester.enterText(find.byKey(const Key('feed-code')), '32a3');
