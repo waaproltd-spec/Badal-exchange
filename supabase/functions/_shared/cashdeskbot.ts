@@ -60,7 +60,9 @@ export const brandForMethod = (method: string) => Object.values(BRANDS).find((b)
 
 export function getCredentials(brand: Brand = BRANDS['888starz']): Creds {
   const name = (k: string) => `${brand.envPrefix}_${k.toUpperCase()}`;
-  const env = (k: string) => Deno.env.get(name(k)) ?? '';
+  // Trimmed: a value pasted into the dashboard often carries a space or newline,
+  // which changes the signature and CashdeskBot then refuses every request.
+  const env = (k: string) => (Deno.env.get(name(k)) ?? '').trim();
   const missing = ['login', 'cashierpass', 'hash', 'cashdeskid'].filter((k) => !env(k));
   if (missing.length > 0) {
     throw new ApiError(
