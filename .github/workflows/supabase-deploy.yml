@@ -97,6 +97,7 @@ jobs:
           supabase functions deploy golis-merchant --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Withdrawal alerts on Telegram (TELEGRAM_N8N_BOT_TOKEN); woken by the database with the worker secret.
           supabase functions deploy withdrawal-alerts --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy sahal-sms-hook --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:

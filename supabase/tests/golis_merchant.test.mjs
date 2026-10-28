@@ -790,3 +790,101 @@ test('SMS code: a withdrawal waiting for the session goes out once after the aut
     await sahalOff();
   }
 });
+
+// ---- An SMS-forwarding app posting the SMS (functions/sahal-sms-hook) ----
+
+const hookUrl = `${URL}/functions/v1/sahal-sms-hook`;
+const hook = async (token, body, { as = 'json', headers = {} } = {}) => {
+  const h = { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers };
+  let init;
+  if (as === 'json') init = { method: 'POST', headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  else if (as === 'form') init = { method: 'POST', headers: { ...h, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body).toString() };
+  else if (as === 'text') init = { method: 'POST', headers: { ...h, 'Content-Type': 'text/plain' }, body };
+  else init = { method: 'GET', headers: h };
+  const res = await fetch(as === 'get' ? `${hookUrl}?${new URLSearchParams(body)}` : hookUrl, init);
+  return { status: res.status, body: await res.json().catch(() => null) };
+};
+let hookServed = false;
+before(async () => {
+  hookServed = (await fetch(hookUrl, { method: 'POST' }).catch(() => null))?.status === 403;
+});
+const newToken = async () => {
+  const m = await managerClient();
+  const r = await m.rpc('manage_sahal_sms_hook_rotate');
+  assert.equal(r.error, null);
+  return r.data.token;
+};
+
+test('SMS forwarder: a manager makes the token; it is shown once and only its hash is kept', async (t) => {
+  const m = await managerClient();
+  const token = await newToken();
+  assert.match(token, /^shk_[0-9a-f]{48}$/);
+  const { rows } = await db.query(`SELECT token_hash FROM private.sahal_sms_hooks WHERE revoked_at IS NULL`);
+  assert.equal(rows.length, 1);
+  assert.ok(!rows[0].token_hash.includes(token));
+  const st = (await m.rpc('manage_sahal_sms_hook_status')).data;
+  assert.equal(st.configured, true);
+  assert.ok(!JSON.stringify(st).includes(token), 'the status never shows it');
+  const { rows: log } = await db.query(`SELECT after_json::text AS a FROM audit_logs WHERE action = 'sahal_sms_hook.rotate' ORDER BY created_at DESC LIMIT 1`);
+  assert.ok(!JSON.stringify(log).includes(token), 'not in the audit log');
+  // A customer cannot make one.
+  const c = await customer(evcLocal());
+  assert.notEqual((await c.rpc('manage_sahal_sms_hook_rotate')).error, null);
+});
+
+test('SMS forwarder: the posted SMS enters the code once and the session is used from then on', async (t) => {
+  if (!served || !hookServed) return t.skip('the functions are not served');
+  const token = await newToken();
+  await waitForCode();
+  // Nobody without the token gets anything.
+  assert.equal((await hook(null, { from: 'SAHAL', text: SAHAL_SMS })).status, 403);
+  assert.equal((await hook('shk_wrong', { from: 'SAHAL', text: SAHAL_SMS })).status, 403);
+  assert.equal((await status()).state, 'needs_code');
+
+  const ok = await hook(token, { from: 'SAHAL', text: SAHAL_SMS });
+  assert.deepEqual([ok.status, ok.body], [200, { result: 'submitted' }]);
+  assert.ok(!JSON.stringify(ok).includes('654321'), 'the answer never has the code');
+  // The same SMS again (a forwarder's retry): Sahal is no longer waiting.
+  assert.deepEqual((await hook(token, { from: 'SAHAL', text: SAHAL_SMS })).body, { result: 'not_waiting' });
+  await run();
+  assert.equal(calls('/api/account/2auth'), 1, 'sent once');
+  assert.deepEqual(seen.find((x) => x.path === '/api/account/2auth').body,
+    { userNature: 'MERCHANT', type: 'MERCHANT', code: '654321', sessionId: portal.pending });
+  assert.equal((await status()).state, 'ok');
+  const st = await db.query(`SELECT last_used_at FROM private.sahal_sms_hooks WHERE revoked_at IS NULL`);
+  assert.ok(st.rows[0].last_used_at);
+});
+
+test('SMS forwarder: forms, text and GET with other field names also work; other SMS and old tokens do not', async (t) => {
+  if (!served || !hookServed) return t.skip('the functions are not served');
+  const old = await newToken();
+  const token = await newToken();
+  assert.equal((await hook(old, { from: 'SAHAL', text: SAHAL_SMS })).status, 403, 'a new token revokes the old one');
+
+  await waitForCode();
+  // Not Sahal's: nothing.
+  assert.deepEqual((await hook(token, { sender: '192', message: 'Your balance is 123456' }, { as: 'form' })).body,
+    { result: 'ignored', reason: 'sender' });
+  assert.equal((await status()).state, 'needs_code');
+  // Token in a header, the SMS as a form.
+  const r = await hook(null, { address: 'SAHAL', body: SAHAL_SMS }, { as: 'form', headers: { 'X-Hook-Token': token } });
+  assert.deepEqual(r.body, { result: 'submitted' });
+  assert.equal((await status()).state, 'code_entered');
+
+  // GET with the token in the query (some forwarders can only do that).
+  await db.query(`UPDATE merchant_feed_status SET state = 'ready' WHERE provider = 'golis'`);
+  await waitForCode();
+  const g = await hook(null, { token, from: 'SAHAL', msg: 'Sahal access code is 246810' }, { as: 'get' });
+  assert.deepEqual(g.body, { result: 'submitted' });
+  assert.equal((await db.query(`SELECT code FROM private.merchant_feed_sessions WHERE provider = 'golis'`)).rows[0].code, '246810');
+});
+
+test('SMS forwarder: revoked, nothing gets in', async (t) => {
+  if (!served || !hookServed) return t.skip('the functions are not served');
+  const token = await newToken();
+  const m = await managerClient();
+  assert.equal((await m.rpc('manage_sahal_sms_hook_revoke')).data.configured, false);
+  await waitForCode();
+  assert.equal((await hook(token, { from: 'SAHAL', text: SAHAL_SMS })).status, 403);
+  assert.equal((await status()).state, 'needs_code');
+});

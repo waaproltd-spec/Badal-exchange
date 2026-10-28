@@ -14,6 +14,23 @@ class _FakeApi extends AgentApi {
   @override
   Future<MerchantFeedStatus> getMerchantFeedStatus() async => status;
 
+  bool hookOn = false;
+  @override
+  Future<Map<String, dynamic>> getSahalSmsHook() async => {'configured': hookOn, 'createdAt': null, 'lastUsedAt': null};
+  @override
+  Future<String> rotateSahalSmsHook() async {
+    calls.add('hook-make');
+    hookOn = true;
+    return 'shk_test_token';
+  }
+
+  @override
+  Future<Map<String, dynamic>> revokeSahalSmsHook() async {
+    calls.add('hook-revoke');
+    hookOn = false;
+    return getSahalSmsHook();
+  }
+
   @override
   Future<MerchantFeedStatus> merchantFeedSignIn() async {
     calls.add('sign-in');
@@ -51,6 +68,7 @@ Widget _app(MerchantFeedStatus s) {
 }
 
 void main() {
+  _forwarderTests();
   testWidgets('stopped: Sign in to Sahal, then the SMS code is typed and sent once', (tester) async {
     await tester.pumpWidget(_app(const MerchantFeedStatus(state: 'stopped', message: 'The portal asks for a second sign-in code')));
     await tester.pumpAndSettle();
@@ -114,4 +132,29 @@ void main() {
     expect(_api.calls, ['payouts false']);
   });
 
+}
+
+void _forwarderTests() {
+  testWidgets('SMS forwarder: create a token (shown once with the URL), replace it, turn it off', (tester) async {
+    await tester.pumpWidget(_app(const MerchantFeedStatus(state: 'ok', message: 'ok')));
+    await tester.pumpAndSettle();
+    final scroll = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.byKey(const Key('forwarder-make')), 300, scrollable: scroll);
+    expect(find.text('Create token'), findsOneWidget);
+    expect(find.textContaining('Not set up'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('forwarder-make')));
+    await tester.pumpAndSettle();
+    expect(_api.calls, ['hook-make']);
+    expect(find.textContaining('Bearer shk_test_token'), findsOneWidget);
+    expect(find.textContaining('/functions/v1/sahal-sms-hook'), findsOneWidget);
+    expect(find.textContaining('shown once'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.byKey(const Key('forwarder-revoke')), 300, scrollable: scroll);
+    await tester.tap(find.byKey(const Key('forwarder-revoke')));
+    await tester.pumpAndSettle();
+    expect(_api.calls, ['hook-make', 'hook-revoke']);
+    expect(find.textContaining('Bearer shk_test_token'), findsNothing, reason: 'gone once turned off');
+    expect(find.textContaining('Not set up'), findsOneWidget);
+  });
 }

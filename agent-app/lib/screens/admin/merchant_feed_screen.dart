@@ -9,6 +9,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import 'sahal_forwarder_card.dart';
 
 /// Sahal merchant sign-in: Sahal texts an access code to the merchant phone
 /// at every sign-in, so a manager starts it here and types the code in.
@@ -162,6 +163,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedPayouts(v)),
                   ),
                 ),
+                const SahalForwarderCard(),
                 const SizedBox(height: 16),
                 const Text(
                   'Each sign-in makes Sahal text a new code, so sign in only when needed: the server keeps the '

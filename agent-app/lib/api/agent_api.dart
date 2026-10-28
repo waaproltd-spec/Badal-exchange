@@ -564,6 +564,13 @@ class AgentApi {
   Future<MerchantFeedStatus> getMerchantFeedStatus() async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_status', {'p_provider': 'golis'}));
 
+  /// SMS forwarding: an SMS-forwarding app on the merchant phone posts Sahal's
+  /// access-code SMS to the server with a token made here. Status is
+  /// {configured, createdAt, lastUsedAt}; the token is shown once, when made.
+  Future<Map<String, dynamic>> getSahalSmsHook() async => _map('manage_sahal_sms_hook_status', {});
+  Future<String> rotateSahalSmsHook() async => (await _map('manage_sahal_sms_hook_rotate', {}))['token'] as String;
+  Future<Map<String, dynamic>> revokeSahalSmsHook() async => _map('manage_sahal_sms_hook_revoke', {});
+
   /// Starts a Sahal sign-in; Sahal texts an access code to the merchant phone.
   Future<MerchantFeedStatus> merchantFeedSignIn() async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_sign_in', {'p_provider': 'golis'}));
