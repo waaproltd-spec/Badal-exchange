@@ -7,6 +7,7 @@ import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/payment_method.dart';
 import 'package:badal_exchange_customer/models/player.dart';
 import 'package:badal_exchange_customer/models/quote.dart';
+import 'package:badal_exchange_customer/models/withdrawal_access.dart';
 import 'package:badal_exchange_customer/screens/deposit/deposit_details_screen.dart';
 import 'package:badal_exchange_customer/screens/withdraw/withdraw_confirm_screen.dart';
 import 'package:badal_exchange_customer/screens/withdraw/withdraw_details_screen.dart';
@@ -57,6 +58,12 @@ class FakeCustomerApi extends CustomerApi {
 
   /// The deposit form as recorded before Confirm (Unconfirmed Deposits).
   final drafts = <String>[];
+
+  /// Before the first withdrawal: approved unless a test says otherwise.
+  WithdrawalAccess? access = const WithdrawalAccess(allowed: true, status: 'approved');
+
+  @override
+  Future<WithdrawalAccess?> getWithdrawalAccess() async => access;
 
   @override
   Future<void> trackDepositDraft({required String method, String? amount, String? accountId}) async =>
@@ -672,4 +679,45 @@ void main() {
     });
   });
 
+
+  testWidgets('first withdrawal not approved yet: why, the admin on WhatsApp, Continue off', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    addTearDown(() => AppLanguage.current.value = AppLanguage.english);
+    await _phone(tester);
+    final api = FakeCustomerApi()
+      ..access = const WithdrawalAccess(
+        allowed: false,
+        status: 'pending',
+        message: 'Si aad lacag ula baxdo markii ugu horreysay, fadlan la xiriir maamulka.',
+        whatsapp: '+252 61 234 5678',
+        accountId: 'BX123456',
+        phone: '252610338686',
+      );
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'evc_plus', ownPhone: '252610338686')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('withdraw-verify')), findsOneWidget);
+    expect(find.text('Account-kaaga wali lama fasixin'), findsOneWidget);
+    expect(find.textContaining('Si aad lacag ula baxdo markii ugu horreysay'), findsOneWidget);
+    expect(find.text('+252 61 234 5678'), findsOneWidget);
+    expect(find.byKey(const Key('contact-admin-whatsapp')), findsOneWidget);
+    expect(tester.widget<PrimaryButton>(find.byKey(const Key('withdraw-continue'))).onPressed, isNull);
+
+    final link = api.access!.whatsappLink!;
+    expect(link.host, 'wa.me');
+    expect(link.path, '/252612345678');
+    final text = link.queryParameters['text']!;
+    expect(text, contains('Account ID: BX123456'));
+    expect(text, contains('Lambarkeyga: +252610338686'));
+    expect(text.toLowerCase(), isNot(contains('pin')));
+    expect(text.toLowerCase(), isNot(contains('password')));
+  });
+
+  testWidgets('approved: the withdrawal form as before, no verification card', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'evc_plus', ownPhone: '252610338686')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('withdraw-verify')), findsNothing);
+    expect(tester.widget<PrimaryButton>(find.byKey(const Key('withdraw-continue'))).onPressed, isNotNull);
+  });
 }

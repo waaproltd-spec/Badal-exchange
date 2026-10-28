@@ -19,6 +19,7 @@ import 'admin/merchant_feed_screen.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
 import 'admin/unconfirmed_deposits_screen.dart';
+import 'admin/withdrawal_verification_screen.dart';
 import 'manage_screens.dart';
 import 'wallet/wallet_history_screen.dart';
 
@@ -135,6 +136,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusPending,
               label: 'Minimum & Maximum Limits',
               onTap: () => _open(const MethodSettingsListScreen(title: 'Withdrawal Limits', focus: MethodFocus.limits)),
+            ),
+            _NavRow(
+              icon: Icons.verified_user_rounded,
+              color: AppColors.statusFailed,
+              label: 'Withdrawal Verification',
+              onTap: () => _open(const WithdrawalVerificationScreen()),
             ),
             _NavRow(
               icon: Icons.hourglass_top_rounded,

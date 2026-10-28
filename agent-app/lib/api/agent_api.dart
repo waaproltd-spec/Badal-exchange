@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/commission.dart';
 import '../models/deposit_board.dart';
+import '../models/withdrawal_verification.dart';
 import '../models/report_overview.dart';
 import '../models/wallet_adjustment.dart';
 import '../models/agent_profile.dart';
@@ -73,6 +74,25 @@ class AgentApi {
         'p_from': from?.toUtc().toIso8601String(),
         'p_to': to?.toUtc().toIso8601String(),
       }));
+
+  /// Admin: accounts waiting for (or given) withdrawal approval.
+  Future<({List<WithdrawalVerification> requests, Map<String, int> counts, String? whatsapp})> getWithdrawalVerifications(
+      {String status = 'pending'}) async {
+    final data = await _map('manage_withdrawal_verifications', {'p_status': status});
+    return (
+      requests: ((data['requests'] as List?) ?? const [])
+          .map((e) => WithdrawalVerification.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      counts: ((data['counts'] as Map?) ?? const {}).map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+      whatsapp: data['whatsapp'] as String?,
+    );
+  }
+
+  /// approve | reject | restrict (a reason for the last two).
+  Future<void> decideWithdrawalVerification(String customerId, String decision, {String? reason}) async {
+    await _map('manage_decide_withdrawal_verification',
+        {'p_customer_id': customerId, 'p_decision': decision, 'p_reason': reason});
+  }
 
   /// Admin: Unconfirmed Deposits started in [from, to) (default: the last 7 days).
   Future<UnconfirmedDeposits> getUnconfirmedDeposits({DateTime? from, DateTime? to}) async =>

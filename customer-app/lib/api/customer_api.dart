@@ -1,3 +1,4 @@
+import '../models/withdrawal_access.dart';
 import '../models/app_content.dart';
 import '../models/bonus.dart';
 import '../models/order.dart';
@@ -208,6 +209,16 @@ class CustomerApi {
       _client.rpc('customer_register_push_token', {'p_token': token, 'p_platform': 'android'});
 
   Future<void> unregisterPushToken(String token) => _client.rpc('customer_unregister_push_token', {'p_token': token});
+
+  /// May this account withdraw? The first time, it asks the admin to
+  /// approve it. Null when it cannot be read (the server still decides).
+  Future<WithdrawalAccess?> getWithdrawalAccess() async {
+    try {
+      return WithdrawalAccess.fromJson(await _client.rpc('customer_withdrawal_access') as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Records the deposit form as the customer fills it in, before
   /// "Confirm Deposit" (Admin Dashboard -> Unconfirmed Deposits). Only the
