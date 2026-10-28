@@ -17,6 +17,7 @@ jobs:
   diagnose:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Report
         env:
           SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
@@ -24,94 +25,4 @@ jobs:
         run: |
           if ! [[ "$HOURS" =~ ^[0-9]{1,4}$ ]]; then echo "hours must be a number"; exit 1; fi
           # Each section on its own: one failing query does not hide the rest.
-          psql "$SUPABASE_DATABASE_URL" -P pager=off -v hours="$HOURS" <<'SQL'
-          -- Read only for the whole session; each query stands alone so one error hides nothing.
-          SET default_transaction_read_only = on;
-          \echo '== 1. Orders in the window: count and time to completed (minutes) =='
-          SELECT o.direction, o.method, o.status, count(*) AS n,
-                 round(percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM o.completed_at - o.created_at) / 60)::numeric, 1) AS p50_min,
-                 round(percentile_cont(0.9) WITHIN GROUP (ORDER BY extract(epoch FROM o.completed_at - o.created_at) / 60)::numeric, 1) AS p90_min,
-                 round(max(extract(epoch FROM o.completed_at - o.created_at) / 60)::numeric, 1) AS max_min
-          FROM public.orders o WHERE o.created_at > now() - make_interval(hours => :hours)
-          GROUP BY 1, 2, 3 ORDER BY 1, 2, 3;
-
-          \echo '== 2. Open orders now (pending / processing), oldest first, with why a withdrawal waits =='
-          SELECT o.order_code, o.direction, o.method, o.status, private.money(o.amount_cents) AS amount,
-                 round(extract(epoch FROM now() - o.created_at) / 60) AS age_min,
-                 o.payout_review, o.automation_attempts,
-                 CASE WHEN o.direction = 'withdraw' AND o.method IN ('evc_plus', 'edahab') THEN private.payout_block(o) ->> 'code' END AS phone_block,
-                 (SELECT a.status || ' ' || coalesce(a.result_code, '') || ' ' || left(coalesce(a.reply, ''), 90)
-                    FROM public.sahal_payout_attempts a WHERE a.order_id = o.id) AS sahal,
-                 left(o.failure_reason, 80) AS note
-          FROM public.orders o WHERE o.status IN ('pending', 'processing')
-          ORDER BY o.created_at LIMIT 60;
-
-          \echo '== 3. Failed orders in the window and their reasons =='
-          SELECT o.direction, o.method, left(coalesce(o.failure_reason, '(none)'), 100) AS reason, count(*) AS n
-          FROM public.orders o WHERE o.status = 'failed' AND o.updated_at > now() - make_interval(hours => :hours)
-          GROUP BY 1, 2, 3 ORDER BY n DESC LIMIT 40;
-
-          \echo '== 4. Sahal payout attempts in the window =='
-          SELECT a.status, a.mode, coalesce(a.result_code, '') AS code, left(coalesce(a.reply, ''), 110) AS reply, count(*) AS n,
-                 round(avg(extract(epoch FROM a.completed_at - a.created_at)))::int AS avg_sec
-          FROM public.sahal_payout_attempts a WHERE a.created_at > now() - make_interval(hours => :hours)
-          GROUP BY 1, 2, 3, 4 ORDER BY n DESC LIMIT 30;
-          SELECT mode, private.money(daily_limit_cents) AS daily_limit, methods FROM public.sahal_payout_settings;
-
-          \echo '== 5. Sahal merchant feed =='
-          SELECT provider, state, result_code, left(message, 120) AS message,
-                 to_char(checked_at, 'MM-DD HH24:MI') AS checked, to_char(last_ok_at, 'MM-DD HH24:MI') AS last_ok, rows_seen
-          FROM public.merchant_feed_status;
-
-          \echo '== 6. Payout phone dials in the window (EVC Plus / eDahab) =='
-          SELECT d.status, count(*) AS n FROM public.payout_dial_attempts d
-          WHERE d.created_at > now() - make_interval(hours => :hours) GROUP BY 1 ORDER BY n DESC;
-          SELECT method, mode, private.money(daily_limit_cents) AS daily_limit, private.money(min_balance_cents) AS min_balance
-          FROM public.payout_auto_settings ORDER BY method;
-
-          \echo '== 7. Payment SMS in the window: matched or not =='
-          SELECT coalesce(s.parsed_provider, '?') AS provider, s.match_status, count(*) AS n
-          FROM public.sms_logs s WHERE s.received_at > now() - make_interval(hours => :hours)
-          GROUP BY 1, 2 ORDER BY 1, n DESC;
-
-          \echo '== 8. Edge Function calls from the database that failed (pg_net) =='
-          SELECT r.status_code, left(coalesce(r.error_msg, r.content::text, ''), 140) AS answer, count(*) AS n,
-                 to_char(max(r.created), 'MM-DD HH24:MI') AS last
-          FROM net._http_response r
-          WHERE r.created > now() - make_interval(hours => :hours) AND (r.status_code IS NULL OR r.status_code >= 400)
-          GROUP BY 1, 2 ORDER BY n DESC LIMIT 20;
-          SELECT 'pg_net responses kept: ' || count(*) || ', ok: ' || count(*) FILTER (WHERE status_code < 400)
-          FROM net._http_response WHERE created > now() - make_interval(hours => :hours);
-
-          \echo '== 9. Scheduled jobs: last run and failures =='
-          SELECT j.jobname, j.schedule, j.active,
-                 (SELECT to_char(max(d.start_time), 'MM-DD HH24:MI') FROM cron.job_run_details d WHERE d.jobid = j.jobid) AS last_run,
-                 (SELECT count(*) FROM cron.job_run_details d WHERE d.jobid = j.jobid AND d.status <> 'succeeded'
-                    AND d.start_time > now() - make_interval(hours => :hours)) AS failed,
-                 (SELECT left(d.return_message, 120) FROM cron.job_run_details d WHERE d.jobid = j.jobid AND d.status <> 'succeeded'
-                    ORDER BY d.start_time DESC LIMIT 1) AS last_error
-          FROM cron.job j ORDER BY j.jobname;
-
-          \echo '== 10. Consistency: wallets vs ledger vs open withdrawals (should all be 0) =='
-          SELECT 'wallets whose balance is not the last ledger balance: ' || count(*)
-          FROM public.wallets w
-          JOIN LATERAL (SELECT l.balance_after_cents FROM public.ledger_entries l WHERE l.wallet_id = w.id
-                        ORDER BY l.created_at DESC, l.id DESC LIMIT 1) last ON true
-          WHERE last.balance_after_cents <> w.available_cents;
-          SELECT 'wallets whose held amount is not their open withdrawals: ' || count(*)
-          FROM public.wallets w
-          WHERE w.pending_cents <> COALESCE((SELECT sum(o.wallet_delta_cents) FROM public.orders o
-                                              WHERE o.customer_id = w.customer_id AND o.direction = 'withdraw'
-                                                AND o.status IN ('pending', 'processing')), 0);
-          SELECT 'negative balances: ' || count(*) FROM public.wallets WHERE available_cents < 0 OR pending_cents < 0;
-          SELECT 'completed deposits credited more than once: ' || count(*) FROM (
-            SELECT l.order_id FROM public.ledger_entries l JOIN public.orders o ON o.id = l.order_id
-            WHERE o.direction = 'deposit' AND l.entry_type = 'credit' GROUP BY l.order_id HAVING count(*) > 1) x;
-          SELECT 'withdrawals with more than one successful Sahal transfer or a Sahal transfer and a phone payout: ' || count(*)
-          FROM public.orders o
-          WHERE EXISTS (SELECT 1 FROM public.sahal_payout_attempts a WHERE a.order_id = o.id AND a.status = 'success')
-            AND EXISTS (SELECT 1 FROM public.payout_dial_attempts d WHERE d.order_id = o.id AND d.status IN ('success', 'completed'));
-          SELECT 'merchant transfers matched to two orders: ' || count(*) FROM (
-            SELECT matched_order_id FROM public.merchant_transactions WHERE matched_order_id IS NOT NULL
-            GROUP BY 1 HAVING count(*) > 1) x;
-          SQL
+          psql "$SUPABASE_DATABASE_URL" -P pager=off -v hours="$HOURS" -f supabase/diagnostics/payments.sql

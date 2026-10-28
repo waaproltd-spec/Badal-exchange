@@ -12,14 +12,37 @@ name: Deploy to Supabase
 #   SUPABASE_ACCESS_TOKEN  optional, for Edge Functions
 #                          (supabase.com/dashboard/account/tokens)
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'deploy, or diagnose (a read-only payments report; deploys nothing)'
+        required: false
+        default: 'deploy'
+      hours:
+        description: 'diagnose: how far back to look (hours)'
+        required: false
+        default: '48'
 
 concurrency:
   group: supabase-production
   cancel-in-progress: false
 
 jobs:
+  diagnose:
+    if: github.event.inputs.mode == 'diagnose'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Payments report (read-only)
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          HOURS: ${{ github.event.inputs.hours || '48' }}
+        run: |
+          if ! [[ "$HOURS" =~ ^[0-9]{1,4}$ ]]; then echo "hours must be a number"; exit 1; fi
+          psql "$SUPABASE_DATABASE_URL" -P pager=off -v hours="$HOURS" -f supabase/diagnostics/payments.sql
+
   deploy:
+    if: github.event.inputs.mode != 'diagnose'
     runs-on: ubuntu-latest
     env:
       SUPABASE_PROJECT_REF: onbezsojnpsrtuxzwsjr
