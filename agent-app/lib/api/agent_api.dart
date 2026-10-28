@@ -544,6 +544,51 @@ class AgentApi {
           .map((e) => AgentPerformance.fromJson(e as Map<String, dynamic>))
           .toList();
 
+  // Betting platforms
+
+  Future<({List<BettingAdapter> adapters, List<BettingPlatform> platforms})> getBettingPlatforms() async {
+    final data = await _map('manage_betting_platforms');
+    return (
+      adapters: [for (final a in (data['adapters'] as List? ?? const [])) BettingAdapter.fromJson(a as Map<String, dynamic>)],
+      platforms: [for (final p in (data['platforms'] as List? ?? const [])) BettingPlatform.fromJson(p as Map<String, dynamic>)],
+    );
+  }
+
+  /// A new platform, switched off; its credentials are entered next.
+  Future<String> createBettingPlatform(String name, String adapter) async =>
+      (await _map('manage_create_betting_platform', {'p_name': name, 'p_adapter': adapter}))['method'] as String;
+
+  /// Empty secrets keep the saved ones. Any change needs a new Test connection.
+  Future<BettingPlatform> saveBettingPlatform(
+    String method, {
+    String? apiUrl,
+    String? login,
+    String? password,
+    String? accountId,
+    String? apiSecret,
+    String? apiKey,
+  }) async =>
+      BettingPlatform.fromJson(await _map('manage_save_betting_platform', {
+        'p_method': method,
+        'p_api_url': apiUrl,
+        'p_login': login,
+        'p_password': password,
+        'p_account_id': accountId,
+        'p_api_secret': apiSecret,
+        'p_api_key': apiKey,
+      }));
+
+  /// Tries the saved credentials against the provider (no money moves).
+  Future<BettingPlatform> testBettingPlatform(String method) async => BettingPlatform.fromJson(
+      await _client.getFunction('cashdeskbot/platform-test/${Uri.encodeComponent(method)}') as Map<String, dynamic>);
+
+  Future<BettingPlatform> setBettingPlatformActive(String method, bool active) async =>
+      BettingPlatform.fromJson(await _map('manage_set_betting_platform_active', {'p_method': method, 'p_active': active}));
+
+  Future<void> deleteBettingPlatform(String method, String reason) async {
+    await _client.rpc('manage_delete_betting_platform', {'p_method': method, 'p_reason': reason});
+  }
+
   Future<List<AgentDevice>> getAgentDevices(String id) async =>
       (await _list('admin_agent_devices', {'p_id': id}))
           .map((e) => AgentDevice.fromJson(e as Map<String, dynamic>))

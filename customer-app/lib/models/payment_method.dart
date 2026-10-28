@@ -9,7 +9,8 @@ import '../l10n/strings.dart';
 /// Mobile money identifies the customer by their phone number on that
 /// service; betting platforms by their account ID on that platform.
 class PaymentMethodInfo {
-  const PaymentMethodInfo(this.id, this.label, this.isPlatform, this.color, this.initials);
+  const PaymentMethodInfo(this.id, this.label, this.isPlatform, this.color, this.initials, {bool? cashdesk})
+      : _cashdesk = cashdesk;
 
   final String id;
   final String label;
@@ -19,12 +20,17 @@ class PaymentMethodInfo {
   /// Short mark shown on the method's tile/icon.
   final String initials;
 
+  /// From the catalog; null in the bundled copy (then the built-in list).
+  final bool? _cashdesk;
+
   /// What the customer types for this method.
   String get identifierLabel => AppStrings.identifierLabel(label, isPlatform);
 
   /// Deposits for this method are collected automatically with the
   /// withdrawal code the customer gets from the platform's cash desk.
-  bool get usesWithdrawalCode => const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet'}.contains(id);
+  /// The server says so per method (a platform added in the Agent App too).
+  bool get usesWithdrawalCode =>
+      _cashdesk ?? const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet'}.contains(id);
   String get identifierHint => AppStrings.identifierHint(isPlatform);
 }
 
@@ -54,6 +60,7 @@ PaymentMethodInfo _fromJson(Map<String, dynamic> m) {
     m['kind'] == 'platform',
     Color(int.parse('FF$hex', radix: 16)),
     m['initials'] as String? ?? label.substring(0, label.length < 2 ? label.length : 2).toUpperCase(),
+    cashdesk: m['cashdesk'] as bool?,
   );
 }
 

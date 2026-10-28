@@ -11,7 +11,7 @@
 // only from the brand's CashdeskBot player search (../_shared/cashdeskbot.ts),
 // never made up. The withdrawal itself is checked again by the
 // platform-orders worker before any money moves.
-import { ApiError, brandForMethod, findPlayer, getCredentials } from '../_shared/cashdeskbot.ts';
+import { ApiError, brandFor, credentialsFor, findPlayer } from '../_shared/cashdeskbot.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -68,10 +68,10 @@ Deno.serve(async (req) => {
 
   const unavailable = () =>
     error(503, 'PLAYER_LOOKUP_UNAVAILABLE', 'Could not check the player right now. Try again in a moment.');
-  const brand = brandForMethod(checked.method);
+  const brand = await brandFor(checked.method);
   if (!brand) return unavailable();
   try {
-    const player = await findPlayer(getCredentials(brand), checked.accountId);
+    const player = await findPlayer(await credentialsFor(brand), checked.accountId);
     if (!player.found || String(player.userId) !== String(Number(checked.accountId))) {
       return json({ found: false, accountId: checked.accountId });
     }

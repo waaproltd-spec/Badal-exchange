@@ -11,6 +11,7 @@ import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
+import 'admin/betting_platforms_screen.dart';
 import 'admin/bonus_settings_screen.dart';
 import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
@@ -145,6 +146,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusProcessing,
               label: 'Payment Integrations',
               onTap: () => _open(const IntegrationsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sports_soccer_rounded,
+              color: AppColors.accentOrange,
+              label: 'Betting Platforms',
+              onTap: () => _open(const BettingPlatformsScreen()),
             ),
             _NavRow(
               icon: Icons.storefront_rounded,

@@ -18,6 +18,8 @@ import {
   findPlayer,
   getCredentials,
   payoutToPlayer,
+  recordPlatformTest,
+  savedCredentials,
 } from '../_shared/cashdeskbot.ts';
 
 const cors = {
@@ -129,6 +131,26 @@ async function handle(req: Request): Promise<unknown> {
     const dt = dtParam ? new Date(dtParam) : new Date();
     if (Number.isNaN(dt.getTime())) throw new ApiError(400, 'BAD_REQUEST', 'Invalid dt');
     return cashdeskBalance(getCredentials(), dt);
+  }
+
+  // Betting Platforms: tries the credentials saved for a platform (the
+  // cash register's balance, which moves no money) and records the result.
+  // Only a version that passed is ever used for real orders.
+  if (req.method === 'GET' && route === 'platform-test' && param) {
+    const me = await rpc(db, 'session_profile', {});
+    const c = await savedCredentials(param, true);
+    if (!c) throw new ApiError(400, 'NOT_CONFIGURED', 'Save the platform\'s credentials first');
+    let ok = false;
+    let message: string;
+    try {
+      const r = await cashdeskBalance(c, new Date());
+      ok = r.balance !== null;
+      message = ok ? `Connected: balance ${r.balance}${r.limit !== null ? `, limit ${r.limit}` : ''}` : 'Connected, but no balance came back';
+    } catch (err) {
+      // The provider's answer only (never the credentials).
+      message = (err as Error).message.slice(0, 300);
+    }
+    return recordPlatformTest(param, c.version, ok, message, me?.id ?? null);
   }
 
   if (req.method === 'GET' && route === 'users' && param) {

@@ -452,3 +452,109 @@ class MerchantFeedStatus {
         payoutsCompletedToday: (j['payoutsCompletedToday'] as num?)?.toInt() ?? 0,
       );
 }
+
+/// A field a betting platform's adapter needs (manage_betting_platforms).
+class BettingField {
+  final String key;
+  final String label;
+  final bool required;
+  final bool secret;
+
+  const BettingField({required this.key, required this.label, required this.required, required this.secret});
+
+  factory BettingField.fromJson(Map<String, dynamic> j) => BettingField(
+        key: j['key'] as String,
+        label: j['label'] as String? ?? j['key'] as String,
+        required: j['required'] as bool? ?? false,
+        secret: j['secret'] as bool? ?? false,
+      );
+}
+
+/// An API the server can drive (only these can be automated).
+class BettingAdapter {
+  final String adapter;
+  final String label;
+  final String? defaultApiUrl;
+  final List<BettingField> fields;
+
+  const BettingAdapter({required this.adapter, required this.label, this.defaultApiUrl, required this.fields});
+
+  factory BettingAdapter.fromJson(Map<String, dynamic> j) => BettingAdapter(
+        adapter: j['adapter'] as String,
+        label: j['label'] as String? ?? j['adapter'] as String,
+        defaultApiUrl: j['defaultApiUrl'] as String?,
+        fields: [for (final f in (j['fields'] as List? ?? const [])) BettingField.fromJson(f as Map<String, dynamic>)],
+      );
+}
+
+/// A betting platform and its connection. Secrets never come back: only
+/// whether one is saved, and the login masked.
+class BettingPlatform {
+  final String method;
+  final String name;
+  final String adapter;
+  final bool builtIn;
+  final bool active;
+
+  /// 'connected', 'error', 'not_tested', 'not_configured', or 'server'
+  /// (a built-in platform still on its Edge Function secrets).
+  final String status;
+  final String? apiUrl;
+  final String? accountId;
+  final String? login;
+  final bool hasPassword;
+  final bool hasApiSecret;
+  final bool hasApiKey;
+  final DateTime? lastTestAt;
+  final DateTime? lastOkAt;
+  final String? lastMessage;
+  final String? updatedBy;
+
+  const BettingPlatform({
+    required this.method,
+    required this.name,
+    required this.adapter,
+    required this.builtIn,
+    required this.active,
+    required this.status,
+    this.apiUrl,
+    this.accountId,
+    this.login,
+    this.hasPassword = false,
+    this.hasApiSecret = false,
+    this.hasApiKey = false,
+    this.lastTestAt,
+    this.lastOkAt,
+    this.lastMessage,
+    this.updatedBy,
+  });
+
+  bool get connected => status == 'connected';
+
+  String get statusLabel => switch (status) {
+        'connected' => 'Connected',
+        'error' => 'Error',
+        'not_tested' => 'Not tested',
+        'server' => 'Server secrets',
+        _ => 'Not set up',
+      };
+
+  factory BettingPlatform.fromJson(Map<String, dynamic> j) => BettingPlatform(
+        method: j['method'] as String,
+        name: j['name'] as String? ?? j['method'] as String,
+        adapter: j['adapter'] as String? ?? 'cashdeskbot',
+        builtIn: j['builtIn'] as bool? ?? false,
+        active: j['active'] as bool? ?? false,
+        status: j['status'] as String? ?? 'not_configured',
+        apiUrl: j['apiUrl'] as String?,
+        accountId: j['accountId'] as String?,
+        login: j['login'] as String?,
+        hasPassword: j['hasPassword'] as bool? ?? false,
+        hasApiSecret: j['hasApiSecret'] as bool? ?? false,
+        hasApiKey: j['hasApiKey'] as bool? ?? false,
+        lastTestAt: _date(j['lastTestAt']),
+        lastOkAt: _date(j['lastOkAt']),
+        lastMessage: j['lastMessage'] as String?,
+        updatedBy: j['updatedBy'] as String?,
+      );
+}
