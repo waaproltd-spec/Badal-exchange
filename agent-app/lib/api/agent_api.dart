@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../models/deposit_board.dart';
+import '../models/report_overview.dart';
 import '../models/wallet_adjustment.dart';
 import '../models/agent_profile.dart';
 import '../models/payout.dart';
@@ -396,6 +397,10 @@ class AgentApi {
       (await _list('agent_customer_ledger', {'p_id': id}))
           .map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>))
           .toList();
+
+  /// Reports: today | yesterday | last_month | all_time | custom (from/to YYYY-MM-DD).
+  Future<ReportOverview> getReportOverview({required String range, String? from, String? to}) async =>
+      ReportOverview.fromJson(await _map('agent_report_overview', {'p_range': range, 'p_from': from, 'p_to': to}));
 
   Future<ReportSummary> getReport({required String period, String? from, String? to}) async =>
       ReportSummary.fromJson(await _map('agent_reports', {'p_period': period, 'p_from': from, 'p_to': to}));
