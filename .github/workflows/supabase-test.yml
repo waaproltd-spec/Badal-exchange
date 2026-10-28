@@ -43,6 +43,21 @@ jobs:
         with:
           node-version: '22'
 
+      # The Edge Functions with stand-in settings (tests/make-functions-env.mjs):
+      # fake logins pointing at the tests' stand-in portals on this machine.
+      - name: Serve Edge Functions for the tests
+        run: |
+          export FUNCTIONS_GATEWAY=$(docker network inspect supabase_network_badal-exchange -f '{{(index .IPAM.Config 0).Gateway}}')
+          echo "gateway: $FUNCTIONS_GATEWAY"
+          node supabase/tests/make-functions-env.mjs
+          nohup supabase functions serve --env-file supabase/tests/.functions.env > /tmp/functions.log 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_E2E_URL/functions/v1/golis-merchant" || true)
+            if grep -q "Serving functions" /tmp/functions.log && [ "$code" = "403" ]; then echo "served"; exit 0; fi
+            sleep 2
+          done
+          echo "::warning::functions serve did not report ready"; cat /tmp/functions.log
+
       - name: Backend tests (Auth, RPC, RLS, Realtime)
         working-directory: supabase/tests
         env:
@@ -52,6 +67,10 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm test
+
+      - name: Edge Functions log
+        if: always()
+        run: tail -n 200 /tmp/functions.log || true
 
       # always(): the apps' tests run even when a backend test failed.
       - uses: subosito/flutter-action@v2
