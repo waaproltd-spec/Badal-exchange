@@ -316,7 +316,10 @@ function probeMobile(): string | null {
 /** Sahal no longer lets this session send money ("Session data is not found,
  *  please sign in again!"), although reading may still work. */
 const sessionLost = (r: any) =>
-  ['4005', '7777'].includes(String(r?.resultCode ?? '')) || /sign in again|session/i.test(String(r?.replyMessage ?? ''));
+  // ER0654 is the code whatever the words: "Session data is not found, please
+  // sign in again!" one day, "Fadlan isku day markale" (try again) another.
+  ['4005', '7777', 'ER0654'].includes(String(r?.resultCode ?? '').toUpperCase()) ||
+  /sign in again|session/i.test(String(r?.replyMessage ?? ''));
 
 /** POST /api/account/balance -> currentBalance; null when it cannot be read. */
 async function balance(session: string): Promise<number | null> {

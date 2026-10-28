@@ -71,7 +71,10 @@ const standIn = http.createServer((req, res) => {
     }
     if (portal.payouts && (req.url === '/api/account/find' || req.url === '/api/money/b2p')) {
       // Sahal's ER0654: the list still reads, transfers are refused.
-      if (!portal.canSend.has(b.sessionId)) return reply({ resultCode: 'ER0654', replyMessage: 'Session data is not found, please sign in again!' });
+      // Seen on production with both texts; only the code tells.
+      if (!portal.canSend.has(b.sessionId)) {
+        return reply({ resultCode: 'ER0654', replyMessage: portal.er0654 ?? 'Session data is not found, please sign in again!' });
+      }
       if (req.url === '/api/account/find') {
         if (portal.findDown) return req.socket.destroy();
         return reply({ resultCode: 2001, ReceiverInfo: { NAME: 'TEST RECEIVER', ISINTERNETWORKRECEIVER: true } });
@@ -107,7 +110,7 @@ beforeEach(async () => {
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
   Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false, cookieFor: {}, firstRows: [], refuseList: false,
-    payouts: false, canSend: new Set(), transfers: [], findDown: false, unclear: false });
+    payouts: false, canSend: new Set(), transfers: [], findDown: false, unclear: false, er0654: null });
   seen.length = 0;
 });
 after(async () => {
@@ -511,6 +514,7 @@ test('Sahal ends the session for transfers: signed in again at once, the withdra
     await run(); // signed in, reading
     assert.equal(calls('/api/account/login'), 1);
     portal.canSend.clear(); // Sahal: "Session data is not found" for transfers; the list still reads
+    portal.er0654 = 'Fadlan isku day markale'; // the words Sahal used on 2026-10-28 17:30
     const local = evcLocal();
     const c = await richCustomer(local);
     const w = await withdrawalOf(c, local, 2);
