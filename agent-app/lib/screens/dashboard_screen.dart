@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
+import '../models/company_balance.dart';
 import '../models/console.dart';
 import '../state/history_filter.dart';
 import '../state/live_updates.dart';
@@ -11,6 +12,7 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import 'company/company_balances_screen.dart';
 import 'pending_deposits_screen.dart';
 import 'pending_withdrawals_screen.dart';
 import 'sms_transactions_screen.dart';
@@ -32,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
   String? _error;
   bool _loading = true;
   bool _smsBusy = false;
+  CompanyBalancesOverview? _companies;
 
   @override
   void initState() {
@@ -46,7 +49,9 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
       _error = null;
     });
     try {
-      final summary = await context.read<Session>().api.getDashboard();
+      final session = context.read<Session>();
+      final summary = await session.api.getDashboard();
+      if (session.canViewCompanyBalances) _loadCompanies(session);
       if (!mounted) return;
       setState(() {
         _summary = summary;
@@ -59,6 +64,19 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
         _loading = false;
       });
     }
+  }
+
+  /// Company Balances summary; its failure never hides the dashboard.
+  Future<void> _loadCompanies(Session session) async {
+    try {
+      final c = await session.api.getCompanyBalances();
+      if (mounted) setState(() => _companies = c);
+    } catch (_) {}
+  }
+
+  Future<void> _openCompanies() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompanyBalancesScreen()));
+    if (mounted) _load();
   }
 
   Future<void> _push(String title, Widget body) async {
@@ -103,6 +121,10 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
           const SizedBox(height: 2),
           const Text('Manage your transactions', style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 16),
+          if (session.canViewCompanyBalances) ...[
+            _CompanyBalancesCard(data: _companies, onTap: _openCompanies),
+            const SizedBox(height: 12),
+          ],
           TwoColumnGrid(children: [
             StatCard(
               icon: Icons.south_rounded,
@@ -183,6 +205,48 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               ActivityTile(item: item, onTap: () => showActivityDetails(context, item)),
               const SizedBox(height: 8),
             ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Dashboard entry to Company Balances: the verified total and any warnings.
+class _CompanyBalancesCard extends StatelessWidget {
+  final CompanyBalancesOverview? data;
+  final VoidCallback onTap;
+
+  const _CompanyBalancesCard({required this.data, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    final notes = [
+      if (d != null && d.lowCount > 0) '${d.lowCount} low',
+      if (d != null && d.unavailableCount > 0) '${d.unavailableCount} offline',
+    ];
+    return ConsoleCard(
+      key: const Key('company-balances-entry'),
+      onTap: onTap,
+      child: Row(
+        children: [
+          const TintedIcon(icon: Icons.account_balance_wallet_rounded, color: AppColors.purple, size: 46),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Company Balances',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
+                Text(d == null ? 'Cash register balances' : 'Total \$${d.total}',
+                    style: const TextStyle(color: AppColors.textSecondary)),
+                if (notes.isNotEmpty)
+                  Text(notes.join(' · '),
+                      style: const TextStyle(color: AppColors.statusFailed, fontWeight: FontWeight.w700, fontSize: 12.5)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
         ],
       ),
     );

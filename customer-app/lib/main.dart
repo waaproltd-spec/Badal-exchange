@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,14 +6,28 @@ import 'api/api_client.dart';
 import 'api/customer_api.dart';
 import 'l10n/strings.dart';
 import 'screens/splash_screen.dart';
+import 'services/push_notifications.dart';
 import 'state/auth_provider.dart';
 import 'state/orders_provider.dart';
 import 'state/wallet_provider.dart';
 import 'theme/app_theme.dart';
+import 'theme/theme_mode.dart';
+import 'theme/theme_scope.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient.initialize();
+  // Firebase (project badal-exchange-1394d) when the build includes its
+  // config (android/app/google-services.json, from CI); otherwise the app
+  // runs without it.
+  try {
+    await Firebase.initializeApp();
+    PushNotifications.instance = PushNotifications(FirebasePushPlatform());
+  } catch (e) {
+    debugPrint('Firebase not configured: $e');
+  }
+  await AppLanguage.load();
+  await AppThemeMode.load();
   runApp(const BaariApp());
 }
 
@@ -48,12 +63,20 @@ class BaariApp extends StatelessWidget {
           update: (_, __, previous) => previous!,
         ),
       ],
-      child: MaterialApp(
-        title: AppStrings.appName,
-        debugShowCheckedModeBanner: false,
-        navigatorKey: navigatorKey,
-        theme: AppTheme.light,
-        home: const SplashScreen(),
+      // Changing the language rebuilds every screen in the new language;
+      // light <-> dark repaints them in place.
+      child: ThemeModeScope(
+        builder: (context) => ValueListenableBuilder<String>(
+          valueListenable: AppLanguage.current,
+          builder: (context, language, _) => MaterialApp(
+            key: ValueKey(language),
+            title: AppStrings.appName,
+            debugShowCheckedModeBanner: false,
+            navigatorKey: navigatorKey,
+            theme: AppTheme.current,
+            home: const SplashScreen(),
+          ),
+        ),
       ),
     );
   }

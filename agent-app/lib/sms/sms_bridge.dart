@@ -183,6 +183,7 @@ class SmsBridge {
           provider: sent.provider,
           reference: sent.reference,
           receivedAt: sms.receivedAt,
+          deviceId: sms.deviceId,
         );
         final completed = res['result'] == 'completed';
         await _log(

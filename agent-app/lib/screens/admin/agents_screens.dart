@@ -15,6 +15,7 @@ import '../manage_screens.dart';
 const knownResponsibilities = <(String, String)>[
   ('evc_deposit', 'EVC Plus deposits'),
   ('evc_withdraw', 'EVC Plus withdrawals'),
+  ('view_company_balances', 'Company balances'),
   ('manage_settings', 'Manage settings (admin features)'),
 ];
 

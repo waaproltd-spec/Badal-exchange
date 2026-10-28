@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- BAARI cream, shown before Flutter draws its first frame. -->
+    <!-- Badal Exchange brand purple, behind the launcher icon's "b". -->
+    <color name="ic_launcher_background">#42085D</color>
+    <!-- Cream, shown before Flutter draws its first frame. -->
     <color name="baari_cream">#FFF4E6</color>
 </resources>

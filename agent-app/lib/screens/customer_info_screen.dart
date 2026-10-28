@@ -7,10 +7,15 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import '../l10n/wallet_strings.dart';
+import '../models/wallet_adjustment.dart';
 import 'admin/system_screens.dart';
+import 'wallet/wallet_adjust_screen.dart';
+import 'wallet/wallet_history_screen.dart';
 
-/// Read-only view of one customer: profile, wallet, totals, recent orders and
-/// recent wallet transactions. Agents cannot change customer data here.
+/// One customer: profile, wallet, totals, recent orders and recent wallet
+/// transactions. The only change made here is a password reset, for
+/// management, when the customer asked support for a new password.
 class CustomerInfoScreen extends StatefulWidget {
   final String customerId;
   final String name;
@@ -41,10 +46,54 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    final password = await showDialog<String>(
+      context: context,
+      builder: (_) => _ResetPasswordDialog(name: widget.name),
+    );
+    if (password == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<Session>().api.resetCustomerPassword(widget.customerId, password);
+      messenger.showSnackBar(const SnackBar(content: Text('Password reset. Tell the customer their new password.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not reset the password.')));
+    }
+  }
+
+  Future<void> _adjust(CustomerSummary c, bool add) async {
+    final done = await Navigator.of(context).push<WalletAdjustment>(MaterialPageRoute(
+      builder: (_) => WalletAdjustScreen(customerId: c.id, name: c.name, phone: c.phone, balance: c.walletBalance, add: add),
+    ));
+    if (done != null && mounted) _load();
+  }
+
+  void _openHistory(CustomerSummary c) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => WalletHistoryScreen(customerId: c.id, name: c.name, phone: c.phone, balance: c.walletBalance),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Customer Info')),
+      appBar: AppBar(
+        title: const Text('Customer Info'),
+        actions: [
+          IconButton(
+            key: const Key('wallet-history'),
+            tooltip: WalletStrings.walletHistory,
+            icon: const Icon(Icons.manage_history_rounded),
+            onPressed: _detail == null ? null : () => _openHistory(_detail!.summary),
+          ),
+          IconButton(
+            key: const Key('reset-customer-password'),
+            tooltip: 'Reset password',
+            icon: const Icon(Icons.lock_reset_rounded),
+            onPressed: _detail == null ? null : _resetPassword,
+          ),
+        ],
+      ),
       body: _detail == null
           ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
           : RefreshIndicator(onRefresh: _load, child: _body(_detail!)),
@@ -104,6 +153,30 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _WalletButton(
+                key: const Key('add-money'),
+                color: AppColors.statusCompleted,
+                icon: Icons.add_rounded,
+                title: WalletStrings.addMoney,
+                onTap: () => _adjust(c, true),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _WalletButton(
+                key: const Key('deduct-money'),
+                color: AppColors.statusFailed,
+                icon: Icons.remove_rounded,
+                title: WalletStrings.deductMoney,
+                onTap: () => _adjust(c, false),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         TwoColumnGrid(children: [
@@ -189,6 +262,115 @@ class _LedgerTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Asks for the new password twice; returns it, or null when cancelled.
+class _ResetPasswordDialog extends StatefulWidget {
+  const _ResetPasswordDialog({required this.name});
+
+  final String name;
+
+  @override
+  State<_ResetPasswordDialog> createState() => _ResetPasswordDialogState();
+}
+
+class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reset password'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Only do this when ${widget.name} asked for it from their registered number. '
+              'They are signed out everywhere.',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: const Key('new-password'),
+              controller: _password,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'New password'),
+              validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+            ),
+            TextFormField(
+              key: const Key('confirm-new-password'),
+              controller: _confirm,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirm new password'),
+              validator: (v) => v != _password.text ? 'Passwords do not match' : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) Navigator.of(context).pop(_password.text);
+          },
+          child: const Text('Reset'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Add Money / Deduct Money on Customer Info.
+class _WalletButton extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const _WalletButton({super.key, required this.color, required this.icon, required this.title, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

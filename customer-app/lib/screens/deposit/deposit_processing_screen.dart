@@ -6,16 +6,21 @@ import '../../models/order.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/transaction_views.dart';
 import 'deposit_result_screen.dart';
 
 /// Centered spinner while the deposit is submitted; on success replaces
 /// itself with [DepositResultScreen]. On failure, shows the backend's
 /// error message with a retry (reusing the same idempotency key via
-/// [action]) or a way back to the confirm screen.
+/// [action]) or a way back to the deposit form.
 class DepositProcessingScreen extends StatefulWidget {
-  const DepositProcessingScreen({super.key, required this.action});
+  const DepositProcessingScreen({super.key, required this.action, this.method, this.amount});
 
   final Future<Order> Function() action;
+
+  /// Shown while submitting: the method's icon and the amount, when known.
+  final String? method;
+  final String? amount;
 
   @override
   State<DepositProcessingScreen> createState() => _DepositProcessingScreenState();
@@ -43,7 +48,7 @@ class _DepositProcessingScreenState extends State<DepositProcessingScreen> {
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.somethingWentWrong);
     }
   }
 
@@ -55,28 +60,13 @@ class _DepositProcessingScreenState extends State<DepositProcessingScreen> {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: _error == null ? _buildProcessing() : _buildError(_error!),
-            ),
+            child: _error == null
+                ? ProcessingView(method: widget.method, amount: widget.amount, deposit: true)
+                : Column(mainAxisSize: MainAxisSize.min, children: _buildError(_error!)),
           ),
         ),
       ),
     );
-  }
-
-  List<Widget> _buildProcessing() {
-    return [
-      const SizedBox(
-        width: 64,
-        height: 64,
-        child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 4),
-      ),
-      const SizedBox(height: 28),
-      Text(AppStrings.processing, style: AppTextStyles.headline, textAlign: TextAlign.center),
-      const SizedBox(height: 12),
-      Text(AppStrings.pleaseWait, style: AppTextStyles.muted, textAlign: TextAlign.center),
-    ];
   }
 
   List<Widget> _buildError(String message) {
@@ -88,7 +78,7 @@ class _DepositProcessingScreenState extends State<DepositProcessingScreen> {
         child: const Icon(Icons.priority_high_rounded, color: AppColors.statusFailed, size: 36),
       ),
       const SizedBox(height: 24),
-      Text('We could not complete this', style: AppTextStyles.title, textAlign: TextAlign.center),
+      Text(AppStrings.couldNotComplete, style: AppTextStyles.title, textAlign: TextAlign.center),
       const SizedBox(height: 8),
       Text(message, style: AppTextStyles.muted, textAlign: TextAlign.center),
       const SizedBox(height: 28),

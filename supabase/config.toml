@@ -414,6 +414,31 @@ enabled = true
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
+[functions.push-notifications]
+enabled = true
+# Called by the database (pg_net) with its own worker secret.
+verify_jwt = false
+
+[functions.golis-merchant]
+enabled = true
+# Called by the database (pg_net) with its own worker secret.
+verify_jwt = false
+
+[functions.withdrawal-alerts]
+enabled = true
+# Called by the database (pg_net) with its own worker secret.
+verify_jwt = false
+
+[functions.company-balances]
+enabled = true
+# The function checks the caller itself (agent_company_balances_access).
+verify_jwt = false
+
+[functions.player-lookup]
+enabled = true
+# The function checks the caller itself (customer_begin_player_lookup).
+verify_jwt = false
+
 [functions.cashdeskbot]
 enabled = true
 # The function checks the caller itself (session_can_manage).

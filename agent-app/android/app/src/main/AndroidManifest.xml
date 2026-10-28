@@ -79,7 +79,7 @@
         <service
             android:name=".payout.PayoutAccessibilityService"
             android:exported="false"
-            android:label="Baari payouts"
+            android:label="Badal Exchange payouts"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

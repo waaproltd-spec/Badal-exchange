@@ -7,6 +7,10 @@
 //   888starz: CASHDESKBOT_LOGIN, CASHDESKBOT_CASHIERPASS, CASHDESKBOT_HASH,
 //             CASHDESKBOT_CASHDESKID [, CASHDESKBOT_BASE_URL]
 //   1xBet:    the same names with the CASHDESKBOT_1XBET_ prefix
+//   WinWin:   the same names with the CASHDESKBOT_WINWIN_ prefix
+//   Betwinner: the same names with the CASHDESKBOT_BETWINNER_ prefix
+//   DBbet, BetJam, BetOnGame: CASHDESKBOT_DBBET_, CASHDESKBOT_BETJAM_, CASHDESKBOT_BETONGAME_
+//   MELBET: the same names with the CASHDESKBOT_MELBET_ prefix
 //
 // Checked against the live API: the Balance signature differs from the PDF
 // (see balanceSign). The Deposit/Add and Payout signatures are as the PDF
@@ -44,6 +48,12 @@ export interface Brand {
 export const BRANDS: Record<string, Brand> = {
   '888starz': { key: '888starz', label: '888starz', method: '888starz', envPrefix: 'CASHDESKBOT' },
   '1xbet': { key: '1xbet', label: '1xBet', method: 'onexbet', envPrefix: 'CASHDESKBOT_1XBET' },
+  winwin: { key: 'winwin', label: 'WinWin', method: 'winwin', envPrefix: 'CASHDESKBOT_WINWIN' },
+  betwinner: { key: 'betwinner', label: 'Betwinner', method: 'betwinner', envPrefix: 'CASHDESKBOT_BETWINNER' },
+  dbbet: { key: 'dbbet', label: 'DBbet', method: 'dbbet', envPrefix: 'CASHDESKBOT_DBBET' },
+  betjam: { key: 'betjam', label: 'BetJam', method: 'betjam', envPrefix: 'CASHDESKBOT_BETJAM' },
+  betongame: { key: 'betongame', label: 'BetOnGame', method: 'betongame', envPrefix: 'CASHDESKBOT_BETONGAME' },
+  melbet: { key: 'melbet', label: 'MELBET', method: 'melbet', envPrefix: 'CASHDESKBOT_MELBET' },
 };
 
 export const brandForMethod = (method: string) => Object.values(BRANDS).find((b) => b.method === method);

@@ -324,7 +324,7 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
                       onTap: () => _edit(n),
                       child: Row(
                         children: [
-                          MethodBadge(method: n.method),
+                          MethodLogo(method: n.method, width: 88),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(

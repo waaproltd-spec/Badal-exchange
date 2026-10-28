@@ -1,5 +1,5 @@
 name: badal_exchange_customer
-description: BAARI customer wallet app - EVC Plus / WinWin deposits and withdrawals.
+description: Badal Exchange customer wallet app - EVC Plus / WinWin deposits and withdrawals.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -14,11 +14,15 @@ dependencies:
   http: ^1.2.1
   flutter_secure_storage: ^9.2.2
   provider: ^6.1.2
+  shared_preferences: ^2.5.3
   intl: ^0.19.0
   uuid: ^4.4.0
   google_fonts: ^6.2.1
   url_launcher: ^6.3.1
   supabase_flutter: ^2.15.4
+  font_awesome_flutter: 10.7.0
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.2.10
 
 # supabase_flutter pulls in app_links; 6.4.1+ reads `flutter.compileSdkVersion`
 # in its Android build, which needs Flutter 3.27+. The APKs build with 3.24.
@@ -29,6 +33,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  url_launcher_platform_interface: ^2.3.2
+  plugin_platform_interface: ^2.1.8
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/methods/
+    - assets/methods/wide/
+    - assets/brand/

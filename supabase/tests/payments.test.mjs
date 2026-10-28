@@ -45,14 +45,19 @@ const seed = Number(Date.now().toString().slice(-6));
 let n = 0;
 const evcNumber = () => `61${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
 const edahabNumber = () => `62${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
+const golisNumber = () => `90${String(seed * 10 + n++).padStart(7, '0').slice(-7)}`;
 
 const PHONE = 'payout-phone';
 const PIN = '4321';
 let agent;
 
-async function newCustomer(balanceCents = 0) {
+/**
+ * A customer whose registered login number is [number] (9 digits). Mobile
+ * money deposits and withdrawals only ever use that number.
+ */
+async function newCustomer(balanceCents = 0, number = evcNumber()) {
   // Created directly (register_customer allows 10 sign-ups per 15 minutes per IP).
-  const phone = `2528${String(seed).padStart(6, '0')}${String(n++).padStart(3, '0')}`;
+  const phone = `252${number}`;
   await db.query(
     `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
                 VALUES ('customer', $1, 'Payments Test', private.hash_password($2)) RETURNING id)
@@ -95,6 +100,15 @@ before(async () => {
     await rpc(agent, 'manage_set_payout_wallet_pin', { p_id: w.id, p_pin: PIN });
     await db.query(`UPDATE public.payout_wallets SET created_at = now() - interval '10 years' WHERE id = $1`, [w.id]);
     await db.query(`UPDATE public.payout_wallets SET device_id = NULL WHERE method = $1 AND id <> $2`, [method, w.id]);
+    // Automatic payouts live for these wallets, no limit in the way
+    // (the safeguards themselves are tested in auto_payouts.test.mjs). The
+    // sample SMS below carry small "haraagagu waa" balances; a reading dated
+    // ahead stays the latest, so they don't hold payouts here.
+    await db.query(
+      `UPDATE public.payout_auto_settings SET mode = 'live', live_wallet_id = $2, live_device_id = $3,
+         daily_limit_cents = 10000000000, min_balance_cents = 0 WHERE method = $1`, [method, w.id, PHONE]);
+    await db.query(`INSERT INTO public.payout_wallet_balances (wallet_id, balance_cents, seen_at, source)
+                    VALUES ($1, 10000000000, now() + interval '1 day', 'manager')`, [w.id]);
   }
 });
 
@@ -107,8 +121,8 @@ after(async () => {
 // ---------------------------------------------------------------------------
 
 test('EVC Plus deposit: order first, then the real SMS (0-prefixed phone, no reference) -> credited once', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'evc_plus', 5, `252${sender}`);
   assert.equal(d.status, 'pending');
   assert.equal((await wallet(customer)).availableBalance, '0.00');
@@ -129,8 +143,8 @@ test('EVC Plus deposit: order first, then the real SMS (0-prefixed phone, no ref
 });
 
 test('eDahab deposit with its Aqanoosiga reference', async () => {
-  const customer = await newCustomer();
   const sender = edahabNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'edahab', 7, sender);
   const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ provider: 'Somtel', amount: 7, phone: sender, ref: `PP${randomUUID().slice(0, 12)}` }));
   assert.equal(res.matchStatus, 'matched');
@@ -138,8 +152,8 @@ test('eDahab deposit with its Aqanoosiga reference', async () => {
 });
 
 test('SMS before the deposit order: kept, then matched the moment the order is created', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 4, phone: sender }));
   assert.equal(res.matchStatus, 'unmatched');
   const d = await deposit(customer, 'evc_plus', 4, `0${sender}`);
@@ -147,11 +161,11 @@ test('SMS before the deposit order: kept, then matched the moment the order is c
 });
 
 test('SMS before the deposit order: the minute resweep also picks it up', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, evcNumber());
   await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 6, phone: sender }));
   // An order created by an app path that does not look for waiting SMS.
-  const d = await deposit(customer, 'evc_plus', 6, evcNumber());
+  const d = await deposit(customer, 'evc_plus', 6, null);
   assert.equal(d.status, 'pending');
   await db.query(`UPDATE orders SET phone_number = $2 WHERE id = $1`, [d.id, sender]);
   await db.query('SELECT private.resweep_unmatched_sms()');
@@ -159,8 +173,8 @@ test('SMS before the deposit order: the minute resweep also picks it up', async 
 });
 
 test('an unpaid deposit from days ago does not block a new one for the same number and amount', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const old = await deposit(customer, 'evc_plus', 1, sender);
   await db.query(`UPDATE orders SET created_at = now() - interval '7 days', updated_at = now() - interval '7 days' WHERE id = $1`, [old.id]);
   const fresh = await deposit(customer, 'evc_plus', 1, `252${sender}`);
@@ -170,9 +184,76 @@ test('an unpaid deposit from days ago does not block a new one for the same numb
   assert.equal((await order(customer, old.id)).status, 'pending');
 });
 
-test('wrong amount, near amount and wrong phone never credit', async () => {
-  const customer = await newCustomer();
+test('unpaid deposits expire after 30 minutes; younger ones and betting platforms do not', async () => {
   const sender = evcNumber();
+  const c = await newCustomer(500, sender);
+  const old = await deposit(c, 'evc_plus', 2, sender);
+  const young = await deposit(c, 'evc_plus', 3, sender);
+  const bet = await rpc(c, 'customer_create_deposit', { p_method: 'melbet', p_amount: '2', p_account_id: '7841228',
+    p_idempotency_key: randomUUID() });
+  const out = await withdraw(c, 'evc_plus', 1, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '31 minutes' WHERE id = ANY($1)`, [[old.id, bet.id, out.id]]);
+  await db.query(`UPDATE orders SET created_at = now() - interval '20 minutes' WHERE id = $1`, [young.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  const expired = await order(c, old.id);
+  assert.equal(expired.status, 'expired');
+  assert.equal((await order(c, young.id)).status, 'pending');
+  assert.equal((await order(c, bet.id)).status, 'pending', 'betting platforms are not expired');
+  assert.notEqual((await order(c, out.id)).status, 'expired', 'withdrawals are not expired');
+  assert.equal((await wallet(c)).availableBalance, '4.00', 'expiring an unpaid deposit moves no money');
+});
+
+test('a deposit forgotten hours ago no longer takes the payment for a new one (EX746R48)', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(0, sender);
+  const forgotten = await deposit(c, 'evc_plus', 1, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '5 hours', updated_at = now() - interval '5 hours' WHERE id = $1`,
+    [forgotten.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()'); // expires it
+  // The customer pays, then makes the deposit a minute later.
+  const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 1, phone: sender }));
+  assert.equal(res.matchStatus, 'unmatched', 'waits for the deposit');
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await order(c, forgotten.id)).status, 'expired', 'not given to the forgotten deposit');
+  const fresh = await deposit(c, 'evc_plus', 1, sender);
+  assert.equal(fresh.status, 'completed', 'the new deposit takes the waiting payment');
+  assert.equal((await wallet(c)).availableBalance, '1.00', 'credited once');
+  assert.equal((await order(c, forgotten.id)).status, 'expired');
+});
+
+test('paid after the deposit expired: still credited once, after a short wait; not for deposits made hours before', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(0, sender);
+  const d = await deposit(c, 'evc_plus', 2, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '50 minutes' WHERE id = $1`, [d.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await order(c, d.id)).status, 'expired');
+  // Just arrived: waits, in case the customer is making a new deposit.
+  const justNow = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 2, phone: sender }));
+  assert.equal(justNow.matchStatus, 'unmatched');
+  // Waited 10 minutes with no new deposit: the expired one is reopened and paid.
+  await db.query(`UPDATE sms_logs SET received_at = now() - interval '11 minutes' WHERE id = $1`, [justNow.smsLogId ?? justNow.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  const paid = await order(c, d.id);
+  assert.equal(paid.status, 'completed');
+  assert.equal((await wallet(c)).availableBalance, '2.00');
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await wallet(c)).availableBalance, '2.00', 'once');
+
+  // A deposit made 5 hours before the payment is not reopened.
+  const old = await deposit(c, 'evc_plus', 3, sender);
+  await db.query(`UPDATE orders SET created_at = now() - interval '5 hours' WHERE id = $1`, [old.id]);
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  const late = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 3, phone: sender, minutesAgo: 11 }));
+  await db.query('SELECT private.resweep_unmatched_sms()');
+  assert.equal((await order(c, old.id)).status, 'expired');
+  assert.notEqual(late.matchStatus, 'matched');
+  assert.equal((await wallet(c)).availableBalance, '2.00');
+});
+
+test('wrong amount, near amount and wrong phone never credit', async () => {
+  const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'evc_plus', 10, sender);
   for (const s of [sms({ amount: 11, phone: sender }), sms({ amount: 10.01, phone: sender }), sms({ amount: 10, phone: evcNumber() }),
                    sms({ provider: 'Somtel', amount: 10, phone: sender })]) {
@@ -184,8 +265,8 @@ test('wrong amount, near amount and wrong phone never credit', async () => {
 });
 
 test('duplicate SMS (same reference, or redelivered) credits once', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d1 = await deposit(customer, 'evc_plus', 3, sender);
   const ref = `R${randomUUID().slice(0, 10)}`;
   const first = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 3, phone: sender, ref }));
@@ -203,12 +284,49 @@ test('duplicate SMS (same reference, or redelivered) credits once', async () => 
   assert.equal(rows[0].n, 2);
 });
 
-test('ambiguous: two deposits fit one payment -> nothing credited until a manager assigns it', async () => {
-  const c1 = await newCustomer();
-  const c2 = await newCustomer();
+test('one customer with several equal deposits: a payment pays the oldest, the rest stay pending', async () => {
   const sender = evcNumber();
-  const a = await deposit(c1, 'evc_plus', 8, sender);
-  const b = await deposit(c2, 'evc_plus', 8, sender);
+  const c = await newCustomer(0, sender);
+  const first = await deposit(c, 'evc_plus', 1, sender);
+  const second = await deposit(c, 'evc_plus', 1, sender);
+  const third = await deposit(c, 'evc_plus', 1, sender);
+  const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 1, phone: sender }));
+  assert.equal(res.matchStatus, 'matched');
+  assert.equal(res.orderId, first.id);
+  assert.equal((await order(c, first.id)).status, 'completed');
+  assert.equal((await order(c, second.id)).status, 'pending');
+  assert.equal((await order(c, third.id)).status, 'pending');
+  assert.equal((await rpc(c, 'customer_wallet')).availableBalance, '1.00', 'credited once');
+  // A second payment pays the next one.
+  const next = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 1, phone: sender }));
+  assert.equal(next.orderId, second.id);
+  assert.equal((await rpc(c, 'customer_wallet')).availableBalance, '2.00');
+});
+
+test('deposits of two customers fit one payment: the customer registered with the number takes it', async () => {
+  const sender = evcNumber();
+  const owner = await newCustomer(0, sender);
+  const otherNumber = evcNumber();
+  const other = await newCustomer(0, otherNumber);
+  const theirs = await deposit(other, 'evc_plus', 7, otherNumber);
+  const mine = await deposit(owner, 'evc_plus', 7, sender);
+  // An older deposit placed before the login-number rule, naming the owner's number.
+  await db.query('UPDATE orders SET phone_number = $1 WHERE id = $2', [`252${sender}`, theirs.id]);
+  const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 7, phone: sender }));
+  assert.equal(res.matchStatus, 'matched');
+  assert.equal(res.orderId, mine.id);
+  assert.equal((await order(other, theirs.id)).status, 'pending');
+});
+
+test('ambiguous: a number that is no customer\'s login fits two customers -> a manager assigns it', async () => {
+  const sender = evcNumber(); // nobody registered with it
+  const n1 = evcNumber();
+  const n2 = evcNumber();
+  const c1 = await newCustomer(0, n1);
+  const c2 = await newCustomer(0, n2);
+  const a = await deposit(c1, 'evc_plus', 8, n1);
+  const b = await deposit(c2, 'evc_plus', 8, n2);
+  await db.query('UPDATE orders SET phone_number = $1 WHERE id = ANY($2)', [`252${sender}`, [a.id, b.id]]);
   const res = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 8, phone: sender }));
   assert.equal(res.matchStatus, 'ambiguous');
   assert.equal((await order(c1, a.id)).status, 'pending');
@@ -216,17 +334,18 @@ test('ambiguous: two deposits fit one payment -> nothing credited until a manage
   const waiting = await rpc(agent, 'manage_payment_sms', { p_status: 'ambiguous' });
   assert.ok(waiting.some((s) => s.id === res.id));
 
-  const other = await deposit(c1, 'evc_plus', 80, sender);
-  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: other.orderCode }), 'PAYMENT_MISMATCH');
-  const resolved = await rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: b.orderCode });
+  const otherAmount = await deposit(c1, 'evc_plus', 80, n1);
+  await db.query('UPDATE orders SET phone_number = $1 WHERE id = $2', [`252${sender}`, otherAmount.id]);
+  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: otherAmount.orderCode }), 'PAYMENT_MISMATCH');
+  const resolved = await rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: a.orderCode });
   assert.equal(resolved.status, 'completed');
-  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: a.orderCode }), 'INVALID_STATE');
-  assert.equal((await order(c1, a.id)).status, 'pending');
+  await rejects(rpc(agent, 'manage_resolve_payment_sms', { p_sms_id: res.id, p_order_code: b.orderCode }), 'INVALID_STATE');
+  assert.equal((await order(c2, b.id)).status, 'pending');
 });
 
 test('device/SIM guard: SMS from another phone or SIM never credit', async () => {
-  const customer = await newCustomer();
   const sender = edahabNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'edahab', 9, sender);
   const wrongPhone = await rpc(agent, 'agent_ingest_payment_sms', sms({ provider: 'Somtel', amount: 9, phone: sender, device: 'other-phone' }));
   assert.equal(wrongPhone.matchStatus, 'unmatched');
@@ -239,8 +358,8 @@ test('device/SIM guard: SMS from another phone or SIM never credit', async () =>
 });
 
 test('slot unresolved (no Phone permission) on the wallet\'s phone still credits; another phone does not', async () => {
-  const customer = await newCustomer();
   const sender = evcNumber();
+  const customer = await newCustomer(0, sender);
   const d = await deposit(customer, 'evc_plus', 1, `252${sender}`);
   const unresolved = { ...sms({ amount: 1, phone: `0${sender}` }), p_sim_slot: null };
   const other = await rpc(agent, 'agent_ingest_payment_sms', { ...unresolved, p_device_id: 'other-phone' });
@@ -250,13 +369,33 @@ test('slot unresolved (no Phone permission) on the wallet\'s phone still credits
   assert.equal((await order(customer, d.id)).status, 'completed');
 });
 
+test('login number only: deposits use the registered number; another number is refused', async () => {
+  const own = evcNumber();
+  const customer = await newCustomer(10_000, own);
+  // No number, or the same number written differently: the registered one is used.
+  for (const given of [null, own, `0${own}`, `+252 ${own}`]) {
+    const d = await deposit(customer, 'evc_plus', 1, given);
+    assert.equal(d.phoneNumber, `252${own}`);
+  }
+  await rejects(deposit(customer, 'evc_plus', 1, evcNumber()), 'PHONE_NOT_OWN');
+  await rejects(withdraw(customer, 'evc_plus', 1, evcNumber()), 'PHONE_NOT_OWN');
+  const w = await withdraw(customer, 'evc_plus', 2, null);
+  assert.equal(w.phoneNumber, `252${own}`);
+  assert.equal((await wallet(customer)).pendingBalance, '2.00');
+  // Betting platforms still use the player's account ID.
+  const p = await rpc(customer, 'customer_create_withdrawal', {
+    p_method: 'melbet', p_amount: '3', p_account_id: '7841228', p_idempotency_key: randomUUID() });
+  assert.equal(p.accountId, '7841228');
+  for (const id of [w.id, p.id]) await rpc(agent, 'agent_withdrawal_fail', { p_order_id: id, p_reason: 'test cleanup' });
+});
+
 // ---------------------------------------------------------------------------
 // Withdrawals
 // ---------------------------------------------------------------------------
 
 async function startedPayout(amount, method = 'edahab') {
-  const customer = await newCustomer(10_000);
   const to = method === 'edahab' ? edahabNumber() : evcNumber();
+  const customer = await newCustomer(10_000, to);
   const w = await withdraw(customer, method, amount, to);
   assert.equal(w.status, 'pending');
   const reserved = (await wallet(customer)).pendingBalance;
@@ -321,7 +460,8 @@ test('payout fails after the PIN: never completed, funds held; retry needs confi
   await rpc(agent, 'agent_payout_report_step2', { p_attempt_id: first.id, p_status: 'failed', p_response: 'Haraagaagu kuma filna' });
   const held = await order(customer, w.id);
   assert.equal(held.status, 'processing');
-  assert.match(held.failureReason, /kuma filna/);
+  assert.equal(held.failureReason, null, 'the agents\' note is not shown to the customer while it is open');
+  assert.match((await rpc(agent, 'manage_payout', { p_order_id: w.id })).failureReason, /kuma filna/);
   assert.equal((await wallet(customer)).pendingBalance, reserved);
   // Not redialed on its own; can't be failed (released) or retried blind.
   assert.ok(!(await rpc(agent, 'agent_payout_queue')).some((o) => o.id === w.id));
@@ -366,6 +506,25 @@ test('unclear payout: the carrier\'s "you transferred" SMS on the payout phone c
   await rejects(rpc(agent, 'manage_payout_retry', { p_order_id: w.id, p_confirmed_not_paid: true }), 'INVALID_ORDER_STATE');
 });
 
+test('the "you transferred" SMS arriving while the phone still waits after the PIN completes it; the late report changes nothing', async () => {
+  const { customer, w, to, left } = await startedPayout(17, 'evc_plus');
+  const dial = await rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE });
+  await rpc(agent, 'agent_payout_report_step1', { p_attempt_id: dial.id, p_status: 'step1_success' });
+  // EVC's SMS before the app gives up waiting for the final screen.
+  const conf = await rpc(agent, 'agent_payout_confirmation', { p_receiver_phone: to, p_amount: w.netAmount,
+    p_raw_text: `[-EVCPLUS-] $${w.netAmount} ayaad uwareejisay YASIIN MAXAMED AADAN(${to}), Tar: 21/10/26 19:38:46`,
+    p_provider: 'Hormuud', p_received_at: new Date().toISOString() });
+  assert.equal(conf.result, 'completed');
+  assert.equal((await order(customer, w.id)).status, 'completed');
+  // Then the app's "no final confirmation" for the same attempt.
+  const late = await rpc(agent, 'agent_payout_report_step2', { p_attempt_id: dial.id, p_status: 'ambiguous', p_response: 'No final confirmation received after entering the PIN.' });
+  assert.equal(late.status, 'success');
+  const after = await order(customer, w.id);
+  assert.equal(after.status, 'completed');
+  assert.equal((await wallet(customer)).availableBalance, left);
+  assert.ok(!(await rpc(agent, 'manage_payouts', { p_review_only: true })).some((o) => o.id === w.id), 'not in review');
+});
+
 test('payout SMS alone never completes a withdrawal that was not dialed', async () => {
   const { customer, w, to } = await startedPayout(15);
   await rpc(agent, 'agent_withdrawal_start', { p_order_id: w.id }); // manual "processing", no dial
@@ -400,15 +559,17 @@ test('manual fail after an unclear payout needs "not paid", then returns the fun
 });
 
 test('methods without a payout wallet (Golis, ...) stay manual', async () => {
-  const customer = await newCustomer(10_000);
-  const w = await withdraw(customer, 'golis', 5, '901234567');
+  const golis = golisNumber();
+  const customer = await newCustomer(10_000, golis);
+  const w = await withdraw(customer, 'golis', 5, golis);
   assert.ok(!(await rpc(agent, 'agent_payout_queue')).some((o) => o.id === w.id));
   await rejects(rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE }), 'NOT_CONFIGURED');
 });
 
 test('permissions: customers cannot run payouts, read SMS or see wallets/PINs', async () => {
-  const customer = await newCustomer(10_000);
-  const w = await withdraw(customer, 'edahab', 5, edahabNumber());
+  const own = edahabNumber();
+  const customer = await newCustomer(10_000, own);
+  const w = await withdraw(customer, 'edahab', 5, own);
   await rejects(rpc(customer, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE }), 'FORBIDDEN');
   await rejects(rpc(customer, 'agent_ingest_payment_sms', sms({ amount: 1, phone: evcNumber() })), 'FORBIDDEN');
   await rejects(rpc(customer, 'manage_payment_sms'), 'FORBIDDEN');
@@ -421,4 +582,78 @@ test('permissions: customers cannot run payouts, read SMS or see wallets/PINs', 
   assert.ok(wallets.every((x) => !('pin' in x)));
   // Clean up: nothing left in the payout queue for the app tests.
   await rpc(agent, 'agent_withdrawal_fail', { p_order_id: w.id, p_reason: 'test cleanup' });
+});
+
+test('a reinstalled Agent App on the same phone keeps its wallets, SMS and payouts', async () => {
+  const label = `samsung SM-${randomUUID().slice(0, 6)}`;
+  const oldId = `old-${randomUUID()}`;
+  const newId = `new-${randomUUID()}`;
+  await rpc(agent, 'agent_register_device', { p_device_id: oldId, p_device_label: label });
+  const number = evcNumber();
+  const w = await rpc(agent, 'manage_save_payout_wallet', { p_id: null, p_method: 'evc_plus', p_phone_number: number, p_device_id: oldId, p_sim_slot: 1 });
+  try {
+    const sender = evcNumber();
+    const c = await newCustomer(0, sender);
+    const before = await deposit(c, 'evc_plus', 4, sender);
+    // Reinstalled: the same agent, the same model, a new id.
+    await rpc(agent, 'agent_register_device', { p_device_id: newId, p_device_label: label });
+    const wallets = await rpc(agent, 'manage_payout_wallets');
+    assert.equal(wallets.find((x) => x.id === w.id).deviceId, newId, 'the wallet moved to the new id');
+
+    // An SMS stored under either id counts.
+    const viaOld = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 4, phone: sender, device: oldId }));
+    assert.equal(viaOld.orderId, before.id);
+    const after = await deposit(c, 'evc_plus', 5, sender);
+    const viaNew = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 5, phone: sender, device: newId }));
+    assert.equal(viaNew.orderId, after.id);
+
+    // Another model is still another phone.
+    await rpc(agent, 'agent_register_device', { p_device_id: `other-${randomUUID()}`, p_device_label: 'Pixel 7' });
+    assert.equal((await rpc(agent, 'manage_payout_wallets')).find((x) => x.id === w.id).deviceId, newId);
+    const pending = await deposit(c, 'evc_plus', 6, sender);
+    const elsewhere = await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 6, phone: sender, device: 'some-other-phone' }));
+    assert.equal(elsewhere.matchStatus, 'unmatched');
+    assert.equal((await order(c, pending.id)).status, 'pending');
+  } finally {
+    await rpc(agent, 'manage_delete_payout_wallet', { p_id: w.id });
+  }
+});
+
+test('orders show the balance before and after; methods show withdrawal limits', async () => {
+  const sender = evcNumber();
+  const c = await newCustomer(500, sender);
+  const d = await deposit(c, 'evc_plus', 2, sender);
+  assert.equal(d.balanceBefore, null, 'nothing moved yet');
+  await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 2, phone: sender }));
+  const paid = await order(c, d.id);
+  assert.deepEqual([paid.balanceBefore, paid.balanceAfter], ['5.00', '7.00']);
+
+  const w = await withdraw(c, 'evc_plus', 3, sender);
+  const held = await order(c, w.id);
+  assert.deepEqual([held.balanceBefore, held.balanceAfter], ['7.00', '4.00']);
+  await rpc(agent, 'agent_withdrawal_fail', { p_order_id: w.id, p_reason: 'test', p_confirmed_not_paid: true });
+  const failed = await order(c, w.id);
+  assert.equal(failed.balanceAfter, null, 'a failed withdrawal moved nothing');
+
+  const methods = await rpc(c, 'customer_payment_methods');
+  const evc = methods.find((m) => m.method === 'evc_plus');
+  assert.match(evc.minWithdraw, /^\d+\.\d\d$/);
+  assert.match(evc.maxWithdraw, /^\d+\.\d\d$/);
+});
+
+test('re-check: a payout SMS ignored while the dial was open completes the stuck withdrawal', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { customer, w, to, left } = await startedPayout(18, 'evc_plus');
+  const dial = await rpc(agent, 'agent_payout_start_dial', { p_order_id: w.id, p_device_id: PHONE });
+  await rpc(agent, 'agent_payout_report_step1', { p_attempt_id: dial.id, p_status: 'step1_success' });
+  await rpc(agent, 'agent_payout_report_step2', { p_attempt_id: dial.id, p_status: 'ambiguous', p_response: 'No final confirmation' });
+  // What the old rule stored for the SMS that arrived during the wait.
+  await db.query(`INSERT INTO payout_confirmations (provider, receiver_phone, amount, raw_text, order_id, result)
+                  VALUES ('Hormuud', $1, $2, 'ayaad uwareejisay', $3, 'ignored_no_dial_attempt')`, [to, w.netAmount, w.id]);
+  const sql = readFileSync(new globalThis.URL('../migrations/20261021001600_payout_sms_during_dial.sql', import.meta.url), 'utf8');
+  await db.query(sql.slice(sql.indexOf('DO $$')));
+  assert.equal((await order(customer, w.id)).status, 'completed');
+  assert.equal((await wallet(customer)).availableBalance, left);
+  await db.query(sql.slice(sql.indexOf('DO $$'))); // running it again changes nothing
+  assert.equal((await order(customer, w.id)).status, 'completed');
 });

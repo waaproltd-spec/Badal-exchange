@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Badal Exchange brand purple, behind the launcher icon's "b". -->
+    <color name="ic_launcher_background">#42085D</color>
+</resources>

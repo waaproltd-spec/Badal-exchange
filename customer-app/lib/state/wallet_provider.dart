@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../models/wallet.dart';
+import '../l10n/strings.dart';
 
 class WalletProvider extends ChangeNotifier {
   WalletProvider({required this.customerApi}) {
@@ -42,7 +43,7 @@ class WalletProvider extends ChangeNotifier {
       if (!silent) _error = e.message;
     } catch (_) {
       if (silent) return;
-      _error = 'Could not load your wallet. Check your connection and try again.';
+      _error = AppStrings.couldNotLoadWallet;
     } finally {
       _loading = false;
       notifyListeners();
