@@ -524,11 +524,24 @@ class CustomerBonus {
 class CustomerBonusEntry {
   /// 'earned' or 'moved'.
   final String kind;
+
+  /// Exact, possibly a fraction of a cent ("0.006").
   final String amount;
   final DateTime createdAt;
   final String? rate;
   final String? orderCode;
+
+  /// The order it was earned on: amount, 'deposit' or 'withdraw', method.
   final String? withdrawal;
+  final String? direction;
+  final String? methodLabel;
+
+  /// Moved entries: the cents credited to the main wallet.
+  final String? movedToMain;
+
+  /// The Bonus screen's history, across customers.
+  final String? customerName;
+  final String? customerPhone;
 
   const CustomerBonusEntry({
     required this.kind,
@@ -537,6 +550,11 @@ class CustomerBonusEntry {
     this.rate,
     this.orderCode,
     this.withdrawal,
+    this.direction,
+    this.methodLabel,
+    this.movedToMain,
+    this.customerName,
+    this.customerPhone,
   });
 
   bool get earned => kind == 'earned';
@@ -547,6 +565,104 @@ class CustomerBonusEntry {
         createdAt: DateTime.parse(j['createdAt'] as String),
         rate: j['rate'] as String?,
         orderCode: j['orderCode'] as String?,
-        withdrawal: j['withdrawal'] as String?,
+        withdrawal: (j['orderAmount'] ?? j['withdrawal']) as String?,
+        direction: j['direction'] as String?,
+        methodLabel: j['methodLabel'] as String?,
+        movedToMain: j['movedToMain'] as String?,
+        customerName: j['customerName'] as String?,
+        customerPhone: j['customerPhone'] as String?,
+      );
+}
+
+/// One transaction type a manager can make earn a bonus: a direction of a method.
+class BonusType {
+  final String direction;
+  final String method;
+  final String label;
+
+  /// 'mobile_money' or 'platform'.
+  final String kind;
+  final bool eligible;
+
+  const BonusType({
+    required this.direction,
+    required this.method,
+    required this.label,
+    required this.kind,
+    required this.eligible,
+  });
+
+  String get key => '$direction:$method';
+
+  factory BonusType.fromJson(Map<String, dynamic> j) => BonusType(
+        direction: j['direction'] as String,
+        method: j['method'] as String,
+        label: j['label'] as String? ?? j['method'] as String,
+        kind: j['kind'] as String? ?? 'mobile_money',
+        eligible: j['eligible'] as bool? ?? false,
+      );
+}
+
+class BonusCustomer {
+  final String id;
+  final String name;
+  final String phone;
+  final String balance;
+  final String totalEarned;
+  final String rate;
+
+  const BonusCustomer({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.balance,
+    required this.totalEarned,
+    required this.rate,
+  });
+
+  factory BonusCustomer.fromJson(Map<String, dynamic> j) => BonusCustomer(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '',
+        phone: j['phone'] as String? ?? '',
+        balance: j['balance'] as String? ?? '0.00',
+        totalEarned: j['totalEarned'] as String? ?? '0.00',
+        rate: j['rate'] as String? ?? '0%',
+      );
+}
+
+/// The Bonus screen (manage_bonus_settings).
+class BonusSettings {
+  final bool enabled;
+  final int defaultRateBp;
+  final List<BonusType> types;
+  final String totalBalance;
+  final String totalEarned;
+  final List<BonusCustomer> customers;
+  final List<CustomerBonusEntry> history;
+
+  const BonusSettings({
+    required this.enabled,
+    required this.defaultRateBp,
+    required this.types,
+    required this.totalBalance,
+    required this.totalEarned,
+    required this.customers,
+    required this.history,
+  });
+
+  List<String> get eligibleKeys => [for (final t in types) if (t.eligible) t.key];
+
+  factory BonusSettings.fromJson(Map<String, dynamic> j) => BonusSettings(
+        enabled: j['enabled'] as bool? ?? false,
+        defaultRateBp: (j['defaultRateBp'] as num?)?.toInt() ?? 100,
+        types: [for (final t in (j['types'] as List? ?? const [])) BonusType.fromJson(t as Map<String, dynamic>)],
+        totalBalance: j['totalBalance'] as String? ?? '0.00',
+        totalEarned: j['totalEarned'] as String? ?? '0.00',
+        customers: [
+          for (final c in (j['customers'] as List? ?? const [])) BonusCustomer.fromJson(c as Map<String, dynamic>),
+        ],
+        history: [
+          for (final e in (j['history'] as List? ?? const [])) CustomerBonusEntry.fromJson(e as Map<String, dynamic>),
+        ],
       );
 }

@@ -345,6 +345,17 @@ class AgentApi {
   Future<CustomerDetail> getCustomer(String id) async =>
       CustomerDetail.fromJson(await _map('agent_customer', {'p_id': id}));
 
+  /// Managers: the Bonus screen -- on/off, the rate, eligible types, balances, history.
+  Future<BonusSettings> getBonusSettings() async => BonusSettings.fromJson(await _map('manage_bonus_settings'));
+
+  /// Any left null stays as it is; [eligible] is the full list ('withdraw:edahab', ...).
+  Future<BonusSettings> setBonusSettings({bool? enabled, int? defaultRateBp, List<String>? eligible}) async =>
+      BonusSettings.fromJson(await _map('manage_set_bonus_settings', {
+        'p_enabled': enabled,
+        'p_default_bp': defaultRateBp,
+        'p_eligible': eligible,
+      }));
+
   /// Managers: one customer's withdrawal bonus and its setting.
   Future<CustomerBonus> getCustomerBonus(String id) async =>
       CustomerBonus.fromJson(await _map('manage_customer_bonus', {'p_customer_id': id}));

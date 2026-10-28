@@ -311,8 +311,14 @@ class AppStrings {
   static String bonusRow(String rate) => _t('Bonus ($rate)', 'Gunno ($rate)');
   static String get bonusGoesTo => _t('You will get it in your Bonus Wallet', 'Waxaad heli doontaa Bonus Wallet');
   static String bonusRateInfo(String rate) => _t(
-      'You earn $rate of every completed withdrawal (not EVC Plus, Golis or ZAAD).',
-      'Waxaad heshaa $rate lacag-bixin kasta oo dhammaatay (EVC Plus, Golis iyo ZAAD maahan).');
+      'You earn $rate on every completed eligible transaction. Transfer it to your main wallet any time.',
+      'Waxaad heshaa $rate dhaqdhaqaaq kasta oo la oggol yahay oo dhammaada. U wareeji boorsadaada weyn mar kasta.');
+  static String get availableBonus => _t('Available bonus', 'Gunnada diyaarka ah');
+  static String get noBonusToTransfer =>
+      _t('At least \$0.01 is needed to transfer.', 'Ugu yaraan \$0.01 ayaa loo baahan yahay si loo wareejiyo.');
+  static String bonusOnOrder(String amount, String direction, String method) => direction == 'deposit'
+      ? _t('On \$$amount deposit • $method', 'Dhigasho \$$amount • $method')
+      : _t('On \$$amount withdrawal • $method', 'Lacag-bixin \$$amount • $method');
   static String get bonusOff => _t('The bonus is off for your account.', 'Gunnadu way ka xiran tahay akoonkaaga.');
   static String get totalEarned => _t('Total earned', 'Wadarta la helay');
   static String get moveBonus => _t('Transfer Bonus to Main Wallet', 'U wareeji Gunnada Boorsada Weyn');
@@ -321,8 +327,6 @@ class AppStrings {
   static String get noBonusYet => _t('No bonus yet', 'Weli gunno ma jirto');
   static String get bonusEarned => _t('Bonus earned', 'Gunno la helay');
   static String get bonusMovedTitle => _t('Moved to main wallet', 'Loo wareejiyay boorsada weyn');
-  static String bonusOnWithdrawal(String amount, String method) =>
-      _t('On \$$amount withdrawal • $method', 'Lacag-bixin \$$amount • $method');
   static String get couldNotLoadBonus => _t('Could not load the bonus', 'Gunnada lama soo rarin');
 
   // Receiver name (Golis, ZAAD, EVC Plus)

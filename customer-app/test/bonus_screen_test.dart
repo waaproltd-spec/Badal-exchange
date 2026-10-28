@@ -4,6 +4,7 @@ import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/models/bonus.dart';
 import 'package:badal_exchange_customer/screens/bonus/bonus_screen.dart';
+import 'package:badal_exchange_customer/widgets/bonus_widgets.dart';
 import 'package:badal_exchange_customer/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,7 +34,7 @@ class _FakeApi extends CustomerApi {
   @override
   Future<BonusInfo> moveBonus() async {
     moves++;
-    if (!info.hasBalance) throw const ApiException(status: 409, code: 'NO_BONUS', message: 'No bonus to move');
+    if (!info.canTransfer) throw const ApiException(status: 409, code: 'NO_BONUS', message: 'No bonus to move');
     info = _info('0.00', [
       {'kind': 'moved', 'amount': info.balance, 'createdAt': '2026-10-28T10:00:00Z'},
       _earned,
@@ -52,7 +53,7 @@ void main() {
     await tester.pumpWidget(_app(_FakeApi(_info('3.00', [_earned]))));
     await tester.pumpAndSettle();
     expect(find.text('\$3.00'), findsOneWidget);
-    expect(find.textContaining('You earn 1% of every completed withdrawal'), findsOneWidget);
+    expect(find.textContaining('You earn 1% on every completed eligible transaction'), findsOneWidget);
     expect(find.text('Bonus earned (1%)'), findsOneWidget);
     expect(find.text('On \$100.00 withdrawal • eDahab'), findsOneWidget);
     expect(find.text('+\$1.00'), findsOneWidget);
@@ -79,5 +80,56 @@ void main() {
     expect(find.text('No bonus yet'), findsOneWidget);
     expect(find.text('The bonus is off for your account.'), findsOneWidget);
     expect(tester.widget<PrimaryButton>(find.byKey(const Key('move-bonus'))).onPressed, isNull);
+  });
+
+  testWidgets('a fraction of a cent shows exactly, with its percentage; under a cent cannot be transferred', (tester) async {
+    await tester.pumpWidget(_app(_FakeApi(BonusInfo.fromJson({
+      'balance': '0.006',
+      'transferable': '0.00',
+      'rate': '2%',
+      'totalEarned': '0.006',
+      'entries': [
+        {'kind': 'earned', 'amount': '0.006', 'rate': '2%', 'createdAt': '2026-10-28T04:42:00Z',
+         'orderCode': 'EX888', 'orderAmount': '0.30', 'direction': 'withdraw', 'methodLabel': '888STARZ'},
+      ],
+    }))));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.byKey(const Key('bonus-balance'))).data, '\$0.006');
+    expect(find.text('Bonus earned (2%)'), findsOneWidget);
+    expect(find.text('On \$0.30 withdrawal • 888STARZ'), findsOneWidget);
+    expect(find.text('+\$0.006'), findsOneWidget);
+    expect(tester.widget<PrimaryButton>(find.byKey(const Key('move-bonus'))).onPressed, isNull);
+    expect(find.text('At least \$0.01 is needed to transfer.'), findsOneWidget);
+  });
+
+  testWidgets('Home: the bonus card shows available, total earned and the last lines with their %', (tester) async {
+    final info = BonusInfo.fromJson({
+      'balance': '1.006',
+      'transferable': '1.00',
+      'rate': '2%',
+      'totalEarned': '3.006',
+      'entries': [
+        {'kind': 'earned', 'amount': '0.006', 'rate': '2%', 'createdAt': '2026-10-28T04:42:00Z',
+         'orderAmount': '0.30', 'direction': 'withdraw', 'methodLabel': '888STARZ'},
+        {'kind': 'moved', 'amount': '2.00', 'createdAt': '2026-10-28T04:00:00Z'},
+        {'kind': 'earned', 'amount': '1.00', 'rate': '1%', 'createdAt': '2026-10-27T10:00:00Z',
+         'orderAmount': '100.00', 'direction': 'deposit', 'methodLabel': 'MELBET'},
+        {'kind': 'earned', 'amount': '2.00', 'rate': '1%', 'createdAt': '2026-10-26T10:00:00Z',
+         'orderAmount': '200.00', 'direction': 'withdraw', 'methodLabel': 'eDahab'},
+      ],
+    });
+    var opened = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: ListView(children: [HomeBonusCard(info: info, onOpen: () => opened++)])),
+    ));
+    expect(tester.widget<Text>(find.byKey(const Key('home-bonus-balance'))).data, '\$1.006');
+    expect(tester.widget<Text>(find.byKey(const Key('home-bonus-total'))).data, '\$3.006');
+    expect(find.text('2%'), findsOneWidget);
+    expect(find.text('Bonus earned (2%)'), findsOneWidget);
+    expect(find.text('On \$100.00 deposit • MELBET'), findsOneWidget);
+    expect(find.text('Moved to main wallet'), findsOneWidget);
+    expect(find.text('On \$200.00 withdrawal • eDahab'), findsNothing, reason: 'the last three only');
+    await tester.tap(find.byKey(const Key('home-bonus-open')));
+    expect(opened, 1);
   });
 }

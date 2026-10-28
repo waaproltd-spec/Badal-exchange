@@ -87,7 +87,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
             !b.programmeOn
                 ? 'The bonus is switched off for everyone.'
                 : b.enabled
-                    ? 'Earns ${b.rate} of every completed withdrawal (not EVC Plus, Golis or ZAAD).'
+                    ? 'Earns ${b.rate} of every completed eligible transaction (set in Account > Bonus).'
                     : 'Off for this customer: no bonus on their withdrawals.',
             style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
           ),
@@ -118,7 +118,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
                   Expanded(
                     child: Text(
                       e.earned
-                          ? '${e.rate ?? ''} of \$${e.withdrawal ?? ''} · ${e.orderCode ?? ''}'
+                          ? '${e.rate ?? ''} of \$${e.withdrawal ?? ''} ${e.direction == 'deposit' ? 'deposit' : 'withdrawal'} · ${e.orderCode ?? ''}'
                           : 'Moved to main wallet',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

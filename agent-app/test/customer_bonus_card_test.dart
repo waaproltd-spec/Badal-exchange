@@ -49,8 +49,8 @@ void main() {
     await tester.pumpWidget(_app(api));
     await tester.pumpAndSettle();
     expect(find.text('\$1.25'), findsOneWidget);
-    expect(find.textContaining('Earns 1% of every completed withdrawal'), findsOneWidget);
-    expect(find.text('1% of \$100.00 · EXBONUS1'), findsOneWidget);
+    expect(find.textContaining('Earns 1% of every completed eligible transaction'), findsOneWidget);
+    expect(find.text('1% of \$100.00 withdrawal · EXBONUS1'), findsOneWidget);
     expect(find.text('Moved to main wallet'), findsOneWidget);
     expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '1%')).selected, isTrue);
 

@@ -11,6 +11,7 @@ import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
+import 'admin/bonus_settings_screen.dart';
 import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
 import 'admin/merchant_feed_screen.dart';
@@ -188,6 +189,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.accentOrange,
               label: 'Promo Code',
               onTap: () => _open(const PromoCodeScreen()),
+            ),
+            _NavRow(
+              icon: Icons.redeem_rounded,
+              color: AppColors.statusCompleted,
+              label: 'Bonus',
+              onTap: () => _open(const BonusSettingsScreen()),
             ),
             _NavRow(
               icon: Icons.account_balance_wallet_rounded,
