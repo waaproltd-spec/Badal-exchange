@@ -882,6 +882,25 @@ test('SMS forwarder: forms, text and GET with other field names also work; other
   assert.equal((await db.query(`SELECT code FROM private.merchant_feed_sessions WHERE provider = 'golis'`)).rows[0].code, '246810');
 });
 
+test('SMS forwarder: no sender field (as some forwarders send it) is accepted on Sahal\'s words; the Agent App path still needs 898', async (t) => {
+  if (!served || !hookServed) return t.skip('the functions are not served');
+  const token = await newToken();
+  await waitForCode();
+  // Not Sahal's words and no sender: nothing.
+  assert.deepEqual((await hook(token, { text: 'Your balance is 123456' })).body, { result: 'ignored', reason: 'sender' });
+  // A different sender is still refused when one is given.
+  assert.equal((await hook(token, { from: '192', text: SAHAL_SMS })).body.reason, 'sender');
+  assert.equal((await status()).state, 'needs_code');
+  // The GET form some forwarders use, with only the message.
+  const g = await hook(token, { text: SAHAL_SMS }, { as: 'get' });
+  assert.deepEqual(g.body, { result: 'submitted' });
+  // The Agent App's own path with no sender is still refused.
+  await db.query(`UPDATE merchant_feed_status SET state = 'ready' WHERE provider = 'golis'`);
+  await waitForCode();
+  const a = await managerClient();
+  assert.equal((await smsCode(a, SAHAL_SMS, { p_sender: '' })).data.reason, 'sender');
+});
+
 test('SMS forwarder: revoked, nothing gets in', async (t) => {
   if (!served || !hookServed) return t.skip('the functions are not served');
   const token = await newToken();
