@@ -102,6 +102,8 @@ check('required fields of the adapter are checked; secrets are kept and never re
 check('untested credentials are never used and cannot be switched on; a passed test allows both', async () => {
   assert.equal(await config(method), null, 'not for real orders before a test');
   await rejects(rpc(manager, 'manage_set_betting_platform_active', { p_method: method, p_active: true }), 'NOT_TESTED');
+  await rejects(rpc(manager, 'manage_set_payment_method', { p_method: method, p_enabled: true }), 'NOT_TESTED',
+    'nor from Payment Methods');
   const v = (await config(method, true)).version;
   // A failed test: error with the provider's answer.
   let p = await rpc(service, 'betting_platform_record_test', { p_method: method, p_version: v, p_ok: false, p_message: 'CashdeskBot rejected the request: invalid or missing "sign" signature.' });
@@ -163,4 +165,6 @@ check('removing a platform: a reason, off and hidden, secrets deleted, its order
   const { rows } = await db.query(`SELECT count(*)::int AS n FROM orders WHERE order_code = $1`, [`EXBP${seed}`]);
   assert.equal(rows[0].n, 1, 'its orders are kept');
   await rejects(rpc(manager, 'manage_set_betting_platform_active', { p_method: method, p_active: true }), 'NOT_FOUND');
+  await rejects(rpc(manager, 'manage_set_payment_method', { p_method: method, p_enabled: true }), 'NOT_FOUND');
+  assert.ok(!(await rpc(manager, 'manage_payment_methods')).some((m) => m.method === method), 'gone from Payment Methods');
 });

@@ -397,3 +397,67 @@ REVOKE ALL ON FUNCTION public.betting_platform_config(text, boolean), public.bet
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.betting_platform_config(text, boolean), public.betting_platform_record_test(text, uuid, boolean, text, uuid)
   TO service_role;
+
+-- Payment Methods (ON/OFF, rates, fees) leaves removed platforms out, and
+-- its switch cannot turn on a platform whose credentials have not passed
+-- their test: for a managed platform it goes through the same check.
+CREATE OR REPLACE FUNCTION public.manage_payment_methods()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_id uuid := private.require_management();
+BEGIN
+  RETURN COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'method', m.method, 'label', m.label, 'kind', m.kind, 'color', m.color, 'initials', m.initials,
+      'order', m.sort_order, 'enabled', m.enabled, 'updatedAt', m.updated_at,
+      'depositRate', (SELECT r.rate::float8 FROM public.exchange_rates r
+                      WHERE r.method = m.method AND r.direction = 'deposit' AND r.active ORDER BY r.created_at DESC LIMIT 1),
+      'withdrawRate', (SELECT r.rate::float8 FROM public.exchange_rates r
+                       WHERE r.method = m.method AND r.direction = 'withdraw' AND r.active ORDER BY r.created_at DESC LIMIT 1),
+      -- flat fees are cents; percent fees 0-100.
+      'depositFee', (SELECT jsonb_build_object('type', f.fee_type, 'value', f.value::float8) FROM public.fees f
+                     WHERE f.method = m.method AND f.direction = 'deposit' AND f.active ORDER BY f.created_at DESC LIMIT 1),
+      'withdrawFee', (SELECT jsonb_build_object('type', f.fee_type, 'value', f.value::float8) FROM public.fees f
+                      WHERE f.method = m.method AND f.direction = 'withdraw' AND f.active ORDER BY f.created_at DESC LIMIT 1),
+      'minWithdraw', (SELECT private.money(l.min_cents) FROM public.withdrawal_limits l WHERE l.method = m.method),
+      'maxWithdraw', (SELECT private.money(l.max_cents) FROM public.withdrawal_limits l WHERE l.method = m.method),
+      'paymentLocation', private.payment_location_json(m),
+      'merchantUssd', m.merchant_ussd, 'merchantUssdEnabled', m.merchant_ussd_enabled
+    ) ORDER BY m.sort_order)
+    FROM public.payment_methods m
+    WHERE NOT EXISTS (SELECT 1 FROM public.payment_integrations i
+                      WHERE i.kind = 'betting' AND i.method_key = m.method::text AND i.deleted_at IS NOT NULL)
+  ), '[]'::jsonb);
+END
+$$;
+
+CREATE OR REPLACE FUNCTION public.manage_set_payment_method(p_method text, p_enabled boolean)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_id uuid := private.require_management();
+  v_method public.order_method := private.parse_method(p_method);
+  m public.payment_methods;
+BEGIN
+  IF p_enabled IS NULL THEN
+    PERFORM private.raise_api(400, 'VALIDATION_ERROR', 'enabled is required');
+  END IF;
+  IF (private.betting_row(v_method::text)).id IS NOT NULL THEN
+    PERFORM public.manage_set_betting_platform_active(v_method::text, p_enabled);
+    SELECT * INTO m FROM public.payment_methods WHERE method = v_method;
+    RETURN jsonb_build_object('method', m.method, 'label', m.label, 'enabled', m.enabled);
+  END IF;
+  UPDATE public.payment_methods SET enabled = p_enabled, updated_by = v_id, updated_at = now()
+  WHERE method = v_method RETURNING * INTO m;
+  PERFORM private.audit(v_id, private.app_role(), 'payment_method.update', 'payment_method', v_method::text, NULL, to_jsonb(m));
+  RETURN jsonb_build_object('method', m.method, 'label', m.label, 'enabled', m.enabled);
+END
+$$;
