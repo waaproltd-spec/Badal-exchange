@@ -255,7 +255,6 @@ class AppStrings {
   // Transaction screens
   static String get transactionDetails => _t('Transaction Details', 'Faahfaahinta Dhaqdhaqaaqa');
   static String get transactionId => _t('Transaction ID', 'Aqoonsiga Dhaqdhaqaaqa');
-  static String get transferId => _t('Transfer ID', 'Aqoonsiga Wareejinta');
   static String get type => _t('Type', 'Nooca');
   static String get account => _t('Account', 'Akoonka');
   static String get balanceBefore => _t('Balance Before', 'Haraaga Ka Hor');

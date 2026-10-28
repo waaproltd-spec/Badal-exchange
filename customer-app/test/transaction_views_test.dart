@@ -123,7 +123,7 @@ void main() {
     await tester.tap(find.text('Deposit · EVC Plus'));
     await tester.pumpAndSettle();
     expect(valueOf('EVC PLUS Account'), '+252610346060');
-    expect(valueOf('Transfer ID'), '7497945808');
+    expect(find.text('Transfer ID'), findsNothing, reason: 'the transfer number is for agents only');
     expect(valueOf('Balance After'), '\$1.25');
   });
 

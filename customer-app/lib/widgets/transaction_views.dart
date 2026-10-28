@@ -407,14 +407,8 @@ class TransactionResultView extends StatelessWidget {
   }
 }
 
-/// The carrier's or Sahal's transfer number for the order ("Sahal 7517287329"
-/// -> 7517287329); null when there is none, or only an internal reference.
-String? transferIdOf(Order order) {
-  final ref = order.transactionRef?.trim() ?? '';
-  if (ref.isEmpty || ref.startsWith('USSD-')) return null;
-  return ref.startsWith('Sahal ') ? ref.substring(6).trim() : ref;
-}
-
+// The carrier's / Sahal's transfer number is for agents only (Agent App):
+// customers see their Transaction ID.
 List<Widget> _rows(Order order, {required bool includeType}) => [
       DetailRow(label: AppStrings.transactionId, value: order.orderCode, mono: true),
       if (includeType)
@@ -427,7 +421,6 @@ List<Widget> _rows(Order order, {required bool includeType}) => [
           value: _signedAmount(order),
           valueColor: order.isDeposit ? AppColors.statusCompleted : AppColors.textPrimary,
         ),
-      if (transferIdOf(order) != null) DetailRow(label: AppStrings.transferId, value: transferIdOf(order)!, mono: true),
       if (order.balanceBefore != null)
         DetailRow(label: AppStrings.balanceBefore, value: Formatters.money(order.balanceBefore!), strong: true),
       if (order.balanceAfter != null)

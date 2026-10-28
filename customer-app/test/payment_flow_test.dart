@@ -445,10 +445,11 @@ void main() {
       expect(api.submitted.single, containsPair('amount', '2.50'));
       expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
       expect(find.text('USD Withdrawn'), findsOneWidget);
-      // It followed the withdrawal until paid: confirmed, with the transfer number.
+      // It followed the withdrawal until paid: confirmed. The transfer number
+      // is for agents only.
       expect(api.followed, isNotEmpty);
       expect(find.text('Withdrawal Confirmed'), findsOneWidget);
-      expect(find.text('7517291272'), findsOneWidget);
+      expect(find.text('7517291272'), findsNothing);
     });
 
     testWidgets('deposit $label: Complete Deposit form -> one deposit', (tester) async {
