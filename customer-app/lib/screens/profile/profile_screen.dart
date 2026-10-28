@@ -11,6 +11,7 @@ import '../../widgets/secondary_button.dart';
 import '../../widgets/summary_row.dart';
 import '../auth/login_screen.dart';
 import 'change_password_screen.dart';
+import 'kyc_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -131,6 +132,18 @@ class ProfileScreen extends StatelessWidget {
                     onSelectionChanged: (s) => AppThemeMode.set(s.first),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                key: const Key('kyc-verification'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                leading: Icon(Icons.verified_user_rounded, color: AppColors.primary),
+                title: Text(AppLanguage.isSomali ? 'Xaqiijinta KYC' : 'KYC Verification', style: AppTextStyles.body),
+                trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const KycScreen())),
               ),
             ),
             const SizedBox(height: 16),

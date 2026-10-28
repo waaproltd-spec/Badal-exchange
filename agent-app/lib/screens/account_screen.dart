@@ -18,6 +18,7 @@ import 'admin/integrations_screens.dart';
 import 'admin/merchant_feed_screen.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
+import 'admin/kyc_screens.dart';
 import 'admin/unconfirmed_deposits_screen.dart';
 import 'admin/withdrawal_verification_screen.dart';
 import 'manage_screens.dart';
@@ -136,6 +137,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusPending,
               label: 'Minimum & Maximum Limits',
               onTap: () => _open(const MethodSettingsListScreen(title: 'Withdrawal Limits', focus: MethodFocus.limits)),
+            ),
+            _NavRow(
+              icon: Icons.badge_rounded,
+              color: AppColors.statusProcessing,
+              label: 'KYC Management',
+              onTap: () => _open(const KycManagementScreen()),
             ),
             _NavRow(
               icon: Icons.verified_user_rounded,

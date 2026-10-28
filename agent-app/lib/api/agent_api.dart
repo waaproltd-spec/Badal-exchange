@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/commission.dart';
 import '../models/deposit_board.dart';
+import '../models/kyc.dart';
 import '../models/withdrawal_verification.dart';
 import '../models/report_overview.dart';
 import '../models/wallet_adjustment.dart';
@@ -74,6 +75,28 @@ class AgentApi {
         'p_from': from?.toUtc().toIso8601String(),
         'p_to': to?.toUtc().toIso8601String(),
       }));
+
+  /// Admin: KYC applications by status ('all' for every one), with a search.
+  Future<({List<KycListItem> items, Map<String, int> counts, String provider})> getKycApplications(
+      {String status = 'pending_review', String? query}) async {
+    final data = await _map('manage_kyc_applications', {'p_status': status, 'p_query': query});
+    return (
+      items: ((data['applications'] as List?) ?? const [])
+          .map((e) => KycListItem.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      counts: ((data['counts'] as Map?) ?? const {}).map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+      provider: data['provider'] as String? ?? 'none',
+    );
+  }
+
+  /// Admin: one application with its documents (the viewing is audited).
+  Future<KycApplication> getKycApplication(String id) async =>
+      KycApplication.fromJson(await _map('manage_kyc_application', {'p_id': id}));
+
+  /// Admin: approve | reject | resubmit, with a reason.
+  Future<void> decideKyc(String id, String decision, String reason) async {
+    await _map('manage_decide_kyc', {'p_id': id, 'p_decision': decision, 'p_reason': reason});
+  }
 
   /// Admin: accounts waiting for (or given) withdrawal approval.
   Future<({List<WithdrawalVerification> requests, Map<String, int> counts, String? whatsapp})> getWithdrawalVerifications(

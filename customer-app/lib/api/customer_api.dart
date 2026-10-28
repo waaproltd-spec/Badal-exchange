@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import '../models/kyc.dart';
 import '../models/withdrawal_access.dart';
 import '../models/app_content.dart';
 import '../models/bonus.dart';
@@ -209,6 +212,35 @@ class CustomerApi {
       _client.rpc('customer_register_push_token', {'p_token': token, 'p_platform': 'android'});
 
   Future<void> unregisterPushToken(String token) => _client.rpc('customer_unregister_push_token', {'p_token': token});
+
+  /// The customer's KYC.
+  Future<KycStatus> getKycStatus() async =>
+      KycStatus.fromJson(await _client.rpc('customer_kyc_status') as Map<String, dynamic>);
+
+  /// Submits KYC: the server checks it and sends it to Admin Review (or to
+  /// the identity service, when one is set up). Images as JPEG / PNG bytes.
+  Future<KycStatus> submitKyc({
+    required String documentType,
+    required String fullName,
+    required String documentNumber,
+    required String country,
+    required String dateOfBirth,
+    required String expiryDate,
+    required List<int> front,
+    List<int>? back,
+    required List<int> selfie,
+  }) async =>
+      KycStatus.fromJson(await _client.rpc('customer_submit_kyc', {
+        'p_document_type': documentType,
+        'p_full_name': fullName,
+        'p_document_number': documentNumber,
+        'p_country': country,
+        'p_date_of_birth': dateOfBirth,
+        'p_expiry_date': expiryDate,
+        'p_front': base64Encode(front),
+        'p_back': back == null ? null : base64Encode(back),
+        'p_selfie': base64Encode(selfie),
+      }) as Map<String, dynamic>);
 
   /// May this account withdraw? The first time, it asks the admin to
   /// approve it. Null when it cannot be read (the server still decides).
