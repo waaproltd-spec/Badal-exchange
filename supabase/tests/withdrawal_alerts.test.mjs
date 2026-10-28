@@ -81,6 +81,11 @@ before(async () => {
   await db.query(`UPDATE withdrawal_alert_chat SET chat_id = NULL, chat_name = NULL, linked_at = NULL, update_offset = 0,
                     summary_day = (now() AT TIME ZONE 'Africa/Mogadishu')::date`);
   await db.query(`DELETE FROM withdrawal_alerts`);
+  // Orders the other suites left unresolved for a long time are not this file's business:
+  // they count as already said, so only the orders made here are looked at.
+  await db.query(`INSERT INTO stuck_order_alerts (order_id, alerts, last_alert_at)
+                    SELECT o.id, 1, now() FROM orders o WHERE private.stuck_reason(o) IS NOT NULL
+                    ON CONFLICT (order_id) DO UPDATE SET alerts = 1, last_alert_at = now()`);
   // Sahal's own alerts are tested on their own below.
   await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
 });
