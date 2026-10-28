@@ -439,6 +439,11 @@ enabled = true
 # The function checks the caller itself (customer_begin_player_lookup).
 verify_jwt = false
 
+[functions.receiver-name]
+enabled = true
+# The function checks the caller itself (customer_begin_receiver_lookup).
+verify_jwt = false
+
 [functions.cashdeskbot]
 enabled = true
 # The function checks the caller itself (session_can_manage).

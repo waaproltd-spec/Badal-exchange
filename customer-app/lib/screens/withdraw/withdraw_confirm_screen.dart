@@ -59,6 +59,13 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   /// The bonus this withdrawal earns once paid; null while unknown or none.
   BonusPreview? _bonus;
 
+  /// Golis, ZAAD, EVC Plus: the name Sahal has for the number. Shown only
+  /// once known; it never holds up Confirm.
+  String? _receiverName;
+  bool _checkingReceiver = false;
+
+  static const _namedMethods = {'golis', 'telesom', 'evc_plus'};
+
   bool get _findsPlayer => methodInfo(widget.quote.method).usesWithdrawalCode;
 
   @override
@@ -67,6 +74,19 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
     _idempotencyKey = const Uuid().v4();
     if (_findsPlayer) _findPlayer();
     _loadBonus();
+    if (_namedMethods.contains(widget.quote.method)) _loadReceiverName();
+  }
+
+  Future<void> _loadReceiverName() async {
+    setState(() => _checkingReceiver = true);
+    try {
+      final name = await context.read<CustomerApi>().getReceiverName(widget.quote.method);
+      if (mounted) setState(() => _receiverName = name);
+    } catch (_) {
+      // No name from Sahal right now: the row is left out.
+    } finally {
+      if (mounted) setState(() => _checkingReceiver = false);
+    }
   }
 
   /// Best effort: without an answer the row is simply not shown.
@@ -201,6 +221,15 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                       label: '${AppStrings.sendTo} (${info.isPlatform ? AppStrings.accountId : AppStrings.phoneNumber})',
                       value: info.isPlatform ? (widget.accountId ?? '') : _phone(widget.phoneNumber),
                     ),
+                  if (_checkingReceiver || _receiverName != null) ...[
+                    const SummaryDivider(),
+                    SummaryRow(
+                      label: AppStrings.receiverName,
+                      value: _receiverName ?? AppStrings.checkingPlayer,
+                      valueColor: _receiverName == null ? AppColors.textMuted : null,
+                      valueKey: const Key('receiver-name'),
+                    ),
+                  ],
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
                   if (quote.rate != 1) ...[

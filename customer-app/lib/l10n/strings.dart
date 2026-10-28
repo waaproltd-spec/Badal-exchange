@@ -325,4 +325,7 @@ class AppStrings {
   static String bonusOnWithdrawal(String amount, String method) =>
       _t('On \$$amount withdrawal • $method', 'Lacag-bixin \$$amount • $method');
   static String get couldNotLoadBonus => _t('Could not load the bonus', 'Gunnada lama soo rarin');
+
+  // Receiver name (Golis, ZAAD, EVC Plus)
+  static String get receiverName => _t('Receiver Name', 'Magaca Qaataha');
 }

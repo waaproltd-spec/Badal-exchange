@@ -147,3 +147,11 @@ test('Withdraw Confirm preview: the bonus a withdrawal will earn, none for exclu
   assert.equal(await rpc(cu.c, 'customer_bonus_preview', { p_method: 'evc_plus', p_amount: '250' }), null);
   assert.equal(await rpc(cu.c, 'customer_bonus_preview', { p_method: 'edahab', p_amount: '0.50' }), null, 'under a cent');
 });
+
+test('receiver name lookup: only Golis, ZAAD and EVC Plus, always the customer\'s own number', async () => {
+  const cu = await customer('63');
+  assert.deepEqual(await rpc(cu.c, 'customer_begin_receiver_lookup', { p_method: 'telesom' }),
+    { method: 'telesom', mobile: `0${cu.local}` });
+  await rejects(rpc(cu.c, 'customer_begin_receiver_lookup', { p_method: 'edahab' }), 'VALIDATION_ERROR');
+  await rejects(rpc(manager, 'customer_begin_receiver_lookup', { p_method: 'golis' }), 'FORBIDDEN');
+});

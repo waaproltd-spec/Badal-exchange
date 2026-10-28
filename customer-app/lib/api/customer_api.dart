@@ -229,6 +229,14 @@ class CustomerApi {
     return BonusInfo.fromJson(data['bonus'] as Map<String, dynamic>);
   }
 
+  /// The name Sahal has for the customer's own Golis / ZAAD / EVC Plus number,
+  /// or null when it has none. Throws when Sahal couldn't be asked.
+  Future<String?> getReceiverName(String method) async {
+    final data = await _client.invoke('receiver-name', {'method': method}) as Map<String, dynamic>;
+    final name = (data['name'] as String?)?.trim();
+    return data['found'] == true && name != null && name.isNotEmpty ? name : null;
+  }
+
   /// The bonus this withdrawal will earn once paid, or null when it earns none.
   Future<BonusPreview?> getBonusPreview(String method, String amount) async {
     final data = await _client.rpc('customer_bonus_preview', {'p_method': method, 'p_amount': amount});

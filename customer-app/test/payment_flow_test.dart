@@ -78,6 +78,10 @@ class FakeCustomerApi extends CustomerApi {
     return PlayerLookup(found: players.containsKey(accountId), accountId: accountId, name: players[accountId]);
   }
 
+  /// Sahal's name for the customer's own number.
+  @override
+  Future<String?> getReceiverName(String method) async => 'YAASIIN MAXAMED AADAN';
+
   /// eDahab earns a bonus; the others (EVC Plus, Golis, ZAAD excluded, the
   /// rest for this test) none.
   @override
@@ -421,6 +425,9 @@ void main() {
       expect(find.text('Fee'), findsOneWidget);
       expect(find.text('Total Deducted'), findsOneWidget);
       expect(find.text('\$2.50'), findsNWidgets(3)); // amount, total deducted, you receive
+      // Golis, ZAAD and EVC Plus: the receiver's name from Sahal.
+      expect(find.byKey(const Key('receiver-name')),
+          const {'golis', 'telesom', 'evc_plus'}.contains(id) ? findsOneWidget : findsNothing);
       // The bonus it will earn, only where the backend says there is one.
       expect(find.byKey(const Key('withdraw-bonus')), id == 'edahab' ? findsOneWidget : findsNothing);
       if (id == 'edahab') {
