@@ -57,8 +57,8 @@ async function order({ method = 'melbet', direction = 'deposit', status = 'compl
   const { rows: [o] } = await db.query(
     `INSERT INTO orders (order_code, customer_id, direction, method, status, amount_cents, rate, net_cents, wallet_delta_cents,
                          agent_id, created_at, completed_at)
-     VALUES ($1, $2, $3, $4::order_method, $5::order_status, $6, 1, $6, 0, $7, now() - $8::interval,
-             CASE WHEN $5 = 'completed' THEN now() - $8::interval END) RETURNING id`,
+     VALUES ($1, $2, $3, $4::order_method, $5::order_status, $6::bigint, 1, $6::bigint, 0, $7::uuid, now() - $8::interval,
+             CASE WHEN $5::text = 'completed' THEN now() - $8::interval END) RETURNING id`,
     [`EXCM${seed}${n++}`, customerId, direction, method, status, cents, agent, ago]);
   return o.id;
 }

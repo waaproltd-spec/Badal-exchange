@@ -49,7 +49,8 @@ async function order({ method, direction = 'deposit', status = 'completed', amou
   await db.query(
     `INSERT INTO orders (order_code, customer_id, direction, method, status, amount_cents, fee_cents, rate, net_cents,
                          wallet_delta_cents, created_at, completed_at)
-     VALUES ($1, $2, $3, $4::order_method, $5::order_status, $6, $7, 1, $6 - $7, 0, ${at}, CASE WHEN $5 = 'completed' THEN ${at} END)`,
+     VALUES ($1, $2, $3, $4::order_method, $5::order_status, $6::bigint, $7::bigint, 1, $6::bigint - $7::bigint, 0, ${at},
+             CASE WHEN $5::text = 'completed' THEN ${at} END)`,
     [`EXRP${seed}${n++}`, customerId, direction, method, status, amount, fee]);
 }
 

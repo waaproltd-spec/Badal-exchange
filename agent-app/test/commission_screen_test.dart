@@ -2,7 +2,6 @@ import 'package:badal_agent_app/api/agent_api.dart';
 import 'package:badal_agent_app/models/commission.dart';
 import 'package:badal_agent_app/screens/commission_screen.dart';
 import 'package:badal_agent_app/state/session.dart';
-import 'package:badal_agent_app/widgets/console_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -55,6 +54,9 @@ Future<_FakeApi> _pump(WidgetTester tester, _FakeApi api, {Size size = const Siz
   return api;
 }
 
+/// The page's own list (the filter rows scroll sideways too).
+final _page = find.byType(Scrollable).first;
+
 void main() {
   test('money and rates as shown', () {
     expect(commissionMoney('1000.00'), '\$1,000.00');
@@ -79,7 +81,7 @@ void main() {
     expect(find.text('- \$10.00'), findsWidgets);
     expect(find.text('Your commission: the orders you handled.'), findsOneWidget, reason: 'an agent: their own');
     expect(find.byKey(const Key('agent-filter')), findsNothing);
-    await tester.scrollUntilVisible(find.byKey(const Key('tx-EXF1')), 300);
+    await tester.scrollUntilVisible(find.byKey(const Key('tx-EXF1')), 300, scrollable: _page);
     expect(find.text('\$0.006'), findsWidgets);
     expect(find.text('Not earned'), findsOneWidget);
   });
@@ -89,18 +91,24 @@ void main() {
     await tester.tap(find.text('Yesterday'));
     await tester.pumpAndSettle();
     expect(api.calls.last, 'yesterday|null|null');
-    await tester.drag(find.byType(ChoiceChipsRow<String>), const Offset(-500, 0));
+    await tester.ensureVisible(find.text('All Time'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('All Time'));
     await tester.pumpAndSettle();
     expect(api.calls.last, 'all_time|null|null');
+    await tester.ensureVisible(find.text('MELBET').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('MELBET').first);
     await tester.pumpAndSettle();
     expect(api.calls.last, 'all_time|melbet|null');
+    await tester.ensureVisible(find.text('All Companies'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('All Companies'));
     await tester.pumpAndSettle();
     expect(api.calls.last, 'all_time|null|null');
 
+    await tester.ensureVisible(find.byKey(const Key('agent-filter')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('agent-filter')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Agent One').last);
@@ -111,7 +119,7 @@ void main() {
   testWidgets('a small phone: no overflow', (tester) async {
     await _pump(tester, _FakeApi(manager: true), size: const Size(320, 568));
     expect(tester.takeException(), isNull);
-    await tester.scrollUntilVisible(find.byKey(const Key('tx-EXF1')), 300);
+    await tester.scrollUntilVisible(find.byKey(const Key('tx-EXF1')), 300, scrollable: _page);
     expect(tester.takeException(), isNull);
   });
 }

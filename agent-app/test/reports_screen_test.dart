@@ -67,6 +67,9 @@ Future<_FakeApi> _pump(WidgetTester tester, {Size size = const Size(393, 851), _
   return fake;
 }
 
+/// The page's own list (the filter rows scroll sideways too).
+final _page = find.byType(Scrollable).first;
+
 void main() {
   test('money: thousands separators and two decimals', () {
     expect(usd('5176.80'), '\$5,176.80');
@@ -87,11 +90,11 @@ void main() {
     expect(first, lessThan(second), reason: 'ranked by amount');
     expect(find.text('#2'), findsWidgets);
     expect(find.text('1 transactions'), findsWidgets);
-    await tester.scrollUntilVisible(find.byKey(const Key('user-u1')), 200);
+    await tester.scrollUntilVisible(find.byKey(const Key('user-u1')), 200, scrollable: _page);
     expect(find.text('+252610346060'), findsOneWidget);
     expect(find.text('3 txns'), findsOneWidget);
     expect(find.byIcon(Icons.emoji_events_rounded), findsOneWidget, reason: 'the top user');
-    await tester.scrollUntilVisible(find.byKey(const Key('tx-EXBIG1')), 200);
+    await tester.scrollUntilVisible(find.byKey(const Key('tx-EXBIG1')), 200, scrollable: _page);
     expect(find.text('\$5,176.80'), findsWidgets);
   });
 
@@ -103,14 +106,18 @@ void main() {
       ('range-all_time', 'all_time'),
       ('range-today', 'today'),
     ]) {
+      await tester.ensureVisible(find.byKey(Key(key)));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(Key(key)));
       await tester.pumpAndSettle();
       expect(api.ranges.last, range);
     }
+    await tester.ensureVisible(find.byKey(const Key('range-all_time')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('range-all_time')));
     await tester.pumpAndSettle();
     expect(find.textContaining('All time'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Not in the revenue'), 300);
+    await tester.scrollUntilVisible(find.text('Not in the revenue'), 300, scrollable: _page);
     expect(find.text('Transactions per Day'), findsNothing);
   });
 
@@ -118,15 +125,17 @@ void main() {
     final api = _FakeApi();
     await _pump(tester, size: const Size(320, 568), api: api);
     expect(tester.takeException(), isNull);
-    await tester.scrollUntilVisible(find.text('Not in the revenue'), 300);
+    await tester.scrollUntilVisible(find.text('Not in the revenue'), 300, scrollable: _page);
     expect(tester.takeException(), isNull);
 
     api.empty = true;
-    await tester.scrollUntilVisible(find.byKey(const Key('range-yesterday')), -300);
+    await tester.scrollUntilVisible(find.byKey(const Key('range-yesterday')), -300, scrollable: _page);
+    await tester.ensureVisible(find.byKey(const Key('range-yesterday')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('range-yesterday')));
     await tester.pumpAndSettle();
     expect(find.text('\$0.00'), findsWidgets);
-    await tester.scrollUntilVisible(find.text('No completed platform transactions in this period.'), 200);
+    await tester.scrollUntilVisible(find.text('No completed platform transactions in this period.'), 200, scrollable: _page);
 
     final failing = _FakeApi()..fail = true;
     await _pump(tester, api: failing);
@@ -136,7 +145,7 @@ void main() {
   testWidgets('a report type opens History for the same dates', (tester) async {
     final opened = <HistoryFilter>[];
     await _pump(tester, opened: opened);
-    await tester.scrollUntilVisible(find.text('Failed'), 300);
+    await tester.scrollUntilVisible(find.text('Failed'), 300, scrollable: _page);
     await tester.tap(find.text('Failed'));
     expect(opened.single.status, 'failed');
     expect(opened.single.from, '2026-10-28');
