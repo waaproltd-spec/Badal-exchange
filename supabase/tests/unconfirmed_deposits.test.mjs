@@ -54,7 +54,8 @@ const list = async (args = {}) => rpc(admin, 'manage_unconfirmed_deposits', args
 const rowsOf = async (phone, args) => (await list(args)).deposits.filter((d) => d.customerPhone === phone);
 const wallet = async (c) => (await rpc(c, 'customer_wallet')).availableBalance;
 const ledger = async (phone) => (await db.query(
-  `SELECT count(*)::int AS n FROM ledger_entries l JOIN users u ON u.id = l.customer_id WHERE u.phone = $1`, [phone])).rows[0].n;
+  `SELECT count(*)::int AS n FROM ledger_entries l JOIN wallets w ON w.id = l.wallet_id JOIN users u ON u.id = w.customer_id
+   WHERE u.phone = $1`, [phone])).rows[0].n;
 
 before(async () => { admin = await login('252610000002'); });
 after(() => db.end());

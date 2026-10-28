@@ -215,20 +215,20 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
               child: Text(d.statusText, style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
             const SizedBox(height: 8),
-            Row(children: [
-              Icon(Icons.timer_outlined, size: 16, color: d.overdue ? AppColors.statusFailed : AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Text('Waiting ${waitedEnglish(d.waitingSeconds)}',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: d.overdue ? AppColors.statusFailed : AppColors.textPrimary)),
-              if (d.overdue) ...[
-                const SizedBox(width: 8),
+            Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.timer_outlined, size: 16, color: d.overdue ? AppColors.statusFailed : AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text('Waiting ${waitedEnglish(d.waitingSeconds)}',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: d.overdue ? AppColors.statusFailed : AppColors.textPrimary)),
+              ]),
+              if (d.overdue)
                 Container(
                   key: Key('overdue-${d.id}'),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(color: AppColors.statusFailed, borderRadius: BorderRadius.circular(6)),
                   child: const Text('OVERDUE 48h', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
-              ],
             ]),
             const SizedBox(height: 4),
             Text('Started ${_when.format(d.startedAt.toLocal())}'
