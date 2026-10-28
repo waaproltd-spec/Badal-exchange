@@ -313,6 +313,13 @@ class AgentApi {
 
   Future<DashboardSummary> getDashboard() async => DashboardSummary.fromJson(await _map('agent_dashboard'));
 
+  /// The Dashboard's money, customers, 7-day chart and top lists, for the 7 days ending [day] (today when null).
+  Future<DashboardStats> getDashboardStats({DateTime? day}) async => DashboardStats.fromJson(await _map('agent_dashboard_stats', {
+        'p_day': day == null
+            ? null
+            : '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+      }));
+
   Future<List<CustomerSummary>> getCustomers({
     String? query,
     String status = 'all',

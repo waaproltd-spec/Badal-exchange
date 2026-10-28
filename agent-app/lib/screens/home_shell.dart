@@ -44,7 +44,7 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          DashboardScreen(onOpenHistory: _openHistory),
+          DashboardScreen(onOpenHistory: _openHistory, onOpenUsers: () => setState(() => _index = 1)),
           const UsersScreen(),
           ReportsScreen(onOpenHistory: _openHistory),
           HistoryScreen(requests: _historyRequest),

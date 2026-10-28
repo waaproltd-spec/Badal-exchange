@@ -385,3 +385,76 @@ class AppNotification {
         createdAt: _date(j['createdAt']) ?? DateTime.now(),
       );
 }
+
+/// The redesigned Dashboard's extra figures (agent_dashboard_stats): money
+/// per status, customers, the 7 days ending [day], and the top services
+/// (betting-platform orders) and mobile-money deposit methods of those days.
+class DashboardStats {
+  final DateTime day;
+  final Map<String, String> amounts;
+  final int totalCustomers;
+  final int newCustomersThisMonth;
+  final List<DashboardDay> days;
+  final List<DashboardTop> topServices;
+  final List<DashboardTop> topDepositMethods;
+
+  const DashboardStats({
+    required this.day,
+    required this.amounts,
+    required this.totalCustomers,
+    required this.newCustomersThisMonth,
+    required this.days,
+    required this.topServices,
+    required this.topDepositMethods,
+  });
+
+  String amount(String key) => amounts[key] ?? '0.00';
+
+  factory DashboardStats.fromJson(Map<String, dynamic> j) => DashboardStats(
+        day: DateTime.parse(j['day'] as String),
+        amounts: {
+          for (final e in ((j['amounts'] as Map?) ?? const {}).entries) e.key as String: '${e.value}',
+        },
+        totalCustomers: (j['totalCustomers'] as num?)?.toInt() ?? 0,
+        newCustomersThisMonth: (j['newCustomersThisMonth'] as num?)?.toInt() ?? 0,
+        days: ((j['days'] as List?) ?? const []).map((e) => DashboardDay.fromJson(e as Map<String, dynamic>)).toList(),
+        topServices:
+            ((j['topServices'] as List?) ?? const []).map((e) => DashboardTop.fromJson(e as Map<String, dynamic>)).toList(),
+        topDepositMethods: ((j['topDepositMethods'] as List?) ?? const [])
+            .map((e) => DashboardTop.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class DashboardDay {
+  final DateTime day;
+  final int deposits;
+  final int withdrawals;
+  final int orders;
+
+  const DashboardDay({required this.day, required this.deposits, required this.withdrawals, required this.orders});
+
+  factory DashboardDay.fromJson(Map<String, dynamic> j) => DashboardDay(
+        day: DateTime.parse(j['day'] as String),
+        deposits: (j['deposits'] as num?)?.toInt() ?? 0,
+        withdrawals: (j['withdrawals'] as num?)?.toInt() ?? 0,
+        orders: (j['orders'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// One row of a top list: a method, how many, and how much.
+class DashboardTop {
+  final String method;
+  final String label;
+  final int count;
+  final String amount;
+
+  const DashboardTop({required this.method, required this.label, required this.count, required this.amount});
+
+  factory DashboardTop.fromJson(Map<String, dynamic> j) => DashboardTop(
+        method: j['method'] as String? ?? '',
+        label: j['label'] as String? ?? '',
+        count: ((j['orders'] ?? j['count']) as num?)?.toInt() ?? 0,
+        amount: '${j['amount'] ?? '0.00'}',
+      );
+}
