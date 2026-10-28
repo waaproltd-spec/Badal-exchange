@@ -10,7 +10,6 @@
 //   WinWin:   the same names with the CASHDESKBOT_WINWIN_ prefix
 //   Betwinner: the same names with the CASHDESKBOT_BETWINNER_ prefix
 //   DBbet, BetJam, BetOnGame: CASHDESKBOT_DBBET_, CASHDESKBOT_BETJAM_, CASHDESKBOT_BETONGAME_
-//   MELBET:   CASHDESKBOT_MELBET_
 //
 // Checked against the live API: the Balance signature differs from the PDF
 // (see balanceSign). The Deposit/Add and Payout signatures are as the PDF
@@ -53,7 +52,6 @@ export const BRANDS: Record<string, Brand> = {
   dbbet: { key: 'dbbet', label: 'DBbet', method: 'dbbet', envPrefix: 'CASHDESKBOT_DBBET' },
   betjam: { key: 'betjam', label: 'BetJam', method: 'betjam', envPrefix: 'CASHDESKBOT_BETJAM' },
   betongame: { key: 'betongame', label: 'BetOnGame', method: 'betongame', envPrefix: 'CASHDESKBOT_BETONGAME' },
-  melbet: { key: 'melbet', label: 'MELBET', method: 'melbet', envPrefix: 'CASHDESKBOT_MELBET' },
 };
 
 export const brandForMethod = (method: string) => Object.values(BRANDS).find((b) => b.method === method);

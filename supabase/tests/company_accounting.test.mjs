@@ -72,14 +72,14 @@ before(async () => {
   worker = client(SERVICE_KEY);
   manager = await signIn('252610000002');
   // Nothing from other test files may be waiting for the worker.
-  await db.query(`UPDATE orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet')`);
+  await db.query(`UPDATE orders SET auto_claimed_at = now() WHERE auto_claimed_at IS NULL AND method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame')`);
 });
 // Each test starts with no 888STARZ / 1XBET order open or waiting (test
 // database only), so the worker claims exactly the orders it makes.
 beforeEach(async () => {
   if (skip) return;
   await db.query(`UPDATE orders SET status = 'failed', low_funds_since = NULL, auto_claimed_at = COALESCE(auto_claimed_at, now())
-    WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet') AND status IN ('pending', 'processing')`);
+    WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame') AND status IN ('pending', 'processing')`);
 });
 
 after(async () => {

@@ -112,7 +112,7 @@ beforeEach(async () => {
   if (!served) return;
   // Nothing from other tests waiting for the worker or the sender.
   await db.query(`UPDATE orders SET status = 'failed', low_funds_since = NULL, auto_claimed_at = COALESCE(auto_claimed_at, now())
-    WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet') AND status IN ('pending', 'processing')`);
+    WHERE method IN ('888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame') AND status IN ('pending', 'processing')`);
   await db.query(`UPDATE push_notifications SET status = 'expired' WHERE status IN ('pending', 'sending')`);
   sent.length = 0;
 });
