@@ -96,7 +96,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
   }
 
   Future<void> _change() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw, ownPhone: widget.ownPhone);
     if (option == null || !mounted || option.info.id == widget.method) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => WithdrawDetailsScreen(

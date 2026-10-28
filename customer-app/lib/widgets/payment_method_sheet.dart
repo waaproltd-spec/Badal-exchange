@@ -14,8 +14,9 @@ enum PaymentDirection { deposit, withdraw }
 
 /// Opens the Deposit or Withdraw method picker as a bottom sheet over the
 /// (dimmed) wallet dashboard. Returns the chosen method, or null when the
-/// sheet is closed. For a deposit, [ownPhone] (the customer's registered
-/// number) limits mobile money to that number's own network.
+/// sheet is closed. [ownPhone] (the customer's registered number) limits
+/// mobile money to that number's own network: deposits come from it and
+/// withdrawals go to it.
 Future<PaymentMethodOption?> showPaymentMethodSheet(BuildContext context, PaymentDirection direction, {String? ownPhone}) {
   return showModalBottomSheet<PaymentMethodOption>(
     context: context,
@@ -166,7 +167,7 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
                     ),
                   );
                 }
-                final methods = _isDeposit ? depositMethodsFor(snapshot.data!, widget.ownPhone) : snapshot.data!;
+                final methods = depositMethodsFor(snapshot.data!, widget.ownPhone);
                 if (methods.isEmpty) return SizedBox(height: placeholder, child: _Message(text: AppStrings.noMethods));
                 final (cardHeight, gridHeight) = layout(methods.length);
                 return SizedBox(

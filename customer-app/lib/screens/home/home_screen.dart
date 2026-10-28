@@ -82,7 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _goWithdraw() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw,
+        ownPhone: context.read<AuthProvider>().user?.phone);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(

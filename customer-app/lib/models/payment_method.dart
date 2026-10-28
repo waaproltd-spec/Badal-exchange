@@ -82,8 +82,9 @@ String? ownMobileMethod(String? phone) {
   return const {'61': 'evc_plus', '90': 'golis', '63': 'telesom', '62': 'edahab'}[digits.substring(digits.length - 9, digits.length - 7)];
 }
 
-/// Deposits are paid from the customer's own number, so of the mobile-money
-/// methods only their own network is offered; betting platforms all stay.
+/// Deposits are paid from the customer's own number and withdrawals paid to
+/// it, so of the mobile-money methods only their own network is offered;
+/// betting platforms all stay.
 /// A number of no known network keeps every method.
 List<PaymentMethodOption> depositMethodsFor(List<PaymentMethodOption> methods, String? phone) {
   final own = ownMobileMethod(phone);
