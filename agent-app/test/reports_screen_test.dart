@@ -136,9 +136,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('\$0.00'), findsWidgets);
     await tester.scrollUntilVisible(find.text('No completed platform transactions in this period.'), 200, scrollable: _page);
+  });
 
-    final failing = _FakeApi()..fail = true;
-    await _pump(tester, api: failing);
+  testWidgets('the server failing: its message and a retry', (tester) async {
+    await _pump(tester, api: _FakeApi()..fail = true);
     expect(find.text('Server unavailable'), findsOneWidget);
   });
 
@@ -146,7 +147,10 @@ void main() {
     final opened = <HistoryFilter>[];
     await _pump(tester, opened: opened);
     await tester.scrollUntilVisible(find.text('Failed'), 300, scrollable: _page);
+    await tester.ensureVisible(find.text('Failed'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Failed'));
+    await tester.pumpAndSettle();
     expect(opened.single.status, 'failed');
     expect(opened.single.from, '2026-10-28');
     expect(opened.single.to, '2026-10-28');

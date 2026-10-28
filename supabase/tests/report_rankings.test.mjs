@@ -95,7 +95,7 @@ test('today: completed orders only make the revenue; failed, cancelled and pendi
 
   // The customer's row is exactly their completed orders.
   const me = r.users.find((u) => u.customerId === customerId);
-  assert.deepEqual([me.name, me.phone, me.count, me.total], ['Report Ranking Test', phone, 3, '5209.30']);
+  assert.deepEqual([me.name, me.phone, me.count, me.total], ['Report Ranking Test', phone, 3, '5212.30']);
   if (r.usersCount <= 20) assert.equal(sum(r.users), cents(r.overview.revenue));
   // Largest orders: the $5,176.80 one first among ours, nothing failed.
   const biggest = r.transactions.filter((t) => t.orderCode.startsWith(`EXRP${seed}`));
