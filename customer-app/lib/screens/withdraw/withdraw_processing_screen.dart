@@ -5,6 +5,7 @@ import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
+import '../../services/success_sound.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/primary_button.dart';
@@ -82,6 +83,7 @@ class _WithdrawProcessingScreenState extends State<WithdrawProcessingScreen> {
     final until = DateTime.now().add(WithdrawProcessingScreen.maxWait);
     var latest = order;
     while (mounted) {
+      SuccessSound.instance.observe([latest]);
       if (latest.status == 'processing' && _step < 2) setState(() => _step = 2);
       if (latest.status == 'completed') {
         setState(() => _step = 3);

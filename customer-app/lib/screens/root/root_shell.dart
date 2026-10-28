@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../services/push_notifications.dart';
+import '../../services/success_sound.dart';
 import '../../widgets/transaction_views.dart';
 import '../home/home_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -62,6 +63,7 @@ class _RootShellState extends State<RootShell> {
     }
     try {
       final order = await context.read<CustomerApi>().getOrder(m.orderId);
+      SuccessSound.instance.observe([order]);
       if (mounted) await showTransactionDetails(context, order);
     } catch (_) {
       // Not this customer's order, or offline: the Orders tab still has it.
@@ -76,7 +78,15 @@ class _RootShellState extends State<RootShell> {
     final m = _push?.foreground.value;
     if (m == null || !mounted) return;
     _push?.foreground.value = null;
-    if (!m.isBroadcast) return;
+    if (!m.isBroadcast) {
+      // Completed? The server's word on it decides the cha-ching.
+      context
+          .read<CustomerApi>()
+          .getOrder(m.orderId)
+          .then((order) => SuccessSound.instance.observe([order]))
+          .catchError((Object _) {});
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       key: Key('push-banner-${m.isBroadcast ? 'broadcast' : m.orderId}'),
       duration: const Duration(seconds: 6),

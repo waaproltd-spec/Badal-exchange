@@ -6,6 +6,7 @@ import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../models/order.dart';
 import '../l10n/strings.dart';
+import '../services/success_sound.dart';
 
 class OrdersProvider extends ChangeNotifier {
   OrdersProvider({required this.customerApi}) {
@@ -38,6 +39,8 @@ class OrdersProvider extends ChangeNotifier {
     }
     try {
       _orders = await customerApi.getOrders();
+      // A deposit or withdrawal the server now reports completed: cha-ching.
+      SuccessSound.instance.observe(_orders);
       _error = null;
     } on ApiException catch (e) {
       if (!silent) _error = e.message;

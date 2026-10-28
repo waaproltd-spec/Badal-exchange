@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api/api_exception.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
+import '../../services/success_sound.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/primary_button.dart';
@@ -39,6 +40,7 @@ class _DepositProcessingScreenState extends State<DepositProcessingScreen> {
     setState(() => _error = null);
     try {
       final order = await widget.action();
+      SuccessSound.instance.observe([order]);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => DepositResultScreen(order: order)),
