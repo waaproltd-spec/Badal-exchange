@@ -61,10 +61,19 @@ RETURNS text LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
   SELECT 'BX' || upper(left(replace(p_id::text, '-', ''), 8))
 $$;
 
+-- A completed withdrawal before: past the first one, allowed -- unless an
+-- admin rejected or restricted the account.
+CREATE OR REPLACE FUNCTION private.has_withdrawn(p_customer uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT EXISTS (SELECT 1 FROM public.orders o WHERE o.customer_id = p_customer AND o.direction = 'withdraw' AND o.status = 'completed')
+$$;
+
 CREATE OR REPLACE FUNCTION private.withdrawals_allowed(p_customer uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT NOT private.withdrawal_verification_on()
-      OR EXISTS (SELECT 1 FROM public.withdrawal_approvals a WHERE a.customer_id = p_customer AND a.status = 'approved')
+      OR COALESCE((SELECT a.status = 'approved' OR (a.status = 'pending' AND private.has_withdrawn(p_customer))
+                   FROM public.withdrawal_approvals a WHERE a.customer_id = p_customer),
+                  private.has_withdrawn(p_customer))
 $$;
 
 -- The rule itself, wherever a withdrawal comes from.
@@ -77,8 +86,8 @@ BEGIN
   RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION private.withdrawal_verification_check(), private.withdrawals_allowed(uuid),
-  private.withdrawal_verification_on(), private.admin_whatsapp(), private.withdrawal_verification_message()
-  FROM PUBLIC, anon, authenticated;
+  private.withdrawal_verification_on(), private.admin_whatsapp(), private.withdrawal_verification_message(),
+  private.has_withdrawn(uuid) FROM PUBLIC, anon, authenticated;
 DROP TRIGGER IF EXISTS orders_withdrawal_verification ON public.orders;
 CREATE TRIGGER orders_withdrawal_verification BEFORE INSERT ON public.orders
   FOR EACH ROW EXECUTE FUNCTION private.withdrawal_verification_check();
@@ -91,13 +100,15 @@ DECLARE
   v_id uuid := private.require_role('customer');
   a public.withdrawal_approvals;
 BEGIN
-  IF private.withdrawal_verification_on() THEN
+  -- A request for the admin, once, only when it is needed.
+  IF private.withdrawal_verification_on() AND NOT private.withdrawals_allowed(v_id) THEN
     INSERT INTO public.withdrawal_approvals (customer_id) VALUES (v_id) ON CONFLICT (customer_id) DO NOTHING;
   END IF;
   SELECT * INTO a FROM public.withdrawal_approvals WHERE customer_id = v_id;
   RETURN jsonb_build_object(
     'allowed', private.withdrawals_allowed(v_id),
-    'status', CASE WHEN NOT private.withdrawal_verification_on() THEN 'approved' ELSE COALESCE(a.status, 'pending') END,
+    'status', CASE WHEN private.withdrawals_allowed(v_id) AND COALESCE(a.status, 'pending') = 'pending' THEN 'approved'
+                   ELSE COALESCE(a.status, 'pending') END,
     'reason', CASE WHEN a.status IN ('rejected', 'restricted') THEN a.reason END,
     'message', CASE WHEN NOT private.withdrawals_allowed(v_id) THEN private.withdrawal_verification_message() END,
     'whatsapp', private.admin_whatsapp(),

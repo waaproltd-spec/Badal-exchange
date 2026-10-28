@@ -36,16 +36,29 @@ class WithdrawalAccess {
         phone: j['phone'] as String?,
       );
 
-  /// The WhatsApp message to the admin: account ID and registered number
-  /// only (never a password, PIN or code).
-  String get prefilled => 'Salaam, fadlan account-keyga withdrawal fasax.\n'
-      'Account ID: ${accountId ?? '-'}\n'
-      'Lambarkeyga: ${phone == null ? '-' : '+${phone!.replaceAll('+', '')}'}';
+  /// The WhatsApp message to the admin: customer ID, registered number and,
+  /// for a betting platform, its name and the account ID -- never a
+  /// password, PIN or code.
+  String prefilled({String? platform, String? platformAccountId}) => [
+        'Hello Admin,',
+        '',
+        'Please approve my withdrawal account.',
+        '',
+        'Customer ID: ${accountId ?? '-'}',
+        'Phone Number: ${phone == null ? '-' : '+${phone!.replaceAll('+', '')}'}',
+        if (platform != null) 'Platform: $platform',
+        if (platformAccountId != null && platformAccountId.isNotEmpty) 'Account ID: $platformAccountId',
+        '',
+        'I would like to request approval for withdrawals.',
+        '',
+        'Thank you.',
+      ].join('\n');
 
   /// wa.me link with the message, or null without a usable number.
-  Uri? get whatsappLink {
+  Uri? whatsappLink({String? platform, String? platformAccountId}) {
     final digits = (whatsapp ?? '').replaceAll(RegExp(r'\D'), '');
     if (digits.length < 8) return null;
-    return Uri.parse('https://wa.me/$digits?text=${Uri.encodeComponent(prefilled)}');
+    final text = prefilled(platform: platform, platformAccountId: platformAccountId);
+    return Uri.parse('https://wa.me/$digits?text=${Uri.encodeComponent(text)}');
   }
 }

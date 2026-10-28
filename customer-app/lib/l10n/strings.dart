@@ -299,13 +299,13 @@ class AppStrings {
   static String get stepActive => _t('IN PROGRESS', 'SOCDA');
   static String get stepWaiting => _t('WAITING', 'SUGAYA');
   // Before the first withdrawal: the account is approved by an admin.
-  static String get verifyTitle => _t('Your account is not approved yet', 'Account-kaaga wali lama fasixin');
+  static String get verifyTitle => _t('Account Approval Required', 'Account-ka waa in la fasaxo');
   static String get verifyBody => _t(
-      'To withdraw for the first time, contact the admin so your account can be verified and approved.',
+      'To withdraw your funds, please contact Admin on WhatsApp to have your account approved for withdrawals.',
       'Si aad lacag ula baxdo markii ugu horreysay, fadlan la xiriir maamulka si account-kaaga loo xaqiijiyo loona fasaxo.');
   static String get verifyRejected => _t('Not approved', 'Lama fasixin');
   static String get verifyRestricted => _t('Withdrawals are on hold', 'Bixinta waa la joojiyay');
-  static String get contactAdminWhatsapp => _t('Contact the admin (WhatsApp)', 'La xiriir Maamulka (WhatsApp)');
+  static String get contactAdminWhatsapp => _t('Contact Admin on WhatsApp', 'La xiriir Maamulka (WhatsApp)');
   static String get adminWhatsapp => _t("Admin's WhatsApp:", 'WhatsApp-ka Maamulka:');
   static String get copied => _t('Copied', 'Waa la koobiyeeyay');
   static String get completeWithdrawal => _t('Complete Withdrawal', 'Dhammaystir Bixinta');

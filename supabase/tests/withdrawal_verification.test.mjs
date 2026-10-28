@@ -159,6 +159,30 @@ test('rejected with a reason (shown to the customer); restricted again later; ap
   await rejects(rpc(manager, 'manage_decide_withdrawal_verification', { p_customer_id: cu.id, p_decision: 'maybe' }), 'VALIDATION_ERROR');
 });
 
+test('withdrawals sent at the same time: all refused, no order, nothing taken', async () => {
+  const cu = await customer();
+  const results = await Promise.allSettled(Array.from({ length: 6 }, () => withdraw(cu, '5')));
+  assert.ok(results.every((r) => r.status === 'rejected' && r.reason.code === 'WITHDRAWAL_VERIFICATION_REQUIRED'));
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM orders WHERE customer_id = $1`, [cu.id]);
+  assert.equal(rows[0].n, 0);
+  assert.equal(await balance(cu), '50.00');
+});
+
+test('a customer who already completed a withdrawal goes on as before (no request); restricted, they stop', async () => {
+  const cu = await customer();
+  await db.query(`UPDATE app_settings SET value = 'off' WHERE key = 'withdrawal_verification'`);
+  const w = await withdraw(cu, '5');
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'withdrawal_verification'`);
+  await db.query(`UPDATE orders SET status = 'completed', completed_at = now() WHERE id = $1`, [w.id]);
+  const access = await rpc(cu.c, 'customer_withdrawal_access');
+  assert.deepEqual([access.allowed, access.status], [true, 'approved']);
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM withdrawal_approvals WHERE customer_id = $1`, [cu.id]);
+  assert.equal(rows[0].n, 0, 'no request needed');
+  assert.equal((await withdraw(cu, '5')).status, 'pending');
+  await rpc(manager, 'manage_decide_withdrawal_verification', { p_customer_id: cu.id, p_decision: 'restrict', p_reason: 'Under review' });
+  await rejects(withdraw(cu, '1'), 'WITHDRAWAL_VERIFICATION_REQUIRED');
+});
+
 test('switched off: everyone withdraws as before', async () => {
   const cu = await customer();
   await db.query(`UPDATE app_settings SET value = 'off' WHERE key = 'withdrawal_verification'`);

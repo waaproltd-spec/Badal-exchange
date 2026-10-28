@@ -186,7 +186,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             StatusPill(v.status == 'approved' ? 'completed' : (v.status == 'pending' ? 'pending' : 'failed')),
           ]),
           const SizedBox(height: 8),
-          InfoRow('Status', v.status),
+          InfoRow('Status', const {'pending': 'Not approved', 'approved': 'Approved for withdrawals', 'rejected': 'Rejected', 'restricted': 'Restricted'}[v.status] ?? v.status),
           InfoRow('Balance', '\$${v.balance}'),
           InfoRow('Deposits completed', '${v.depositCount} · \$${v.depositTotal}'),
           InfoRow('Withdrawals completed', '${v.withdrawalCount} · \$${v.withdrawalTotal}'),

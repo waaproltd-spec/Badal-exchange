@@ -66,10 +66,32 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     if (mounted) setState(() => _access = access);
   }
 
+  Uri? get _whatsappLink => _access?.whatsappLink(
+        platform: _info.isPlatform ? _info.label : null,
+        platformAccountId: _info.isPlatform ? _identifierController.text.trim() : null,
+      );
+
   Future<void> _openWhatsapp() async {
-    final link = _access?.whatsappLink;
+    final link = _whatsappLink;
     if (link == null) return;
-    await launchUrl(link, mode: LaunchMode.externalApplication);
+    try {
+      await launchUrl(link, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // No WhatsApp: the number is on the sheet to copy.
+    }
+  }
+
+  /// First withdrawal, account not approved: WhatsApp opens with the
+  /// message for the admin, and the sheet says why. Nothing is created and
+  /// nothing is taken (the server refuses it anyway).
+  Future<void> _askForApproval() async {
+    _openWhatsapp();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _ApprovalSheet(access: _access!, onWhatsapp: _openWhatsapp),
+    );
   }
 
   PaymentMethodInfo get _info => methodInfo(widget.method);
@@ -88,8 +110,11 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
   }
 
   Future<void> _continue() async {
-    if (_blocked) return;
     if (!_formKey.currentState!.validate()) return;
+    if (_blocked) {
+      await _askForApproval();
+      return;
+    }
     if (!_info.isPlatform && _ownLocal == null) {
       setState(() => _error = AppStrings.noRegisteredNumber);
       return;
@@ -115,7 +140,11 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
         ),
       );
     } on ApiException catch (e) {
-      if (e.code == 'WITHDRAWAL_VERIFICATION_REQUIRED') _checkAccess();
+      if (e.code == 'WITHDRAWAL_VERIFICATION_REQUIRED') {
+        await _checkAccess();
+        if (mounted && _blocked) await _askForApproval();
+        return;
+      }
       setState(() => _error = e.message);
     } catch (_) {
       setState(() => _error = AppStrings.somethingWentWrong);
@@ -231,10 +260,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                   style: AppTextStyles.muted.copyWith(fontSize: 12.5),
                 ),
               ],
-              if (_blocked) ...[
-                const SizedBox(height: 18),
-                _VerifyCard(access: _access!, onWhatsapp: _openWhatsapp),
-              ] else if (_error != null) ...[
+              if (_error != null) ...[
                 const SizedBox(height: 16),
                 Text(_error!, style: AppTextStyles.muted.copyWith(color: AppColors.error)),
               ],
@@ -243,7 +269,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                 key: const Key('withdraw-continue'),
                 label: AppStrings.continueLabel,
                 trailingIcon: Icons.arrow_forward_rounded,
-                onPressed: _blocked ? null : _continue,
+                onPressed: _continue,
                 loading: _submitting,
               ),
             ],
@@ -254,91 +280,86 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
   }
 }
 
-/// Not approved for withdrawals yet: why, the admin's WhatsApp (a button
-/// with the account ID and number filled in, and the number to copy).
-class _VerifyCard extends StatelessWidget {
-  const _VerifyCard({required this.access, required this.onWhatsapp});
+/// "Account Approval Required": why, Contact Admin on WhatsApp (opened
+/// already, again from here) and the admin's number to copy, and Cancel.
+class _ApprovalSheet extends StatelessWidget {
+  const _ApprovalSheet({required this.access, required this.onWhatsapp});
 
   final WithdrawalAccess access;
   final VoidCallback onWhatsapp;
 
   @override
   Widget build(BuildContext context) {
-    final title = switch (access.status) {
-      'rejected' => AppStrings.verifyRejected,
-      'restricted' => AppStrings.verifyRestricted,
-      _ => AppStrings.verifyTitle,
-    };
     final number = access.whatsapp;
-    return Column(
+    return SingleChildScrollView(
       key: const Key('withdraw-verify'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.error.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.error.withOpacity(0.35)),
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(color: const Color(0xFF1FA855).withOpacity(0.12), shape: BoxShape.circle),
+              child: const Icon(Icons.support_agent_rounded, size: 42, color: Color(0xFF1FA855)),
+            ),
           ),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.gpp_maybe_rounded, color: AppColors.error, size: 34),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: FontWeight.w800, fontSize: 16)),
-                const SizedBox(height: 6),
-                Text(AppStrings.verifyBody, style: AppTextStyles.body),
-                if (access.reason != null && access.reason!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(access.reason!, key: const Key('verify-reason'), style: AppTextStyles.muted),
-                ],
+          const SizedBox(height: 14),
+          Text(AppStrings.verifyTitle, textAlign: TextAlign.center, style: AppTextStyles.title.copyWith(fontSize: 21)),
+          const SizedBox(height: 10),
+          Text(AppStrings.verifyBody, textAlign: TextAlign.center, style: AppTextStyles.body),
+          if (access.reason != null && access.reason!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(access.reason!, key: const Key('verify-reason'), textAlign: TextAlign.center,
+                style: AppTextStyles.muted.copyWith(color: AppColors.error)),
+          ],
+          const SizedBox(height: 18),
+          if (access.whatsappLink() != null)
+            ElevatedButton.icon(
+              key: const Key('contact-admin-whatsapp'),
+              onPressed: onWhatsapp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1FA855),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(54),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              icon: const Icon(Icons.chat_rounded),
+              label: Text(AppStrings.contactAdminWhatsapp, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            ),
+          if (number != null && number.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorder)),
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(AppStrings.adminWhatsapp, style: AppTextStyles.muted),
+                    Text(number, key: const Key('admin-whatsapp'), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+                IconButton(
+                  tooltip: AppStrings.copied,
+                  icon: const Icon(Icons.copy_rounded),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: number));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.copied)));
+                  },
+                ),
               ]),
             ),
-          ]),
-        ),
-        if (access.whatsappLink != null) ...[
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            key: const Key('contact-admin-whatsapp'),
-            onPressed: onWhatsapp,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1FA855),
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(54),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            icon: const Icon(Icons.chat_rounded),
-            label: Text(AppStrings.contactAdminWhatsapp, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          ],
+          const SizedBox(height: 10),
+          TextButton(
+            key: const Key('verify-cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(AppStrings.cancel),
           ),
         ],
-        if (number != null && number.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder)),
-            child: Row(children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppStrings.adminWhatsapp, style: AppTextStyles.muted),
-                  Text(number, key: const Key('admin-whatsapp'), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-                ]),
-              ),
-              IconButton(
-                tooltip: AppStrings.copied,
-                icon: const Icon(Icons.copy_rounded),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: number));
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.copied)));
-                },
-              ),
-            ]),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }

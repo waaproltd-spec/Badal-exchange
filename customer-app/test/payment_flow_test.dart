@@ -106,9 +106,11 @@ class FakeCustomerApi extends CustomerApi {
   Future<List<PaymentMethodOption>> getPaymentMethods() async =>
       _catalogJson.map(PaymentMethodOption.fromJson).toList();
 
+  int quotes = 0;
+
   @override
   Future<Quote> createQuote({required String direction, required String method, required String amount}) async =>
-      Quote(
+      (quotes++, Quote(
         quoteId: 'q',
         method: method,
         direction: direction,
@@ -117,7 +119,7 @@ class FakeCustomerApi extends CustomerApi {
         fee: '0.00',
         netAmount: amount,
         walletDelta: amount,
-      );
+      )).$2;
 
   Order _order(String direction, String method, String? amount) => Order(
         id: 'o${submitted.length}',
@@ -680,36 +682,56 @@ void main() {
   });
 
 
-  testWidgets('first withdrawal not approved yet: why, the admin on WhatsApp, Continue off', (tester) async {
-    AppLanguage.current.value = AppLanguage.somali;
-    addTearDown(() => AppLanguage.current.value = AppLanguage.english);
+  testWidgets('first withdrawal not approved: Withdraw opens WhatsApp and says why; nothing is submitted', (tester) async {
     await _phone(tester);
     final api = FakeCustomerApi()
       ..access = const WithdrawalAccess(
         allowed: false,
         status: 'pending',
-        message: 'Si aad lacag ula baxdo markii ugu horreysay, fadlan la xiriir maamulka.',
         whatsapp: '+252 61 234 5678',
-        accountId: 'BX123456',
+        accountId: 'BX12AB34CD',
         phone: '252610338686',
       );
     await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'evc_plus', ownPhone: '252610338686')));
     await tester.pumpAndSettle();
+    // The form looks as usual until Withdraw is tapped.
+    expect(find.byKey(const Key('withdraw-verify')), findsNothing);
+    await tester.enterText(find.byType(TextFormField).last, '50');
+    await tester.tap(find.byKey(const Key('withdraw-continue')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('withdraw-verify')), findsOneWidget);
-    expect(find.text('Account-kaaga wali lama fasixin'), findsOneWidget);
-    expect(find.textContaining('Si aad lacag ula baxdo markii ugu horreysay'), findsOneWidget);
-    expect(find.text('+252 61 234 5678'), findsOneWidget);
+    expect(find.text('Account Approval Required'), findsOneWidget);
+    expect(find.text('To withdraw your funds, please contact Admin on WhatsApp to have your account approved for withdrawals.'),
+        findsOneWidget);
     expect(find.byKey(const Key('contact-admin-whatsapp')), findsOneWidget);
-    expect(tester.widget<PrimaryButton>(find.byKey(const Key('withdraw-continue'))).onPressed, isNull);
+    expect(find.text('+252 61 234 5678'), findsOneWidget);
+    expect(api.submitted, isEmpty, reason: 'no withdrawal is made');
+    expect(api.quotes, 0, reason: 'not even a quote');
+    await tester.tap(find.byKey(const Key('verify-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('withdraw-verify')), findsNothing);
+  });
 
-    final link = api.access!.whatsappLink!;
+  test('the WhatsApp message: customer ID, number, platform and its account ID; nothing secret', () {
+    const access = WithdrawalAccess(allowed: false, status: 'pending', whatsapp: '+252 61 234 5678',
+        accountId: 'BX12AB34CD', phone: '252611234567');
+    final link = access.whatsappLink(platform: '1XBET', platformAccountId: '123456789')!;
     expect(link.host, 'wa.me');
     expect(link.path, '/252612345678');
     final text = link.queryParameters['text']!;
-    expect(text, contains('Account ID: BX123456'));
-    expect(text, contains('Lambarkeyga: +252610338686'));
-    expect(text.toLowerCase(), isNot(contains('pin')));
-    expect(text.toLowerCase(), isNot(contains('password')));
+    expect(text, startsWith('Hello Admin,'));
+    expect(text, contains('Please approve my withdrawal account.'));
+    expect(text, contains('Customer ID: BX12AB34CD'));
+    expect(text, contains('Phone Number: +252611234567'));
+    expect(text, contains('Platform: 1XBET'));
+    expect(text, contains('Account ID: 123456789'));
+    expect(text, contains('I would like to request approval for withdrawals.'));
+    for (final secret in ['pin', 'password', 'otp', 'code']) {
+      expect(text.toLowerCase(), isNot(contains(secret)));
+    }
+    final mobile = access.whatsappLink()!.queryParameters['text']!;
+    expect(mobile, isNot(contains('Platform:')));
+    expect(const WithdrawalAccess(allowed: false, status: 'pending').whatsappLink(), isNull, reason: 'no number set');
   });
 
   testWidgets('approved: the withdrawal form as before, no verification card', (tester) async {
