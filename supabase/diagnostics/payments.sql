@@ -177,3 +177,17 @@ FROM public.orders o WHERE o.direction = 'withdraw' AND o.status = 'completed'
   AND NOT EXISTS (SELECT 1 FROM public.ledger_entries l WHERE l.order_id = o.id AND l.entry_type IN ('debit', 'reserve'));
 \echo '-- final statuses over all time'
 SELECT direction, status, count(*) AS n FROM public.orders GROUP BY 1, 2 ORDER BY 1, 2;
+
+\echo '== 16. Sahal sign-in code: feed state, SMS forwarder token, and what came in (no tokens, no codes) =='
+SELECT s.state, s.result_code, left(coalesce(s.message, ''), 90) AS message, to_char(s.updated_at, 'MM-DD HH24:MI:SS') AS updated,
+       to_char(f.second_at, 'MM-DD HH24:MI:SS') AS code_asked_at, (f.code IS NOT NULL) AS code_waiting_to_be_sent
+FROM public.merchant_feed_status s LEFT JOIN private.merchant_feed_sessions f ON f.provider = s.provider WHERE s.provider = 'golis';
+\echo '-- forwarder tokens (hash never shown)'
+SELECT to_char(created_at, 'MM-DD HH24:MI:SS') AS created, to_char(last_used_at, 'MM-DD HH24:MI:SS') AS last_used, to_char(revoked_at, 'MM-DD HH24:MI:SS') AS revoked
+FROM private.sahal_sms_hooks ORDER BY created_at DESC LIMIT 5;
+\echo '-- settings'
+SELECT key, left(value, 30) AS value FROM public.app_settings WHERE key IN ('sahal_auto_code', 'sahal_sms_senders');
+\echo '-- sign-ins, typed and automatic codes, forwarder token changes (last 6 hours)'
+SELECT to_char(created_at, 'MM-DD HH24:MI:SS') AS at, action, left(coalesce(after_json::text, ''), 90) AS detail
+FROM public.audit_logs WHERE action IN ('merchant_feed.sign_in', 'merchant_feed.code', 'merchant_feed.auto_code', 'sahal_sms_hook.rotate', 'sahal_sms_hook.revoke')
+  AND created_at > now() - interval '6 hours' ORDER BY created_at DESC LIMIT 20;
