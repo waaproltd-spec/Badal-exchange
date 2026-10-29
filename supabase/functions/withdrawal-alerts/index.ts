@@ -78,6 +78,7 @@ const delayText = (o: Order) =>
 
 const SAHAL: Record<string, (s: any) => string> = {
   code: (s) => `🔐 <b>Sahal needs its SMS code</b>\nOpen the Agent App → Sahal Sign-in and type the code sent to the merchant phone (10 minutes).\nWithdrawals waiting: ${s.waitingCount}`,
+  code_overdue: (s) => `🚨 <b>Sahal code not entered for 2 minutes</b>\nThe SMS forwarder did not enter it. Open the Agent App → Sahal Sign-in and type the code sent to the merchant phone (valid 10 minutes). Deposits keep being read while the old session works; Sahal withdrawals wait.\nWithdrawals waiting: ${s.waitingCount}`,
   stopped: (s) => `⛔ <b>Sahal sign-in stopped</b>\n${esc(s.message ?? '')}\nOpen the Agent App → Sahal Sign-in → Sign in again.\nWithdrawals waiting: ${s.waitingCount}`,
   refused: (s) => `⚠️ <b>Sahal refuses transfers</b>\n${esc(s.message ?? '')}\nWithdrawals waiting: ${s.waitingCount}`,
   unreachable: (s) => `📡 <b>Sahal cannot be reached</b>\n${esc(s.message ?? '')}\nWithdrawals wait and go out by themselves when it answers.`,

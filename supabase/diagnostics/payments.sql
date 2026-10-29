@@ -201,3 +201,16 @@ SELECT o.order_code, o.method,
        (SELECT to_char(min(s.received_at), 'HH24:MI:SS') || ' / uploaded ' || to_char(min(s.created_at), 'HH24:MI:SS') FROM public.sms_logs s WHERE s.matched_order_id = o.id) AS sms_received_uploaded
 FROM public.orders o WHERE o.direction = 'deposit' AND o.status = 'completed'
 ORDER BY o.completed_at DESC LIMIT 12;
+
+\echo '== 18. Sahal session log: how long each session lasted, and what ended it (no codes, no ids) =='
+\echo '-- setting: idle renewal (on = the session is renewed by itself when idle)'
+SELECT key, value FROM public.app_settings WHERE key = 'sahal_renew_idle';
+\echo '-- lifetimes of ended sessions (seconds)'
+SELECT count(*) AS ended,
+       round(min((detail ->> 'lifetimeSeconds')::numeric) / 60, 1) AS min_minutes,
+       round(percentile_cont(0.5) WITHIN GROUP (ORDER BY (detail ->> 'lifetimeSeconds')::numeric) / 60, 1) AS median_minutes,
+       round(max((detail ->> 'lifetimeSeconds')::numeric) / 60, 1) AS max_minutes
+FROM private.merchant_feed_events WHERE provider = 'golis' AND event = 'session_cleared' AND detail ? 'lifetimeSeconds';
+\echo '-- the last 40 events, newest first'
+SELECT to_char(at, 'MM-DD HH24:MI:SS') AS at, event, detail::text AS detail
+FROM private.merchant_feed_events WHERE provider = 'golis' ORDER BY id DESC LIMIT 40;

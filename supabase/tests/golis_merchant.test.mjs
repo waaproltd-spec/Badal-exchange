@@ -109,6 +109,8 @@ beforeEach(async () => {
   await db.query(`UPDATE merchant_feed_status SET state = 'ready', result_code = NULL, message = NULL, rows_seen = 0 WHERE provider = 'golis'`);
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
+  await db.query(`DELETE FROM private.merchant_feed_events WHERE provider = 'golis'`);
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'sahal_renew_idle'`);
   Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false, cookieFor: {}, firstRows: [], refuseList: false,
     payouts: false, canSend: new Set(), transfers: [], findDown: false, unclear: false, er0654: null });
   seen.length = 0;
@@ -656,6 +658,94 @@ test('nothing to send: the session is checked anyway, and a lost one is renewed 
   } finally {
     await sahalOff();
   }
+});
+
+// ---- The session's own log, and renewing only when needed ----
+// (migrations/*_sahal_session_log.sql)
+
+const events = async () => (await db.query(`SELECT event, detail FROM private.merchant_feed_events WHERE provider = 'golis' ORDER BY id`)).rows;
+
+test('session log: start, loss (by what), renewal and sign-in results, never a code or password', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run();
+    await run(); // reading again with the same session is not a new session
+    let e = await events();
+    assert.equal(e.filter((x) => x.event === 'session_started').length, 1);
+    assert.deepEqual(e.filter((x) => x.event === 'sign_in').map((x) => x.detail.result), ['2001']);
+
+    portal.canSend.clear(); // Sahal ends the session for transfers
+    await run();
+    e = await events();
+    const lost = e.find((x) => x.event === 'session_lost');
+    assert.equal(lost.detail.by, 'probe');
+    assert.equal(lost.detail.code, 'ER0654');
+    assert.ok(lost.detail.sessionAgeSeconds >= 0, 'its age is recorded');
+    assert.equal(e.filter((x) => x.event === 'session_started').length, 2, 'the renewal is a second session');
+    assert.ok(e.some((x) => x.event === 'sign_in' && x.detail.for === 'transfers'));
+    const text = JSON.stringify(e);
+    assert.ok(!text.includes('654321') && !text.includes('test-password'), 'no code, no password in the log');
+  } finally {
+    await sahalOff();
+  }
+});
+
+test('session log: the code sent and the session that waits for it', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await waitForCode();
+  const a = await managerClient();
+  assert.equal((await smsCode(a, SAHAL_SMS)).error, null);
+  await run();
+  const e = await events();
+  assert.deepEqual(e.filter((x) => x.event === 'sign_in').map((x) => x.detail.result), ['1001']);
+  assert.deepEqual(e.filter((x) => x.event === 'code_sent').map((x) => x.detail.result), ['2001']);
+  assert.ok(!JSON.stringify(e).includes('654321'));
+});
+
+test("'sahal_renew_idle' off: an idle session that Sahal ended is not renewed until a withdrawal needs it (once, nothing twice)", async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await sahalOn();
+  try {
+    await run();
+    assert.equal(calls('/api/account/login'), 1);
+    await setSetting('sahal_renew_idle', 'off');
+    portal.canSend.clear();
+    await run();
+    await run();
+    assert.equal(calls('/api/account/login'), 1, 'idle: no new sign-in, no new SMS code');
+    assert.equal(calls('/api/account/find'), 0, 'and no idle look-up');
+    // A withdrawal arrives: now it signs in again and sends it, once.
+    const local = evcLocal();
+    const c = await richCustomer(local);
+    const w = await withdrawalOf(c, local, 2);
+    await run();
+    assert.equal(calls('/api/account/login'), 2);
+    const o = await order(w.id);
+    assert.equal(o.status, 'completed');
+    assert.equal(portal.transfers.length, 1);
+    assert.equal(await walletOf(c), '8.00', 'taken once');
+    await run();
+    assert.equal(portal.transfers.length, 1);
+    const lost = (await events()).find((x) => x.event === 'session_lost');
+    assert.ok(['lookup', 'transfer'].includes(lost.detail.by));
+  } finally {
+    await setSetting('sahal_renew_idle', 'on');
+    await sahalOff();
+  }
+});
+
+test('only a manager sets the idle renewal; it is audited', async () => {
+  const a = await managerClient();
+  const set = await a.rpc('manage_sahal_session_options', { p_renew_idle: false });
+  assert.equal(set.error, null);
+  assert.deepEqual(set.data, { renewIdle: false });
+  assert.deepEqual((await a.rpc('manage_sahal_session_options', {})).data, { renewIdle: false }, 'reading changes nothing');
+  assert.deepEqual((await a.rpc('manage_sahal_session_options', { p_renew_idle: true })).data, { renewIdle: true });
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM audit_logs WHERE action = 'sahal_session.options' AND created_at > now() - interval '1 minute'`);
+  assert.ok(rows[0].n >= 2);
+  const c = await customer(evcLocal());
+  assert.notEqual((await c.rpc('manage_sahal_session_options', { p_renew_idle: false })).error, null);
 });
 
 // ---- Sahal's SMS access code, read from the merchant phone ----

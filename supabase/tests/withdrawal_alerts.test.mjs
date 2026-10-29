@@ -282,6 +282,31 @@ test('Sahal needing a person is said at once, once, and the all-clear after', as
   }
 });
 
+test('the SMS code still not entered after 2 minutes: a clearer alert, once', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const feed = (await db.query(`SELECT state, result_code, message FROM merchant_feed_status WHERE provider = 'golis'`)).rows[0];
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'live' WHERE id`);
+  await db.query(`INSERT INTO private.merchant_feed_sessions (provider, second_at) VALUES ('golis', now())
+                  ON CONFLICT (provider) DO UPDATE SET second_at = now()`);
+  await db.query(`UPDATE merchant_feed_status SET state = 'needs_code', result_code = '1001' WHERE provider = 'golis'`);
+  try {
+    await run();
+    assert.equal(sent('sendMessage', CHAT).filter((c) => /Sahal code not entered/.test(c.body.text)).length, 0, 'not at once: the forwarder usually enters it');
+    await db.query(`UPDATE private.merchant_feed_sessions SET second_at = now() - interval '3 minutes' WHERE provider = 'golis'`);
+    await run();
+    await run();
+    const late = sent('sendMessage', CHAT).filter((c) => /Sahal code not entered for 2 minutes/.test(c.body.text));
+    assert.equal(late.length, 1, 'once');
+    assert.match(late[0].body.text, /SMS forwarder did not enter it/);
+    assert.match(late[0].body.text, /Sahal Sign-in/);
+  } finally {
+    await db.query(`UPDATE merchant_feed_status SET state = $1, result_code = $2, message = $3 WHERE provider = 'golis'`,
+      [feed.state, feed.result_code, feed.message]);
+    await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
+    await db.query(`UPDATE withdrawal_alert_chat SET sahal_alert_key = NULL WHERE id`);
+  }
+});
+
 test('a Sahal transfer that matched no withdrawal is reported once', async (t) => {
   if (!served) return t.skip('withdrawal-alerts is not served');
   const id = `T${Date.now()}`;
