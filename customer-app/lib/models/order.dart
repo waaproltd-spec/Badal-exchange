@@ -56,6 +56,13 @@ class Order {
   /// provider_balance, confirming, manual, waiting); null when it is not late.
   final String? delay;
 
+  /// The server has given its last word: completed, or a definitive failure
+  /// (failed, cancelled, expired). Anything else -- pending, processing, or a
+  /// status this app does not know -- is still being verified: the customer is
+  /// never shown "Pending", and is never told "Failed" without the server's say.
+  bool get isFinal => const {'completed', 'failed', 'cancelled', 'expired'}.contains(status);
+  bool get isFailedFinal => const {'failed', 'cancelled', 'expired'}.contains(status);
+
   bool get isDeposit => direction == 'deposit';
   pm.PaymentMethodInfo get methodInfo => pm.methodInfo(method);
   String get methodLabel => methodInfo.label;

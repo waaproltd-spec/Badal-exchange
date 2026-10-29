@@ -127,13 +127,14 @@ void main() {
     expect(valueOf('Balance After'), '\$1.25');
   });
 
-  testWidgets('an unpaid deposit has no balance lines and says it waits for the payment', (tester) async {
+  testWidgets('an unpaid deposit has no balance lines and says it is being verified', (tester) async {
     await _phone(tester);
     await tester.pumpWidget(_host(const OrdersListScreen(), [unpaid]));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Deposit · EVC Plus'));
     await tester.pumpAndSettle();
-    expect(find.text('Checking your payment…'), findsOneWidget);
+    expect(find.text('Your payment is being verified…'), findsAtLeastNWidgets(1));
+    expect(find.text('Pending'), findsNothing);
     expect(find.text('Balance Before'), findsNothing);
     expect(find.text('Balance After'), findsNothing);
   });
@@ -149,7 +150,8 @@ void main() {
     await tester.pumpWidget(_host(WithdrawResultScreen(
         order: _order(id: 'w2', direction: 'withdraw', status: 'processing', before: '2.00', after: '1.00'))));
     expect(find.text('USD Withdrawn'), findsOneWidget);
-    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('Your payment is being verified…'), findsOneWidget);
+    expect(find.text('Pending'), findsNothing);
     expect(find.text('Withdrawal Confirmed'), findsNothing, reason: 'only once it is paid out');
     await tester.scrollUntilVisible(find.byKey(const Key('back-to-home')), 120, scrollable: find.byType(Scrollable).first);
     expect(tester.takeException(), isNull);

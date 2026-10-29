@@ -19,6 +19,12 @@ class OrdersProvider extends ChangeNotifier {
   StreamSubscription<String>? _liveSub;
   bool _loaded = false;
 
+  /// While any order is not final the server is still confirming it: ask
+  /// again every few seconds (the live update usually arrives first).
+  static const recheckEvery = Duration(seconds: 5);
+  Timer? _recheck;
+  bool _disposed = false;
+
   final CustomerApi customerApi;
 
   List<Order> _orders = const [];
@@ -48,13 +54,19 @@ class OrdersProvider extends ChangeNotifier {
       if (silent) return;
       _error = AppStrings.couldNotLoadOrders;
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (!_disposed) {
+        _loading = false;
+        notifyListeners();
+        _recheck?.cancel();
+        _recheck = _orders.any((o) => !o.isFinal) ? Timer(recheckEvery, () => load(silent: true)) : null;
+      }
     }
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    _recheck?.cancel();
     _liveSub?.cancel();
     super.dispose();
   }

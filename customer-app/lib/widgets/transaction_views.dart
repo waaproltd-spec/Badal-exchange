@@ -1,9 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../api/customer_api.dart';
 import '../l10n/strings.dart';
 import '../models/order.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
+import '../services/success_sound.dart';
 import '../utils/formatters.dart';
 import 'method_icon.dart';
 import '../l10n/server_text.dart';
@@ -24,8 +29,7 @@ String _signedAmount(Order order) => order.amountPending
 Color _statusColor(String status) => switch (status) {
       'completed' => AppColors.statusCompleted,
       'failed' || 'cancelled' || 'expired' => AppColors.statusFailed,
-      'processing' => AppColors.statusProcessing,
-      _ => AppColors.statusPending,
+      _ => AppColors.statusProcessing,
     };
 
 /// "Deposit Confirmed" / "Withdrawal Confirmed" once completed; otherwise
@@ -34,14 +38,11 @@ String orderStatusText(Order order) {
   if (order.status == 'completed') {
     return order.isDeposit ? AppStrings.depositConfirmed : AppStrings.withdrawalConfirmed;
   }
-  if (order.status == 'pending' && order.isDeposit && !order.methodInfo.isPlatform) return AppStrings.waitingForPayment;
-  if (order.status == 'pending' || order.status == 'processing') return AppStrings.inProgress;
-  return switch (order.status) {
-    'failed' => AppStrings.statusFailed,
-    'cancelled' => AppStrings.statusCancelled,
-    'expired' => AppStrings.statusExpired,
-    _ => serverText(order.statusMessage.isNotEmpty ? order.statusMessage : order.status),
-  };
+  // Cancelled and expired are definitive too: the customer reads "Failed",
+  // with the reason on the details. Everything not final yet (pending,
+  // processing, or a status this app does not know) is "being verified".
+  if (order.isFailedFinal) return AppStrings.statusFailed;
+  return AppStrings.verifying;
 }
 
 class StatusPill extends StatelessWidget {
@@ -327,6 +328,86 @@ class _Steps extends StatelessWidget {
   }
 }
 
+/// Keeps an order that is not final yet up to date: asks the server for it
+/// every few seconds (a little slower after each failed try) until the server
+/// says completed or failed, and shows the latest with [builder]. A slow or
+/// failed answer is not a result: it never marks the order failed, it only
+/// asks again. A final order is never replaced by a non-final one.
+class FollowOrder extends StatefulWidget {
+  const FollowOrder({
+    super.key,
+    required this.order,
+    required this.builder,
+    this.pollEvery = const Duration(seconds: 3),
+    this.slowestEvery = const Duration(seconds: 10),
+  });
+
+  final Order order;
+  final Widget Function(BuildContext context, Order order) builder;
+  final Duration pollEvery;
+  final Duration slowestEvery;
+
+  @override
+  State<FollowOrder> createState() => _FollowOrderState();
+}
+
+class _FollowOrderState extends State<FollowOrder> {
+  late Order _order = widget.order;
+  Timer? _timer;
+  int _misses = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_order.isFinal) _schedule();
+  }
+
+  @override
+  void didUpdateWidget(FollowOrder old) {
+    super.didUpdateWidget(old);
+    if (old.order.id != widget.order.id) {
+      _order = widget.order;
+      _misses = 0;
+      _timer?.cancel();
+      if (!_order.isFinal) _schedule();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _schedule() {
+    final wait = widget.pollEvery * (1 + _misses);
+    _timer = Timer(wait > widget.slowestEvery ? widget.slowestEvery : wait, _check);
+  }
+
+  Future<void> _check() async {
+    final CustomerApi api;
+    try {
+      api = context.read<CustomerApi>();
+    } catch (_) {
+      return; // nothing to ask (no signed-in session here)
+    }
+    try {
+      final latest = await api.getOrder(_order.id);
+      _misses = 0;
+      if (!mounted) return;
+      // The server's word on it. Only a final order is never taken back.
+      if (latest.id == _order.id && !(_order.isFinal && !latest.isFinal)) setState(() => _order = latest);
+      SuccessSound.instance.observe([latest]);
+    } catch (_) {
+      _misses++; // not a result: ask again
+    }
+    if (mounted && !_order.isFinal) _schedule();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _order);
+}
+
 /// After submitting: the method with a badge, the amount, the status, and
 /// the order's details. [extra] goes between the details and the button
 /// (e.g. a betting platform's deposit code).
@@ -338,7 +419,7 @@ class TransactionResultView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final failed = const {'failed', 'cancelled', 'expired'}.contains(order.status);
+    final failed = order.isFailedFinal;
     final done = order.status == 'completed';
     final color = failed ? AppColors.statusFailed : (order.isDeposit ? AppColors.statusCompleted : AppColors.statusFailed);
     return ListView(
@@ -349,7 +430,7 @@ class TransactionResultView extends StatelessWidget {
             method: order.method,
             size: 72,
             badge: failed ? Icons.close_rounded : (done ? Icons.check_rounded : Icons.schedule_rounded),
-            badgeColor: failed ? AppColors.statusFailed : (done ? AppColors.statusCompleted : AppColors.statusPending),
+            badgeColor: failed ? AppColors.statusFailed : (done ? AppColors.statusCompleted : AppColors.statusProcessing),
           ),
         ),
         const SizedBox(height: 18),
@@ -502,8 +583,11 @@ class TransactionDetailsSheet extends StatelessWidget {
 
   final Order order;
 
+  // An order still being verified updates here by itself.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => FollowOrder(order: order, builder: _sheet);
+
+  Widget _sheet(BuildContext context, Order order) {
     final media = MediaQuery.of(context);
     return Container(
       constraints: BoxConstraints(maxHeight: media.size.height * 0.9),

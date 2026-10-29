@@ -268,8 +268,9 @@ class AppStrings {
   static String get usdWithdrawn => _t('USD Withdrawn', 'USD la bixiyay');
   static String get depositConfirmed => _t('Deposit Confirmed', 'Dhigashada waa la xaqiijiyay');
   static String get withdrawalConfirmed => _t('Withdrawal Confirmed', 'Bixinta waa la xaqiijiyay');
-  static String get waitingForPayment => _t('Checking your payment…', 'Lacag-bixintaada waa la hubinayaa…');
-  static String get inProgress => _t('In progress', 'Waa socotaa');
+  /// What a customer sees while the server is still confirming: never "Pending".
+  static String get verifying => _t('Your payment is being verified…', 'Lacag-bixintaada waa la hubinayaa…');
+  static String get statusCompleted => _t('Completed', 'Waa dhammaaday');
   static String get confirmingOrder => _t('Confirming Order...', 'Dalabka waa la xaqiijinayaa...');
   static String get confirmingWithdrawal => _t('Confirming Withdrawal...', 'Bixinta waa la xaqiijinayaa...');
   static String get hangTightDeposit =>

@@ -15,7 +15,9 @@ class WithdrawResultScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      body: SafeArea(child: TransactionResultView(order: order)),
+      body: SafeArea(
+        child: FollowOrder(order: order, builder: (context, order) => TransactionResultView(order: order)),
+      ),
     );
   }
 }
