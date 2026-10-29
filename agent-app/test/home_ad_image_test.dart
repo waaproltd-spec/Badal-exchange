@@ -52,6 +52,10 @@ Future<void> _open(WidgetTester tester, {HomeAd? ad, Future<Uint8List?> Function
   _api = _FakeApi();
   _result = null;
   final api = _api;
+  // Tall enough that the whole form (with the picture) is built and Save is on screen.
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(ChangeNotifierProvider(
     create: (_) => Session(api: api),
     child: MaterialApp(
