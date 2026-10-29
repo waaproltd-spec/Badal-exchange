@@ -214,3 +214,15 @@ FROM private.merchant_feed_events WHERE provider = 'golis' AND event = 'session_
 \echo '-- the last 40 events, newest first'
 SELECT to_char(at, 'MM-DD HH24:MI:SS') AS at, event, detail::text AS detail
 FROM private.merchant_feed_events WHERE provider = 'golis' ORDER BY id DESC LIMIT 40;
+
+\echo '== 19. Betting platforms: added ones, deleted ones, and whether a name is taken (read-only; no credentials) =='
+SELECT i.method_key, i.adapter, i.status, i.built_in, (i.deleted_at IS NOT NULL) AS deleted,
+       to_char(i.created_at, 'MM-DD HH24:MI') AS created,
+       EXISTS (SELECT 1 FROM public.payment_methods m WHERE m.method::text = i.method_key) AS has_payment_method
+FROM public.payment_integrations i WHERE i.kind = 'betting' ORDER BY i.created_at;
+\echo '-- payment methods that are betting platforms (label, enabled)'
+SELECT m.method::text AS method, m.label, m.enabled FROM public.payment_methods m WHERE m.kind = 'platform' ORDER BY m.sort_order, m.method::text;
+\echo '-- order_method values that are not payment methods (a name already used and left behind)'
+SELECT e::text AS leftover_enum_value
+FROM unnest(enum_range(NULL::public.order_method)) e
+WHERE NOT EXISTS (SELECT 1 FROM public.payment_methods m WHERE m.method::text = e::text);
