@@ -157,24 +157,23 @@ void main() {
     expect(find.byKey(const Key('account-error')), findsOneWidget);
   });
 
-  testWidgets('a saved login: Test, then the SMS code is typed once; Activate waits for a verified test', (tester) async {
+  testWidgets('a saved login: Activate waits for a verified test; Test starts one', (tester) async {
     await _open(tester, _status(pending: const SahalPendingAccount(username: '252900000055', hasPin: true, status: 'draft')));
     expect(tester.widget<ElevatedButton>(find.byKey(const Key('pending-activate'))).onPressed, isNull);
     await tester.tap(find.byKey(const Key('pending-test')));
     await tester.pumpAndSettle();
     expect(_api.calls, ['test']);
     expect(find.text('Testing…'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(find.byKey(const Key('pending-activate'))).onPressed, isNull);
+  });
 
-    _api.status = _status(pending: const SahalPendingAccount(username: '252900000055', status: 'needs_code', message: 'Sahal sent a code'));
-    await tester.pumpWidget(ChangeNotifierProvider(
-      create: (_) => Session(api: _api),
-      child: const MaterialApp(home: SahalAccountScreen(poll: Duration(hours: 1))),
-    ));
-    await tester.pumpAndSettle();
+  testWidgets('Sahal sent a code to the new account\'s phone: it is typed here and sent once', (tester) async {
+    await _open(
+        tester, _status(pending: const SahalPendingAccount(username: '252900000055', status: 'needs_code', message: 'Sahal sent a code')));
     await tester.enterText(find.byKey(const Key('pending-code')), '654 321');
     await tester.tap(find.byKey(const Key('pending-send-code')));
     await tester.pumpAndSettle();
-    expect(_api.calls, ['test', 'code 654321']);
+    expect(_api.calls, ['code 654321']);
   });
 
   testWidgets('Activate: says what is open, needs the deposit-code confirmation for another account, then switches', (tester) async {
