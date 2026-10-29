@@ -385,6 +385,23 @@ test('a merchant payment from the customer\'s number, same amount, credits that 
   assert.equal(rows[0].n, 1);
 });
 
+test('read every 10 seconds, so reads can overlap: several runs at once credit a deposit once', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'merchant_feed_credit:golis'`);
+  const local = evcLocal();
+  const c = await customer(local);
+  const d = await depositOf(c, local, 3);
+  portal.rows = [payment(`252${local}`, 3)];
+  await Promise.all([run(), run(), run(), run()]);
+  await run();
+  assert.equal((await order(d.id)).status, 'completed');
+  assert.equal(await walletOf(c), '3.00', 'credited once, not once per run');
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM ledger_entries WHERE order_id = $1 AND entry_type = 'credit'`, [d.id]);
+  assert.equal(rows[0].n, 1);
+  const feed = await db.query(`SELECT count(*)::int AS n FROM merchant_transactions WHERE provider = 'golis' AND matched_order_id = $1`, [d.id]);
+  assert.equal(feed.rows[0].n, 1, 'one transfer pays one deposit');
+});
+
 test('another number or another amount credits nothing', async (t) => {
   if (!served) return t.skip('golis-merchant is not served');
   await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'merchant_feed_credit:golis'`);
