@@ -348,6 +348,29 @@ void main() {
     expect(api.submitted.single, containsPair('kind', 'withdraw'));
   });
 
+  testWidgets('Withdraw all fills the whole available balance (betting and mobile money), and only the amount', (tester) async {
+    await _phone(tester);
+    AppLanguage.current.value = AppLanguage.english;
+    final api = FakeCustomerApi();
+    for (final id in ['onexbet', 'evc_plus']) {
+      final option = (await api.getPaymentMethods()).firstWhere((o) => o.info.id == id);
+      await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: id, option: option, ownPhone: '252610338686', availableBalance: '12.34')));
+      await tester.pump();
+      expect(find.byKey(const Key('withdraw-all')), findsOneWidget, reason: id);
+      await tester.tap(find.byKey(const Key('withdraw-all')));
+      await tester.pump();
+      expect(find.widgetWithText(TextFormField, '12.34'), findsOneWidget, reason: id);
+      expect(api.submitted, isEmpty, reason: 'filling the amount sends nothing');
+    }
+    // No balance known, or nothing in it: no button.
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'onexbet')));
+    await tester.pump();
+    expect(find.byKey(const Key('withdraw-all')), findsNothing);
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'onexbet', availableBalance: '0.00')));
+    await tester.pump();
+    expect(find.byKey(const Key('withdraw-all')), findsNothing);
+  });
+
   testWidgets('without a registered number, mobile money cannot be submitted', (tester) async {
     await _phone(tester);
     final api = FakeCustomerApi();

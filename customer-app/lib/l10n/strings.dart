@@ -148,6 +148,7 @@ class AppStrings {
   // Deposit / withdraw shared
   static String get amount => _t('Amount (USD)', 'Lacagta (USD)');
   static String get continueLabel => _t('Continue', 'Sii wad');
+  static String get withdrawAll => _t('Withdraw all', 'Qaado dhammaan');
   static String get confirm => _t('Confirm', 'Xaqiiji');
   static String get rate => _t('Rate', 'Sarifka');
   static String get fee => _t('Fee', 'Khidmadda');

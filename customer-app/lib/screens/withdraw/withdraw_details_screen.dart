@@ -109,6 +109,20 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     super.dispose();
   }
 
+  /// The whole available balance, or the method's maximum when that is less.
+  /// Nothing is sent: it only fills the amount, which is checked as always.
+  void _fillAll() {
+    final balance = double.tryParse(widget.availableBalance ?? '');
+    if (balance == null || balance <= 0) return;
+    var all = balance;
+    final cap = double.tryParse(widget.option?.maxWithdraw ?? '');
+    if (cap != null && cap < all) all = cap;
+    // Down to the cent, never above the balance.
+    final text = ((all * 100).floor() / 100).toStringAsFixed(2);
+    _amountController.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    if (_error != null) setState(() => _error = null);
+  }
+
   Future<void> _continue() async {
     if (!_formKey.currentState!.validate()) return;
     if (_blocked) {
@@ -251,6 +265,16 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                     const SizedBox(width: 12),
                     Expanded(flex: 2, child: amount),
                   ],
+                ),
+              if ((double.tryParse(widget.availableBalance ?? '') ?? 0) > 0)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton(
+                    key: const Key('withdraw-all'),
+                    onPressed: _fillAll,
+                    child: Text(AppStrings.withdrawAll,
+                        style: AppTextStyles.body.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
+                  ),
                 ),
               if (min != null && max != null) ...[
                 const SizedBox(height: 8),
