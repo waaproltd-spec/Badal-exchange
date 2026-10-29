@@ -110,6 +110,8 @@ beforeEach(async () => {
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM private.merchant_feed_events WHERE provider = 'golis'`);
+  await db.query(`DELETE FROM vault.secrets WHERE name LIKE 'sahal_account_%'`);
+  await db.query(`DELETE FROM private.sahal_accounts`);
   await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'sahal_renew_idle'`);
   Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false, cookieFor: {}, firstRows: [], refuseList: false,
     payouts: false, canSend: new Set(), transfers: [], findDown: false, unclear: false, er0654: null });
@@ -746,6 +748,179 @@ test('only a manager sets the idle renewal; it is audited', async () => {
   assert.ok(rows[0].n >= 2);
   const c = await customer(evcLocal());
   assert.notEqual((await c.rpc('manage_sahal_session_options', { p_renew_idle: false })).error, null);
+});
+
+// ---- The Sahal account, managed from the Admin Dashboard ----
+// (migrations/*_sahal_accounts.sql, functions/sahal-account-verify)
+
+const verifyNow = async () => {
+  const res = await fetch(`${URL}/functions/v1/sahal-account-verify`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-worker-secret': secret }, body: '{}',
+  });
+  return { status: res.status, body: await res.text() };
+};
+const accountStatus = async (m) => (await m.rpc('manage_sahal_account_status')).data;
+const feedSession = async () => (await db.query(`SELECT session_id, cookies FROM private.merchant_feed_sessions WHERE provider = 'golis'`)).rows[0];
+const NEW_LOGIN = { p_username: '252900000055', p_password: 'new-pass-Zq81', p_pin: '5555', p_currency: null };
+
+test('a new account: saved, tested in its own session, then activated; the working one is not touched until then', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await run(); // the working account (function secrets) is signed in and reading
+  assert.equal((await status()).state, 'ok');
+  const before = await feedSession();
+  const m = await managerClient();
+
+  let r = await m.rpc('manage_sahal_account_save', NEW_LOGIN);
+  assert.equal(r.error, null);
+  assert.equal(r.data.source, 'environment', 'still the working account');
+  assert.equal(r.data.pending.username, '252900000055');
+  assert.equal(r.data.pending.status, 'draft');
+  assert.ok(!JSON.stringify(r.data).includes('new-pass-Zq81') && !JSON.stringify(r.data).includes('5555'), 'no password, no PIN comes back');
+
+  // Cannot be activated before it is verified.
+  r = await m.rpc('manage_sahal_account_activate', { p_deposit_codes_updated: true });
+  assert.notEqual(r.error, null, 'not verified yet');
+
+  assert.equal((await m.rpc('manage_sahal_account_test')).error, null);
+  const v = await verifyNow();
+  assert.equal(v.status, 200, v.body);
+  const login = seen.filter((x) => x.path === '/api/account/login').pop().body;
+  assert.equal(login.username, '252900000055');
+  assert.equal(login.password, 'new-pass-Zq81');
+  let st = await accountStatus(m);
+  assert.equal(st.pending.status, 'verified');
+  assert.ok(st.pending.verifiedAt);
+  // The working feed was not involved: same session, still reading, no second sign-in for it.
+  assert.deepEqual(await feedSession(), before);
+  assert.equal((await status()).state, 'ok');
+  await run();
+  assert.equal((await status()).state, 'ok');
+  assert.equal(calls('/api/account/login'), 2, 'one for the working account, one for the test');
+
+  // A different merchant account is a different deposit code: it must be confirmed.
+  r = await m.rpc('manage_sahal_account_activate', { p_deposit_codes_updated: false });
+  assert.notEqual(r.error, null);
+  assert.equal((await accountStatus(m)).source, 'environment', 'nothing changed');
+  r = await m.rpc('manage_sahal_account_activate', { p_deposit_codes_updated: true });
+  assert.equal(r.error, null);
+  assert.equal(r.data.source, 'database');
+  assert.equal(r.data.active.username, '252900000055');
+  assert.equal(r.data.pending, null);
+  assert.notDeepEqual(await feedSession(), before, 'the verified session is now the feed\'s');
+
+  // It reads with that session: no new sign-in, no SMS.
+  await run();
+  assert.equal((await status()).state, 'ok');
+  assert.equal(calls('/api/account/login'), 2);
+  // When Sahal ends it, the feed signs in as the NEW account.
+  portal.sessions.clear();
+  await run();
+  const again = seen.filter((x) => x.path === '/api/account/login').pop().body;
+  assert.equal(again.username, '252900000055');
+  assert.equal(again.password, 'new-pass-Zq81');
+  assert.equal((await status()).state, 'ok');
+
+  // Audited, and no secret anywhere it should not be.
+  const { rows } = await db.query(`SELECT action FROM audit_logs WHERE action LIKE 'sahal_account.%' AND created_at > now() - interval '5 minutes'`);
+  for (const a of ['save', 'test', 'verified', 'activate']) assert.ok(rows.some((x) => x.action === `sahal_account.${a}`), a);
+  const everything = JSON.stringify((await db.query(`SELECT before_json, after_json, entity_id FROM audit_logs WHERE created_at > now() - interval '5 minutes'`)).rows)
+    + JSON.stringify(await events());
+  assert.ok(!everything.includes('new-pass-Zq81') && !everything.includes('5555') && !everything.includes('654321'));
+  // It is in Vault, not in a table column.
+  const cols = JSON.stringify((await db.query(`SELECT * FROM private.sahal_accounts`)).rows);
+  assert.ok(!cols.includes('new-pass-Zq81') && !cols.includes('5555'));
+});
+
+test('a new account that wants an SMS code: the code is typed here, once; a test is not repeated within a minute', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await run();
+  const m = await managerClient();
+  await m.rpc('manage_sahal_account_save', NEW_LOGIN);
+  portal.login = 'sms';
+  assert.equal((await m.rpc('manage_sahal_account_test')).error, null);
+  assert.notEqual((await m.rpc('manage_sahal_account_test')).error, null, 'each test sends an SMS: not twice a minute');
+  await verifyNow();
+  let st = await accountStatus(m);
+  assert.equal(st.pending.status, 'needs_code');
+  assert.equal((await status()).state, 'ok', 'the working feed was not asked for a code');
+  // A wrong code is refused by Sahal; nothing is verified.
+  assert.equal((await m.rpc('manage_sahal_account_code', { p_code: '12' })).error?.message, 'Enter the code from the SMS (numbers only)');
+  assert.equal((await m.rpc('manage_sahal_account_code', { p_code: '000000' })).error, null);
+  await verifyNow();
+  st = await accountStatus(m);
+  assert.equal(st.pending.status, 'failed');
+  assert.match(st.pending.message, /did not accept the code/);
+  assert.notEqual((await m.rpc('manage_sahal_account_code', { p_code: '654321' })).error, null, 'Sahal is no longer waiting for it');
+});
+
+test('a new account with the right code is verified; the code is used once', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  const m = await managerClient();
+  await m.rpc('manage_sahal_account_save', NEW_LOGIN);
+  portal.login = 'sms';
+  await m.rpc('manage_sahal_account_test');
+  await verifyNow();
+  assert.equal((await m.rpc('manage_sahal_account_code', { p_code: '654321' })).error, null);
+  await verifyNow();
+  await verifyNow(); // woken twice: nothing is sent twice
+  assert.equal((await accountStatus(m)).pending.status, 'verified');
+  assert.equal(calls('/api/account/2auth'), 1, 'the code was sent once');
+});
+
+test('a wrong password: the test fails with Sahal\'s words, nothing can be activated, the working account carries on', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await run();
+  const m = await managerClient();
+  await m.rpc('manage_sahal_account_save', NEW_LOGIN);
+  portal.login = 'wrong';
+  await m.rpc('manage_sahal_account_test');
+  await verifyNow();
+  const st = await accountStatus(m);
+  assert.equal(st.pending.status, 'failed');
+  assert.match(st.pending.message, /Invalid username or password/);
+  assert.ok(!JSON.stringify(st).includes('new-pass-Zq81'));
+  const r = await m.rpc('manage_sahal_account_activate', { p_deposit_codes_updated: true });
+  assert.notEqual(r.error, null);
+  assert.equal(st.source, 'environment');
+  portal.login = 'ok';
+  await run();
+  assert.equal((await status()).state, 'ok', 'the working account was never interrupted');
+});
+
+test('discarding the new login removes its secrets; only managers can use any of this', async (t) => {
+  const m = await managerClient();
+  await m.rpc('manage_sahal_account_save', NEW_LOGIN);
+  const count = async () => (await db.query(`SELECT count(*)::int AS n FROM vault.secrets WHERE name LIKE 'sahal_account_%'`)).rows[0].n;
+  assert.equal(await count(), 2, 'password and PIN');
+  const c = await customer(evcLocal());
+  for (const [fn, args] of [['manage_sahal_account_status', {}], ['manage_sahal_account_save', NEW_LOGIN],
+    ['manage_sahal_account_test', {}], ['manage_sahal_account_code', { p_code: '123456' }],
+    ['manage_sahal_account_activate', { p_deposit_codes_updated: true }], ['manage_sahal_account_discard', {}]]) {
+    assert.notEqual((await c.rpc(fn, args)).error, null, `a customer cannot call ${fn}`);
+  }
+  for (const [fn, args] of [['sahal_credentials', {}], ['sahal_pending_work', {}], ['sahal_pending_report', { p_status: 'failed' }]]) {
+    assert.notEqual((await m.rpc(fn, args)).error, null, `${fn} is for the server only`);
+  }
+  const d = await m.rpc('manage_sahal_account_discard');
+  assert.equal(d.error, null);
+  assert.equal(d.data.pending, null);
+  assert.equal(await count(), 0);
+});
+
+test('the status says connected, authentication required or disconnected, and shows the session', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  const m = await managerClient();
+  await run();
+  let st = await accountStatus(m);
+  assert.equal(st.connection, 'connected');
+  assert.ok(st.session.active);
+  assert.ok(st.session.startedAt);
+  assert.ok(st.session.ageSeconds >= 0);
+  await db.query(`UPDATE merchant_feed_status SET state = 'needs_code' WHERE provider = 'golis'`);
+  assert.equal((await accountStatus(m)).connection, 'authentication_required');
+  await db.query(`UPDATE merchant_feed_status SET state = 'ready', result_code = 'error' WHERE provider = 'golis'`);
+  assert.equal((await accountStatus(m)).connection, 'disconnected');
+  assert.equal((await m.rpc('manage_sahal_connection_check')).error, null);
 });
 
 // ---- Sahal's SMS access code, read from the merchant phone ----

@@ -587,6 +587,45 @@ class AgentApi {
   Future<MerchantFeedStatus> merchantFeedCode(String code) async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_code', {'p_provider': 'golis', 'p_code': code}));
 
+  /// The Sahal merchant account: status, a new login saved as pending (the
+  /// working one is not touched), tested in its own session, then activated.
+  /// The server never sends a password, PIN, session id or code back.
+  Future<SahalAccountStatus> getSahalAccount() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_status', {}));
+
+  Future<SahalAccountStatus> saveSahalAccount({
+    required String username,
+    required String password,
+    String? pin,
+    String? currency,
+  }) async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_save', {
+        'p_username': username,
+        'p_password': password,
+        'p_pin': (pin ?? '').isEmpty ? null : pin,
+        'p_currency': (currency ?? '').isEmpty ? null : currency,
+      }));
+
+  Future<SahalAccountStatus> testSahalAccount() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_test', {}));
+
+  Future<SahalAccountStatus> sahalAccountCode(String code) async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_code', {'p_code': code}));
+
+  Future<SahalAccountStatus> discardSahalAccount() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_discard', {}));
+
+  Future<SahalAccountStatus> activateSahalAccount({required bool depositCodesUpdated}) async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_activate', {'p_deposit_codes_updated': depositCodesUpdated}));
+
+  /// Reads Sahal's list with the working session (no new sign-in, no SMS).
+  Future<SahalAccountStatus> checkSahalConnection() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_connection_check', {}));
+
+  /// Renew an idle session by itself (on), or only when a withdrawal needs it (off).
+  Future<bool> setSahalRenewIdle(bool on) async =>
+      (await _map('manage_sahal_session_options', {'p_renew_idle': on}))['renewIdle'] as bool? ?? on;
+
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
     await _client.rpc('admin_set_withdrawal_limits', {'p_method': method, 'p_min_amount': min, 'p_max_amount': max});

@@ -424,6 +424,11 @@ enabled = true
 # Called by the database (pg_net) with its own worker secret.
 verify_jwt = false
 
+[functions.sahal-account-verify]
+enabled = true
+# Called by the database (pg_net) with its own worker secret.
+verify_jwt = false
+
 [functions.sahal-sms-hook]
 enabled = true
 # Called by an SMS-forwarding app with a token a manager creates; the

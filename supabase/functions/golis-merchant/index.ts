@@ -79,6 +79,25 @@ const saveCookies = () => rpc('merchant_feed_save_cookies', { p_provider: PROVID
 const logEvent = (event: string, detail: Record<string, unknown> = {}) =>
   rpc('merchant_feed_log', { p_provider: PROVIDER, p_event: event, p_detail: detail }).catch(() => null);
 
+/** The merchant login: the account a manager activated in the Admin
+ *  Dashboard (Vault), else the function secrets this feed always used. If the
+ *  database cannot be asked, the run fails and tries again: it never falls
+ *  back to the old secrets while another account may be the active one. */
+type Creds = { username: string | null; password: string | null; pin: string | null; currency: string | null };
+let creds: Creds = { username: null, password: null, pin: null, currency: null };
+async function loadCredentials(): Promise<Creds> {
+  const c = await rpc('sahal_credentials', {});
+  if (c?.username && c?.password) {
+    return { username: String(c.username), password: String(c.password), pin: c.pin ? String(c.pin) : null, currency: c.currency ? String(c.currency) : null };
+  }
+  return {
+    username: Deno.env.get('GOLIS_MERCHANT_USERNAME') ?? null,
+    password: Deno.env.get('GOLIS_MERCHANT_PASSWORD') ?? null,
+    pin: Deno.env.get('GOLIS_MERCHANT_PIN') ?? null,
+    currency: Deno.env.get('GOLIS_MERCHANT_CURRENCY') ?? null,
+  };
+}
+
 async function portal(path: string, body: Record<string, unknown>) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -127,7 +146,7 @@ async function rowId(row: Record<string, unknown>) {
 }
 
 async function currency(): Promise<string> {
-  const fixed = Deno.env.get('GOLIS_MERCHANT_CURRENCY');
+  const fixed = creds.currency;
   if (fixed) return fixed;
   // The page may load the list with GET; try POST first, then GET.
   let data = await portal('/api/account/currencies', {});
@@ -164,10 +183,9 @@ const report = (r: Report) =>
   });
 
 async function run() {
-  const username = Deno.env.get('GOLIS_MERCHANT_USERNAME');
-  const password = Deno.env.get('GOLIS_MERCHANT_PASSWORD');
-  if (!username || !password) {
-    return report({ state: 'not_configured', message: 'Set GOLIS_MERCHANT_USERNAME and GOLIS_MERCHANT_PASSWORD' });
+  creds = await loadCredentials();
+  if (!creds.username || !creds.password) {
+    return report({ state: 'not_configured', message: 'Set the Sahal merchant login in the Admin Dashboard (or GOLIS_MERCHANT_USERNAME and GOLIS_MERCHANT_PASSWORD)' });
   }
   const feed = await rpc('merchant_feed_get', { p_provider: PROVIDER });
   if (feed?.state === 'stopped' || feed?.state === 'needs_code') {
@@ -268,8 +286,8 @@ const MAX_PAYOUTS_PER_RUN = 3;
 const signIn = async () =>
   portal('/api/account/login', {
     type: 'MERCHANT',
-    username: Deno.env.get('GOLIS_MERCHANT_USERNAME'),
-    password: Deno.env.get('GOLIS_MERCHANT_PASSWORD'),
+    username: creds.username,
+    password: creds.password,
     currency: await currency(),
   });
 
@@ -320,7 +338,7 @@ async function signInAgain(session: string): Promise<string | null> {
 function probeMobile(): string | null {
   const set = Deno.env.get('GOLIS_MERCHANT_PROBE_MOBILE');
   if (set) return set;
-  const login = String(Deno.env.get('GOLIS_MERCHANT_USERNAME') ?? '');
+  const login = String(creds.username ?? '');
   return /^(252)?\d{9}$/.test(login) ? login.replace(/^252/, '') : null;
 }
 
@@ -345,8 +363,8 @@ async function balance(session: string): Promise<number | null> {
 
 /** Sends the withdrawals the database hands out, one at a time. */
 async function sendPayouts(session: string) {
-  const pin = Deno.env.get('GOLIS_MERCHANT_PIN');
-  if (!pin) return { skipped: 'no GOLIS_MERCHANT_PIN' };
+  const pin = creds.pin;
+  if (!pin) return { skipped: 'no merchant PIN' };
   const done: string[] = [];
   let signedInAgain = false;
   /** Lost for transfers: sign in again (once a run); true to go on with the new session. */

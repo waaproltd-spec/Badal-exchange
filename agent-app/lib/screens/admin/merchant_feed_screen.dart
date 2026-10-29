@@ -9,6 +9,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import 'sahal_account_screen.dart';
 import 'sahal_forwarder_card.dart';
 
 /// Sahal merchant sign-in: Sahal texts an access code to the merchant phone
@@ -99,6 +100,22 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _StatusCard(status: s),
+                const SizedBox(height: 10),
+                ConsoleCard(
+                  key: const Key('feed-open-account'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SahalAccountScreen())),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.manage_accounts_rounded),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text('Sahal account & session: login, change account, test connection, reconnect',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                ),
                 if (s.needsCode) ...[
                   const GroupLabel('Access code'),
                   ConsoleCard(

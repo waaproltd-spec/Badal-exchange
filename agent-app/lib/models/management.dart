@@ -453,6 +453,116 @@ class MerchantFeedStatus {
       );
 }
 
+/// The Sahal merchant account, its connection and its session
+/// (manage_sahal_account_status). It never carries a password, PIN, session
+/// id or code: the server does not send them.
+class SahalAccountStatus {
+  /// connected | authentication_required | disconnected
+  final String connection;
+  final String? feedMessage;
+  final DateTime? lastReadAt;
+
+  /// 'environment' (the server's settings, until an account is activated
+  /// here) or 'database' (an account activated in this app).
+  final String source;
+  final String? activeUsername;
+  final DateTime? activatedAt;
+
+  final SahalPendingAccount? pending;
+
+  final bool sessionActive;
+  final DateTime? sessionStartedAt;
+  final int? sessionAgeSeconds;
+  final DateTime? lastRenewalAt;
+  final DateTime? lastLoginAt;
+
+  final int openDeposits;
+  final int openWithdrawals;
+  final int transfersInFlight;
+  final int transfersHeld;
+  final bool renewIdle;
+
+  const SahalAccountStatus({
+    required this.connection,
+    this.feedMessage,
+    this.lastReadAt,
+    this.source = 'environment',
+    this.activeUsername,
+    this.activatedAt,
+    this.pending,
+    this.sessionActive = false,
+    this.sessionStartedAt,
+    this.sessionAgeSeconds,
+    this.lastRenewalAt,
+    this.lastLoginAt,
+    this.openDeposits = 0,
+    this.openWithdrawals = 0,
+    this.transfersInFlight = 0,
+    this.transfersHeld = 0,
+    this.renewIdle = true,
+  });
+
+  bool get connected => connection == 'connected';
+
+  factory SahalAccountStatus.fromJson(Map<String, dynamic> j) {
+    DateTime? time(Object? v) => DateTime.tryParse(v as String? ?? '')?.toLocal();
+    final active = j['active'] as Map<String, dynamic>?;
+    final session = (j['session'] as Map<String, dynamic>?) ?? const {};
+    final open = (j['open'] as Map<String, dynamic>?) ?? const {};
+    final pending = j['pending'] as Map<String, dynamic>?;
+    return SahalAccountStatus(
+      connection: j['connection'] as String? ?? 'disconnected',
+      feedMessage: j['feedMessage'] as String?,
+      lastReadAt: time(j['lastReadAt']),
+      source: j['source'] as String? ?? 'environment',
+      activeUsername: active?['username'] as String?,
+      activatedAt: time(active?['activatedAt']),
+      pending: pending == null ? null : SahalPendingAccount.fromJson(pending),
+      sessionActive: session['active'] as bool? ?? false,
+      sessionStartedAt: time(session['startedAt']),
+      sessionAgeSeconds: (session['ageSeconds'] as num?)?.toInt(),
+      lastRenewalAt: time(session['lastRenewalAt']),
+      lastLoginAt: time(session['lastLoginAt']),
+      openDeposits: (open['deposits'] as num?)?.toInt() ?? 0,
+      openWithdrawals: (open['withdrawals'] as num?)?.toInt() ?? 0,
+      transfersInFlight: (open['transfersInFlight'] as num?)?.toInt() ?? 0,
+      transfersHeld: (open['transfersHeld'] as num?)?.toInt() ?? 0,
+      renewIdle: j['renewIdle'] as bool? ?? true,
+    );
+  }
+}
+
+/// A new login saved but not yet active.
+class SahalPendingAccount {
+  final String username;
+  final bool hasPin;
+
+  /// draft | testing | logging_in | needs_code | code_entered | verified | failed
+  final String status;
+  final String? message;
+  final DateTime? verifiedAt;
+
+  const SahalPendingAccount({
+    required this.username,
+    this.hasPin = false,
+    required this.status,
+    this.message,
+    this.verifiedAt,
+  });
+
+  bool get verified => status == 'verified';
+  bool get needsCode => status == 'needs_code';
+  bool get busy => const {'testing', 'logging_in', 'code_entered'}.contains(status);
+
+  factory SahalPendingAccount.fromJson(Map<String, dynamic> j) => SahalPendingAccount(
+        username: j['username'] as String? ?? '',
+        hasPin: j['hasPin'] as bool? ?? false,
+        status: j['status'] as String? ?? 'draft',
+        message: j['message'] as String?,
+        verifiedAt: DateTime.tryParse(j['verifiedAt'] as String? ?? '')?.toLocal(),
+      );
+}
+
 /// A field a betting platform's adapter needs (manage_betting_platforms).
 class BettingField {
   final String key;
