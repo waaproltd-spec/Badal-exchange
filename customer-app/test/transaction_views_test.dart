@@ -133,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Deposit · EVC Plus'));
     await tester.pumpAndSettle();
-    expect(find.text('Waiting for your payment'), findsOneWidget);
+    expect(find.text('Checking your payment…'), findsOneWidget);
     expect(find.text('Balance Before'), findsNothing);
     expect(find.text('Balance After'), findsNothing);
   });

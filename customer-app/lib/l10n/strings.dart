@@ -268,7 +268,7 @@ class AppStrings {
   static String get usdWithdrawn => _t('USD Withdrawn', 'USD la bixiyay');
   static String get depositConfirmed => _t('Deposit Confirmed', 'Dhigashada waa la xaqiijiyay');
   static String get withdrawalConfirmed => _t('Withdrawal Confirmed', 'Bixinta waa la xaqiijiyay');
-  static String get waitingForPayment => _t('Waiting for your payment', 'Waxaa la sugayaa lacag-bixintaada');
+  static String get waitingForPayment => _t('Checking your payment…', 'Lacag-bixintaada waa la hubinayaa…');
   static String get inProgress => _t('In progress', 'Waa socotaa');
   static String get confirmingOrder => _t('Confirming Order...', 'Dalabka waa la xaqiijinayaa...');
   static String get confirmingWithdrawal => _t('Confirming Withdrawal...', 'Bixinta waa la xaqiijinayaa...');
