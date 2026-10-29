@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/widgets/status_badge.dart';
 import 'package:badal_exchange_customer/theme/colors.dart';
 
@@ -12,6 +13,9 @@ Future<void> _pump(WidgetTester tester, String status) async {
 }
 
 void main() {
+  // The labels follow the app language: English here (the app starts in Somali).
+  setUp(() => AppLanguage.current.value = AppLanguage.english);
+
   testWidgets('shows only Completed or Failed; anything not final reads as being verified, never Pending', (tester) async {
     final expected = <String, String>{
       'completed': 'Completed',
