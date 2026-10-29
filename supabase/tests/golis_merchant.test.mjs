@@ -712,11 +712,12 @@ test("'sahal_renew_idle' off: an idle session that Sahal ended is not renewed un
     await run();
     assert.equal(calls('/api/account/login'), 1);
     await setSetting('sahal_renew_idle', 'off');
+    const lookUps = calls('/api/account/find'); // the first run, with the check on, looked once
     portal.canSend.clear();
     await run();
     await run();
     assert.equal(calls('/api/account/login'), 1, 'idle: no new sign-in, no new SMS code');
-    assert.equal(calls('/api/account/find'), 0, 'and no idle look-up');
+    assert.equal(calls('/api/account/find'), lookUps, 'and no idle look-up');
     // A withdrawal arrives: now it signs in again and sends it, once.
     const local = evcLocal();
     const c = await richCustomer(local);
