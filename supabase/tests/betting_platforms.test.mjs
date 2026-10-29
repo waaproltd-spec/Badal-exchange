@@ -168,3 +168,28 @@ check('removing a platform: a reason, off and hidden, secrets deleted, its order
   await rejects(rpc(manager, 'manage_set_payment_method', { p_method: method, p_enabled: true }), 'NOT_FOUND');
   assert.ok(!(await rpc(manager, 'manage_payment_methods')).some((m) => m.method === method), 'gone from Payment Methods');
 });
+
+check('a name added and removed before it was ever saved can be added again; names in use and removed payment methods stay refused', async () => {
+  const name = `Re Add ${seed}`;
+  const key = `readd${seed}`;
+  const first = await rpc(manager, 'manage_create_betting_platform', { p_name: name, p_adapter: 'cashdeskbot' });
+  assert.equal(first.method, key);
+  // Added and still there: the name is taken.
+  await rejects(rpc(manager, 'manage_create_betting_platform', { p_name: name }), 'PLATFORM_EXISTS');
+  await rpc(manager, 'manage_delete_betting_platform', { p_method: key, p_reason: 'Added by mistake' });
+  assert.equal(await platform(key), undefined, 'removed: hidden');
+  // Removed before it was saved (no payment method, no order): it can be added again.
+  const again = await rpc(manager, 'manage_create_betting_platform', { p_name: name, p_adapter: 'cashdeskbot' });
+  assert.equal(again.method, key);
+  const listed = await platform(key);
+  assert.equal(listed.status, 'not_configured');
+  assert.equal(listed.active, false);
+  assert.equal(listed.hasPassword, false);
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM payment_integrations WHERE provider = $1`, [`betting:${key}`]);
+  assert.equal(rows[0].n, 1, 'one row, revived');
+  // Still refused: a built-in, and the platform removed earlier that had become a payment method.
+  await rejects(rpc(manager, 'manage_create_betting_platform', { p_name: 'MELBET' }), 'PLATFORM_EXISTS');
+  await rejects(rpc(manager, 'manage_create_betting_platform', { p_name: `Test Bet ${seed}` }), 'PLATFORM_EXISTS');
+  await rejects(rpc(customer, 'manage_create_betting_platform', { p_name: name }), 'FORBIDDEN');
+  await rpc(manager, 'manage_delete_betting_platform', { p_method: key, p_reason: 'Test cleanup' });
+});
