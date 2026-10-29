@@ -527,7 +527,11 @@ void main() {
       await tester.ensureVisible(confirm);
       await tester.tap(confirm);
       await tester.tap(confirm, warnIfMissed: false); // a double tap submits once
-      await tester.pumpAndSettle();
+      // The waiting screen has a running clock, so it never "settles": pump until it is up.
+      await tester.pump();
+      for (var i = 0; i < 40 && find.byKey(const Key('deposit-verifying')).evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
       expect(api.submitted, hasLength(1));
       expect(api.submitted.single, containsPair('kind', 'deposit'));
@@ -540,8 +544,10 @@ void main() {
       expect(api.drafts, isNotEmpty);
       expect(api.drafts.last, endsWith('before:0'));
       expect(api.drafts.last, startsWith(usesCode ? '$id|null|7841228' : (isPlatform ? '$id|5|$identifier' : '$id|5|null')));
-      expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
-      expect(find.text('USD Deposited'), findsOneWidget);
+      // Not paid yet: the verifying screen (not a result), the amount and the three steps.
+      expect(find.byKey(const Key('deposit-verifying')), findsOneWidget);
+      expect(find.text('Verifying...'), findsOneWidget);
+      expect(find.byKey(const Key('result-status')), findsNothing);
     });
   }
 
@@ -561,7 +567,10 @@ void main() {
     await tester.pump();
     await tester.ensureVisible(confirm);
     await tester.tap(confirm);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    for (var i = 0; i < 40 && find.byKey(const Key('deposit-verifying')).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100)); // the waiting screen's clock never settles
+    }
     expect(api.submitted.single, containsPair('account', '7841228'));
     expect(api.submitted.single, containsPair('code', 'ABC123'));
   });

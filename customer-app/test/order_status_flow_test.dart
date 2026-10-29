@@ -246,7 +246,7 @@ void main() {
 
     testWidgets('while waiting: the verifying screen with the clock and three steps, only the first done', (tester) async {
       await _phone(tester);
-      final api = ScriptedApi(script: [_order('v1', 'pending'), _order('v1', 'completed')]);
+      final api = ScriptedApi(script: [_order('v1', 'completed')]);
       await tester.pumpWidget(_host(DepositResultScreen(order: _order('v1', 'pending')), api));
       expect(find.byKey(const Key('deposit-verifying')), findsOneWidget);
       expect(find.text('Verifying...'), findsOneWidget);
