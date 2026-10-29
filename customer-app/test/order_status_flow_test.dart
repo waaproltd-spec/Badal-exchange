@@ -244,6 +244,41 @@ void main() {
       expect(sound.seen.where((x) => x == 'c1:completed'), hasLength(1), reason: 'the completion is announced once');
     });
 
+    testWidgets('while waiting: the verifying screen with the clock and three steps, only the first done', (tester) async {
+      await _phone(tester);
+      final api = ScriptedApi(script: [_order('v1', 'pending'), _order('v1', 'completed')]);
+      await tester.pumpWidget(_host(DepositResultScreen(order: _order('v1', 'pending')), api));
+      expect(find.byKey(const Key('deposit-verifying')), findsOneWidget);
+      expect(find.text('Verifying...'), findsOneWidget);
+      expect(find.byKey(const Key('verifying-clock')), findsOneWidget);
+      expect(find.text('Request received'), findsOneWidget);
+      expect(find.text('Verifying your payment'), findsOneWidget);
+      expect(find.text('Adding it to your balance'), findsOneWidget);
+      expect(find.text('DONE'), findsOneWidget, reason: 'only the request being received');
+      expect(find.text('Deposit Confirmed'), findsNothing);
+      expect(find.byKey(const Key('back-to-home')), findsOneWidget);
+      await _next(tester);
+      expect(find.byKey(const Key('deposit-verifying')), findsNothing);
+      expect(find.text('Deposit Confirmed'), findsOneWidget);
+    });
+
+    testWidgets('the clock counts up from when the deposit was made', (tester) async {
+      await _phone(tester);
+      var now = DateTime(2026, 10, 29, 5, 18, 42);
+      final order = _order('v2', 'pending');
+      await tester.pumpWidget(_host(
+        Scaffold(body: DepositVerifyingView(order: order, now: () => now)),
+        ScriptedApi(script: []),
+      ));
+      final start = order.createdAt;
+      now = start.add(const Duration(minutes: 1, seconds: 5));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('00:01:05'), findsOneWidget);
+      now = start.subtract(const Duration(seconds: 30)); // a skewed clock never goes negative
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('00:00:00'), findsOneWidget);
+    });
+
     testWidgets('timeouts and network errors never turn into Failed: it keeps asking, then Completed', (tester) async {
       await _phone(tester);
       final api = ScriptedApi(script: [timeout, timeout, timeout, _order('n1', 'processing'), _order('n1', 'completed')]);

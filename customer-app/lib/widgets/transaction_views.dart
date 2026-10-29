@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -268,15 +269,19 @@ class ProcessingView extends StatelessWidget {
 
 /// The withdrawal's three steps, each done, in progress or waiting.
 class _Steps extends StatelessWidget {
-  const _Steps({required this.step});
+  const _Steps({required this.step, this.labels, this.keyPrefix = 'withdraw'});
 
   final int step;
 
+  /// The three step names; the withdrawal's own when null.
+  final List<String>? labels;
+  final String keyPrefix;
+
   @override
   Widget build(BuildContext context) {
-    final labels = [AppStrings.stepCheckFunds, AppStrings.stepSendMoney, AppStrings.stepConfirmSent];
+    final labels = this.labels ?? [AppStrings.stepCheckFunds, AppStrings.stepSendMoney, AppStrings.stepConfirmSent];
     return Container(
-      key: const Key('withdraw-steps'),
+      key: Key('$keyPrefix-steps'),
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
@@ -314,7 +319,7 @@ class _Steps extends StatelessWidget {
                                 fontWeight: i == step ? FontWeight.w700 : FontWeight.w500,
                                 color: i > step ? AppColors.textMuted : AppColors.textPrimary)),
                         Text(i < step ? AppStrings.stepDone : (i == step ? AppStrings.stepActive : AppStrings.stepWaiting),
-                            key: Key('withdraw-step-$i'),
+                            key: Key('$keyPrefix-step-$i'),
                             style: AppTextStyles.muted.copyWith(fontSize: 11, letterSpacing: 0.6)),
                       ],
                     ),
@@ -648,6 +653,115 @@ class TransactionDetailsSheet extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// A deposit the server has not decided yet, shown after Send Money Now:
+/// the elapsed time, "Your payment is being verified…" and three steps.
+/// Only the first is ever done here (the request exists); the others are
+/// in progress / waiting until the server says completed or failed, when
+/// [DepositResultScreen] swaps in the result. Nothing is claimed as paid.
+class DepositVerifyingView extends StatefulWidget {
+  const DepositVerifyingView({super.key, required this.order, this.extra, this.now});
+
+  final Order order;
+  final Widget? extra;
+
+  /// The clock; replaced in tests.
+  final DateTime Function()? now;
+
+  @override
+  State<DepositVerifyingView> createState() => _DepositVerifyingViewState();
+}
+
+class _DepositVerifyingViewState extends State<DepositVerifyingView> {
+  Timer? _tick;
+
+  DateTime _now() => (widget.now ?? DateTime.now)();
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  /// HH:MM:SS since the deposit was made (never negative on a skewed clock).
+  String get elapsed {
+    var seconds = _now().difference(widget.order.createdAt).inSeconds;
+    if (seconds < 0) seconds = 0;
+    if (seconds > 99 * 3600 + 3599) seconds = 99 * 3600 + 3599;
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(seconds ~/ 3600)}:${two(seconds % 3600 ~/ 60)}:${two(seconds % 60)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    return ListView(
+      key: const Key('deposit-verifying'),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+      children: [
+        Center(child: MethodIcon(method: order.method, size: 84)),
+        const SizedBox(height: 22),
+        Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              order.amountPending ? AppStrings.amountPending : Formatters.money(order.amount),
+              key: const Key('result-amount'),
+              style: AppTextStyles.amountLarge.copyWith(fontSize: 40),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(AppStrings.verifyingTitle,
+            key: const Key('verifying-title'), style: AppTextStyles.title.copyWith(fontSize: 24), textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Text(elapsed,
+                key: const Key('verifying-clock'),
+                style: AppTextStyles.amountLarge.copyWith(fontSize: 34, letterSpacing: 3, fontFeatures: const [FontFeature.tabularFigures()])),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(AppStrings.verifying, style: AppTextStyles.muted, textAlign: TextAlign.center),
+        const SizedBox(height: 20),
+        _Steps(
+          step: 1,
+          keyPrefix: 'verify',
+          labels: [AppStrings.verifyStepReceived, AppStrings.verifyStepChecking, AppStrings.verifyStepCrediting],
+        ),
+        if (widget.extra != null) ...[const SizedBox(height: 20), widget.extra!],
+        const SizedBox(height: 22),
+        OutlinedButton(
+          key: const Key('back-to-home'),
+          onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(54),
+            side: BorderSide(color: AppColors.primaryDark, width: 1.4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+          child: Text(AppStrings.backToHome,
+              style: AppTextStyles.body.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
+        ),
+      ],
     );
   }
 }
