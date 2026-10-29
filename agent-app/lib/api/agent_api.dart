@@ -822,8 +822,15 @@ class AgentApi {
     String? linkUrl,
     required bool enabled,
     int sortOrder = 0,
+    // A newly chosen picture (JPEG, PNG or WebP). Saved together with the ad,
+    // so a failure leaves the ad and its previous picture unchanged. Null
+    // keeps the current picture; [removeImage] drops it.
+    Uint8List? image,
+    bool removeImage = false,
   }) async {
     await _client.rpc('manage_save_home_ad', {
+      'p_image': image == null ? null : base64Encode(image),
+      'p_remove_image': removeImage,
       'p_id': id,
       'p_title': title,
       'p_body': body,

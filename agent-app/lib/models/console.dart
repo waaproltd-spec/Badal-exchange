@@ -1,5 +1,7 @@
 /// Models for the Agent App console endpoints (backend/src/routes/agentConsole.ts).
 /// Money stays a decimal string, exactly as the backend formats it.
+import 'dart:convert';
+import 'dart:typed_data';
 
 DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
 String _money(dynamic v) => (v ?? '0.00').toString();
@@ -321,6 +323,10 @@ class HomeAd {
   final String title;
   final String? body;
   final String? imageUrl;
+
+  /// The picture a manager chose from the gallery (JPEG, PNG or WebP), kept
+  /// with the ad; null when the ad has none (it may still have an old link).
+  final Uint8List? image;
   final String? linkUrl;
   final bool enabled;
   final int sortOrder;
@@ -330,6 +336,7 @@ class HomeAd {
     required this.title,
     this.body,
     this.imageUrl,
+    this.image,
     this.linkUrl,
     required this.enabled,
     required this.sortOrder,
@@ -340,10 +347,20 @@ class HomeAd {
         title: j['title'] as String? ?? '',
         body: j['body'] as String?,
         imageUrl: j['imageUrl'] as String?,
+        image: _adImage(j['image']),
         linkUrl: j['linkUrl'] as String?,
         enabled: j['enabled'] as bool? ?? true,
         sortOrder: j['sortOrder'] as int? ?? 0,
       );
+}
+
+Uint8List? _adImage(Object? v) {
+  if (v is! String || v.isEmpty) return null;
+  try {
+    return base64Decode(v);
+  } catch (_) {
+    return null;
+  }
 }
 
 class DepositNumber {
