@@ -73,7 +73,17 @@ jobs:
           UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
         run: |
-          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > upload.keystore
+          # A phone paste can add a space or a line break: trim them (our values have none).
+          UPLOAD_KEYSTORE_PASSWORD=$(printf '%s' "$UPLOAD_KEYSTORE_PASSWORD" | tr -d '\n\r ')
+          UPLOAD_KEY_PASSWORD=$(printf '%s' "$UPLOAD_KEY_PASSWORD" | tr -d '\n\r ')
+          UPLOAD_KEY_ALIAS=$(printf '%s' "$UPLOAD_KEY_ALIAS" | tr -d '\n\r ')
+          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > upload.keystore \
+            || { echo "::error::UPLOAD_KEYSTORE_BASE64 is not valid base64: it was probably pasted incomplete."; exit 1; }
+          # Safe checks: lengths only, never the values.
+          echo "keystore text length: $(printf '%s' "$UPLOAD_KEYSTORE_BASE64" | tr -d '\n\r ' | wc -c)"
+          echo "keystore file bytes: $(wc -c < upload.keystore)"
+          echo "keystore first bytes (hex): $(head -c 2 upload.keystore | od -An -tx1 | tr -d ' \n') (a real keystore starts with 3082)"
+          echo "store password length: ${#UPLOAD_KEYSTORE_PASSWORD}, key password length: ${#UPLOAD_KEY_PASSWORD}, alias length: ${#UPLOAD_KEY_ALIAS}"
           {
             echo "storeFile=upload.keystore"
             echo "storePassword=$UPLOAD_KEYSTORE_PASSWORD"
@@ -81,7 +91,7 @@ jobs:
             echo "keyPassword=$UPLOAD_KEY_PASSWORD"
           } > key.properties
           keytool -list -keystore upload.keystore -storepass "$UPLOAD_KEYSTORE_PASSWORD" -alias "$UPLOAD_KEY_ALIAS" > /dev/null \
-            || { echo "::error::The upload keystore, its password or the alias is wrong."; exit 1; }
+            || { echo "::error::The upload keystore, its password or the alias is wrong (see the lengths above)."; exit 1; }
 
       - name: Build app bundle
         working-directory: customer-app
