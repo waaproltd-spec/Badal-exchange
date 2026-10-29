@@ -191,3 +191,14 @@ SELECT key, left(value, 30) AS value FROM public.app_settings WHERE key IN ('sah
 SELECT to_char(created_at, 'MM-DD HH24:MI:SS') AS at, action, left(coalesce(after_json::text, ''), 90) AS detail
 FROM public.audit_logs WHERE action IN ('merchant_feed.sign_in', 'merchant_feed.code', 'merchant_feed.auto_code', 'sahal_sms_hook.rotate', 'sahal_sms_hook.revoke')
   AND created_at > now() - interval '6 hours' ORDER BY created_at DESC LIMIT 20;
+
+\echo '== 17. Latest completed deposits: how long each took, and when the credit and any SMS landed =='
+SELECT o.order_code, o.method,
+       to_char(o.created_at, 'MM-DD HH24:MI:SS') AS created,
+       to_char(o.completed_at, 'MM-DD HH24:MI:SS') AS completed,
+       round(extract(epoch FROM o.completed_at - o.created_at)) AS total_sec,
+       (SELECT to_char(min(l.created_at), 'HH24:MI:SS') FROM public.ledger_entries l WHERE l.order_id = o.id AND l.entry_type = 'credit') AS credit_at,
+       (SELECT to_char(min(s.received_at), 'HH24:MI:SS') || ' / uploaded ' || to_char(min(s.created_at), 'HH24:MI:SS') FROM public.sms_logs s WHERE s.matched_order_id = o.id) AS sms_received_uploaded,
+       o.status_message
+FROM public.orders o WHERE o.direction = 'deposit' AND o.status = 'completed'
+ORDER BY o.completed_at DESC LIMIT 12;
