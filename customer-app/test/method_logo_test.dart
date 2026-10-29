@@ -41,7 +41,7 @@ void main() {
       {'method': 'melbet', 'label': 'MELBET', 'kind': 'platform', 'color': '#CA8A04', 'initials': 'MB', 'cashdesk': true},
     ]);
     expect(methodInfo('wowbet').logo, isNull);
-    expect(methodInfo('melbet').label, 'MELBET', 'the rest of the catalog is used');
+    expect(methodInfo('melbet').label, 'MELBET', reason: 'the rest of the catalog is used');
     await tester.pumpWidget(_icon('wowbet'));
     expect(find.text('WO'), findsOneWidget);
   });

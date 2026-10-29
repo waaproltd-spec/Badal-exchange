@@ -208,7 +208,7 @@ SELECT key, value FROM public.app_settings WHERE key = 'sahal_renew_idle';
 \echo '-- lifetimes of ended sessions (seconds)'
 SELECT count(*) AS ended,
        round(min((detail ->> 'lifetimeSeconds')::numeric) / 60, 1) AS min_minutes,
-       round(percentile_cont(0.5) WITHIN GROUP (ORDER BY (detail ->> 'lifetimeSeconds')::numeric) / 60, 1) AS median_minutes,
+       round((percentile_cont(0.5) WITHIN GROUP (ORDER BY (detail ->> 'lifetimeSeconds')::numeric))::numeric / 60, 1) AS median_minutes,
        round(max((detail ->> 'lifetimeSeconds')::numeric) / 60, 1) AS max_minutes
 FROM private.merchant_feed_events WHERE provider = 'golis' AND event = 'session_cleared' AND detail ? 'lifetimeSeconds';
 \echo '-- the last 40 events, newest first'

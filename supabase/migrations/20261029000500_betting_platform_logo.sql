@@ -73,11 +73,11 @@ DECLARE
   v_b64 text := regexp_replace(COALESCE(p_logo, ''), '\s', '', 'g');
   v_bytes bytea;
 BEGIN
-  IF i.id IS NULL OR i.deleted_at IS NOT NULL THEN
-    PERFORM private.raise_api(404, 'NOT_FOUND', 'Betting platform not found');
-  END IF;
   IF p_method = ANY (private.built_in_platforms()) THEN
     PERFORM private.raise_api(400, 'BUILT_IN', 'A built-in platform keeps its own logo');
+  END IF;
+  IF i.id IS NULL OR i.deleted_at IS NOT NULL THEN
+    PERFORM private.raise_api(404, 'NOT_FOUND', 'Betting platform not found');
   END IF;
   IF v_b64 = '' THEN
     UPDATE public.payment_integrations SET logo = NULL, updated_by = v_id, updated_at = now() WHERE id = i.id;
