@@ -132,7 +132,7 @@ class FakeCustomerApi extends CustomerApi {
         fee: '0.00',
         netAmount: amount ?? '0.00',
         amountPending: amount == null,
-        createdAt: DateTime.utc(2026, 10, 21),
+        createdAt: DateTime.now(),
       );
 
   @override

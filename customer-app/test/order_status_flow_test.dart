@@ -21,11 +21,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const verifying = 'Your payment is being verified…';
 
-Order _order(String id, String status, {String direction = 'deposit', String? reason}) => Order(
+Order _order(String id, String status, {String direction = 'deposit', String? reason, DateTime? created, String method = 'evc_plus'}) => Order(
       id: id,
       orderCode: 'EX${id.toUpperCase()}',
       direction: direction,
-      method: 'evc_plus',
+      method: method,
       status: status,
       statusMessage: status,
       phoneNumber: '252610346060',
@@ -33,7 +33,7 @@ Order _order(String id, String status, {String direction = 'deposit', String? re
       fee: '0.00',
       netAmount: '4.00',
       failureReason: reason,
-      createdAt: DateTime.now().subtract(const Duration(seconds: 20)),
+      createdAt: created ?? DateTime.now().subtract(const Duration(seconds: 20)),
       completedAt: status == 'completed' ? DateTime.now() : null,
     );
 
@@ -207,6 +207,21 @@ void main() {
     });
   });
 
+  group('Order.shown: an unpaid mobile-money deposit reads Failed after a minute', () {
+    final old = DateTime.now().subtract(const Duration(minutes: 2));
+
+    test('only a mobile-money deposit that is not final and older than a minute', () {
+      expect(_order('a', 'pending', created: old).shown.status, 'failed');
+      expect(_order('a', 'processing', created: old).shown.status, 'failed');
+      expect(_order('a', 'pending', created: old).shown.failureReason, isNotEmpty);
+      expect(_order('a', 'pending').shown.status, 'pending', reason: 'under a minute');
+      expect(_order('a', 'pending', created: old).isFinal, isFalse, reason: 'the server has not decided: the app keeps asking');
+      expect(_order('a', 'completed', created: old).shown.status, 'completed');
+      expect(_order('a', 'pending', created: old, direction: 'withdraw').shown.status, 'pending', reason: 'a withdrawal is not an unpaid deposit');
+      expect(_order('a', 'pending', created: old, method: 'onexbet').shown.status, 'pending', reason: 'a betting deposit waits for the platform');
+    });
+  });
+
   group('after Send Money Now: the result screen', () {
     testWidgets('an immediate payment: already Completed, nothing to ask', (tester) async {
       await _phone(tester);
@@ -277,6 +292,24 @@ void main() {
       now = start.subtract(const Duration(seconds: 30)); // a skewed clock never goes negative
       await tester.pump(const Duration(seconds: 1));
       expect(find.text('00:00:00'), findsOneWidget);
+    });
+
+    testWidgets('unpaid after a minute: it reads Failed, and a payment that arrives later turns it into Completed', (tester) async {
+      await _phone(tester);
+      final old = DateTime.now().subtract(const Duration(minutes: 2));
+      final api = ScriptedApi(script: [_order('u1', 'pending', created: old), _order('u1', 'completed', created: old)]);
+      await tester.pumpWidget(_host(DepositResultScreen(order: _order('u1', 'pending', created: old)), api));
+      expect(find.text('Failed'), findsOneWidget);
+      expect(find.byKey(const Key('deposit-verifying')), findsNothing);
+      expect(find.text(verifying), findsNothing);
+      expect(find.text('Deposit Confirmed'), findsNothing);
+
+      await _next(tester); // the server still says pending: still Failed, still asking
+      expect(find.text('Failed'), findsOneWidget);
+      await _next(tester); // the payment came in: Completed
+      expect(find.text('Deposit Confirmed'), findsOneWidget);
+      expect(find.text('Failed'), findsNothing);
+      expect(api.getOrderCalls, 2);
     });
 
     testWidgets('timeouts and network errors never turn into Failed: it keeps asking, then Completed', (tester) async {

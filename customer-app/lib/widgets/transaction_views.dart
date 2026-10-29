@@ -410,7 +410,7 @@ class _FollowOrderState extends State<FollowOrder> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.builder(context, _order);
+  Widget build(BuildContext context) => widget.builder(context, _order.shown);
 }
 
 /// After submitting: the method with a badge, the amount, the status, and

@@ -71,7 +71,12 @@ Future<void> _phone(WidgetTester tester, [Size size = const Size(393, 851)]) asy
 }
 
 void main() {
-  setUp(() => AppLanguage.current.value = AppLanguage.english);
+  setUp(() {
+    AppLanguage.current.value = AppLanguage.english;
+    // The orders here were made at a fixed time: "now" is a few seconds after.
+    Order.clock = () => DateTime(2026, 10, 21, 19, 41, 10);
+  });
+  tearDown(() => Order.clock = DateTime.now);
 
   final deposit = _order(id: 'd1', direction: 'deposit', before: '0.25', after: '1.25', ref: '7497945808');
   final withdrawal = _order(

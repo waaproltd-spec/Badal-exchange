@@ -144,13 +144,17 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // What the customer sees (an unpaid deposit reads Failed after a minute);
+    // the details sheet gets the server's order and keeps it up to date.
+    final real = this.order;
+    final order = real.shown;
     final isDeposit = order.isDeposit;
     final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-      onTap: () => showTransactionDetails(context, order),
+      onTap: () => showTransactionDetails(context, real),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
