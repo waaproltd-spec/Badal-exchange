@@ -24,7 +24,8 @@ val uploadKey = Properties().apply {
 
 android {
     namespace = "com.badalexchange.customer"
-    compileSdk = flutter.compileSdkVersion
+    // Play requires targeting API 36 (Flutter 3.24's own default is 34).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -39,7 +40,7 @@ android {
     defaultConfig {
         applicationId = "com.badalexchange"
         minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
