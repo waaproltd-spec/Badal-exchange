@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 /// Models for the management screens (Account → Admin features), mirroring
 /// the backend's /admin/* and /agent/manage/* responses.
 
@@ -620,6 +623,10 @@ class BettingPlatform {
   final String? lastMessage;
   final String? updatedBy;
 
+  /// The logo a manager gave this platform (PNG or JPEG), shown in the
+  /// Customer App; null when it has none (initials show there).
+  final Uint8List? logo;
+
   const BettingPlatform({
     required this.method,
     required this.name,
@@ -637,6 +644,7 @@ class BettingPlatform {
     this.lastOkAt,
     this.lastMessage,
     this.updatedBy,
+    this.logo,
   });
 
   bool get connected => status == 'connected';
@@ -666,5 +674,15 @@ class BettingPlatform {
         lastOkAt: _date(j['lastOkAt']),
         lastMessage: j['lastMessage'] as String?,
         updatedBy: j['updatedBy'] as String?,
+        logo: _logoBytes(j['logo']),
       );
+}
+
+Uint8List? _logoBytes(Object? v) {
+  if (v is! String || v.isEmpty) return null;
+  try {
+    return base64Decode(v.replaceAll(RegExp(r'\s'), ''));
+  } catch (_) {
+    return null;
+  }
 }

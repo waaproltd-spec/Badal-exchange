@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/management.dart';
+import '../../services/logo_picker.dart';
 import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
@@ -116,7 +119,10 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                           key: Key('platform-${p.method}'),
                           onTap: () => _open(p),
                           child: Row(children: [
-                            TintedIcon(icon: Icons.sports_soccer_rounded, color: _statusColor(p.status), size: 44),
+                            if (p.logo != null)
+                              _LogoImage(key: Key('platform-logo-${p.method}'), logo: p.logo!, size: 44)
+                            else
+                              TintedIcon(icon: Icons.sports_soccer_rounded, color: _statusColor(p.status), size: 44),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -209,7 +215,16 @@ class BettingPlatformScreen extends StatefulWidget {
   final BettingAdapter? adapter;
   final BettingPlatform initial;
 
-  const BettingPlatformScreen({super.key, required this.method, required this.adapter, required this.initial});
+  /// Picks the logo (the gallery, shrunk to 128 x 128); replaced in tests.
+  final LogoPicker pickLogo;
+
+  const BettingPlatformScreen({
+    super.key,
+    required this.method,
+    required this.adapter,
+    required this.initial,
+    this.pickLogo = pickLogoFromGallery,
+  });
 
   @override
   State<BettingPlatformScreen> createState() => _BettingPlatformScreenState();
@@ -287,6 +302,28 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
     await _run(() => api.testBettingPlatform(widget.method), 'Test finished.');
   }
 
+  /// A logo for this platform: picked, shrunk, sent. Nothing else changes.
+  Future<void> _chooseLogo() async {
+    final api = context.read<Session>().api;
+    final Uint8List? logo;
+    try {
+      logo = await widget.pickLogo();
+    } catch (_) {
+      if (mounted) showSnack(context, 'Could not open the gallery.');
+      return;
+    }
+    if (logo == null) {
+      if (mounted) showSnack(context, 'No picture was chosen, or it could not be read.');
+      return;
+    }
+    await _run(() => api.setBettingPlatformLogo(widget.method, logo), 'Logo saved. The Customer App shows it now.');
+  }
+
+  Future<void> _removeLogo() async {
+    final api = context.read<Session>().api;
+    await _run(() => api.setBettingPlatformLogo(widget.method, null), 'Logo removed.');
+  }
+
   Future<void> _remove() async {
     final reason = await showDialog<String>(context: context, builder: (_) => _RemoveDialog(name: _p.name));
     if (reason == null || !mounted) return;
@@ -334,6 +371,40 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                 if (_p.updatedBy != null) InfoRow('Changed by', _p.updatedBy!),
               ]),
             ),
+            if (!_p.builtIn) ...[
+              const GroupLabel('Logo'),
+              ConsoleCard(
+                key: const Key('platform-logo-card'),
+                child: Row(children: [
+                  if (_p.logo != null)
+                    _LogoImage(key: const Key('platform-logo-preview'), logo: _p.logo!, size: 64)
+                  else
+                    const TintedIcon(icon: Icons.image_outlined, color: AppColors.textFaint, size: 64),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(_p.logo != null ? 'Logo set' : 'No logo yet (the Customer App shows its initials)',
+                          key: const Key('platform-logo-state'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      Wrap(spacing: 8, runSpacing: 4, children: [
+                        OutlinedButton.icon(
+                          key: const Key('platform-logo-choose'),
+                          onPressed: _busy ? null : _chooseLogo,
+                          icon: const Icon(Icons.photo_library_rounded),
+                          label: Text(_p.logo != null ? 'Change logo' : 'Choose logo'),
+                        ),
+                        if (_p.logo != null)
+                          TextButton(
+                            key: const Key('platform-logo-remove'),
+                            onPressed: _busy ? null : _removeLogo,
+                            child: const Text('Remove'),
+                          ),
+                      ]),
+                    ]),
+                  ),
+                ]),
+              ),
+            ],
             const SizedBox(height: 12),
             if (adapter == null)
               const ConsoleCard(
@@ -445,6 +516,28 @@ class _RemoveDialogState extends State<_RemoveDialog> {
           child: const Text('Remove'),
         ),
       ],
+    );
+  }
+}
+
+/// A platform's logo on a rounded tile.
+class _LogoImage extends StatelessWidget {
+  final Uint8List logo;
+  final double size;
+  const _LogoImage({super.key, required this.logo, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.24),
+      child: Image.memory(
+        logo,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => TintedIcon(icon: Icons.image_not_supported_outlined, color: AppColors.textFaint, size: size),
+      ),
     );
   }
 }

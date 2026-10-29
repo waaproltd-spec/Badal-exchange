@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:uuid/uuid.dart';
 
 import '../models/commission.dart';
@@ -722,6 +725,14 @@ class AgentApi {
 
   Future<BettingPlatform> setBettingPlatformActive(String method, bool active) async =>
       BettingPlatform.fromJson(await _map('manage_set_betting_platform_active', {'p_method': method, 'p_active': active}));
+
+  /// A logo (PNG or JPEG, already shrunk) for a platform added here, or null
+  /// to remove it. The Customer App shows it with the platform's name.
+  Future<BettingPlatform> setBettingPlatformLogo(String method, Uint8List? logo) async =>
+      BettingPlatform.fromJson(await _map('manage_set_betting_platform_logo', {
+        'p_method': method,
+        'p_logo': logo == null ? null : base64Encode(logo),
+      }));
 
   Future<void> deleteBettingPlatform(String method, String reason) async {
     await _client.rpc('manage_delete_betting_platform', {'p_method': method, 'p_reason': reason});

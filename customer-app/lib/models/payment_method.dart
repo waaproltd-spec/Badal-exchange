@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
@@ -9,7 +12,7 @@ import '../l10n/strings.dart';
 /// Mobile money identifies the customer by their phone number on that
 /// service; betting platforms by their account ID on that platform.
 class PaymentMethodInfo {
-  const PaymentMethodInfo(this.id, this.label, this.isPlatform, this.color, this.initials, {bool? cashdesk})
+  const PaymentMethodInfo(this.id, this.label, this.isPlatform, this.color, this.initials, {bool? cashdesk, this.logo})
       : _cashdesk = cashdesk;
 
   final String id;
@@ -19,6 +22,10 @@ class PaymentMethodInfo {
 
   /// Short mark shown on the method's tile/icon.
   final String initials;
+
+  /// A logo a manager gave a platform added in the Agent App (PNG or JPEG);
+  /// the built-in methods keep theirs in assets/methods/.
+  final Uint8List? logo;
 
   /// From the catalog; null in the bundled copy (then the built-in list).
   final bool? _cashdesk;
@@ -61,7 +68,20 @@ PaymentMethodInfo _fromJson(Map<String, dynamic> m) {
     Color(int.parse('FF$hex', radix: 16)),
     m['initials'] as String? ?? label.substring(0, label.length < 2 ? label.length : 2).toUpperCase(),
     cashdesk: m['cashdesk'] as bool?,
+    logo: _decodeLogo(m['logo']),
   );
+}
+
+/// The catalog's base64 logo, or null when there is none or it is unreadable
+/// (the initials show then; a bad logo never breaks the catalog).
+Uint8List? _decodeLogo(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  try {
+    final bytes = base64Decode(value.replaceAll(RegExp(r'\s'), ''));
+    return bytes.isEmpty || bytes.length > 100000 ? null : bytes;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Replaces [paymentMethods] with the backend catalog; keeps the current

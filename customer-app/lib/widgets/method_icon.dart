@@ -34,6 +34,42 @@ class MethodIcon extends StatelessWidget {
       );
     }
     final info = methodInfo(method);
+    if (info.logo != null) {
+      // A platform added in the Agent App, with the logo a manager gave it.
+      return Container(
+        key: Key('logo-$method'),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.24),
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.24),
+          child: Image.memory(
+            info.logo!,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            gaplessPlayback: true,
+            // An unreadable picture falls back to the initials, never an error box.
+            errorBuilder: (_, __, ___) => _InitialsIcon(info: info, size: size),
+          ),
+        ),
+      );
+    }
+    return _InitialsIcon(info: info, size: size);
+  }
+}
+
+/// The method's initials on a tile in its color.
+class _InitialsIcon extends StatelessWidget {
+  const _InitialsIcon({required this.info, required this.size});
+
+  final PaymentMethodInfo info;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: size,
       height: size,

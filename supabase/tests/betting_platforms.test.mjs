@@ -193,3 +193,44 @@ check('a name added and removed before it was ever saved can be added again; nam
   await rejects(rpc(customer, 'manage_create_betting_platform', { p_name: name }), 'FORBIDDEN');
   await rpc(manager, 'manage_delete_betting_platform', { p_method: key, p_reason: 'Test cleanup' });
 });
+
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
+
+check('a logo for an added platform: validated, shown in the Customer App catalog, removable; built-ins keep theirs', async () => {
+  const p = await rpc(manager, 'manage_create_betting_platform', { p_name: `Logo Bet ${seed}`, p_adapter: 'cashdeskbot' });
+  const key = p.method;
+  assert.equal((await platform(key)).logo, null, 'none at first');
+  const saved = await rpc(manager, 'manage_save_betting_platform', {
+    p_method: key, p_login: 'cashier1', p_password: PASS, p_account_id: '1198475', p_api_secret: SECRET });
+  assert.equal(saved.status, 'not_tested');
+
+  // Only a small PNG or JPEG.
+  await rejects(rpc(manager, 'manage_set_betting_platform_logo', { p_method: key, p_logo: 'not base64!!' }), 'VALIDATION_ERROR');
+  await rejects(rpc(manager, 'manage_set_betting_platform_logo', {
+    p_method: key, p_logo: Buffer.from('this is text, not a picture').toString('base64') }), 'VALIDATION_ERROR');
+  await rejects(rpc(manager, 'manage_set_betting_platform_logo', {
+    p_method: key, p_logo: Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(70000)]).toString('base64') }), 'VALIDATION_ERROR');
+  await rejects(rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: PNG }), 'BUILT_IN');
+  await rejects(rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'nosuchplatform', p_logo: PNG }), 'NOT_FOUND');
+  await rejects(rpc(customer, 'manage_set_betting_platform_logo', { p_method: key, p_logo: PNG }), 'FORBIDDEN');
+  assert.equal((await platform(key)).logo, null, 'nothing changed');
+
+  const set = await rpc(manager, 'manage_set_betting_platform_logo', { p_method: key, p_logo: PNG });
+  assert.equal(set.logo, PNG);
+  assert.equal(set.status, 'not_tested', 'credentials and tests are untouched');
+  assert.equal((await platform(key)).logo, PNG);
+  // The Customer App's catalog carries it (and only this platform's).
+  const catalog = await rpc(customer, 'payment_method_catalog');
+  assert.equal(catalog.find((m) => m.method === key).logo, PNG);
+  assert.equal(catalog.find((m) => m.method === 'melbet').logo, null);
+  const { rows } = await db.query(`SELECT after_json::text AS a FROM audit_logs WHERE entity_id = $1 AND action = 'betting_platform.logo'`, [`betting:${key}`]);
+  assert.equal(rows.length, 1, 'audited');
+  assert.ok(!rows[0].a.includes(PNG), 'the picture itself is not copied into the audit log');
+
+  const cleared = await rpc(manager, 'manage_set_betting_platform_logo', { p_method: key, p_logo: '' });
+  assert.equal(cleared.logo, null);
+  assert.equal((await rpc(customer, 'payment_method_catalog')).find((m) => m.method === key).logo, null);
+  await rpc(manager, 'manage_set_betting_platform_logo', { p_method: key, p_logo: PNG });
+  await rpc(manager, 'manage_delete_betting_platform', { p_method: key, p_reason: 'Logo test cleanup' });
+  assert.ok(!(await rpc(customer, 'payment_method_catalog')).some((m) => m.method === key), 'a removed platform is gone, logo and all');
+});
