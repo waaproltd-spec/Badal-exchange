@@ -67,11 +67,23 @@ class ScriptedApi extends CustomerApi {
   }
 }
 
-class CountingPlayer implements SoundPlayer {
-  int plays = 0;
+class _NoPlayer implements SoundPlayer {
+  @override
+  Future<void> play() async {}
+}
+
+/// What the app told the cha-ching service (its once-per-order rule has its own
+/// tests): every order it was shown, as "id:status".
+class RecordingSound extends SuccessSound {
+  RecordingSound() : super(player: _NoPlayer());
+
+  final seen = <String>[];
 
   @override
-  Future<void> play() async => plays++;
+  Future<void> observe(Iterable<Order> orders) {
+    seen.addAll(orders.map((o) => '${o.id}:${o.status}'));
+    return Future.value();
+  }
 }
 
 Widget _host(Widget child, ScriptedApi api) => MultiProvider(
@@ -82,8 +94,8 @@ Widget _host(Widget child, ScriptedApi api) => MultiProvider(
       child: MaterialApp(theme: AppTheme.current, home: child),
     );
 
-Future<void> _phone(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(393, 851);
+Future<void> _phone(WidgetTester tester, {double height = 851}) async {
+  tester.view.physicalSize = Size(393, height);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 }
@@ -99,18 +111,18 @@ Future<void> _next(WidgetTester tester, [Duration wait = const Duration(seconds:
 const timeout = ApiException(status: 0, code: 'NETWORK', message: 'The request timed out.');
 
 void main() {
-  late CountingPlayer player;
+  late RecordingSound sound;
 
   setUp(() {
     AppLanguage.current.value = AppLanguage.english;
     SharedPreferences.setMockInitialValues({});
-    player = CountingPlayer();
-    SuccessSound.instance = SuccessSound(player: player);
+    sound = RecordingSound();
+    SuccessSound.instance = sound;
   });
 
   group('the Orders list', () {
     testWidgets('never shows Pending: Completed, Failed, or "being verified"', (tester) async {
-      await _phone(tester);
+      await _phone(tester, height: 1800); // all six rows on screen
       final api = ScriptedApi(lists: [
         [
           _order('a1', 'pending'),
@@ -168,7 +180,8 @@ void main() {
       final calls = api.getOrdersCalls;
       await tester.pump(const Duration(seconds: 30));
       expect(api.getOrdersCalls, calls, reason: 'nothing left to check: it stops asking');
-      expect(player.plays, 1, reason: 'one cha-ching for the one completion');
+      expect(sound.seen.where((x) => x == 'd1:completed'), hasLength(1), reason: 'the completion is announced once');
+      expect(sound.seen.where((x) => x == 'd1:pending'), isNotEmpty);
     });
 
     testWidgets('a failed read is not a result: the order stays "being verified", then turns Completed', (tester) async {
@@ -228,7 +241,7 @@ void main() {
       expect(api.getOrderCalls, 3);
       await tester.pump(const Duration(seconds: 60));
       expect(api.getOrderCalls, 3, reason: 'completed once: no more asking');
-      expect(player.plays, 1, reason: 'one cha-ching, once');
+      expect(sound.seen.where((x) => x == 'c1:completed'), hasLength(1), reason: 'the completion is announced once');
     });
 
     testWidgets('timeouts and network errors never turn into Failed: it keeps asking, then Completed', (tester) async {
@@ -261,7 +274,7 @@ void main() {
       expect(find.text('Failed'), findsOneWidget);
       expect(find.text('Payment not received'), findsOneWidget);
       expect(find.text(verifying), findsNothing);
-      expect(player.plays, 0, reason: 'no cha-ching for a failure');
+      expect(sound.seen.where((x) => x.endsWith(':completed')), isEmpty, reason: 'nothing completed: no cha-ching');
       await tester.pump(const Duration(seconds: 60));
       expect(api.getOrderCalls, 2);
     });
