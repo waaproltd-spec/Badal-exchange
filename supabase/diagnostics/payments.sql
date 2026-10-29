@@ -198,7 +198,6 @@ SELECT o.order_code, o.method,
        to_char(o.completed_at, 'MM-DD HH24:MI:SS') AS completed,
        round(extract(epoch FROM o.completed_at - o.created_at)) AS total_sec,
        (SELECT to_char(min(l.created_at), 'HH24:MI:SS') FROM public.ledger_entries l WHERE l.order_id = o.id AND l.entry_type = 'credit') AS credit_at,
-       (SELECT to_char(min(s.received_at), 'HH24:MI:SS') || ' / uploaded ' || to_char(min(s.created_at), 'HH24:MI:SS') FROM public.sms_logs s WHERE s.matched_order_id = o.id) AS sms_received_uploaded,
-       o.status_message
+       (SELECT to_char(min(s.received_at), 'HH24:MI:SS') || ' / uploaded ' || to_char(min(s.created_at), 'HH24:MI:SS') FROM public.sms_logs s WHERE s.matched_order_id = o.id) AS sms_received_uploaded
 FROM public.orders o WHERE o.direction = 'deposit' AND o.status = 'completed'
 ORDER BY o.completed_at DESC LIMIT 12;
