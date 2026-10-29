@@ -1,6 +1,7 @@
 import 'package:badal_agent_app/api/agent_api.dart';
 import 'package:badal_agent_app/models/management.dart';
 import 'package:badal_agent_app/screens/admin/merchant_feed_screen.dart';
+import 'package:badal_agent_app/screens/admin/sahal_forwarder_card.dart';
 import 'package:badal_agent_app/state/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -135,6 +136,12 @@ void main() {
 }
 
 void _forwarderTests() {
+  test('the forwarder card shows times on Somalia\'s clock (UTC+3)', () {
+    expect(SahalForwarderCard.somaliTime('2026-10-29T00:26:40+00:00'), '2026-10-29 03:26 (Somalia time)');
+    expect(SahalForwarderCard.somaliTime('2026-10-28T22:30:00Z'), '2026-10-29 01:30 (Somalia time)');
+    expect(SahalForwarderCard.somaliTime('not a time'), 'not a time');
+  });
+
   testWidgets('SMS forwarder: create a token (shown once with the URL), replace it, turn it off', (tester) async {
     await tester.pumpWidget(_app(const MerchantFeedStatus(state: 'ok', message: 'ok')));
     await tester.pumpAndSettle();

@@ -17,6 +17,15 @@ import '../../widgets/console_widgets.dart';
 class SahalForwarderCard extends StatefulWidget {
   const SahalForwarderCard({super.key});
 
+  /// A server time (UTC) as Somalia's clock shows it (UTC+3, no daylight saving).
+  static String somaliTime(String iso) {
+    final t = DateTime.tryParse(iso);
+    if (t == null) return iso;
+    final l = t.toUtc().add(const Duration(hours: 3));
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${l.year}-${two(l.month)}-${two(l.day)} ${two(l.hour)}:${two(l.minute)} (Somalia time)';
+  }
+
   /// Where the forwarding app posts.
   static String get url => '${ApiConfig.supabaseUrl}/functions/v1/sahal-sms-hook';
 
@@ -92,7 +101,7 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(
             configured
-                ? 'Set up${last != null ? ' · last SMS received ${last.substring(0, 16).replaceFirst('T', ' ')} UTC' : ' · no SMS received yet'}.'
+                ? 'Set up${last != null ? ' · last SMS received ${SahalForwarderCard.somaliTime(last)}' : ' · no SMS received yet'}.'
                 : 'Not set up. Use it when the merchant phone runs an SMS-forwarding app instead of this one.',
             key: const Key('forwarder-status'),
           ),
