@@ -90,7 +90,8 @@ jobs:
             echo "keyAlias=$UPLOAD_KEY_ALIAS"
             echo "keyPassword=$UPLOAD_KEY_PASSWORD"
           } > key.properties
-          keytool -list -keystore upload.keystore -storepass "$UPLOAD_KEYSTORE_PASSWORD" -alias "$UPLOAD_KEY_ALIAS" > /dev/null \
+          keytool -list -keystore upload.keystore -storepass "$UPLOAD_KEYSTORE_PASSWORD" -alias "$UPLOAD_KEY_ALIAS" 2>&1 | grep -iE "exception|error|not exist|incorrect|tampered|Entry type" | sed 's/^/keytool: /' ; \
+          keytool -list -keystore upload.keystore -storepass "$UPLOAD_KEYSTORE_PASSWORD" -alias "$UPLOAD_KEY_ALIAS" > /dev/null 2>&1 \
             || { echo "::error::The upload keystore, its password or the alias is wrong (see the lengths above)."; exit 1; }
 
       - name: Build app bundle
