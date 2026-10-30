@@ -9,8 +9,8 @@ import 'own_phone_box.dart';
 
 /// The phone number a mobile-money deposit comes from / a withdrawal goes to.
 /// The registered number, locked, for everyone -- unless an admin authorized
-/// this customer for the network: then the number can be typed, or picked from
-/// the registered number is the starting value.
+/// this customer for the network: then the number can be typed in the box,
+/// which starts as the registered number.
 /// The screen owns [controller] (the 9 digits after 252) and sends what it
 /// holds, so what the customer sees in the box is exactly what is used.
 class PayNumberBox extends StatefulWidget {
