@@ -95,6 +95,8 @@ test('enough balance: it goes on as before; what already waits for Sahal is coun
 
 test('an unknown balance changes nothing: old read, failed read, or a method Sahal does not pay', async () => {
   const cu = await customer();
+  // Only the old read counts as the latest one: drop the fresh reads the tests before this made.
+  await db.query(`DELETE FROM sahal_balances WHERE checked_at > now() - interval '10 minutes'`);
   await setBalance(0, 20); // 20 minutes old: not trusted
   await withdraw(cu, 3);
   await setBalance(0, 0, false); // the last read failed
