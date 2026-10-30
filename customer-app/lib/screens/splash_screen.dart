@@ -68,7 +68,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (_auth.initializing) {
       _auth.addListener(_onAuthChanged);
     } else {
-      _tryRedirect();
+      // Not while the first frame is being built (the navigator cannot change then).
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryRedirect());
     }
   }
 
