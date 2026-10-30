@@ -116,8 +116,10 @@ class MethodLogo extends StatelessWidget {
           aspectRatio: aspect,
           child: DecoratedBox(
             key: Key('wide-logo-$method'),
+            // No fill of its own: the logo's tile is opaque and covers it, and a
+            // white layer underneath would show as a thin light outline round a
+            // dark tile (the built-in dark logos have none).
             decoration: BoxDecoration(
-              color: Colors.white,
               borderRadius: BorderRadius.circular(radius),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
             ),

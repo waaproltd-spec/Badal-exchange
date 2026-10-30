@@ -78,6 +78,9 @@ void main() {
     expect(added, builtIn, reason: 'the same 2.4 : 1 tile');
     expect(added.width / added.height, closeTo(MethodLogo.aspect, 0.01));
     expect(find.text('WO'), findsNothing);
+    // Nothing is painted under the logo's own tile (no light outline round a dark one).
+    final box = tester.widget<DecoratedBox>(find.byKey(const Key('wide-logo-wowbet')));
+    expect((box.decoration as BoxDecoration).color, isNull);
   });
 
   testWidgets('an added platform without a logo keeps its initials in the grid', (tester) async {
