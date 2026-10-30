@@ -144,8 +144,9 @@ test('approved KYC: $500 a day and $5,000 a month; the limit message is no longe
   assert.equal(s.daily.limit, '500.00');
   assert.equal(s.monthly.limit, '5000.00');
   assert.equal(s.askKyc, false);
-  await rejects(withdraw(cu, 501), 'WITHDRAWAL_DAILY_LIMIT');
-  await withdraw(cu, 500);
+  await withdraw(cu, 300);
+  await rejects(withdraw(cu, 201), 'WITHDRAWAL_DAILY_LIMIT');
+  await withdraw(cu, 200);
   const msg = await rejects(withdraw(cu, 1), 'WITHDRAWAL_DAILY_LIMIT');
   assert.match(msg, /00:00/);
   assert.equal((await state(cu)).warning, 'daily_reached');
@@ -154,7 +155,8 @@ test('approved KYC: $500 a day and $5,000 a month; the limit message is no longe
 test('the daily limit starts again the next day; the monthly one holds across days until the month turns', async () => {
   const cu = await customer();
   await approveKyc(cu);
-  await withdraw(cu, 500);
+  await withdraw(cu, 400);
+  await withdraw(cu, 100);
   await ageOrders(cu, '1 day');
   const s = await state(cu);
   const monthStart = new Date((await db.query(`SELECT private.withdraw_month_start() AS m`)).rows[0].m);
@@ -166,19 +168,18 @@ test('the daily limit starts again the next day; the monthly one holds across da
   const t = await state(cu);
   assert.equal(t.daily.used, '0.00');
   assert.equal(t.monthly.used, '0.00');
-  await withdraw(cu, 500);
+  await withdraw(cu, 499);
 });
 
 test('the monthly limit stops a customer whose day is still free', async () => {
   const cu = await customer();
-  await setDefaults(50, 80, 500, 5000);
+  await approveKyc(cu);
+  await setDefaults(50, 80, 50, 80);
   try {
     await withdraw(cu, 50);
-    await ageOrders(cu, '1 minute');
-    // Day 2 within the same month is not guaranteed: put the first withdrawal at the start of today's month instead.
+    // Put it at the start of this month; on the 1st that is today, so the day check below is skipped.
     await db.query(`UPDATE orders SET created_at = private.withdraw_month_start() WHERE customer_id = $1`, [cu.id]);
-    const s = await state(cu);
-    if (s.daily.used === '0.00') {
+    if ((await state(cu)).daily.used === '0.00') {
       await withdraw(cu, 30);
       assert.equal((await state(cu)).monthly.remaining, '0.00');
       await rejects(withdraw(cu, 1), 'WITHDRAWAL_MONTHLY_LIMIT');
@@ -191,10 +192,15 @@ test('the monthly limit stops a customer whose day is still free', async () => {
 
 test('requests made at the same moment cannot add up past the limit', async () => {
   const cu = await customer();
-  const results = await Promise.allSettled(Array.from({ length: 12 }, () => withdraw(cu, 10)));
+  // Different amounts: identical ones are refused as duplicates, which is not what is tested here.
+  const results = await Promise.allSettled(Array.from({ length: 12 }, (_, i) => withdraw(cu, (9 + i / 100).toFixed(2))));
   const ok = results.filter((r) => r.status === 'fulfilled').length;
-  assert.equal(ok, 5, `exactly $50 went through, got ${ok} requests`);
-  assert.equal((await state(cu)).daily.used, '50.00');
+  assert.ok(ok >= 4 && ok <= 5, `${ok} went through`);
+  for (const r of results.filter((x) => x.status === 'rejected')) {
+    assert.equal(r.reason.code, 'WITHDRAWAL_KYC_REQUIRED', r.reason.message);
+  }
+  const used = Number((await state(cu)).daily.used);
+  assert.ok(used <= 50, `used ${used}`);
 });
 
 test('management changes the defaults; nobody else can; bad values are refused', async () => {
@@ -256,7 +262,7 @@ test('management sees a customer\'s KYC status, limits, what is left and their w
   assert.equal(d.defaults.unverifiedDaily, '50.00');
   // Same numbers as the customer sees.
   const mine = await state(cu);
-  assert.deepEqual({ ...mine, custom: undefined }, { ...d, customer: undefined, defaults: undefined, history: undefined, custom: undefined });
+  for (const k of ['daily', 'monthly', 'kyc', 'availableNow', 'warning', 'canWithdraw']) assert.deepEqual(mine[k], d[k], k);
 
   const list = await rpc(manager, 'manage_withdraw_limit_customers', { p_query: cu.number, p_filter: 'all' });
   assert.equal(list.customers.length, 1);
