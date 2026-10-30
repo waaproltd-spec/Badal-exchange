@@ -19,6 +19,7 @@ import 'admin/merchant_feed_screen.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
 import 'admin/kyc_screens.dart';
+import 'admin/payment_numbers_screens.dart';
 import 'admin/withdraw_limits_screens.dart';
 import 'admin/unconfirmed_deposits_screen.dart';
 import 'admin/withdrawal_verification_screen.dart';
@@ -144,6 +145,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.purple,
               label: 'Customer Withdrawal Limits (KYC)',
               onTap: () => _open(const WithdrawLimitsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sim_card_rounded,
+              color: AppColors.statusCompleted,
+              label: 'Customer Payment Numbers',
+              onTap: () => _open(const PaymentNumbersScreen()),
             ),
             _NavRow(
               icon: Icons.badge_rounded,

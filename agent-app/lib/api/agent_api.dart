@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../models/commission.dart';
 import '../models/deposit_board.dart';
 import '../models/kyc.dart';
+import '../models/payment_numbers.dart';
 import '../models/withdraw_limits.dart';
 import '../models/withdrawal_verification.dart';
 import '../models/report_overview.dart';
@@ -133,6 +134,40 @@ class AgentApi {
   Future<void> setCustomerWithdrawLimits(String customerId, {String? daily, String? monthly, String? note}) async {
     await _map('manage_set_customer_withdraw_limits',
         {'p_customer_id': customerId, 'p_daily': daily, 'p_monthly': monthly, 'p_note': note});
+  }
+
+  /// Admin: customers with whether they may use another payment number.
+  /// [filter]: all | authorized | revoked.
+  Future<List<PaymentNumberCustomer>> getPaymentNumberCustomers({String? query, String filter = 'all'}) async {
+    final data = await _map('manage_payment_number_customers', {'p_query': query, 'p_filter': filter});
+    return ((data['customers'] as List?) ?? const [])
+        .map((e) => PaymentNumberCustomer.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// Admin: one customer's permission and every number on file.
+  Future<CustomerPaymentNumbers> getCustomerPaymentNumbers(String customerId) async =>
+      CustomerPaymentNumbers.fromJson(await _map('manage_customer_payment_numbers', {'p_customer_id': customerId}));
+
+  /// Admin: grant (with the networks) or revoke the permission.
+  Future<void> setPaymentNumberAccess(String customerId, {required bool enabled, List<String>? methods, String? note}) async {
+    await _map('manage_set_payment_number_access',
+        {'p_customer_id': customerId, 'p_enabled': enabled, 'p_methods': methods, 'p_note': note});
+  }
+
+  /// Admin: register a number for a customer.
+  Future<void> addPaymentNumber(String customerId, {required String method, required String phone, String? label}) async {
+    await _map('manage_add_payment_number', {'p_customer_id': customerId, 'p_method': method, 'p_phone': phone, 'p_label': label});
+  }
+
+  /// Admin: block or unblock one number.
+  Future<void> setPaymentNumberBlocked(String numberId, bool blocked) async {
+    await _map('manage_set_payment_number_blocked', {'p_number_id': numberId, 'p_blocked': blocked});
+  }
+
+  /// Admin: remove one number from the customer's list.
+  Future<void> removePaymentNumber(String numberId) async {
+    await _map('manage_remove_payment_number', {'p_number_id': numberId});
   }
 
   /// Admin: accounts waiting for (or given) withdrawal approval.
