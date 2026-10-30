@@ -208,14 +208,14 @@ void main() {
     });
   });
 
-  group('Order.shown: an unpaid mobile-money deposit reads Failed after 1 minute', () {
+  group('Order.shown: an unpaid mobile-money deposit reads Failed after 30 seconds', () {
     final old = DateTime.now().subtract(const Duration(minutes: 2));
 
-    test('only a mobile-money deposit that is not final and older than 1 minute', () {
+    test('only a mobile-money deposit that is not final and older than 30 seconds', () {
       expect(_order('a', 'pending', created: old).shown.status, 'failed');
       expect(_order('a', 'processing', created: old).shown.status, 'failed');
       expect(_order('a', 'pending', created: old).shown.failureReason, isNotEmpty);
-      expect(_order('a', 'pending').shown.status, 'pending', reason: 'under 1 minute');
+      expect(_order('a', 'pending').shown.status, 'pending', reason: 'under 30 seconds');
       expect(_order('a', 'pending', created: old).isFinal, isFalse, reason: 'the server has not decided: the app keeps asking');
       expect(_order('a', 'completed', created: old).shown.status, 'completed');
       expect(_order('a', 'pending', created: old, direction: 'withdraw').shown.status, 'pending', reason: 'a withdrawal is not an unpaid deposit');
@@ -295,7 +295,7 @@ void main() {
       expect(find.text('00:00:00'), findsOneWidget);
     });
 
-    testWidgets('unpaid after 1 minute: it reads Failed, and a payment that arrives later turns it into Completed', (tester) async {
+    testWidgets('unpaid after 30 seconds: it reads Failed, and a payment that arrives later turns it into Completed', (tester) async {
       await _phone(tester);
       final old = DateTime.now().subtract(const Duration(minutes: 2));
       final api = ScriptedApi(script: [_order('u1', 'pending', created: old), _order('u1', 'completed', created: old)]);

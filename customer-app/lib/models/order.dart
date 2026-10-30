@@ -67,13 +67,13 @@ class Order {
   /// customer is told it failed. Only what is shown: the server still
   /// credits a payment that arrives later, and the order then reads
   /// Completed.
-  static const unpaidAfter = Duration(minutes: 1);
+  static const unpaidAfter = Duration(seconds: 30);
 
   /// The clock for [shown]; replaced in tests.
   static DateTime Function() clock = DateTime.now;
 
   /// This order as the customer sees it. A mobile-money deposit still
-  /// unpaid [unpaidAfter] (1 minute) after it was made reads Failed ("no payment
+  /// unpaid [unpaidAfter] (30 seconds) after it was made reads Failed ("no payment
   /// received") instead of waiting; everything else is as the server says.
   /// [isFinal] stays the server's word, so the app keeps asking and a late
   /// payment turns it into Completed.

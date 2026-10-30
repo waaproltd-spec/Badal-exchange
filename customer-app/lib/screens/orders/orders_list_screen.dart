@@ -144,7 +144,7 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // What the customer sees (an unpaid deposit reads Failed after 3 minutes);
+    // What the customer sees (an unpaid deposit reads Failed after 30 seconds);
     // the details sheet gets the server's order and keeps it up to date.
     final real = this.order;
     final order = real.shown;
