@@ -179,7 +179,7 @@ class AppStrings {
       'That is more than you can withdraw now (\$$left).', 'Tani way ka badan tahay inta aad hadda bixin karto (\$$left).');
   static String limitKycPrompt(String daily, String monthly) => _t(
       'Without KYC you can withdraw up to \$$daily a day. Complete KYC verification to withdraw up to \$$monthly a month and more each day.',
-      'KYC la'aanteed waxaad bixin kartaa ilaa \$$daily maalintii. Dhammaystir xaqiijinta KYC si aad u bixiso wax ka badan.');
+      'KYC la\'aanteed waxaad bixin kartaa ilaa \$$daily maalintii. Dhammaystir xaqiijinta KYC si aad u bixiso wax ka badan.');
   static String get completeKyc => _t('Complete KYC verification', 'Dhammaystir xaqiijinta KYC');
   static String get kycWaitingReview => _t('Your KYC is being reviewed.', 'KYC-gaaga waa la eegayaa.');
   static String get confirm => _t('Confirm', 'Xaqiiji');

@@ -76,6 +76,8 @@ void main() {
     expect(find.text('Today \$42.00 of \$50.00 · left \$8.00'), findsOneWidget);
     expect(find.text('Month \$120.00 of \$500.00 · left \$380.00'), findsOneWidget);
     expect(find.text('Close to the limit'), findsOneWidget);
+    await tester.ensureVisible(find.text('Limit reached'));
+    await tester.pump();
     await tester.tap(find.text('Limit reached'));
     await tester.pump();
     await tester.pump();
