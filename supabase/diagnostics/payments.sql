@@ -246,3 +246,22 @@ FROM jsonb_array_elements(public.payment_method_catalog()) e WHERE e ->> 'kind' 
 \echo '== 21. Sahal balance reads (Company Balances): the last ones, newest first (read-only) =='
 SELECT to_char(checked_at, 'MM-DD HH24:MI:SS') AS at, ok, round(balance_cents / 100.0, 2) AS balance_usd, error
 FROM public.sahal_balances ORDER BY checked_at DESC LIMIT 8;
+
+\echo
+\echo '== 22. Withdrawal limits: customers who withdrew in the last 24 hours, their KYC status, limits and what is used (read-only; numbers: last 4 digits) =='
+SELECT right(u.phone, 4) AS phone_end,
+       s.state -> 'kyc' ->> 'status' AS kyc,
+       s.state -> 'daily' ->> 'limit' AS daily_limit, s.state -> 'daily' ->> 'used' AS daily_used,
+       s.state -> 'monthly' ->> 'limit' AS monthly_limit, s.state -> 'monthly' ->> 'used' AS monthly_used,
+       s.state -> 'custom' ->> 'daily' AS custom_daily, s.state -> 'custom' ->> 'monthly' AS custom_monthly,
+       s.state ->> 'enabled' AS limits_on
+FROM public.users u
+CROSS JOIN LATERAL (SELECT private.withdraw_state(u.id) AS state) s
+WHERE u.id IN (SELECT o.customer_id FROM public.orders o WHERE o.direction = 'withdraw' AND o.created_at > now() - interval '24 hours')
+ORDER BY u.phone;
+\echo '-- every withdrawal today (Somalia time), newest first: the amounts the daily limit counted'
+SELECT o.order_code, right(u.phone, 4) AS phone_end, o.amount_cents / 100.0 AS amount, o.status,
+       to_char(o.created_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS created_somalia
+FROM public.orders o JOIN public.users u ON u.id = o.customer_id
+WHERE o.direction = 'withdraw' AND o.created_at >= private.withdraw_day_start()
+ORDER BY o.created_at DESC LIMIT 20;
