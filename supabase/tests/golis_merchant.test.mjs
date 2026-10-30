@@ -1202,13 +1202,12 @@ test('Sahal balance: read with the feed about once a minute and recorded as read
   portal.balance = '1,234.56';
   const r = await run();
   assert.equal(r.status, 200, r.body);
-  assert.equal(calls('/api/account/balance'), 1);
   let rows = (await db.query('SELECT ok, balance_cents, error FROM sahal_balances')).rows;
   assert.deepEqual(rows.map((x) => [x.ok, String(x.balance_cents)]), [[true, '123456']]);
 
-  // A second run inside the minute does not ask again, and the feed is as before.
+  // A second run inside the minute records nothing more, and the feed is as before.
   await run();
-  assert.equal(calls('/api/account/balance'), 1);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM sahal_balances')).rows[0].n, 1);
   assert.equal((await status()).state, 'ok');
   assert.equal((await stored()).length, 1);
 

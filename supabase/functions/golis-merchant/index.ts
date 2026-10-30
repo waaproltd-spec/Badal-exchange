@@ -286,7 +286,8 @@ async function run() {
 /** About once a minute: Sahal's balance, recorded as read (or why it could not be). */
 async function recordBalance(session: string) {
   if ((await rpc('sahal_balance_due', { p_max_age_seconds: 60 })) !== true) return;
-  const value = await balance(session);
+  // The payouts step has just asked Sahal for it: use that answer, not a second request.
+  const value = lastBalance && Date.now() - lastBalance.at < 20_000 ? lastBalance.value : await balance(session);
   await rpc('sahal_balance_record', { p_balance: value, p_error: value === null ? 'Sahal did not return a balance' : null });
 }
 
@@ -359,15 +360,21 @@ const sessionLost = (r: any) =>
   ['4005', '7777', 'ER0654'].includes(String(r?.resultCode ?? '').toUpperCase()) ||
   /sign in again|session/i.test(String(r?.replyMessage ?? ''));
 
+/** The last answer to a balance request (null when it had none), and when. */
+let lastBalance: { at: number; value: number | null } | null = null;
+
 /** POST /api/account/balance -> currentBalance; null when it cannot be read. */
 async function balance(session: string): Promise<number | null> {
+  let value: number | null = null;
   try {
     const res = await portal('/api/account/balance', { sessionId: session });
-    const value = Number(String(res?.currentBalance ?? '').replace(/,/g, ''));
-    return String(res?.resultCode ?? '') === '2001' && Number.isFinite(value) ? value : null;
+    const n = Number(String(res?.currentBalance ?? '').replace(/,/g, ''));
+    value = String(res?.resultCode ?? '') === '2001' && Number.isFinite(n) ? n : null;
   } catch {
-    return null;
+    value = null;
   }
+  lastBalance = { at: Date.now(), value };
+  return value;
 }
 
 /** Sends the withdrawals the database hands out, one at a time. */
