@@ -121,7 +121,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                           onTap: () => _open(p),
                           child: Row(children: [
                             if (p.logo != null)
-                              _LogoImage(key: Key('platform-logo-${p.method}'), logo: p.logo!, size: 44)
+                              _LogoImage(key: Key('platform-logo-${p.method}'), logo: p.logo!, size: 44, fallbackMethod: p.builtIn ? p.method : null)
                             else if (p.builtIn)
                               // The logo the Customer App has built in.
                               MethodLogo(key: Key('platform-builtin-logo-${p.method}'), method: p.method, width: 44 * 2.4)
@@ -381,7 +381,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                 key: const Key('platform-logo-card'),
                 child: Row(children: [
                   if (_p.logo != null)
-                    _LogoImage(key: const Key('platform-logo-preview'), logo: _p.logo!, size: 64)
+                    _LogoImage(key: const Key('platform-logo-preview'), logo: _p.logo!, size: 64, fallbackMethod: _p.builtIn ? _p.method : null)
                   else if (_p.builtIn)
                     MethodLogo(key: const Key('platform-builtin-logo-card'), method: _p.method, width: 64 * 2.4)
                   else
@@ -535,7 +535,10 @@ class _RemoveDialogState extends State<_RemoveDialog> {
 class _LogoImage extends StatelessWidget {
   final Uint8List logo;
   final double size;
-  const _LogoImage({super.key, required this.logo, required this.size});
+
+  /// A built-in platform: its own logo shows when the picture cannot be read.
+  final String? fallbackMethod;
+  const _LogoImage({super.key, required this.logo, required this.size, this.fallbackMethod});
 
   @override
   Widget build(BuildContext context) {
@@ -549,7 +552,9 @@ class _LogoImage extends StatelessWidget {
           height: size,
           fit: BoxFit.contain,
           gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => TintedIcon(icon: Icons.image_not_supported_outlined, color: AppColors.textFaint, size: size),
+          errorBuilder: (_, __, ___) => fallbackMethod != null
+              ? MethodLogo(method: fallbackMethod!, width: size * 2.4)
+              : TintedIcon(icon: Icons.image_not_supported_outlined, color: AppColors.textFaint, size: size),
         ),
       ),
     );
