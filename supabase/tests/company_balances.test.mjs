@@ -87,6 +87,8 @@ before(async () => {
 });
 after(async () => {
   standIn.close();
+  // An open keep-alive connection from the Edge Function would hold the process (the file timed out now and then).
+  standIn.closeAllConnections?.();
   await db.end();
 });
 
