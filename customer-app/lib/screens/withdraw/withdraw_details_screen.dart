@@ -7,6 +7,7 @@ import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
+import '../../models/withdraw_limits.dart';
 import '../../models/withdrawal_access.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
@@ -16,6 +17,8 @@ import '../../widgets/flow_header.dart';
 import '../../widgets/own_phone_box.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/withdraw_limits_card.dart';
+import '../profile/kyc_screen.dart';
 import 'withdraw_confirm_screen.dart';
 
 /// Collects the amount (plus the account ID for betting platforms), then
@@ -52,12 +55,38 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
   /// Null until known (and when it cannot be read: the server decides anyway).
   WithdrawalAccess? _access;
 
+  /// KYC status and daily / monthly limits. Null until known or when it
+  /// cannot be read: the server enforces them on every withdrawal anyway.
+  WithdrawLimits? _limits;
+
   bool get _blocked => _access != null && !_access!.allowed;
 
   @override
   void initState() {
     super.initState();
     _checkAccess();
+    _loadLimits();
+  }
+
+  Future<void> _loadLimits() async {
+    final limits = await context.read<CustomerApi>().getWithdrawLimits();
+    if (mounted) setState(() => _limits = limits);
+  }
+
+  Future<void> _openKyc() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const KycScreen()));
+    if (mounted) _loadLimits();
+  }
+
+  /// Why [amount] cannot be withdrawn now, or null (the server decides anyway).
+  String? _limitProblem(double amount) {
+    final l = _limits;
+    if (l == null || !l.enabled) return null;
+    if (l.reached || !l.canWithdraw) {
+      return l.warning == 'monthly_reached' ? AppStrings.limitMonthlyReached : AppStrings.limitDailyReached;
+    }
+    if (amount > l.availableValue + 0.0001) return AppStrings.limitExceeds(l.availableNow);
+    return null;
   }
 
   /// Before the first withdrawal an admin approves the account.
@@ -115,6 +144,8 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     final balance = double.tryParse(widget.availableBalance ?? '');
     if (balance == null || balance <= 0) return;
     var all = balance;
+    final room = _limits;
+    if (room != null && room.enabled && room.availableValue < all) all = room.availableValue;
     final cap = double.tryParse(widget.option?.maxWithdraw ?? '');
     if (cap != null && cap < all) all = cap;
     // Down to the cent, never above the balance.
@@ -131,6 +162,11 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     }
     if (!_info.isPlatform && _ownLocal == null) {
       setState(() => _error = AppStrings.noRegisteredNumber);
+      return;
+    }
+    final problem = _limitProblem(double.tryParse(_amountController.text.trim()) ?? 0);
+    if (problem != null) {
+      setState(() => _error = problem);
       return;
     }
     setState(() {
@@ -159,6 +195,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
         if (mounted && _blocked) await _askForApproval();
         return;
       }
+      if ((e.code.startsWith('WITHDRAWAL_') && e.code.endsWith('_LIMIT')) || e.code == 'WITHDRAWAL_KYC_REQUIRED') _loadLimits();
       setState(() => _error = e.message);
     } catch (_) {
       setState(() => _error = AppStrings.somethingWentWrong);
@@ -239,6 +276,10 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 14),
+              ],
+              if (_limits != null && _limits!.enabled) ...[
+                WithdrawLimitsCard(limits: _limits!, onCompleteKyc: _limits!.askKyc ? _openKyc : null),
                 const SizedBox(height: 14),
               ],
               FlowMethodCard(

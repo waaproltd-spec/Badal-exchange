@@ -149,6 +149,34 @@ class AppStrings {
   static String get amount => _t('Amount (USD)', 'Lacagta (USD)');
   static String get continueLabel => _t('Continue', 'Sii wad');
   static String get withdrawAll => _t('Withdraw all', 'Qaado dhammaan');
+
+  // Withdrawal limits (KYC)
+  static String get withdrawLimitsTitle => _t('Withdrawal limits', 'Xadka lacag-bixinta');
+  static String get kycVerified => _t('KYC verified', 'KYC waa la xaqiijiyay');
+  static String get kycNotVerified => _t('Not verified', 'Lama xaqiijin');
+  static String get kycInReview => _t('KYC in review', 'KYC waa la eegayaa');
+  static String get kycRejected => _t('KYC not approved', 'KYC lama oggolaan');
+  static String get limitToday => _t('Today', 'Maanta');
+  static String get limitThisMonth => _t('This month', 'Bishan');
+  static String limitUsedOf(String used, String limit) => _t('\$$used of \$$limit withdrawn', '\$$used laga bixiyay \$$limit');
+  static String limitLeft(String left) => _t('\$$left left', '\$$left ayaa harsan');
+  static String get limitDailyReached => _t(
+      'You reached today\'s withdrawal limit. It starts again at 00:00 (Somalia time).',
+      'Waxaad gaadhay xadka maanta ee lacag-bixinta. Wuxuu dib u bilaabmayaa 00:00 (waqtiga Soomaaliya).');
+  static String get limitMonthlyReached => _t(
+      'You reached this month\'s withdrawal limit. It starts again on the 1st.',
+      'Waxaad gaadhay xadka bishan ee lacag-bixinta. Wuxuu dib u bilaabmayaa 1da bisha.');
+  static String limitNearDaily(String left) => _t(
+      'You are close to today\'s limit: \$$left left today.', 'Waad ku dhawaatay xadka maanta: \$$left ayaa maanta harsan.');
+  static String limitNearMonthly(String left) => _t(
+      'You are close to this month\'s limit: \$$left left.', 'Waad ku dhawaatay xadka bishan: \$$left ayaa harsan.');
+  static String limitExceeds(String left) => _t(
+      'That is more than you can withdraw now (\$$left).', 'Tani way ka badan tahay inta aad hadda bixin karto (\$$left).');
+  static String limitKycPrompt(String daily, String monthly) => _t(
+      'Without KYC you can withdraw up to \$$daily a day. Complete KYC verification to withdraw up to \$$monthly a month and more each day.',
+      'KYC la'aanteed waxaad bixin kartaa ilaa \$$daily maalintii. Dhammaystir xaqiijinta KYC si aad u bixiso wax ka badan.');
+  static String get completeKyc => _t('Complete KYC verification', 'Dhammaystir xaqiijinta KYC');
+  static String get kycWaitingReview => _t('Your KYC is being reviewed.', 'KYC-gaaga waa la eegayaa.');
   static String get confirm => _t('Confirm', 'Xaqiiji');
   static String get rate => _t('Rate', 'Sarifka');
   static String get fee => _t('Fee', 'Khidmadda');

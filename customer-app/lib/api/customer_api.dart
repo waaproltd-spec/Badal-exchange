@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/kyc.dart';
+import '../models/withdraw_limits.dart';
 import '../models/withdrawal_access.dart';
 import '../models/app_content.dart';
 import '../models/bonus.dart';
@@ -247,6 +248,16 @@ class CustomerApi {
   Future<WithdrawalAccess?> getWithdrawalAccess() async {
     try {
       return WithdrawalAccess.fromJson(await _client.rpc('customer_withdrawal_access') as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// KYC status, daily / monthly withdrawal limits, what was withdrawn and
+  /// what is left. Null when it cannot be read (the server still enforces them).
+  Future<WithdrawLimits?> getWithdrawLimits() async {
+    try {
+      return WithdrawLimits.fromJson(await _client.rpc('customer_withdraw_limits') as Map<String, dynamic>);
     } catch (_) {
       return null;
     }
