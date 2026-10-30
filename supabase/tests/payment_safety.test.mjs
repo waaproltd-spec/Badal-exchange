@@ -121,6 +121,44 @@ test('an unknown balance changes nothing: old read, failed read, or a method Sah
   assert.notEqual(e.code, 'WITHDRAWAL_PROVIDER_BALANCE');
 });
 
+test('a betting platform whose cash desk cannot cover it: refused before any order, nothing taken; unknown stays as before', async () => {
+  const cu = await customer();
+  const read = (limit, { ok = true, minutesAgo = 0 } = {}) => db.query(
+    `INSERT INTO cashdesk_balances (method, ok, balance_cents, limit_cents, error, source, checked_at)
+     VALUES ('melbet', $1, $2, $3, $4, 'payment-safety-test', now() - make_interval(mins => $5))`,
+    [ok, ok ? 100000 : null, limit, ok ? null : 'down', minutesAgo]);
+  const room = async () => (await db.query(`SELECT private.cashdesk_room('melbet') AS r`)).rows[0].r;
+  const platformWithdraw = (amount) => rpc(cu.c, 'customer_create_withdrawal', {
+    p_method: 'melbet', p_amount: String(amount), p_account_id: '1198475', p_idempotency_key: randomUUID() });
+  try {
+    await db.query(`DELETE FROM cashdesk_balances WHERE method = 'melbet' AND checked_at > now() - interval '1 hour'`);
+    await read(2000); // the cash desk can still pay $20
+    assert.ok(Number(await room()) <= 2000);
+    await assert.rejects(platformWithdraw(30), (e) => {
+      assert.equal(e.code, 'WITHDRAWAL_PROVIDER_BALANCE');
+      assert.equal(e.message, MESSAGE);
+      return true;
+    });
+    assert.equal(await wallet(cu), '1000.00', 'the wallet is untouched');
+    assert.equal((await db.query(`SELECT count(*)::int AS n FROM orders WHERE customer_id = $1`, [cu.id])).rows[0].n, 0, 'no order exists');
+
+    // Not known: no Limit reported, an old read, a failed later read, a method that is not a cash desk.
+    await db.query(`DELETE FROM cashdesk_balances WHERE source = 'payment-safety-test'`);
+    await read(null);
+    assert.equal(await room(), null, 'no Limit reported');
+    await db.query(`DELETE FROM cashdesk_balances WHERE source = 'payment-safety-test'`);
+    await read(2000, { minutesAgo: 20 });
+    assert.equal(await room(), null, 'an old read');
+    await db.query(`DELETE FROM cashdesk_balances WHERE source = 'payment-safety-test'`);
+    await read(2000, { minutesAgo: 2 });
+    await read(null, { ok: false });
+    assert.equal(await room(), null, 'the latest read failed');
+    assert.equal((await db.query(`SELECT private.cashdesk_room('evc_plus') AS r`)).rows[0].r, null, 'not a cash desk');
+  } finally {
+    await db.query(`DELETE FROM cashdesk_balances WHERE source = 'payment-safety-test'`);
+  }
+});
+
 test('with Sahal payouts off nothing is checked', async () => {
   const cu = await customer();
   await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
