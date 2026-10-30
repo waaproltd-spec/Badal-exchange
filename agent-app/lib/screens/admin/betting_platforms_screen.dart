@@ -375,33 +375,26 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                 if (_p.updatedBy != null) InfoRow('Changed by', _p.updatedBy!),
               ]),
             ),
-            if (_p.builtIn) ...[
-              const GroupLabel('Logo'),
-              ConsoleCard(
-                key: const Key('platform-builtin-logo-card'),
-                child: Row(children: [
-                  MethodLogo(method: _p.method, width: 64 * 2.4),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Text('Built into the Customer App. Customers see this logo.',
-                        style: TextStyle(color: AppColors.textSecondary)),
-                  ),
-                ]),
-              ),
-            ],
-            if (!_p.builtIn) ...[
+            ...[
               const GroupLabel('Logo'),
               ConsoleCard(
                 key: const Key('platform-logo-card'),
                 child: Row(children: [
                   if (_p.logo != null)
                     _LogoImage(key: const Key('platform-logo-preview'), logo: _p.logo!, size: 64)
+                  else if (_p.builtIn)
+                    MethodLogo(key: const Key('platform-builtin-logo-card'), method: _p.method, width: 64 * 2.4)
                   else
                     const TintedIcon(icon: Icons.image_outlined, color: AppColors.textFaint, size: 64),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(_p.logo != null ? 'Logo set' : 'No logo yet (the Customer App shows its initials)',
+                      Text(
+                          _p.logo != null
+                              ? (_p.builtIn ? 'Logo replaced (the Customer App shows this one)' : 'Logo set')
+                              : (_p.builtIn
+                                  ? 'The logo built into the Customer App'
+                                  : 'No logo yet (the Customer App shows its initials)'),
                           key: const Key('platform-logo-state'), style: const TextStyle(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
                       Wrap(spacing: 8, runSpacing: 4, children: [
@@ -409,13 +402,13 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                           key: const Key('platform-logo-choose'),
                           onPressed: _busy ? null : _chooseLogo,
                           icon: const Icon(Icons.photo_library_rounded),
-                          label: Text(_p.logo != null ? 'Change logo' : 'Choose logo'),
+                          label: Text(_p.logo != null ? 'Change logo' : (_p.builtIn ? 'Replace logo' : 'Choose logo')),
                         ),
                         if (_p.logo != null)
                           TextButton(
                             key: const Key('platform-logo-remove'),
                             onPressed: _busy ? null : _removeLogo,
-                            child: const Text('Remove'),
+                            child: Text(_p.builtIn ? 'Back to the built-in logo' : 'Remove'),
                           ),
                       ]),
                     ]),

@@ -54,6 +54,19 @@ void main() {
     expect(find.byKey(const Key('logo-melbet')), findsOneWidget);
   });
 
+  testWidgets('a logo a manager gave a built-in platform replaces the one built into the app', (tester) async {
+    applyPaymentMethodCatalog([
+      {'method': 'melbet', 'label': 'MELBET', 'kind': 'platform', 'color': '#CA8A04', 'initials': 'MB', 'cashdesk': true, 'logo': _png},
+    ]);
+    expect(methodInfo('melbet').logo, isNotNull);
+    await tester.pumpWidget(_icon('melbet'));
+    expect(find.byKey(const Key('logo-melbet')), findsOneWidget);
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.image, isA<MemoryImage>(), reason: 'the manager\'s picture, not the asset');
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Center(child: SizedBox(width: 120, child: MethodLogo(method: 'melbet'))))));
+    expect(tester.widget<Image>(find.byType(Image)).image, isA<MemoryImage>());
+  });
+
   testWidgets('the method grid shows an added platform\'s logo in the same wide tile as the built-in ones', (tester) async {
     applyPaymentMethodCatalog([
       {'method': 'wowbet', 'label': 'wowbet', 'kind': 'platform', 'color': '#6B7280', 'initials': 'WO', 'cashdesk': true, 'logo': _png},

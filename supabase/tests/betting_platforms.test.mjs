@@ -196,7 +196,7 @@ check('a name added and removed before it was ever saved can be added again; nam
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
 
-check('a logo for an added platform: validated, shown in the Customer App catalog, removable; built-ins keep theirs', async () => {
+check('a logo for an added platform: validated, shown in the Customer App catalog, removable; built-ins keep theirs until given another', async () => {
   const p = await rpc(manager, 'manage_create_betting_platform', { p_name: `Logo Bet ${seed}`, p_adapter: 'cashdeskbot' });
   const key = p.method;
   assert.equal((await platform(key)).logo, null, 'none at first');
@@ -210,7 +210,6 @@ check('a logo for an added platform: validated, shown in the Customer App catalo
     p_method: key, p_logo: Buffer.from('this is text, not a picture').toString('base64') }), 'VALIDATION_ERROR');
   await rejects(rpc(manager, 'manage_set_betting_platform_logo', {
     p_method: key, p_logo: Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(70000)]).toString('base64') }), 'VALIDATION_ERROR');
-  await rejects(rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: PNG }), 'BUILT_IN');
   await rejects(rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'nosuchplatform', p_logo: PNG }), 'NOT_FOUND');
   await rejects(rpc(customer, 'manage_set_betting_platform_logo', { p_method: key, p_logo: PNG }), 'FORBIDDEN');
   assert.equal((await platform(key)).logo, null, 'nothing changed');
@@ -233,4 +232,23 @@ check('a logo for an added platform: validated, shown in the Customer App catalo
   await rpc(manager, 'manage_set_betting_platform_logo', { p_method: key, p_logo: PNG });
   await rpc(manager, 'manage_delete_betting_platform', { p_method: key, p_reason: 'Logo test cleanup' });
   assert.ok(!(await rpc(customer, 'payment_method_catalog')).some((m) => m.method === key), 'a removed platform is gone, logo and all');
+});
+
+check('a built-in platform can be given another logo: shown in the catalog, validated, removed to bring its own back', async () => {
+  assert.equal((await platform('melbet')).logo, null, 'its own logo is built into the app');
+  await rejects(rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: 'not base64!!' }), 'VALIDATION_ERROR');
+  await rejects(rpc(customer, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: PNG }), 'FORBIDDEN');
+  try {
+    const set = await rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: PNG });
+    assert.equal(set.logo, PNG);
+    assert.equal(set.builtIn, true);
+    assert.equal(set.status, 'server', 'credentials and tests are untouched');
+    const catalog = await rpc(customer, 'payment_method_catalog');
+    assert.equal(catalog.find((m) => m.method === 'melbet').logo, PNG);
+    assert.equal(catalog.find((m) => m.method === 'onexbet').logo, null, 'the others keep theirs');
+  } finally {
+    const removed = await rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: '' });
+    assert.equal(removed.logo, null);
+  }
+  assert.equal((await rpc(customer, 'payment_method_catalog')).find((m) => m.method === 'melbet').logo, null);
 });

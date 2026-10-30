@@ -18,7 +18,8 @@ class MethodIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (_logos.contains(method)) {
+    // A logo a manager gave the platform replaces the one built into the app.
+    if (_logos.contains(method) && methodInfo(method).logo == null) {
       return Container(
         key: Key('logo-$method'),
         width: size,
@@ -107,7 +108,7 @@ class MethodLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!_logos.contains(method)) {
+    if (!_logos.contains(method) || methodInfo(method).logo != null) {
       final info = methodInfo(method);
       if (info.logo != null) {
         // A platform added in the Agent App: its logo in the same wide tile
