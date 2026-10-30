@@ -313,7 +313,9 @@ Deno.serve(async (req) => {
   // (the bot token stays in the secrets; nothing but the webhook secret is typed).
   if (path.endsWith('/setup')) {
     const given = req.headers.get('x-telegram-bot-api-secret-token') ?? url.searchParams.get('key');
-    if (!expected || given !== expected) return new Response('Forbidden', { status: 403 });
+    // Says why, so the one-time setup can be fixed (nothing here reveals the secret).
+    if (!expected) return new Response('Forbidden: the secret SUPPORT_BOT_WEBHOOK_SECRET is not set in Supabase', { status: 403 });
+    if (given !== expected) return new Response('Forbidden: the key in the address does not match SUPPORT_BOT_WEBHOOK_SECRET', { status: 403 });
     try {
       const hook = `${Deno.env.get('SUPABASE_URL')}/functions/v1/support-bot`;
       await tg('setWebhook', { url: hook, secret_token: expected, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
