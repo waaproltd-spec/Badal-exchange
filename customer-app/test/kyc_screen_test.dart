@@ -64,6 +64,10 @@ Future<void> _tap(WidgetTester tester, Finder f) async {
 }
 
 void main() {
+  test('the country of issue offers Somalia only', () {
+    expect(kycCountries, [('SO', 'Somalia')]);
+  });
+
   setUp(() => AppLanguage.current.value = AppLanguage.english);
 
   testWidgets('not submitted: document, details, photos, selfie, review, submit -> Pending Admin Review', (tester) async {

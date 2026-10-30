@@ -46,9 +46,8 @@ class KycStatus {
       );
 }
 
-/// Countries of issue offered first (ISO codes); the server accepts any ISO code.
+/// Countries of issue offered: Somalia only (ISO code). The server still
+/// reads any ISO code on an application already made.
 const kycCountries = [
-  ('SO', 'Somalia'), ('KE', 'Kenya'), ('ET', 'Ethiopia'), ('DJ', 'Djibouti'), ('UG', 'Uganda'), ('TZ', 'Tanzania'),
-  ('AE', 'United Arab Emirates'), ('SA', 'Saudi Arabia'), ('TR', 'Turkey'), ('EG', 'Egypt'), ('GB', 'United Kingdom'),
-  ('US', 'United States'), ('SE', 'Sweden'), ('NO', 'Norway'), ('NL', 'Netherlands'), ('CA', 'Canada'),
+  ('SO', 'Somalia'),
 ];
