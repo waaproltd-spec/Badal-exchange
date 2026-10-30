@@ -25,86 +25,123 @@ Future<List<int>> _size(Uint8List png) async {
   return [frame.image.width, frame.image.height];
 }
 
+/// [w] x [h] picture: [bg] page, then each ([color], x, y, w, h) rectangle in order.
+Future<Uint8List> _paint(int w, int h, ui.Color bg, List<(ui.Color, int, int, int, int)> rects) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+  canvas.drawRect(ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), ui.Paint()..color = bg);
+  for (final (c, x, y, rw, rh) in rects) {
+    canvas.drawRect(ui.Rect.fromLTWH(x.toDouble(), y.toDouble(), rw.toDouble(), rh.toDouble()), ui.Paint()..color = c);
+  }
+  final image = await recorder.endRecording().toImage(w, h);
+  return (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+}
+
 void main() {
   const red = ui.Color(0xFFFF0000);
+  const white = ui.Color(0xFFFFFFFF);
+  const black = ui.Color(0xFF000000);
   final (tw, th) = logoSizes.first;
+  final m = logoMargin(th);
+  const pw = [255, 255, 255, 255];
+  const pr = [255, 0, 0, 255];
+  const pk = [0, 0, 0, 255];
 
-  testWidgets('a wide logo is fitted whole into the 2.4 : 1 tile: both ends kept, white above and below', (tester) async {
+  testWidgets('a wide logo is fitted whole into the 2.4 : 1 tile: equal margin at both ends, white above and below', (tester) async {
     await tester.runAsync(() async {
       final out = await fitLogo(await _solid(400, 100, red));
       expect(out, isNotNull);
       expect(await _size(out!), [tw, th], reason: 'the 2.4 : 1 tile');
       expect(tw / th, closeTo(2.4, 0.01));
       final midY = th ~/ 2;
-      // A 4 : 1 logo is wider than the tile: both ends are there, nothing cut off...
-      expect(await _pixel(out, 1, midY), [255, 0, 0, 255]);
-      expect(await _pixel(out, tw - 2, midY), [255, 0, 0, 255]);
-      // ...and the space above and below is white.
-      expect(await _pixel(out, tw ~/ 2, 2), [255, 255, 255, 255]);
-      expect(await _pixel(out, tw ~/ 2, th - 3), [255, 255, 255, 255]);
+      expect(await _pixel(out, m + 2, midY), pr, reason: 'the logo starts one margin in...');
+      expect(await _pixel(out, tw - m - 3, midY), pr, reason: '...and ends one margin before the right edge');
+      expect(await _pixel(out, 2, midY), pw);
+      expect(await _pixel(out, tw - 3, midY), pw);
+      expect(await _pixel(out, tw ~/ 2, 2), pw);
+      expect(await _pixel(out, tw ~/ 2, th - 3), pw);
     });
   });
 
-  testWidgets('a tall logo is fitted whole too: white at the sides', (tester) async {
+  testWidgets('a tall logo is fitted whole too: margin top and bottom, white at the sides', (tester) async {
     await tester.runAsync(() async {
       final out = await fitLogo(await _solid(100, 400, red));
       expect(await _size(out!), [tw, th]);
       final midX = tw ~/ 2;
-      // Top and bottom of the tall logo are there; white at the sides.
-      expect(await _pixel(out, midX, 1), [255, 0, 0, 255]);
-      expect(await _pixel(out, midX, th - 2), [255, 0, 0, 255]);
-      expect(await _pixel(out, 2, th ~/ 2), [255, 255, 255, 255]);
-      expect(await _pixel(out, tw - 3, th ~/ 2), [255, 255, 255, 255]);
+      expect(await _pixel(out, midX, m + 2), pr);
+      expect(await _pixel(out, midX, th - m - 3), pr);
+      expect(await _pixel(out, midX, 2), pw);
+      expect(await _pixel(out, midX, th - 3), pw);
+      expect(await _pixel(out, 2, th ~/ 2), pw);
+      expect(await _pixel(out, tw - 3, th ~/ 2), pw);
     });
   });
 
-  testWidgets('a logo of the tile\'s own shape fills it; something that is not a picture gives null', (tester) async {
+  testWidgets('a logo of the tile\'s own shape keeps its margin too; something that is not a picture gives null', (tester) async {
     await tester.runAsync(() async {
       final out = await fitLogo(await _solid(600, 250, red));
       expect(await _size(out!), [tw, th]);
-      expect(await _pixel(out, 1, 1), [255, 0, 0, 255]);
-      expect(await _pixel(out, tw - 2, th - 2), [255, 0, 0, 255]);
+      expect(await _pixel(out, tw ~/ 2, m + 2), pr);
+      expect(await _pixel(out, tw ~/ 2, th - m - 3), pr);
+      expect(await _pixel(out, 1, 1), pw);
       expect(await fitLogo(Uint8List.fromList([1, 2, 3])), isNull);
     });
   });
 
-  /// A [w] x [h] picture of [bg] with a [fg] rectangle ([rx], [ry], [rw], [rh]).
-  Future<Uint8List> compose(int w, int h, ui.Color bg, ui.Color fg, int rx, int ry, int rw, int rh) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), ui.Paint()..color = bg);
-    canvas.drawRect(ui.Rect.fromLTWH(rx.toDouble(), ry.toDouble(), rw.toDouble(), rh.toDouble()), ui.Paint()..color = fg);
-    final image = await recorder.endRecording().toImage(w, h);
-    return (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
-  }
-
-  testWidgets('empty white margins are trimmed so the logo fills the tile, all of it kept', (tester) async {
+  testWidgets('empty white space around a small logo is removed so it fills the tile, margin all round', (tester) async {
     await tester.runAsync(() async {
-      // A small wide logo in the middle of a big white picture.
-      final out = await fitLogo(await compose(1000, 600, const ui.Color(0xFFFFFFFF), red, 450, 290, 100, 20));
+      final out = await fitLogo(await _paint(1000, 600, white, [(red, 450, 290, 100, 20)]));
       expect(await _size(out!), [tw, th]);
-      // The logo now spans nearly the whole tile width (without trimming it would be ~29 px wide).
-      expect(await _pixel(out, 14, th ~/ 2), [255, 0, 0, 255]);
-      expect(await _pixel(out, tw - 15, th ~/ 2), [255, 0, 0, 255]);
-      // A thin white margin is left around it.
-      expect(await _pixel(out, 2, th ~/ 2), [255, 255, 255, 255]);
+      expect(await _pixel(out, m + 3, th ~/ 2), pr, reason: 'fills the width, one margin in');
+      expect(await _pixel(out, tw - m - 4, th ~/ 2), pr);
+      expect(await _pixel(out, 2, th ~/ 2), pw);
+      expect(await _pixel(out, tw - 3, th ~/ 2), pw);
     });
   });
 
-  testWidgets('a logo on its own dark background is not trimmed (its backdrop is part of it)', (tester) async {
+  testWidgets('a logo that touches the picture\'s own right edge still gets its margin there', (tester) async {
     await tester.runAsync(() async {
-      final out = await fitLogo(await compose(600, 250, const ui.Color(0xFF000000), const ui.Color(0xFFFFFFFF), 250, 100, 100, 50));
+      // Like LuckyPari: the lettering runs right up to the edge of the file.
+      final out = await fitLogo(await _paint(400, 200, white, [(red, 100, 80, 300, 40)]));
+      final midY = th ~/ 2;
+      expect(await _pixel(out!, tw - 3, midY), pw, reason: 'never flush with the tile edge');
+      expect(await _pixel(out, tw - m - 4, midY), pr);
+      expect(await _pixel(out, m + 3, midY), pr);
+      expect(await _pixel(out, 2, midY), pw);
+    });
+  });
+
+  testWidgets('a badge on a white page (white letters on black) fills the whole tile; the letters are large and centred', (tester) async {
+    await tester.runAsync(() async {
+      // A 5 : 1 black badge with white lettering, on a big white page.
+      final out = await fitLogo(await _paint(1000, 500, white, [(black, 100, 170, 800, 160), (white, 350, 230, 300, 40)]));
       expect(await _size(out!), [tw, th]);
-      expect(await _pixel(out, 1, 1), [0, 0, 0, 255], reason: 'the dark backdrop stays');
-      expect(await _pixel(out, tw ~/ 2, th ~/ 2), [255, 255, 255, 255]);
+      final midY = th ~/ 2;
+      expect(await _pixel(out, 1, 1), pk, reason: 'no white page above, below or at the corners');
+      expect(await _pixel(out, tw - 2, th - 2), pk);
+      expect(await _pixel(out, 1, th - 2), pk);
+      expect(await _pixel(out, 2, midY), pk);
+      // The white lettering spans the tile apart from its margins.
+      expect(await _pixel(out, m + 3, midY), pw);
+      expect(await _pixel(out, tw - m - 4, midY), pw);
+      expect(await _pixel(out, m ~/ 2, midY), pk, reason: 'a margin of badge colour round the lettering');
+    });
+  });
+
+  testWidgets('a logo on its own dark background (the whole picture) is kept: the tile takes that colour', (tester) async {
+    await tester.runAsync(() async {
+      final out = await fitLogo(await _paint(600, 250, black, [(white, 250, 100, 100, 50)]));
+      expect(await _size(out!), [tw, th]);
+      expect(await _pixel(out, 1, 1), pk, reason: 'the dark backdrop stays');
+      expect(await _pixel(out, tw ~/ 2, th ~/ 2), pw);
     });
   });
 
   testWidgets('an all-white picture is not a crash: it comes out as a white tile', (tester) async {
     await tester.runAsync(() async {
-      final out = await fitLogo(await _solid(300, 200, const ui.Color(0xFFFFFFFF)));
+      final out = await fitLogo(await _solid(300, 200, white));
       expect(await _size(out!), [tw, th]);
-      expect(await _pixel(out, tw ~/ 2, th ~/ 2), [255, 255, 255, 255]);
+      expect(await _pixel(out, tw ~/ 2, th ~/ 2), pw);
     });
   });
 }
