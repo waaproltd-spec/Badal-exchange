@@ -260,7 +260,8 @@ class _KycScreenState extends State<KycScreen> {
   Widget _photoBox(String which, String label, Uint8List? bytes) => Padding(
         padding: const EdgeInsets.only(top: 14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: AppTextStyles.label),
+          // One line, so two boxes side by side always line up.
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.label),
           const SizedBox(height: 6),
           InkWell(
             key: Key('kyc-photo-$which'),
