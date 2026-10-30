@@ -64,44 +64,23 @@ Future<void> _open(WidgetTester tester, _Api api, {String balance = '900.00'}) a
 }
 
 void main() {
-  testWidgets('an unverified customer sees status, limits, what is used and left, and the KYC prompt', (tester) async {
+  testWidgets('the withdraw screen no longer shows the limits card (the Profile does)', (tester) async {
     await _open(tester, _Api(_limits(dailyUsed: '20.00', monthlyUsed: '120.00')));
-    expect(find.byKey(const Key('withdraw-limits-card')), findsOneWidget);
-    expect(find.text('Not verified'), findsOneWidget);
-    expect(find.text('\$30.00 left'), findsOneWidget);
-    expect(find.text('\$380.00 left'), findsOneWidget);
-    expect(find.text('\$20.00 of \$50.00 withdrawn'), findsOneWidget);
-    expect(find.text('\$120.00 of \$500.00 withdrawn'), findsOneWidget);
-    expect(find.byKey(const Key('kyc-prompt')), findsOneWidget);
-    expect(find.byKey(const Key('complete-kyc')), findsOneWidget);
-    expect(find.byKey(const Key('limit-warning')), findsNothing);
-  });
-
-  testWidgets('a verified customer: verified status, higher limits, no KYC prompt', (tester) async {
-    await _open(tester, _Api(_limits(verified: true, status: 'approved', dailyLimit: '500.00', monthlyLimit: '5000.00', askKyc: false)));
-    expect(find.text('KYC verified'), findsOneWidget);
-    expect(find.text('\$0.00 of \$500.00 withdrawn'), findsOneWidget);
-    expect(find.text('\$0.00 of \$5000.00 withdrawn'), findsOneWidget);
+    expect(find.byKey(const Key('withdraw-limits-card')), findsNothing);
     expect(find.byKey(const Key('kyc-prompt')), findsNothing);
     expect(find.byKey(const Key('complete-kyc')), findsNothing);
+    expect(find.byKey(const Key('withdraw-continue')), findsOneWidget);
   });
 
-  testWidgets('near the limit: a warning; at it: withdrawal is stopped before any request', (tester) async {
-    await _open(tester, _Api(_limits(dailyUsed: '42.00', warning: 'near_daily')));
-    expect(find.byKey(const Key('limit-warning')), findsOneWidget);
-    expect(find.textContaining('close to today'), findsOneWidget);
-  });
-
-  testWidgets('limit reached: a clear message, Continue makes no request', (tester) async {
+  testWidgets('limit reached: Continue makes no request and says so in Somali', (tester) async {
     final api = _Api(_limits(dailyUsed: '50.00', warning: 'daily_reached'));
     await _open(tester, api);
-    expect(find.textContaining('reached today'), findsOneWidget);
     await tester.enterText(find.byType(TextFormField).last, '5');
     await tester.tap(find.byKey(const Key('withdraw-continue')));
     await tester.pump();
     await tester.pump();
     expect(api.quotes, 0);
-    expect(find.textContaining('reached today'), findsNWidgets(2));
+    expect(find.textContaining('xadka maanta'), findsOneWidget);
   });
 
   testWidgets('more than what is left is stopped; "Withdraw all" fills only what is left', (tester) async {
@@ -113,7 +92,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(api.quotes, 0);
-    expect(find.textContaining('more than you can withdraw now (\$30.00)'), findsOneWidget);
+    expect(find.textContaining('\$30.00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('withdraw-all')));
     await tester.pump();
     expect(tester.widget<TextFormField>(amount).controller!.text, '30.00');
@@ -121,7 +100,6 @@ void main() {
 
   testWidgets('limits that cannot be read change nothing: the form works as before', (tester) async {
     await _open(tester, _Api(null));
-    expect(find.byKey(const Key('withdraw-limits-card')), findsNothing);
     await tester.tap(find.byKey(const Key('withdraw-all')));
     await tester.pump();
     expect(tester.widget<TextFormField>(find.byType(TextFormField).last).controller!.text, '900.00');

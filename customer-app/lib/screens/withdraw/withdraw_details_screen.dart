@@ -18,8 +18,6 @@ import '../../widgets/flow_header.dart';
 import '../../widgets/own_phone_box.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
-import '../../widgets/withdraw_limits_card.dart';
-import '../profile/kyc_screen.dart';
 import 'withdraw_confirm_screen.dart';
 
 /// Collects the amount (plus the account ID for betting platforms), then
@@ -74,19 +72,14 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     if (mounted) setState(() => _limits = limits);
   }
 
-  Future<void> _openKyc() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const KycScreen()));
-    if (mounted) _loadLimits();
-  }
-
   /// Why [amount] cannot be withdrawn now, or null (the server decides anyway).
   String? _limitProblem(double amount) {
     final l = _limits;
     if (l == null || !l.enabled) return null;
     if (l.reached || !l.canWithdraw) {
-      return l.warning == 'monthly_reached' ? AppStrings.limitMonthlyReached : AppStrings.limitDailyReached;
+      return l.warning == 'monthly_reached' ? PaymentErrors.limitMonthlyReached : PaymentErrors.limitDailyReached;
     }
-    if (amount > l.availableValue + 0.0001) return AppStrings.limitExceeds(l.availableNow);
+    if (amount > l.availableValue + 0.0001) return PaymentErrors.limitExceeds(l.availableNow);
     return null;
   }
 
@@ -279,10 +272,6 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-              ],
-              if (_limits != null && _limits!.enabled) ...[
-                WithdrawLimitsCard(limits: _limits!, onCompleteKyc: _limits!.askKyc ? _openKyc : null),
                 const SizedBox(height: 14),
               ],
               FlowMethodCard(

@@ -12,6 +12,10 @@ class PaymentErrors {
 
   /// The title over an error, Somali whatever the app language.
   static const title = 'Tan lama dhammaystiri karin';
+  static const limitDailyReached =
+      '❌ Waxaad gaadhay xadka maanta ee lacag-bixinta. Wuxuu dib u bilaabmayaa 00:00 (waqtiga Soomaaliya).';
+  static const limitMonthlyReached = '❌ Waxaad gaadhay xadka bishan ee lacag-bixinta. Wuxuu dib u bilaabmayaa 1da bisha.';
+  static String limitExceeds(String left) => '❌ Tani way ka badan tahay inta aad hadda bixin karto (\$$left).';
   static const deposit = '❌ Dhigasho hadda cilad ayaa ka jirta. Fadlan mar kale isku day.';
   static const withdraw = '❌ Lacag-bixinta hadda cilad ayaa ka jirta. Fadlan mar kale isku day.';
 
