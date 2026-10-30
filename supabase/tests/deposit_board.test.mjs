@@ -79,7 +79,8 @@ test('an expired one shows in its period with the time it waited; others are not
   const d = await deposit(c, number, 3);
   await db.query(`UPDATE orders SET status = 'expired', created_at = now() - interval '40 minutes', updated_at = now() - interval '10 minutes'
                   WHERE id = $1`, [d.id]);
-  const b = await board();
+  // The last two days, not "today": 40 minutes ago can be yesterday in Somalia's time (just after 00:00 there).
+  const b = await rpc(agent, 'agent_deposit_board', { p_from: new Date(Date.now() - 48 * 3600e3).toISOString(), p_to: new Date(Date.now() + 3600e3).toISOString() });
   const row = b.deposits.find((x) => x.id === d.id);
   assert.equal(row.status, 'expired');
   assert.ok(row.waitingSeconds >= 1790 && row.waitingSeconds <= 1810, String(row.waitingSeconds));
