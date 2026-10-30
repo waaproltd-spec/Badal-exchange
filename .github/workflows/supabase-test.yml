@@ -40,9 +40,10 @@ jobs:
           echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
 
       # The other suites' new customers withdraw at once: first-withdrawal
-      # verification is off for them (withdrawal_verification.test.mjs turns it on for itself).
+      # verification and the KYC withdrawal limits are off for them (withdrawal_verification.test.mjs
+      # and withdraw_limits.test.mjs turn them on for themselves).
       - name: First-withdrawal verification off for the other suites
-        run: psql "$DATABASE_URL" -c "UPDATE app_settings SET value = 'off' WHERE key = 'withdrawal_verification'"
+        run: psql "$DATABASE_URL" -c "UPDATE app_settings SET value = 'off' WHERE key IN ('withdrawal_verification', 'withdraw_limits')"
 
       - uses: actions/setup-node@v4
         with:
