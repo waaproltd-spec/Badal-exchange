@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/management.dart';
+import '../../models/payment_methods.dart';
 import '../../services/logo_picker.dart';
 import '../../state/session.dart';
 import '../../theme/app_theme.dart';
@@ -121,6 +122,9 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                           child: Row(children: [
                             if (p.logo != null)
                               _LogoImage(key: Key('platform-logo-${p.method}'), logo: p.logo!, size: 44)
+                            else if (p.builtIn)
+                              // The logo the Customer App has built in.
+                              MethodLogo(key: Key('platform-builtin-logo-${p.method}'), method: p.method, width: 44 * 2.4)
                             else
                               TintedIcon(icon: Icons.sports_soccer_rounded, color: _statusColor(p.status), size: 44),
                             const SizedBox(width: 12),
@@ -371,6 +375,20 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                 if (_p.updatedBy != null) InfoRow('Changed by', _p.updatedBy!),
               ]),
             ),
+            if (_p.builtIn) ...[
+              const GroupLabel('Logo'),
+              ConsoleCard(
+                key: const Key('platform-builtin-logo-card'),
+                child: Row(children: [
+                  MethodLogo(method: _p.method, width: 64 * 2.4),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text('Built into the Customer App. Customers see this logo.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                ]),
+              ),
+            ],
             if (!_p.builtIn) ...[
               const GroupLabel('Logo'),
               ConsoleCard(

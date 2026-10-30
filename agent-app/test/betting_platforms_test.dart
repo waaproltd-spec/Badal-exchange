@@ -136,4 +136,20 @@ void main() {
     expect(find.text('Server secrets'), findsOneWidget);
     expect(find.byKey(const Key('platform-remove')), findsNothing);
   });
+
+  testWidgets('a built-in platform shows the logo the Customer App has, in the list and on its page', (tester) async {
+    final api = _FakeApi()
+      ..p = BettingPlatform.fromJson({
+        'method': 'onexbet', 'name': '1XBET', 'adapter': 'cashdeskbot', 'builtIn': true, 'active': true, 'status': 'server',
+      });
+    await _pump(tester, const BettingPlatformsScreen(), api);
+    expect(find.byKey(const Key('platform-builtin-logo-onexbet')), findsOneWidget);
+    expect(find.byIcon(Icons.sports_soccer_rounded), findsNothing);
+    await tester.tap(find.byKey(const Key('platform-onexbet')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('platform-builtin-logo-card')), findsOneWidget);
+    expect(find.byKey(const Key('wide-logo-onexbet')), findsWidgets);
+    // No picker for a built-in logo.
+    expect(find.byKey(const Key('platform-logo-choose')), findsNothing);
+  });
 }
