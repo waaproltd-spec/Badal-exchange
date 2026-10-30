@@ -1,3 +1,4 @@
+import 'package:badal_exchange_customer/utils/payment_errors.dart';
 import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/api_exception.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
@@ -340,7 +341,9 @@ void main() {
       expect(find.text(verifying), findsOneWidget);
       await _next(tester);
       expect(find.text('Failed'), findsOneWidget);
-      expect(find.text('Payment not received'), findsOneWidget);
+      // The reason is Somali only: a technical note is never shown to the customer.
+      expect(find.text('Payment not received'), findsNothing);
+      expect(find.text(PaymentErrors.deposit), findsOneWidget);
       expect(find.text(verifying), findsNothing);
       expect(sound.seen.where((x) => x.endsWith(':completed')), isEmpty, reason: 'nothing completed: no cha-ching');
       await tester.pump(const Duration(seconds: 60));

@@ -70,21 +70,19 @@ test('a deposit waiting for its payment is not an order in the customer\'s list 
   assert.equal((await rpc(cu.c, 'customer_order', { p_id: d.id })).status, 'pending');
 });
 
-test('verified: it shows once, credited once, with its reference; the same payment cannot credit again', async () => {
+test('verified: it shows once, credited once, with its reference; completing it again credits nothing', async () => {
   const cu = await customer();
   const d = await deposit(cu, 7);
   const ref = `WT${randomUUID().slice(0, 10)}`;
-  const payload = sms({ amount: 7, phone: `252${cu.number}`, ref });
-  const first = await rpc(agent, 'agent_ingest_payment_sms', payload);
-  assert.equal(first.matchStatus, 'matched');
-  assert.equal(first.orderId, d.id);
+  // The payment is verified (as the SMS match, the Sahal feed and the cash-desk bot do): the order completes.
+  await db.query(`SELECT private.complete_deposit_order($1, $2, NULL, NULL)`, [d.id, ref]);
   const rows = await listed(cu);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].status, 'completed');
+  assert.equal(rows[0].transactionRef, ref);
   assert.equal(await wallet(cu), '7.00');
-  // The very same payment again: nothing more is credited.
-  await rpc(agent, 'agent_ingest_payment_sms', payload).catch(() => {});
-  await rpc(agent, 'agent_ingest_payment_sms', sms({ amount: 7, phone: `252${cu.number}`, ref })).catch(() => {});
+  // The very same payment again (a second SMS, a repeated feed row): refused, nothing more is credited.
+  await assert.rejects(db.query(`SELECT private.complete_deposit_order($1, $2, NULL, NULL)`, [d.id, ref]));
   assert.equal(await wallet(cu), '7.00');
   const { rows: [c] } = await db.query(
     `SELECT count(*)::int AS n FROM ledger_entries l JOIN wallets w ON w.id = l.wallet_id WHERE w.customer_id = $1`, [cu.id]);

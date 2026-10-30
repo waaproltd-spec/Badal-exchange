@@ -39,7 +39,9 @@ DECLARE
   v_kind text;
 BEGIN
   IF NEW.direction = 'deposit' THEN
-    IF NEW.status = 'failed' AND OLD.status IS DISTINCT FROM 'failed' THEN
+    IF (NEW.status = 'failed' OR (NEW.status = 'cancelled' AND NEW.failure_reason IS NOT NULL))
+       AND OLD.status IS DISTINCT FROM NEW.status THEN
+      -- (A deposit an agent rejects is cancelled with its reason.)
       v_kind := 'failed';
     ELSIF NEW.status IN ('pending', 'processing') AND NEW.failure_reason IS NOT NULL
           AND NEW.failure_reason IS DISTINCT FROM OLD.failure_reason THEN
