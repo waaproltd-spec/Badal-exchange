@@ -120,6 +120,22 @@ test('only Telegram (the webhook secret) can call it', async (t) => {
   assert.equal(noHeader.status, 403);
 });
 
+test('setup (opened once in a browser with the webhook secret) registers the webhook and the menu with Telegram', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const refused = await fetch(`${URL}/functions/v1/support-bot/setup?key=wrong`);
+  assert.equal(refused.status, 403);
+  assert.equal((await fetch(`${URL}/functions/v1/support-bot/setup`)).status, 403);
+  const before = tg.calls.length;
+  const res = await fetch(`${URL}/functions/v1/support-bot/setup?key=${SECRET}`);
+  assert.equal(res.status, 200);
+  const calls = tg.calls.slice(before);
+  const hook = calls.find((c) => c.method === 'setWebhook');
+  assert.match(hook.body.url, /\/functions\/v1\/support-bot$/);
+  assert.equal(hook.body.secret_token, SECRET);
+  assert.deepEqual(hook.body.allowed_updates, ['message', 'callback_query']);
+  assert.ok(calls.some((c) => c.method === 'setMyCommands'));
+});
+
 test('linking: the Wallet ID, then the customer\'s own contact with the registered number', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const c = await customer();

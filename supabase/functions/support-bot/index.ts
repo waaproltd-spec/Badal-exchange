@@ -21,9 +21,8 @@
 //   ANTHROPIC_API_KEY           reads the screenshots and answers questions
 //   [SUPPORT_AI_MODEL=claude-sonnet-5-5]
 //   [SUPPORT_TELEGRAM_API_BASE, SUPPORT_AI_API_BASE]   (tests)
-// Then register the webhook and the menu once:
-//   curl -X POST -H "X-Telegram-Bot-Api-Secret-Token: $SUPPORT_BOT_WEBHOOK_SECRET" \
-//     https://<project>.supabase.co/functions/v1/support-bot/setup
+// Then register the webhook and the menu once (open it in a browser):
+//   https://<project>.supabase.co/functions/v1/support-bot/setup?key=<SUPPORT_BOT_WEBHOOK_SECRET>
 const TG_BASE = (Deno.env.get('SUPPORT_TELEGRAM_API_BASE') || 'https://api.telegram.org').replace(/\/$/, '');
 const AI_BASE = (Deno.env.get('SUPPORT_AI_API_BASE') || 'https://api.anthropic.com').replace(/\/$/, '');
 const MODEL = Deno.env.get('SUPPORT_AI_MODEL') || 'claude-sonnet-5-5';
@@ -305,18 +304,30 @@ async function linkWallet(chat: number, wallet: string) {
 // ------------------------------------------------------------------- server
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
   const expected = Deno.env.get('SUPPORT_BOT_WEBHOOK_SECRET');
-  if (!expected || req.headers.get('x-telegram-bot-api-secret-token') !== expected) return new Response('Forbidden', { status: 403 });
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/\/$/, '');
 
-  const path = new URL(req.url).pathname.replace(/\/$/, '');
-  try {
-    if (path.endsWith('/setup')) {
-      const url = `${new URL(req.url).origin}${path.replace(/\/setup$/, '')}`;
-      await tg('setWebhook', { url, secret_token: expected, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
+  // One-time setup: registers the webhook and the menu. From a phone browser:
+  //   https://<project>.supabase.co/functions/v1/support-bot/setup?key=<SUPPORT_BOT_WEBHOOK_SECRET>
+  // (the bot token stays in the secrets; nothing but the webhook secret is typed).
+  if (path.endsWith('/setup')) {
+    const given = req.headers.get('x-telegram-bot-api-secret-token') ?? url.searchParams.get('key');
+    if (!expected || given !== expected) return new Response('Forbidden', { status: 403 });
+    try {
+      const hook = `${Deno.env.get('SUPABASE_URL')}/functions/v1/support-bot`;
+      await tg('setWebhook', { url: hook, secret_token: expected, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
       await tg('setMyCommands', { commands: [{ command: 'start', description: 'Bilow / Menu' }, { command: 'menu', description: 'Menu-ga' }, { command: 'unlink', description: 'Ka saar akoonka' }] });
-      return json({ ok: true });
+      return json({ ok: true, message: 'Webhook was set. Send /start to the bot.' });
+    } catch (err) {
+      console.error('support-bot setup', safe(err));
+      return json({ ok: false, error: safe(err) }, 500);
     }
+  }
+
+  if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
+  if (!expected || req.headers.get('x-telegram-bot-api-secret-token') !== expected) return new Response('Forbidden', { status: 403 });
+  try {
     const update = await req.json();
     if (update.callback_query) await onCallback(update.callback_query);
     else if (update.message) await onMessage(update.message, update.message.from);
