@@ -19,6 +19,15 @@ class PaymentErrors {
   static const deposit = '❌ Dhigasho hadda cilad ayaa ka jirta. Fadlan mar kale isku day.';
   static const withdraw = '❌ Lacag-bixinta hadda cilad ayaa ka jirta. Fadlan mar kale isku day.';
 
+  /// The phone number was refused (another number without permission, a
+  /// blocked one, another account's, too many): Somali, and what to do.
+  static const _numberMessages = {
+    'PHONE_NOT_OWN': '❌ Lambarkan lama oggola. Isticmaal lambarkaaga diiwaangashan.',
+    'PAYMENT_NUMBER_BLOCKED': '❌ Lambarkan waa la xannibay. La xiriir maamulka.',
+    'PAYMENT_NUMBER_TAKEN': '❌ Lambarkan waxaa leh akoon kale. Isticmaal lambar kale.',
+    'PAYMENT_NUMBER_LIMIT': '❌ Lambaro aad u badan baa la keydiyay. La xiriir maamulka.',
+  };
+
   /// Codes the customer can fix themselves; the server words them in Somali
   /// (limits, KYC, account approval) or the app does.
   static const _serverSomali = {
@@ -45,6 +54,8 @@ class PaymentErrors {
   static String message(Object error, {required bool isDeposit}) {
     final generic = isDeposit ? deposit : withdraw;
     if (error is! ApiException) return generic;
+    final number = _numberMessages[error.code];
+    if (number != null) return number;
     if (_serverSomali.contains(error.code) && error.message.isNotEmpty) return error.message;
     // A typing or balance mistake the customer can fix: its Somali wording
     // (with the limit). The app already words it in Somali when the app is in Somali.

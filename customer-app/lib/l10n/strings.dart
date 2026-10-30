@@ -244,6 +244,9 @@ class AppStrings {
   static String copied(String text) => _t('$text copied', '$text waa la koobiyeeyay');
   static String get payFromOwnNumber => _t('Pay from your registered number', 'Ka dir lambarkaaga diiwaangashan');
   static String get receiveToOwnNumber => _t('Paid to your registered number', 'Waxaa lagu soo dirayaa lambarkaaga diiwaangashan');
+  static String get myNumber => _t('My number', 'Lambarkayga');
+  static String get otherNumberHint => _t('You can use another number', 'Waxaad isticmaali kartaa lambar kale');
+  static String get enterNineDigits => _t('Enter the 9 digits after +252', 'Geli 9-ka lambar ee +252 ka dambeeya');
   static String get noRegisteredNumber =>
       _t('Your registered number could not be read. Log out and in again.', 'Lambarkaaga diiwaangashan lama heli karo. Ka bax oo mar kale gal.');
   static String get depositDetails => _t('Deposit details', 'Faahfaahinta dhigashada');

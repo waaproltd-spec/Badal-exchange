@@ -13,7 +13,8 @@ import '../../utils/payment_errors.dart';
 import '../../utils/formatters.dart';
 import '../../utils/ussd.dart';
 import '../../widgets/flow_header.dart';
-import '../../widgets/own_phone_box.dart';
+import '../../models/payment_numbers.dart';
+import '../../widgets/pay_number_box.dart';
 import '../../widgets/payment_location_card.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
@@ -67,6 +68,11 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   Future<void>? _tracking;
   late final CustomerApi _api;
 
+  /// Another number an admin lets this customer use (loaded once), and the
+  /// 9 digits chosen: the registered number unless the customer changes it.
+  PaymentNumbers _numbers = PaymentNumbers.none;
+  String? _phoneLocal;
+
 
   PaymentMethodInfo get _info => widget.option.info;
 
@@ -77,9 +83,16 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       c.addListener(() => setState(() {}));
     }
     _api = context.read<CustomerApi>();
+    _phoneLocal = _ownLocal;
+    if (!_info.isPlatform) _loadNumbers();
     _amountController.addListener(_track);
     _accountController.addListener(_track);
     if (_cashDesk) _fillSavedAccount();
+  }
+
+  Future<void> _loadNumbers() async {
+    final n = await _api.getPaymentNumbers();
+    if (mounted) setState(() => _numbers = n);
   }
 
   /// Cash desk: the account ID starts as the one the customer used last
@@ -125,7 +138,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
 
   bool get _ready =>
       (_cashDesk || _amount != null) &&
-      (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _ownLocal != null) &&
+      (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _phoneLocal != null) &&
       (!_info.usesWithdrawalCode || _codeController.text.trim().isNotEmpty);
 
   String? get _ownLocal => _localNumber(widget.ownPhone);
@@ -177,7 +190,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
           : (await api.createQuote(direction: 'deposit', method: _info.id, amount: _amountText)).amount;
       if (!mounted) return;
       final key = const Uuid().v4();
-      final phone = _info.isPlatform ? null : '252$_ownLocal';
+      final phone = _info.isPlatform ? null : '252$_phoneLocal';
       final account = _info.isPlatform ? _accountController.text.trim() : null;
       final code = _info.usesWithdrawalCode ? _codeController.text.trim() : null;
       await Navigator.of(context).push(MaterialPageRoute(
@@ -256,7 +269,16 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 3, child: OwnPhoneBox(key: const Key('own-number'), local: _ownLocal)),
+                    Expanded(
+                      flex: 3,
+                      child: PayNumberBox(
+                        fieldKey: const Key('own-number'),
+                        method: _info.id,
+                        ownLocal: _ownLocal,
+                        numbers: _numbers,
+                        onChanged: (v) => setState(() => _phoneLocal = v),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(flex: 2, child: _amountBox()),
                   ],

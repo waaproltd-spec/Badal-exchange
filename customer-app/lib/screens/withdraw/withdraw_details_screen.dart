@@ -15,7 +15,8 @@ import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/flow_header.dart';
-import '../../widgets/own_phone_box.dart';
+import '../../models/payment_numbers.dart';
+import '../../widgets/pay_number_box.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'withdraw_confirm_screen.dart';
@@ -60,11 +61,23 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
 
   bool get _blocked => _access != null && !_access!.allowed;
 
+  /// Another number an admin lets this customer use (loaded once), and the
+  /// 9 digits chosen: the registered number unless the customer changes it.
+  PaymentNumbers _numbers = PaymentNumbers.none;
+  String? _phoneLocal;
+
   @override
   void initState() {
     super.initState();
+    _phoneLocal = _ownLocal;
     _checkAccess();
     _loadLimits();
+    if (!_info.isPlatform) _loadNumbers();
+  }
+
+  Future<void> _loadNumbers() async {
+    final n = await context.read<CustomerApi>().getPaymentNumbers();
+    if (mounted) setState(() => _numbers = n);
   }
 
   Future<void> _loadLimits() async {
@@ -154,8 +167,8 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
       await _askForApproval();
       return;
     }
-    if (!_info.isPlatform && _ownLocal == null) {
-      setState(() => _error = AppStrings.noRegisteredNumber);
+    if (!_info.isPlatform && _phoneLocal == null) {
+      setState(() => _error = _ownLocal == null ? AppStrings.noRegisteredNumber : AppStrings.enterNineDigits);
       return;
     }
     final problem = _limitProblem(double.tryParse(_amountController.text.trim()) ?? 0);
@@ -178,7 +191,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
         MaterialPageRoute(
           builder: (_) => WithdrawConfirmScreen(
             quote: quote,
-            phoneNumber: _info.isPlatform ? null : '252$_ownLocal',
+            phoneNumber: _info.isPlatform ? null : '252$_phoneLocal',
             accountId: _info.isPlatform ? _identifierController.text.trim() : null,
           ),
         ),
@@ -294,7 +307,16 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 3, child: OwnPhoneBox(key: const Key('withdraw-own-number'), local: _ownLocal)),
+                    Expanded(
+                      flex: 3,
+                      child: PayNumberBox(
+                        fieldKey: const Key('withdraw-own-number'),
+                        method: widget.method,
+                        ownLocal: _ownLocal,
+                        numbers: _numbers,
+                        onChanged: (v) => setState(() => _phoneLocal = v),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(flex: 2, child: amount),
                   ],

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/kyc.dart';
+import '../models/payment_numbers.dart';
 import '../models/withdraw_limits.dart';
 import '../models/withdrawal_access.dart';
 import '../models/app_content.dart';
@@ -260,6 +261,17 @@ class CustomerApi {
       return WithdrawLimits.fromJson(await _client.rpc('customer_withdraw_limits') as Map<String, dynamic>);
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Whether an admin let this customer use another phone number (and the
+  /// numbers saved). Not allowed when it cannot be read: the registered
+  /// number is used, and the server decides anyway.
+  Future<PaymentNumbers> getPaymentNumbers() async {
+    try {
+      return PaymentNumbers.fromJson(await _client.rpc('customer_payment_numbers') as Map<String, dynamic>);
+    } catch (_) {
+      return PaymentNumbers.none;
     }
   }
 
