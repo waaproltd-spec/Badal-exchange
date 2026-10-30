@@ -149,7 +149,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const BaariLogo(markSize: 64),
+                  const BaariLogoMark(size: 64),
                   const SizedBox(height: 40),
                   SizedBox(
                     width: 26,
