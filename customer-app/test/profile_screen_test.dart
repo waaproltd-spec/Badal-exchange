@@ -83,7 +83,7 @@ void main() {
   });
 
   testWidgets('a verified customer: verified status and the higher limits', (tester) async {
-    final api = await _Api().._noop();
+    final api = _Api();
     api.limits = _limits(verified: true, status: 'approved', dUsed: '0.00', mUsed: '0.00');
     tester.view.physicalSize = const Size(360, 720);
     tester.view.devicePixelRatio = 1.0;
@@ -136,8 +136,4 @@ void main() {
     expect(find.byKey(const Key('withdraw-limits-card')), findsOneWidget);
     expect(find.byKey(const Key('complete-kyc')), findsOneWidget);
   });
-}
-
-extension on _Api {
-  void _noop() {}
 }
