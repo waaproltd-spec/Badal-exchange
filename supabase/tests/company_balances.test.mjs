@@ -193,10 +193,10 @@ test('withdrawals waiting for a top-up: low, with how much more is needed', asyn
 
 test('a low balance on its own, and an old read: low, then stale and left out of the total', async (t) => {
   if (!served) return t.skip('company-balances is not served');
-  registers[1] = { Balance: 900, Limit: 12.5 };
+  registers[1] = { Balance: 900, Limit: 2.5 };
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '1 minute'`);
   const low = company((await balances(manager.c, '?refresh=1')).body, '888starz');
-  assert.deepEqual([low.status, low.balance, low.limit, low.topUpNeeded], ['low', '900.00', '12.50', null]);
+  assert.deepEqual([low.status, low.balance, low.limit, low.topUpNeeded], ['low', '900.00', '2.50', null]);
 
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '20 minutes' WHERE method = '888starz'`);
   // The worker's own refresh is what normally keeps it fresh; read without one.
