@@ -1,4 +1,5 @@
 import 'package:badal_exchange_customer/models/payment_method.dart';
+import 'package:badal_exchange_customer/models/payment_numbers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -39,5 +40,16 @@ void main() {
     expect(_ids('252711234567').length, _all.length, reason: 'an account registered before the list of prefixes');
     expect(_ids(null).length, _all.length);
     expect(_ids('').length, _all.length);
+  });
+
+  test('a customer an admin authorized for other numbers is offered those networks too, and only those', () {
+    List<String> ids(PaymentNumbers n) => [for (final m in depositMethodsFor(_all, '252610346060', numbers: n)) m.info.id];
+    const all = PaymentNumbers(allowed: true, methods: ['evc_plus', 'golis', 'telesom', 'edahab'], numbers: []);
+    expect(ids(all), ['evc_plus', 'golis', 'telesom', 'edahab', 'onexbet', 'melbet']);
+    const some = PaymentNumbers(allowed: true, methods: ['golis'], numbers: []);
+    expect(ids(some), ['evc_plus', 'golis', 'onexbet', 'melbet']);
+    expect(ids(PaymentNumbers.none), ['evc_plus', 'onexbet', 'melbet'], reason: 'no permission: as before');
+    const revoked = PaymentNumbers(allowed: false, methods: ['golis'], numbers: []);
+    expect(ids(revoked), ['evc_plus', 'onexbet', 'melbet']);
   });
 }

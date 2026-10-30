@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import 'payment_numbers.dart';
 
 /// Payment methods. The backend is the single source of truth
 /// (backend/src/lib/methods.ts, served at GET /meta/payment-methods); the
@@ -138,11 +139,13 @@ String? ownMobileMethod(String? phone) {
 /// Deposits are paid from the customer's own number and withdrawals paid to
 /// it, so of the mobile-money methods only their own network is offered;
 /// betting platforms all stay.
-/// A number of no known network keeps every method.
-List<PaymentMethodOption> depositMethodsFor(List<PaymentMethodOption> methods, String? phone) {
+/// A number of no known network keeps every method. A customer an admin
+/// authorized to use another number ([numbers]) also keeps the networks the
+/// admin allowed them.
+List<PaymentMethodOption> depositMethodsFor(List<PaymentMethodOption> methods, String? phone, {PaymentNumbers? numbers}) {
   final own = ownMobileMethod(phone);
   if (own == null) return methods;
-  return [for (final m in methods) if (m.info.isPlatform || m.info.id == own) m];
+  return [for (final m in methods) if (m.info.isPlatform || m.info.id == own || (numbers?.allows(m.info.id) ?? false)) m];
 }
 
 class PaymentMethodOption {

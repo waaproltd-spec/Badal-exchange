@@ -5,6 +5,7 @@ import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../l10n/strings.dart';
 import '../models/payment_method.dart';
+import '../models/payment_numbers.dart';
 import '../theme/colors.dart';
 import '../theme/theme_mode.dart';
 import '../theme/text_styles.dart';
@@ -60,10 +61,21 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
   @override
   void initState() {
     super.initState();
-    _future = context.read<CustomerApi>().getPaymentMethods();
+    _future = _load();
   }
 
-  void _retry() => setState(() => _future = context.read<CustomerApi>().getPaymentMethods());
+  void _retry() => setState(() => _future = _load());
+
+  /// The customer's numbers: when an admin authorized another number on a
+  /// network, that network is offered too (never fails: none if unreadable).
+  PaymentNumbers _numbers = PaymentNumbers.none;
+
+  Future<List<PaymentMethodOption>> _load() async {
+    final api = context.read<CustomerApi>();
+    final results = await Future.wait<Object>([api.getPaymentMethods(), api.getPaymentNumbers()]);
+    _numbers = results[1] as PaymentNumbers;
+    return results[0] as List<PaymentMethodOption>;
+  }
 
   bool get _isDeposit => widget.direction == PaymentDirection.deposit;
 
@@ -167,7 +179,7 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
                     ),
                   );
                 }
-                final methods = depositMethodsFor(snapshot.data!, widget.ownPhone);
+                final methods = depositMethodsFor(snapshot.data!, widget.ownPhone, numbers: _numbers);
                 if (methods.isEmpty) return SizedBox(height: placeholder, child: _Message(text: AppStrings.noMethods));
                 final (cardHeight, gridHeight) = layout(methods.length);
                 return SizedBox(
