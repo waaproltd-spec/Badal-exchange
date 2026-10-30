@@ -1,7 +1,7 @@
 // BADAL AI Support Bot (functions/support-bot, migrations/*_support_bot.sql),
-// against stand-in Telegram and AI servers: text and images only, Somali only,
-// no voice or audio; the chat is linked by Wallet ID and the customer's own
-// contact; orders are read, tickets are made.
+// against stand-in Telegram and AI servers: text only, Somali only, no voice,
+// audio, photos or screenshots; the chat is linked by Wallet ID and the
+// customer's own contact; orders are read, tickets are made.
 //
 //   Needs the local stack and the functions served with tests/.functions.env.
 import { test, before, after } from 'node:test';
@@ -177,17 +177,17 @@ test('too many wrong Wallet IDs: the chat is stopped for an hour', async (t) => 
   assert.match(texts(r)[0], /Isku-day badan/);
 });
 
-test('voice, audio, video notes, videos and other files are refused in Somali: nothing downloaded or sent to the AI', async (t) => {
+test('text only: voice, audio, photos, screenshots, videos and files are refused in Somali; nothing downloaded or sent to the AI', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const c = await linked();
   const unlinkedChat = nextChat();
-  const cases = [
+  const voiceCases = [
     ['voice', { voice: { file_id: 'v1', duration: 3 } }],
     ['audio', { audio: { file_id: 'a1' } }],
     ['video_note', { video_note: { file_id: 'n1' } }],
     ['audio file', { document: { file_id: 'd1', mime_type: 'audio/ogg' } }],
   ];
-  for (const [name, extra] of cases) {
+  for (const [name, extra] of voiceCases) {
     for (const chat of [c.chat, unlinkedChat]) {
       const r = await send(message(chat, extra));
       assert.equal(r.status, 200, name);
@@ -196,48 +196,26 @@ test('voice, audio, video notes, videos and other files are refused in Somali: n
       assert.equal(r.ai.length, 0, `${name}: not processed`);
     }
   }
-  for (const [name, extra] of [['video', { video: { file_id: 'x1' } }], ['pdf', { document: { file_id: 'p1', mime_type: 'application/pdf' } }]]) {
-    const r = await send(message(c.chat, extra));
-    assert.match(texts(r)[0], /qoraal<\/b> iyo <b>sawir \(screenshot\)<\/b> kaliya/, name);
-    assert.equal(r.ai.length, 0, name);
-    assert.ok(!r.calls.some((x) => x.method === 'getFile'), name);
+  const otherCases = [
+    ['photo', { photo: [{ file_id: 'small', file_size: 100 }, { file_id: 'big', file_size: 2000 }] }],
+    ['screenshot with a caption', { photo: [{ file_id: 'big' }], caption: 'Error: payment failed' }],
+    ['image file', { document: { file_id: 'doc1', mime_type: 'image/png' } }],
+    ['video', { video: { file_id: 'x1' } }],
+    ['pdf', { document: { file_id: 'p1', mime_type: 'application/pdf' } }],
+    ['sticker', { sticker: { file_id: 's1' } }],
+  ];
+  for (const [name, extra] of otherCases) {
+    for (const chat of [c.chat, unlinkedChat]) {
+      const r = await send(message(chat, extra));
+      assert.match(texts(r)[0], /qoraal<\/b> kaliya/, name);
+      assert.match(texts(r)[0], /Sawirada \(screenshots\)/, name);
+      assert.ok(!r.calls.some((x) => x.method === 'getFile' || x.method === 'download'), `${name}: not downloaded`);
+      assert.equal(r.ai.length, 0, `${name}: not sent to the AI`);
+    }
   }
 });
 
-test('a screenshot is read by the AI and explained in Somali; the AI is told to answer in Somali only', async (t) => {
-  if (!served) return t.skip('support-bot is not served');
-  const c = await linked();
-  const r = await send(message(c.chat, { photo: [{ file_id: 'small', file_size: 100 }, { file_id: 'big', file_size: 2000 }], caption: 'Error: payment failed' }));
-  assert.ok(r.calls.some((x) => x.method === 'getFile' && x.body.file_id === 'big'), 'the largest size');
-  assert.ok(r.calls.some((x) => x.method === 'download'));
-  assert.equal(r.ai.length, 1);
-  const call = r.ai[0];
-  assert.equal(call.headers['x-api-key'], 'test-not-a-real-key');
-  const image = call.body.messages[0].content.find((x) => x.type === 'image');
-  assert.equal(image.source.type, 'base64');
-  assert.equal(image.source.media_type, 'image/jpeg');
-  assert.equal(image.source.data, Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64'));
-  assert.match(call.body.system, /Write EVERY answer in Somali/);
-  assert.match(call.body.system, /even when the customer's text or the screenshot is in English or Arabic/);
-  assert.match(call.body.system, /Never ask for, accept or repeat a PIN/);
-  assert.match(texts(r).join('\n'), /Sawirkan wuxuu muujinayaa/);
-
-  // An image sent as a file works too.
-  const doc = await send(message(c.chat, { document: { file_id: 'doc1', mime_type: 'image/png' } }));
-  assert.equal(doc.ai.length, 1);
-});
-
-test('a screenshot that is too large is refused, and not sent to the AI', async (t) => {
-  if (!served) return t.skip('support-bot is not served');
-  const c = await linked();
-  tg.files.set('huge', 9 * 1024 * 1024);
-  let r = await send(message(c.chat, { photo: [{ file_id: 'huge' }] }));
-  assert.match(texts(r)[0], /aad buu u weyn yahay/);
-  assert.equal(r.ai.length, 0);
-  tg.files.delete('huge');
-});
-
-test('a text question goes to the AI with the customer\'s latest orders; no image', async (t) => {
+test('a text question goes to the AI with the customer\'s latest orders; Somali only', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const c = await linked();
   await db.query(
@@ -245,7 +223,12 @@ test('a text question goes to the AI with the customer\'s latest orders; no imag
      VALUES ($1, $2, 'withdraw', 'evc_plus', 'pending', 1000, 1, 1000, -1000)`, [`EXSB${seed}${n++}`, c.id]);
   const r = await send(message(c.chat, { text: 'Bixintaydii meeshee mareysa?' }));
   assert.equal(r.ai.length, 1);
-  assert.ok(!r.ai[0].body.messages[0].content.some((x) => x.type === 'image'));
+  assert.equal(typeof r.ai[0].body.messages[0].content, 'string', 'text only, no image block');
+  assert.equal(r.ai[0].headers['x-api-key'], 'test-not-a-real-key');
+  assert.match(r.ai[0].body.system, /Write EVERY answer in Somali/);
+  assert.match(r.ai[0].body.system, /Never answer in English, Arabic or any other language/);
+  assert.match(r.ai[0].body.system, /Never ask for, accept or repeat a PIN/);
+  assert.match(r.ai[0].body.system, /only receive text/);
   assert.match(r.ai[0].body.system, /latest orders/);
   assert.match(r.ai[0].body.system, /withdrawal, EVC Plus, \$10\.00, status pending/);
   assert.match(texts(r)[0], /Sawirkan wuxuu muujinayaa/);
@@ -319,10 +302,10 @@ test('the database functions are for the bot only', async (t) => {
   assert.ok(e2, 'the chats are not readable');
 });
 
-test('no voice or audio code exists in the bot', async () => {
+test('no voice, audio or image code exists in the bot', async () => {
   const { readFileSync } = await import('node:fs');
   const code = readFileSync(new globalThis.URL('../functions/support-bot/index.ts', import.meta.url), 'utf8');
-  for (const bad of ['sendVoice', 'sendAudio', 'sendVideoNote', 'speech', 'transcri', 'whisper', 'text-to-speech']) {
+  for (const bad of ['sendVoice', 'sendAudio', 'sendVideoNote', 'sendPhoto', 'speech', 'transcri', 'whisper', 'text-to-speech', 'getFile', 'base64']) {
     assert.ok(!code.includes(bad), `${bad} must not appear`);
   }
 });

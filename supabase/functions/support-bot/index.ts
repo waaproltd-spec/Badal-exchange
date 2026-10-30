@@ -1,12 +1,9 @@
 // BADAL AI Support Bot (Telegram): customer support for BADAL Exchange.
 //
-// Text and images / screenshots ONLY, answers in Somali ONLY.
-//   * Voice messages, audio files, video notes, videos and everything else that
-//     is not text or an image are refused with a Somali message: nothing is
-//     downloaded or processed, and the bot never sends voice.
-//   * A screenshot (a Telegram photo, or an image sent as a file) is read by the
-//     AI, which explains in Somali what it shows and what the customer can do --
-//     whatever language the screenshot is in.
+// TEXT ONLY, answers in Somali ONLY.
+//   * Voice messages, audio files, video notes, videos, photos, screenshots,
+//     documents and everything else that is not text are refused with a Somali
+//     message: nothing is downloaded or processed, and the bot never sends voice.
 //   * The customer links their chat once: the Wallet ID, then their own Telegram
 //     contact, whose number must be the registered one. The bot reads their
 //     orders and makes tickets for the admin; it can't create an order, move
@@ -18,7 +15,7 @@
 // Secrets (set in Supabase; SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided):
 //   SUPPORT_BOT_TOKEN           the bot's token from @BotFather (never put it in the code or the repo)
 //   SUPPORT_BOT_WEBHOOK_SECRET  a long random string; Telegram sends it back with every update
-//   ANTHROPIC_API_KEY           reads the screenshots and answers questions
+//   ANTHROPIC_API_KEY           answers the customers' questions
 //   [SUPPORT_AI_MODEL=claude-sonnet-5-5]
 //   [SUPPORT_TELEGRAM_API_BASE, SUPPORT_AI_API_BASE]   (tests)
 // Then register the webhook and the menu once (open it in a browser):
@@ -26,7 +23,6 @@
 const TG_BASE = (Deno.env.get('SUPPORT_TELEGRAM_API_BASE') || 'https://api.telegram.org').replace(/\/$/, '');
 const AI_BASE = (Deno.env.get('SUPPORT_AI_API_BASE') || 'https://api.anthropic.com').replace(/\/$/, '');
 const MODEL = Deno.env.get('SUPPORT_AI_MODEL') || 'claude-sonnet-5-5';
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 // ------------------------------------------------------------------ Somali
 
@@ -47,22 +43,20 @@ const T = {
   ordersTitle: (kind: string) =>
     kind === 'deposit' ? '⬇️ <b>Dhigashooyinkaaga ugu dambeeyay</b>' : kind === 'withdraw' ? '⬆️ <b>Bixinaadyadaaga ugu dambeeyay</b>' : '📋 <b>Macaamilladaada ugu dambeeyay</b>',
   depositHelp:
-    '⬇️ <b>Dhigasho</b>\nKu dhig lacag Wallet-kaaga adigoo ka dooranaya App-ka <b>Dhigasho</b>, dooro habka, oo ka dir lacagta lambarkaaga diiwaangashan. Waxaa lagu daraa marka lacag-bixintaada la xaqiijiyo.\n\nHaddii dhigashadaadu dib u dhacday, soo dir sawir (screenshot) ama taabo <b>La xiriir Admin</b>.',
+    '⬇️ <b>Dhigasho</b>\nKu dhig lacag Wallet-kaaga adigoo ka dooranaya App-ka <b>Dhigasho</b>, dooro habka, oo ka dir lacagta lambarkaaga diiwaangashan. Waxaa lagu daraa marka lacag-bixintaada la xaqiijiyo.\n\nHaddii dhigashadaadu dib u dhacday, qor su’aashaada ama taabo <b>La xiriir Admin</b>.',
   withdrawHelp:
-    '⬆️ <b>Bixin</b>\nKa bixi lacagta Wallet-kaaga adigoo ka dooranaya App-ka <b>Bixin</b>, dooro habka, geli lambarka iyo lacagta. Lacagtu waxay u socotaa lambarka aad dooratay.\n\nHaddii bixintaadu dib u dhacday, soo dir sawir (screenshot) ama taabo <b>La xiriir Admin</b>.',
+    '⬆️ <b>Bixin</b>\nKa bixi lacagta Wallet-kaaga adigoo ka dooranaya App-ka <b>Bixin</b>, dooro habka, geli lambarka iyo lacagta. Lacagtu waxay u socotaa lambarka aad dooratay.\n\nHaddii bixintaadu dib u dhacday, qor su’aashaada ama taabo <b>La xiriir Admin</b>.',
   faq:
-    '❓ <b>Su’aalaha inta badan la isweydiiyo</b>\n\n• <b>Dhigashadaydu ma muuqato?</b> Waxay soo muuqataa marka lacag-bixintaada la xaqiijiyo. Sug daqiiqado ama soo dir sawir.\n• <b>Bixintaydu way dib u dhacday?</b> Waxaa laga yaabaa inay sugayso hubin. Sug 5 daqiiqo, kadib la xiriir Admin.\n• <b>Xaddiga bixinta?</b> Waxaad ka eeg kartaa Profile-kaaga App-ka.\n• <b>PIN ama password?</b> Ma weydiino, ha na siin weligaa.',
-  askTicket: '🎧 Fadlan qor farriinta aad rabto inaan Admin-ka u gudbino (waxaad kale oo soo diri kartaa sawir kadib).',
+    '❓ <b>Su’aalaha inta badan la isweydiiyo</b>\n\n• <b>Dhigashadaydu ma muuqato?</b> Waxay soo muuqataa marka lacag-bixintaada la xaqiijiyo. Sug daqiiqado ama qor su’aashaada.\n• <b>Bixintaydu way dib u dhacday?</b> Waxaa laga yaabaa inay sugayso hubin. Sug 5 daqiiqo, kadib la xiriir Admin.\n• <b>Xaddiga bixinta?</b> Waxaad ka eeg kartaa Profile-kaaga App-ka.\n• <b>PIN ama password?</b> Ma weydiino, ha na siin weligaa.',
+  askTicket: '🎧 Fadlan qor farriinta aad rabto inaan Admin-ka u gudbino .',
   ticketMade: (code: string) => `✅ Farriintaada waa la gudbiyay.\n\nTikidhka: <b>${code}</b>\nAdmin-ku wuu kula soo xiriiri doonaa. Fadlan keydso lambarkan.`,
   ticketLimited: '⛔ Tikidh badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
   me: (name: string, wallet: string) => `⚙️ <b>Xogtayda</b>\nMagaca: ${name || '—'}\nWallet ID: <b>${wallet || '—'}</b>`,
   unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
-  voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor qoraal ama soo dir sawir (screenshot) oo muujinaya cilada.',
-  otherRefused: '🚫 Bot-kan wuxuu aqbalaa <b>qoraal</b> iyo <b>sawir (screenshot)</b> kaliya. Fadlan mid ka mid ah u dir.',
-  imageTooBig: '⚠️ Sawirku aad buu u weyn yahay. Fadlan soo dir sawir ka yar 5MB.',
+  voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor su’aashaada qoraal ahaan.',
+  otherRefused: '🚫 Bot-kan wuxuu aqbalaa <b>qoraal</b> kaliya. Sawirada (screenshots), codka iyo faylasha kale lama aqbalo. Fadlan qor su’aashaada.',
   aiLimited: '⏳ Su’aalo badan baad dirtay. Fadlan mar kale isku day saacad kadib, ama taabo <b>La xiriir Admin</b>.',
-  aiFailed: '⚠️ Hadda ma awoodo inaan sawirka/su’aasha falanqeeyo. Fadlan mar kale isku day daqiiqado kadib, ama taabo <b>La xiriir Admin</b>.',
-  imageUnreadable: '⚠️ Sawirkan lama akhrin karo. Fadlan soo dir screenshot cad (PNG ama JPG).',
+  aiFailed: '⚠️ Hadda ma awoodo inaan su’aasha ka jawaabo. Fadlan mar kale isku day daqiiqado kadib, ama taabo <b>La xiriir Admin</b>.',
   status: { completed: 'Waa dhammaystiray', pending: 'Waa la sugayaa', processing: 'Waa la farsamaynayaa', failed: 'Waa fashilmay', cancelled: 'Waa la joojiyay', expired: 'Waa dhacay' } as Record<string, string>,
   buttons: {
     deposit: '⬇️ Dhigasho', withdraw: '⬆️ Bixin', orders: '📋 Dalabyadayda', history: '🕘 Taariikhda Macaamilka',
@@ -72,11 +66,11 @@ const T = {
 
 const SYSTEM_PROMPT = `You are "BADAL AI Support Bot", the customer-support assistant of BADAL Exchange, a service where customers deposit and withdraw money with mobile money (EVC Plus, Golis, ZAAD, eDahab) and betting platforms (1XBET, MELBET, WinWin, DBbet, Betwinner, BetJam, BetOnGame, 888STARZ, LuckyPari, Goldpari, Betandyou).
 
-LANGUAGE: Write EVERY answer in Somali (Af-Soomaali) only. Never answer in English, Arabic or any other language -- even when the customer's text or the screenshot is in English or Arabic: read it, then explain it in Somali. Keep names of companies, buttons and error codes as they are shown.
+LANGUAGE: Write EVERY answer in Somali (Af-Soomaali) only. Never answer in English, Arabic or any other language -- even when the customer writes to you in English or Arabic: read it, then answer in Somali. Keep names of companies, buttons and error codes as they are written.
 
-WHAT YOU DO: When the customer sends a screenshot, look at it, say in Somali what it shows (the error, the amount, the method, the status), explain the likely reason, and give 1-3 short steps they can take (retry in a few minutes, check the number and amount, check their balance, update the app). Answer their text questions about deposits, withdrawals, statuses and the app briefly and clearly.
+WHAT YOU DO: Answer the customer's text questions about deposits, withdrawals, statuses and the app briefly and clearly, and give 1-3 short steps they can take (retry in a few minutes, check the number and amount, check their balance, update the app).
 
-RULES: Never ask for, accept or repeat a PIN, password, card number or one-time code; if a screenshot shows one, tell them to hide it and never send it again. You cannot move money, refund, credit, cancel, approve or change anything, and you must never say or promise that you did. Do not guess balances or order results: use only what the customer's orders below say. If the problem needs a person (money missing, a payment not credited after waiting, a wrong number, a dispute) tell them to press "La xiriir Admin" and give the details. Do not discuss other topics: politely say in Somali that you only help with BADAL Exchange. You do not use voice: if asked, say in Somali that you only work with text and screenshots. Keep answers short (at most about 8 lines), friendly and plain.`;
+RULES: You only receive text: if the customer says they sent a screenshot, image or voice message, tell them in Somali that this bot works with text only and ask them to write the problem. Never ask for, accept or repeat a PIN, password, card number or one-time code; if the customer writes one, tell them never to send it. You cannot move money, refund, credit, cancel, approve or change anything, and you must never say or promise that you did. Do not guess balances or order results: use only what the customer's orders below say. If the problem needs a person (money missing, a payment not credited after waiting, a wrong number, a dispute) tell them to press "La xiriir Admin" and give the details. Do not discuss other topics: politely say in Somali that you only help with BADAL Exchange. Keep answers short (at most about 8 lines), friendly and plain.`;
 
 // ----------------------------------------------------------------- plumbing
 
@@ -147,13 +141,13 @@ function orderContext(orders: any[]): string {
 
 // ----------------------------------------------------------------------- AI
 
-async function askAi(content: unknown[], context: string): Promise<string | null> {
+async function askAi(question: string, context: string): Promise<string | null> {
   const key = Deno.env.get('ANTHROPIC_API_KEY');
   if (!key) return null;
   const res = await fetch(`${AI_BASE}/v1/messages`, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 700, system: `${SYSTEM_PROMPT}\n\n${context}`, messages: [{ role: 'user', content }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 700, system: `${SYSTEM_PROMPT}\n\n${context}`, messages: [{ role: 'user', content: question }] }),
     signal: AbortSignal.timeout(45_000),
   });
   const data = await res.json().catch(() => null);
@@ -162,25 +156,7 @@ async function askAi(content: unknown[], context: string): Promise<string | null
   return text || null;
 }
 
-/** Downloads a Telegram image: bytes as base64 and its type, or why not. */
-async function downloadImage(fileId: string): Promise<{ data: string; type: string } | 'big' | null> {
-  const file = await tg('getFile', { file_id: fileId });
-  if (!file?.file_path) return null;
-  if (typeof file.file_size === 'number' && file.file_size > MAX_IMAGE_BYTES) return 'big';
-  const res = await fetch(`${TG_BASE}/file/bot${token()}/${file.file_path}`, { signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) return null;
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES) return 'big';
-  const path = String(file.file_path).toLowerCase();
-  const type = path.endsWith('.png') ? 'image/png' : path.endsWith('.webp') ? 'image/webp' : path.endsWith('.gif') ? 'image/gif' : 'image/jpeg';
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return { data: btoa(bin), type };
-}
-
 // ----------------------------------------------------------------- handlers
-
-const IMAGE_DOC = /^image\/(jpeg|png|webp|gif)$/;
 
 async function showOrders(chat: number, kind: string) {
   const orders = (await rpc('support_orders', { p_chat: chat, p_kind: kind, p_limit: kind === 'all' ? 5 : 10 })) ?? [];
@@ -210,9 +186,8 @@ async function onMessage(m: any, from: any) {
   const chat: number = m.chat?.id;
   if (!chat || m.chat?.type !== 'private') return; // private chats only
 
-  // Voice, audio, video and everything that is not text or an image: refused, never downloaded.
-  const isImageDoc = m.document && IMAGE_DOC.test(String(m.document.mime_type ?? ''));
-  if (m.voice || m.audio || m.video_note || m.video || (m.document && !isImageDoc)) {
+  // Text only: voice, audio, photos, screenshots, videos, documents and everything else is refused, never downloaded.
+  if (typeof m.text !== 'string' && !m.contact) {
     const voice = Boolean(m.voice || m.audio || m.video_note || (m.document && /^audio\//.test(String(m.document.mime_type ?? ''))));
     return void (await say(chat, voice ? T.voiceRefused : T.otherRefused));
   }
@@ -253,38 +228,21 @@ async function onMessage(m: any, from: any) {
   }
 
   // ---- linked
-  if (s.state === 'awaiting_ticket' && text && !m.photo) {
+  if (s.state === 'awaiting_ticket' && text) {
     const r = await rpc('support_create_ticket', { p_chat: chat, p_message: text });
     if (!r.ok) return void (await say(chat, r.limited ? T.ticketLimited : T.needLink, { reply_markup: menu() }));
     return void (await say(chat, T.ticketMade(esc(r.code)), { reply_markup: menu() }));
   }
 
-  const photo = Array.isArray(m.photo) && m.photo.length ? m.photo[m.photo.length - 1] : null;
-  const imageId: string | undefined = photo?.file_id ?? (isImageDoc ? m.document.file_id : undefined);
-  const caption: string = String(m.caption ?? '').trim();
-  const question = imageId ? caption : text;
-  if (!imageId && !question) return void (await say(chat, T.otherRefused));
+  if (!text) return void (await say(chat, T.otherRefused));
 
   if (!(await rpc('support_ai_allowed', { p_chat: chat }))) return void (await say(chat, T.aiLimited, { reply_markup: menu() }));
   await tg('sendChatAction', { chat_id: chat, action: 'typing' }).catch(() => {});
 
-  const content: unknown[] = [];
-  if (imageId) {
-    const img = await downloadImage(imageId);
-    if (img === 'big') return void (await say(chat, T.imageTooBig));
-    if (!img) return void (await say(chat, T.imageUnreadable));
-    content.push({ type: 'image', source: { type: 'base64', media_type: img.type, data: img.data } });
-  }
-  content.push({
-    type: 'text',
-    text: imageId
-      ? `Customer's screenshot${question ? ' with this note: "' + question.slice(0, 500) + '"' : ''}. Explain in Somali only what it shows and what to do.`
-      : question.slice(0, 1500),
-  });
   const orders = (await rpc('support_orders', { p_chat: chat, p_kind: 'all', p_limit: 5 })) ?? [];
   let answer: string | null = null;
   try {
-    answer = await askAi(content, orderContext(orders));
+    answer = await askAi(text.slice(0, 1500), orderContext(orders));
   } catch (err) {
     console.error('support-bot ai', safe(err));
   }
