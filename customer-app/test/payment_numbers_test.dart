@@ -80,7 +80,7 @@ void main() {
     await _open(tester, _allowed());
     expect(find.byType(OwnPhoneBox), findsNothing);
     final field = find.byKey(const Key('withdraw-own-number'));
-    expect(tester.widget<TextField>(field).controller!.text, '610338686', 'starts as the registered number');
+    expect(tester.widget<TextField>(field).controller!.text, '610338686', reason: 'starts as the registered number');
     expect(find.byKey(const Key('pick-number-n1')), findsOneWidget);
     expect(find.byKey(const Key('pick-number-n2')), findsNothing, reason: 'a Golis number is not offered on EVC Plus');
 
