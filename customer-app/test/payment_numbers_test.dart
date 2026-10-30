@@ -89,7 +89,8 @@ void main() {
     await _open(tester, _allowed());
     expect(find.byType(OwnPhoneBox), findsNothing);
     final field = find.byKey(const Key('withdraw-own-number'));
-    expect(tester.widget<TextField>(field).controller!.text, '610338686', reason: 'starts as the registered number');
+    expect(tester.widget<TextField>(field).controller!.text, '', reason: 'starts empty');
+    expect(tester.widget<TextField>(field).decoration!.hintText, '610338686', reason: 'the registered number is the hint');
     expect(find.byType(ActionChip), findsNothing);
 
     await tester.enterText(find.byType(TextFormField).last, '5');
@@ -119,5 +120,15 @@ void main() {
     expect(find.text('+252 905999914'), findsOneWidget);
     expect(api.receiverAsked, ['252905999914']);
     expect(find.text('NAME OF 252905999914'), findsOneWidget);
+  });
+
+  testWidgets('left empty, the registered number is used', (tester) async {
+    await _open(tester, _allowed());
+    await tester.enterText(find.byType(TextFormField).last, '1');
+    await tester.tap(find.byKey(const Key('withdraw-continue')));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+    expect(tester.widget<WithdrawConfirmScreen>(find.byType(WithdrawConfirmScreen)).phoneNumber, '252610338686');
   });
 }

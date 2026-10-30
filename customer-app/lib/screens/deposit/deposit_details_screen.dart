@@ -71,10 +71,15 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   /// Another number an admin lets this customer use (loaded once), and the
   /// 9 digits chosen: the registered number unless the customer changes it.
   PaymentNumbers _numbers = PaymentNumbers.none;
-  late final TextEditingController _phoneController = TextEditingController(text: _ownLocal ?? '');
+  final TextEditingController _phoneController = TextEditingController();
 
-  /// The 9 digits in the number box, or null while they are not complete.
-  String? get _phoneLocal => _phoneController.text.length == 9 ? _phoneController.text : null;
+  /// The 9 digits typed in the number box; the registered number while the box
+  /// is empty; null while the typing is not complete.
+  String? get _phoneLocal {
+    final typed = _phoneController.text;
+    if (typed.isEmpty) return _ownLocal;
+    return typed.length == 9 ? typed : null;
+  }
 
 
   PaymentMethodInfo get _info => widget.option.info;

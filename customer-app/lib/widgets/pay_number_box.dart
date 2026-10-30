@@ -10,7 +10,7 @@ import 'own_phone_box.dart';
 /// The phone number a mobile-money deposit comes from / a withdrawal goes to.
 /// The registered number, locked, for everyone -- unless an admin authorized
 /// this customer for the network: then the number can be typed in the box,
-/// which starts as the registered number.
+/// which starts empty (the registered number shows as the hint and is used while it stays empty).
 /// The screen owns [controller] (the 9 digits after 252) and sends what it
 /// holds, so what the customer sees in the box is exactly what is used.
 class PayNumberBox extends StatefulWidget {
@@ -64,7 +64,7 @@ class _PayNumberBoxState extends State<PayNumberBox> {
                   keyboardType: TextInputType.phone,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
                   style: AppTextStyles.fieldValue.copyWith(fontWeight: FontWeight.w800),
-                  decoration: const InputDecoration(border: InputBorder.none, isDense: true, hintText: '61xxxxxxx'),
+                  decoration: InputDecoration(border: InputBorder.none, isDense: true, hintText: widget.ownLocal ?? '61xxxxxxx'),
                 ),
               ),
               const SizedBox(width: 10),
