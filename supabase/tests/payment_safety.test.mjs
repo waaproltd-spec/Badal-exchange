@@ -93,6 +93,19 @@ test('enough balance: it goes on as before; what already waits for Sahal is coun
   await withdraw(cu, 5);
 });
 
+test('a waiting withdrawal Sahal cannot pay yet (more than its whole balance) does not block small ones', async () => {
+  const big = await customer(1000000);
+  const small = await customer();
+  await setBalance((await waiting()) + 2000); // $20 free
+  // The big one is made while Sahal could not hold it: put it straight in as waiting.
+  await db.query(
+    `INSERT INTO orders (order_code, customer_id, direction, method, status, amount_cents, rate, net_cents, wallet_delta_cents)
+     VALUES ($1, $2, 'withdraw', 'evc_plus', 'pending', 8900, 1, 8900, -8900)`, [`EXBIG${seed}${n++}`, big.id]);
+  // Sahal has $20 (+ what waited before): the $89 one cannot be paid, so it does not hold the $20 back.
+  await withdraw(small, 1);
+  await assert.rejects(withdraw(small, 25), (e) => e.code === 'WITHDRAWAL_PROVIDER_BALANCE');
+});
+
 test('an unknown balance changes nothing: old read, failed read, or a method Sahal does not pay', async () => {
   const cu = await customer();
   // Only the old read counts as the latest one: drop the fresh reads the tests before this made.
