@@ -1,7 +1,7 @@
 // BADAL AI Support Bot (functions/support-bot, migrations/*_support_bot.sql),
 // against stand-in Telegram and AI servers: text only, Somali only, no voice,
 // audio, photos or screenshots; the chat is linked by Wallet ID and the
-// customer's own contact; orders are read, tickets are made.
+// customer's own contact; orders are read; "La xiriir Admin" is a direct Telegram link, nothing is stored.
 //
 //   Needs the local stack and the functions served with tests/.functions.env.
 import { test, before, after } from 'node:test';
@@ -269,24 +269,40 @@ test('orders: the latest are listed in Somali; a deposit that is not completed i
   assert.ok(!texts(dep).join('\n').includes(wd));
 });
 
-test('Admin ticket: the customer writes, gets a ticket code; management sees and closes it', async (t) => {
+test('La xiriir Admin: a direct Telegram chat with @Badalexchangeadmin; nothing is stored, no ticket exists', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const c = await linked();
-  let r = await send(callback(c.chat, 'admin'));
-  assert.match(texts(r)[0], /qor farriinta/);
+  const count = async () => ({
+    events: Number((await db.query(`SELECT count(*) AS n FROM support_events WHERE chat_id = $1`, [c.chat])).rows[0].n),
+    chats: JSON.stringify((await db.query(`SELECT * FROM support_chats WHERE chat_id = $1`, [c.chat])).rows),
+  });
+  // The menu's own button is the link: one tap opens the admin's chat.
+  const menuResult = await send(message(c.chat, { text: '/menu' }));
+  const buttons = menuResult.calls.find((x) => x.method === 'sendMessage').body.reply_markup.inline_keyboard.flat();
+  const admin = buttons.find((b) => b.text.includes('La xiriir Admin'));
+  assert.equal(admin.url, 'https://t.me/Badalexchangeadmin');
+  assert.equal(admin.callback_data, undefined, 'a link, not a bot step');
+
+  // A menu sent earlier still has the old button: it gives the same link, and stores nothing.
+  const before = await count();
+  const r = await send(callback(c.chat, 'admin'));
+  assert.match(texts(r)[0], /La xiriir Admin/);
   assert.match(texts(r)[0], /@Badalexchangeadmin/);
   assert.equal(r.calls.find((x) => x.method === 'sendMessage').body.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Badalexchangeadmin');
-  r = await send(message(c.chat, { text: 'Lacagtaydii dhigasho ah ma soo gelin' }));
-  const code = texts(r)[0].match(/#BADAL\d+/)[0];
-  assert.match(texts(r)[0], /@Badalexchangeadmin/);
-  assert.equal(r.calls.find((x) => x.method === 'sendMessage').body.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Badalexchangeadmin');
-  const { tickets } = { tickets: (await manager.rpc('manage_support_tickets', { p_status: 'open' })).data };
-  const ticket = tickets.find((x) => x.code === code);
-  assert.ok(ticket);
-  assert.deepEqual([ticket.message, ticket.walletId, ticket.phone], ['Lacagtaydii dhigasho ah ma soo gelin', c.wallet, c.phone]);
-  const closed = await manager.rpc('manage_close_support_ticket', { p_id: ticket.id });
-  assert.equal(closed.data.status, 'closed');
-  assert.ok(!(await manager.rpc('manage_support_tickets', { p_status: 'open' })).data.some((x) => x.code === code));
+  assert.deepEqual(await count(), before, 'nothing was stored');
+  assert.equal(r.ai.length, 0);
+
+  // What the customer writes next is not kept as a complaint: it is an ordinary question.
+  const next = await send(message(c.chat, { text: 'Lacagtaydii dhigasho ah ma soo gelin' }));
+  assert.equal(next.ai.length, 1);
+  const { rows: [t1] } = await db.query(`SELECT to_regclass('public.support_tickets') AS t`);
+  assert.equal(t1.t, null, 'there is no ticket table');
+  const { rows: fns } = await db.query(
+    `SELECT proname FROM pg_proc WHERE proname IN ('support_create_ticket', 'manage_support_tickets', 'manage_close_support_ticket')`);
+  assert.deepEqual(fns, [], 'there are no ticket functions');
+  const { rows: text } = await db.query(
+    `SELECT count(*)::int AS n FROM support_chats WHERE to_jsonb(support_chats)::text LIKE '%dhigasho ah ma soo gelin%'`);
+  assert.equal(text[0].n, 0, 'no message text is stored');
 });
 
 test('the database functions are for the bot only', async (t) => {
@@ -295,13 +311,11 @@ test('the database functions are for the bot only', async (t) => {
   for (const [fn, args] of [
     ['support_session', { p_chat: 1 }],
     ['support_orders', { p_chat: 1 }],
-    ['support_create_ticket', { p_chat: 1, p_message: 'x' }],
+    ['support_ai_allowed', { p_chat: 1 }],
   ]) {
     const { error } = await cu.rpc(fn, args);
     assert.ok(error, `${fn} is refused to a customer`);
   }
-  const { error } = await cu.rpc('manage_support_tickets', {});
-  assert.ok(error, 'tickets are for management');
   const { error: e2 } = await cu.from('support_chats').select('*');
   assert.ok(e2, 'the chats are not readable');
 });
@@ -309,7 +323,7 @@ test('the database functions are for the bot only', async (t) => {
 test('no voice, audio or image code exists in the bot', async () => {
   const { readFileSync } = await import('node:fs');
   const code = readFileSync(new globalThis.URL('../functions/support-bot/index.ts', import.meta.url), 'utf8');
-  for (const bad of ['sendVoice', 'sendAudio', 'sendVideoNote', 'sendPhoto', 'speech', 'transcri', 'whisper', 'text-to-speech', 'getFile', 'base64']) {
+  for (const bad of ['support_create_ticket', '#BADAL', 'awaiting_ticket', 'sendVoice', 'sendAudio', 'sendVideoNote', 'sendPhoto', 'speech', 'transcri', 'whisper', 'text-to-speech', 'getFile', 'base64']) {
     assert.ok(!code.includes(bad), `${bad} must not appear`);
   }
 });

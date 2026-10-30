@@ -6,8 +6,11 @@
 //     message: nothing is downloaded or processed, and the bot never sends voice.
 //   * The customer links their chat once: the Wallet ID, then their own Telegram
 //     contact, whose number must be the registered one. The bot reads their
-//     orders and makes tickets for the admin; it can't create an order, move
-//     money or change an account (see migrations/*_support_bot.sql).
+//     orders; it can't create an order, move money or change an account (see
+//     migrations/*_support_bot.sql).
+//   * "La xiriir Admin" opens a direct Telegram chat with the admin
+//     (@Badalexchangeadmin). No tickets, no complaints and no message text are
+//     stored anywhere.
 //
 // Telegram calls this function as the bot's webhook:
 //   https://<project>.supabase.co/functions/v1/support-bot
@@ -23,7 +26,7 @@
 const TG_BASE = (Deno.env.get('SUPPORT_TELEGRAM_API_BASE') || 'https://api.telegram.org').replace(/\/$/, '');
 const AI_BASE = (Deno.env.get('SUPPORT_AI_API_BASE') || 'https://api.anthropic.com').replace(/\/$/, '');
 const MODEL = Deno.env.get('SUPPORT_AI_MODEL') || 'claude-sonnet-5-5';
-/** The admin's own Telegram, offered to the customer next to a ticket. */
+/** The admin's own Telegram: "La xiriir Admin" opens a direct chat with it. Nothing the customer says is stored. */
 const ADMIN_TG = (Deno.env.get('SUPPORT_ADMIN_TELEGRAM') || 'Badalexchangeadmin').replace(/^@/, '');
 
 // ------------------------------------------------------------------ Somali
@@ -50,9 +53,8 @@ const T = {
     '⬆️ <b>Bixin</b>\nKa bixi lacagta Wallet-kaaga adigoo ka dooranaya App-ka <b>Bixin</b>, dooro habka, geli lambarka iyo lacagta. Lacagtu waxay u socotaa lambarka aad dooratay.\n\nHaddii bixintaadu dib u dhacday, qor su’aashaada ama taabo <b>La xiriir Admin</b>.',
   faq:
     '❓ <b>Su’aalaha inta badan la isweydiiyo</b>\n\n• <b>Dhigashadaydu ma muuqato?</b> Waxay soo muuqataa marka lacag-bixintaada la xaqiijiyo. Sug daqiiqado ama qor su’aashaada.\n• <b>Bixintaydu way dib u dhacday?</b> Waxaa laga yaabaa inay sugayso hubin. Sug 5 daqiiqo, kadib la xiriir Admin.\n• <b>Xaddiga bixinta?</b> Waxaad ka eeg kartaa Profile-kaaga App-ka.\n• <b>PIN ama password?</b> Ma weydiino, ha na siin weligaa.',
-  askTicket: `🎧 Fadlan qor farriinta aad rabto inaan Admin-ka u gudbino.\n\nAma toos Admin-ka ugala hadal Telegram: @${ADMIN_TG}`,
-  ticketMade: (code: string) => `✅ Farriintaada waa la gudbiyay.\n\nTikidhka: <b>${code}</b>\nAdmin-ku wuu kula soo xiriiri doonaa. Fadlan keydso lambarkan.\n\nAma toos Admin-ka ugala hadal Telegram: @${ADMIN_TG}`,
-  ticketLimited: '⛔ Tikidh badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
+  contactAdmin: `🎧 <b>La xiriir Admin</b>
+Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN_TG}). Halkaas ku sharax cilada, oo isaga ayaa kaa caawin doona.`,
   me: (name: string, wallet: string) => `⚙️ <b>Xogtayda</b>\nMagaca: ${name || '—'}\nWallet ID: <b>${wallet || '—'}</b>`,
   unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
   voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor su’aashaada qoraal ahaan.',
@@ -124,7 +126,7 @@ const menu = () => ({
     [{ text: T.buttons.deposit, callback_data: 'deposit' }, { text: T.buttons.withdraw, callback_data: 'withdraw' }],
     [{ text: T.buttons.orders, callback_data: 'orders' }, { text: T.buttons.history, callback_data: 'history' }],
     [{ text: T.buttons.faq, callback_data: 'faq' }],
-    [{ text: T.buttons.admin, callback_data: 'admin' }, { text: T.buttons.me, callback_data: 'me' }],
+    [{ text: T.buttons.admin, url: `https://t.me/${ADMIN_TG}` }, { text: T.buttons.me, callback_data: 'me' }],
   ],
 });
 
@@ -181,9 +183,8 @@ async function onCallback(cb: any) {
     case 'history': return showOrders(chat, 'all');
     case 'faq': return void (await say(chat, T.faq, { reply_markup: menu() }));
     case 'me': return void (await say(chat, T.me(esc(s.name), esc(s.walletId)), { reply_markup: menu() }));
-    case 'admin':
-      await rpc('support_set_state', { p_chat: chat, p_state: 'awaiting_ticket' });
-      return void (await say(chat, T.askTicket, { reply_markup: adminLink() }));
+    case 'admin': // (menus sent earlier still have this button)
+      return void (await say(chat, T.contactAdmin, { reply_markup: adminLink() }));
   }
 }
 
@@ -233,12 +234,6 @@ async function onMessage(m: any, from: any) {
   }
 
   // ---- linked
-  if (s.state === 'awaiting_ticket' && text) {
-    const r = await rpc('support_create_ticket', { p_chat: chat, p_message: text });
-    if (!r.ok) return void (await say(chat, r.limited ? T.ticketLimited : T.needLink, { reply_markup: menu() }));
-    return void (await say(chat, T.ticketMade(esc(r.code)), { reply_markup: adminLink() }));
-  }
-
   if (!text) return void (await say(chat, T.otherRefused));
 
   if (!(await rpc('support_ai_allowed', { p_chat: chat }))) return void (await say(chat, T.aiLimited, { reply_markup: menu() }));
