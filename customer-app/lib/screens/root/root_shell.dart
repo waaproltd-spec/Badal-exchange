@@ -105,7 +105,11 @@ class _RootShellState extends State<RootShell> {
       bottomNavigationBar: NavigationBar(
         height: 62,
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          setState(() => _index = i);
+          // The limits show what was withdrawn up to now.
+          if (i == 2) ProfileScreen.refresh.value++;
+        },
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.home_outlined),

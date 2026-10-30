@@ -151,6 +151,11 @@ class AppStrings {
   static String get withdrawAll => _t('Withdraw all', 'Qaado dhammaan');
 
   // Withdrawal limits (KYC)
+  static String get dailyLimit => _t('Daily Limit', 'Xadka maalinlaha');
+  static String get monthlyLimit => _t('Monthly Limit', 'Xadka bishii');
+  static String get limitUsed => _t('Used', 'La bixiyay');
+  static String get limitRemaining => _t('Remaining', 'Harsan');
+  static String get limitsDetails => _t('View Details', 'Faahfaahin');
   static String get withdrawLimitsTitle => _t('Withdrawal limits', 'Xadka lacag-bixinta');
   static String get kycVerified => _t('KYC verified', 'KYC waa la xaqiijiyay');
   static String get kycNotVerified => _t('Not verified', 'Lama xaqiijin');
