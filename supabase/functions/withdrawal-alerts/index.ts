@@ -255,7 +255,7 @@ async function run() {
   const s = todo.summary;
   if (s) {
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
-      text: `📊 <b>Lacag-bixinada ${esc(s.day)}</b>\nLa bixiyay: ${s.paidCount} ($${esc(s.paidTotal)})\n` +
+      text: `📊 <b>Lacag-bixinada ${esc(s.day)}</b>\nWaqtiga: ${when(new Date().toISOString())}\nLa bixiyay: ${s.paidCount} ($${esc(s.paidTotal)})\n` +
         `Fashilmay/la joojiyay: ${s.failedCount}\nWeli sugaya: ${s.waitingCount} ($${esc(s.waitingTotal)})` });
     await rpc('withdrawal_alerts_sent', { p_kind: 'summary', p_id: null, p_day: s.day });
     sent++;
