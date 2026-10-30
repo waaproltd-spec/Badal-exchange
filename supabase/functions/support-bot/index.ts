@@ -33,7 +33,7 @@ const ADMIN_TG = (Deno.env.get('SUPPORT_ADMIN_TELEGRAM') || 'Badalexchangeadmin'
 
 const T = {
   welcome:
-    '👋 Ku soo dhawoow <b>BADAL AI Support Bot</b>.\n\nWaxaan ku caawinaa macaamiisha BADAL Exchange. Fadlan geli <b>Wallet ID</b>-gaaga (tusaale: BE295683) si aan kuu aqoonsado.',
+    '👋 Ku soo dhawoow <b>BADAL AI Support Bot</b>.\n\nWaxaan ku caawinaa macaamiisha BADAL Exchange. Fadlan geli <b>Wallet ID</b>-gaaga (tusaale: BE000000) si aan kuu aqoonsado.',
   askContact:
     '✅ Wallet ID-gan waa la helay. Si aan u hubino inaad adigu tahay, fadlan taabo badhanka hoose oo la wadaag lambarkaaga Telegram-ka.',
   shareButton: '📱 La wadaag lambarkayga',

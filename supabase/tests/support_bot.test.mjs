@@ -143,6 +143,7 @@ test('linking: the Wallet ID, then the customer\'s own contact with the register
   let r = await send(message(chat, { text: '/start' }));
   assert.match(texts(r)[0], /BADAL AI Support Bot/);
   assert.match(texts(r)[0], /Wallet ID/);
+  assert.match(texts(r)[0], /tusaale: BE000000\)/, 'the example is not a real Wallet ID');
 
   r = await send(message(chat, { text: 'BE000000' }));
   assert.match(texts(r)[0], /lama helin/);
