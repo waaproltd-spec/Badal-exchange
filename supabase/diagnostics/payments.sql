@@ -226,3 +226,19 @@ SELECT m.method::text AS method, m.label, m.enabled FROM public.payment_methods 
 SELECT e::text AS leftover_enum_value
 FROM unnest(enum_range(NULL::public.order_method)) e
 WHERE NOT EXISTS (SELECT 1 FROM public.payment_methods m WHERE m.method::text = e::text);
+
+\echo '== 20. Added platforms: the stored logo (size, type, pixels) and what the Customer App catalog sends for it (read-only; no picture shown) =='
+SELECT i.method_key,
+       (i.logo IS NOT NULL) AS has_logo,
+       length(i.logo) AS logo_bytes,
+       CASE WHEN substring(i.logo FROM 1 FOR 8) = '\x89504e470d0a1a0a'::bytea THEN 'png'
+            WHEN substring(i.logo FROM 1 FOR 3) = '\xffd8ff'::bytea THEN 'jpeg' END AS logo_type,
+       CASE WHEN substring(i.logo FROM 1 FOR 8) = '\x89504e470d0a1a0a'::bytea
+            THEN get_byte(i.logo, 16) * 16777216 + get_byte(i.logo, 17) * 65536 + get_byte(i.logo, 18) * 256 + get_byte(i.logo, 19) END AS png_width,
+       CASE WHEN substring(i.logo FROM 1 FOR 8) = '\x89504e470d0a1a0a'::bytea
+            THEN get_byte(i.logo, 20) * 16777216 + get_byte(i.logo, 21) * 65536 + get_byte(i.logo, 22) * 256 + get_byte(i.logo, 23) END AS png_height
+FROM public.payment_integrations i WHERE i.kind = 'betting' AND i.deleted_at IS NULL AND NOT i.built_in ORDER BY i.created_at;
+\echo '-- the catalog entry each customer phone receives at start (platforms only)'
+SELECT e ->> 'method' AS method, e ->> 'label' AS label, (e ->> 'enabled') AS enabled,
+       (e ->> 'logo') IS NOT NULL AS logo_in_catalog, length(e ->> 'logo') AS logo_base64_chars
+FROM jsonb_array_elements(public.payment_method_catalog()) e WHERE e ->> 'kind' = 'platform' ORDER BY (e ->> 'order')::int;
