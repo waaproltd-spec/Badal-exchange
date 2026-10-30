@@ -99,8 +99,11 @@ void main() {
 
     // e.g. the language is changed and the app rebuilds its first screen.
     await tester.pumpWidget(const SizedBox());
+    final before = DateTime.now();
     await _open(tester);
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle(); // goes on after the first frame: nothing here takes 3 seconds
     expect(find.text('HOME'), findsOneWidget, reason: 'no second 3-second animation');
+    expect(find.byType(BaariLogoMark), findsNothing);
+    expect(DateTime.now().difference(before), lessThan(const Duration(seconds: 3)));
   });
 }
