@@ -177,6 +177,12 @@ test('another account\'s login number stays theirs; other customers and the perm
   await grant(a);
   await rejects(deposit(a, 'evc_plus', `252${b.number}`), 'PAYMENT_NUMBER_TAKEN');
   await rejects(rpc(manager, 'manage_add_payment_number', { p_customer_id: a.id, p_method: 'evc_plus', p_phone: `252${b.number}` }), 'PAYMENT_NUMBER_TAKEN');
+  await rejects(rpc(a.c, 'customer_add_payment_number', { p_method: 'evc_plus', p_phone: `252${b.number}` }), 'PAYMENT_NUMBER_TAKEN');
+  // A withdrawal only pays out to the number: allowed. A deposit from it stays refused afterwards.
+  assert.equal(await orderPhone(await withdraw(a, 'evc_plus', `252${b.number}`)), `252${b.number}`);
+  await rejects(deposit(a, 'evc_plus', `252${b.number}`), 'PAYMENT_NUMBER_TAKEN');
+  // B has no permission: still refused for A's number or anyone's.
+  await rejects(withdraw(b, 'evc_plus', `252${a.number}`), 'PHONE_NOT_OWN');
   // B has no permission: still refused for a new number, even the number A uses.
   const phone = `252${local()}`;
   await deposit(a, 'evc_plus', phone);
