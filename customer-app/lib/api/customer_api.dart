@@ -263,6 +263,23 @@ class CustomerApi {
     }
   }
 
+  /// Tells the server a deposit / withdrawal failed or was refused, so the admin
+  /// is told on Telegram. Only a note: no money moves.
+  Future<void> reportPaymentError({
+    required String direction,
+    required String method,
+    required String amount,
+    required String code,
+    String? detail,
+  }) =>
+      _client.rpc('customer_report_payment_error', {
+        'p_direction': direction,
+        'p_method': method,
+        'p_amount': amount,
+        'p_code': code,
+        'p_detail': detail,
+      });
+
   /// Records the deposit form as the customer fills it in, before
   /// "Confirm Deposit" (Admin Dashboard -> Unconfirmed Deposits). Only the
   /// method, amount and account ID: the server takes the registered phone.

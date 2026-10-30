@@ -10,6 +10,7 @@ import '../../models/payment_method.dart';
 import '../../models/withdraw_limits.dart';
 import '../../models/withdrawal_access.dart';
 import '../../theme/colors.dart';
+import '../../utils/payment_errors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/app_text_field.dart';
@@ -196,9 +197,11 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
         return;
       }
       if ((e.code.startsWith('WITHDRAWAL_') && e.code.endsWith('_LIMIT')) || e.code == 'WITHDRAWAL_KYC_REQUIRED') _loadLimits();
-      setState(() => _error = e.message);
-    } catch (_) {
-      setState(() => _error = AppStrings.somethingWentWrong);
+      setState(() => _error = PaymentErrors.handle(context.read<CustomerApi>(), e,
+          isDeposit: false, method: widget.method, amount: _amountController.text.trim()));
+    } catch (e) {
+      setState(() => _error = PaymentErrors.handle(context.read<CustomerApi>(), e,
+          isDeposit: false, method: widget.method, amount: _amountController.text.trim()));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

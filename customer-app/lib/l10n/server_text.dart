@@ -5,6 +5,13 @@ import 'strings.dart';
 /// known here is shown as the server wrote it (e.g. a note an agent typed).
 String serverText(String text, {String? code}) {
   if (!AppLanguage.isSomali || text.isEmpty) return text;
+  return somaliServerText(text, code: code);
+}
+
+/// The Somali wording whatever the app language (deposit / withdrawal errors
+/// are always Somali). Text with no Somali version is returned unchanged.
+String somaliServerText(String text, {String? code}) {
+  if (text.isEmpty) return text;
   final byCode = _byCode[code];
   if (byCode != null) return byCode;
   for (final (pattern, somali) in _patterns) {

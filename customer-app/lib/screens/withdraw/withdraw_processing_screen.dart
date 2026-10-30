@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
 import '../../services/success_sound.dart';
 import '../../theme/colors.dart';
+import '../../utils/payment_errors.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/transaction_views.dart';
@@ -58,13 +58,10 @@ class _WithdrawProcessingScreenState extends State<WithdrawProcessingScreen> {
     final Order order;
     try {
       order = await widget.action();
-    } on ApiException catch (e) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
-      return;
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _error = AppStrings.somethingWentWrong);
+      setState(() => _error = PaymentErrors.handle(context.read<CustomerApi>(), e,
+          isDeposit: false, method: widget.method, amount: widget.amount));
       return;
     }
     if (!mounted) return;
@@ -133,7 +130,7 @@ class _WithdrawProcessingScreenState extends State<WithdrawProcessingScreen> {
         child: const Icon(Icons.priority_high_rounded, color: AppColors.statusFailed, size: 36),
       ),
       const SizedBox(height: 24),
-      Text(AppStrings.couldNotComplete, style: AppTextStyles.title, textAlign: TextAlign.center),
+      Text(PaymentErrors.title, style: AppTextStyles.title, textAlign: TextAlign.center),
       const SizedBox(height: 8),
       Text(message, style: AppTextStyles.muted, textAlign: TextAlign.center),
       const SizedBox(height: 28),

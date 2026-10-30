@@ -4,12 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../utils/payment_errors.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/flow_header.dart';
 import '../../widgets/own_phone_box.dart';
@@ -193,12 +193,8 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
           ),
         ),
       ));
-    } on ApiException catch (e) {
-      setState(() {
-        _error = e.message;
-      });
-    } catch (_) {
-      setState(() => _error = AppStrings.somethingWentWrong);
+    } catch (e) {
+      setState(() => _error = PaymentErrors.handle(api, e, isDeposit: true, method: _info.id, amount: _amountText));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
