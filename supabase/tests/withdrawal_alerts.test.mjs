@@ -88,6 +88,8 @@ before(async () => {
                     ON CONFLICT (order_id) DO UPDATE SET alerts = 1, last_alert_at = now()`);
   // Sahal's own alerts are tested on their own below.
   await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
+  // Deposit / withdrawal incidents the other suites left are not this file's business either.
+  await db.query(`UPDATE payment_incidents SET alerted_at = now() WHERE alerted_at IS NULL`);
 });
 beforeEach(() => { tg.calls.length = 0; });
 after(async () => {
@@ -320,6 +322,27 @@ test('a Sahal transfer that matched no withdrawal is reported once', async (t) =
   assert.equal(warn.length, 1);
   assert.match(warn[0].body.text, /matched no withdrawal/);
   assert.match(warn[0].body.text, /\$3\.00/);
+});
+
+test('a failed or refused deposit / withdrawal is told once with customer, phone, transaction, amount, provider, status, time and the exact error', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const number = golisNumber();
+  const { rows: [u] } = await db.query(
+    `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
+                VALUES ('customer', $1, 'Incident Person', private.hash_password($2)) RETURNING id)
+     INSERT INTO public.wallets (customer_id, available_cents) SELECT id, 0 FROM u RETURNING customer_id`, [`252${number}`, PASSWORD]);
+  await db.query(
+    `INSERT INTO payment_incidents (direction, kind, customer_id, order_code, method, amount_text, error_code, error_text, source)
+     VALUES ('withdraw', 'blocked', $1, NULL, 'evc_plus', '12.50', 'WITHDRAWAL_PROVIDER_BALANCE', 'balance too low', 'app')`, [u.customer_id]);
+  tg.calls.length = 0;
+  await run();
+  await run();
+  const msgs = sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Incident Person'));
+  assert.equal(msgs.length, 1, 'told once');
+  const text = msgs[0].body.text;
+  for (const part of ['Withdrawal blocked', `252${number}`, 'no order created', '$12.50', 'EVC Plus', 'WITHDRAWAL_PROVIDER_BALANCE', 'balance too low']) {
+    assert.ok(text.includes(part), `${part} is in the message`);
+  }
 });
 
 test('only managers see or unlink the chat; the worker functions are service-only', async (t) => {

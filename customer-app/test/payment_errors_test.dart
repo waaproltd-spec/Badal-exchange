@@ -71,7 +71,7 @@ void main() {
 
   test('limit and KYC messages come from the server in Somali and are kept', () {
     AppLanguage.current.value = AppLanguage.english;
-    const m = 'Xadka maalinlaha ah ee lacag-bixinta ($50) waa gaadhay.';
+    const m = 'Xadka maalinlaha ah ee lacag-bixinta (\$50) waa gaadhay.';
     expect(PaymentErrors.message(const ApiException(status: 403, code: 'WITHDRAWAL_DAILY_LIMIT', message: m), isDeposit: false), m);
   });
 

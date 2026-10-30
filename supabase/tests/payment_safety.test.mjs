@@ -53,7 +53,7 @@ const setBalance = (cents, minutesAgo = 0, ok = true) => db.query(
 /** Cents already waiting for Sahal from other tests, so the room is exactly what a test sets. */
 const waiting = async () => Number((await db.query(
   `SELECT COALESCE(sum(net_cents), 0) AS n FROM orders WHERE direction = 'withdraw' AND status IN ('pending', 'processing')
-     AND method = ANY ((SELECT methods FROM sahal_payout_settings WHERE id))`)).rows[0].n);
+     AND method IN (SELECT unnest(methods) FROM sahal_payout_settings WHERE id)`)).rows[0].n);
 
 before(async () => {
   saved = {
