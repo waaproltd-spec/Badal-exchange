@@ -85,13 +85,12 @@ void main() {
     expect(find.byType(OwnPhoneBox), findsOneWidget);
   });
 
-  testWidgets('with permission: another number is typed or picked, and the withdrawal goes to it', (tester) async {
+  testWidgets('with permission: another number is typed in the box, and the withdrawal goes to it; no quick-pick chips', (tester) async {
     await _open(tester, _allowed());
     expect(find.byType(OwnPhoneBox), findsNothing);
     final field = find.byKey(const Key('withdraw-own-number'));
     expect(tester.widget<TextField>(field).controller!.text, '610338686', reason: 'starts as the registered number');
-    expect(find.byKey(const Key('pick-number-n1')), findsOneWidget);
-    expect(find.byKey(const Key('pick-number-n2')), findsNothing, reason: 'a Golis number is not offered on EVC Plus');
+    expect(find.byType(ActionChip), findsNothing);
 
     await tester.enterText(find.byType(TextFormField).last, '5');
     await tester.enterText(field, '6122');
@@ -100,29 +99,12 @@ void main() {
     expect(find.text(AppStrings.enterNineDigits), findsOneWidget, reason: 'an unfinished number is not sent');
     expect(find.byType(WithdrawConfirmScreen), findsNothing);
 
-    await tester.tap(find.byKey(const Key('pick-number-n1')));
-    await tester.pump();
-    expect(tester.widget<TextField>(field).controller!.text, '612223344');
+    await tester.enterText(field, '612223344');
     await tester.tap(find.byKey(const Key('withdraw-continue')));
     await tester.pump();
     await tester.pump();
     await tester.pump();
     expect(tester.widget<WithdrawConfirmScreen>(find.byType(WithdrawConfirmScreen)).phoneNumber, '252612223344');
-  });
-
-  testWidgets('"My number" puts the registered number back', (tester) async {
-    await _open(tester, _allowed());
-    final field = find.byKey(const Key('withdraw-own-number'));
-    await tester.enterText(field, '612223344');
-    await tester.tap(find.byKey(const Key('pick-own-number')));
-    await tester.pump();
-    expect(tester.widget<TextField>(field).controller!.text, '610338686');
-    await tester.enterText(find.byType(TextFormField).last, '5');
-    await tester.tap(find.byKey(const Key('withdraw-continue')));
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    expect(tester.widget<WithdrawConfirmScreen>(find.byType(WithdrawConfirmScreen)).phoneNumber, '252610338686');
   });
 
   testWidgets('a number typed in the box is what the confirmation shows, and the receiver name is asked for that number', (tester) async {

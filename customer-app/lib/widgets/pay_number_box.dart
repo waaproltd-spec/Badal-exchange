@@ -10,7 +10,7 @@ import 'own_phone_box.dart';
 /// The phone number a mobile-money deposit comes from / a withdrawal goes to.
 /// The registered number, locked, for everyone -- unless an admin authorized
 /// this customer for the network: then the number can be typed, or picked from
-/// the customer's saved numbers, and the registered number is one tap away.
+/// the registered number is the starting value.
 /// The screen owns [controller] (the 9 digits after 252) and sends what it
 /// holds, so what the customer sees in the box is exactly what is used.
 class PayNumberBox extends StatefulWidget {
@@ -29,16 +29,11 @@ class PayNumberBox extends StatefulWidget {
 }
 
 class _PayNumberBoxState extends State<PayNumberBox> {
-  void _pick(String local) {
-    widget.controller.value = TextEditingValue(text: local, selection: TextSelection.collapsed(offset: local.length));
-  }
-
   @override
   Widget build(BuildContext context) {
     if (!widget.numbers.allows(widget.method)) {
       return OwnPhoneBox(key: widget.fieldKey, local: widget.ownLocal);
     }
-    final saved = widget.numbers.forMethod(widget.method).where((n) => n.local != widget.ownLocal).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -75,17 +70,6 @@ class _PayNumberBoxState extends State<PayNumberBox> {
               const SizedBox(width: 10),
             ],
           ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            if (widget.ownLocal != null)
-              ActionChip(key: const Key('pick-own-number'), label: Text(AppStrings.myNumber), onPressed: () => _pick(widget.ownLocal!)),
-            for (final n in saved)
-              ActionChip(key: Key('pick-number-${n.id}'), label: Text(n.local), onPressed: () => _pick(n.local)),
-          ],
         ),
       ],
     );
