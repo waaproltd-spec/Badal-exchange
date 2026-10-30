@@ -50,7 +50,7 @@ const T = {
     '⬆️ <b>Bixin</b>\nKa bixi lacagta Wallet-kaaga adigoo ka dooranaya App-ka <b>Bixin</b>, dooro habka, geli lambarka iyo lacagta. Lacagtu waxay u socotaa lambarka aad dooratay.\n\nHaddii bixintaadu dib u dhacday, qor su’aashaada ama taabo <b>La xiriir Admin</b>.',
   faq:
     '❓ <b>Su’aalaha inta badan la isweydiiyo</b>\n\n• <b>Dhigashadaydu ma muuqato?</b> Waxay soo muuqataa marka lacag-bixintaada la xaqiijiyo. Sug daqiiqado ama qor su’aashaada.\n• <b>Bixintaydu way dib u dhacday?</b> Waxaa laga yaabaa inay sugayso hubin. Sug 5 daqiiqo, kadib la xiriir Admin.\n• <b>Xaddiga bixinta?</b> Waxaad ka eeg kartaa Profile-kaaga App-ka.\n• <b>PIN ama password?</b> Ma weydiino, ha na siin weligaa.',
-  askTicket: '🎧 Fadlan qor farriinta aad rabto inaan Admin-ka u gudbino .',
+  askTicket: `🎧 Fadlan qor farriinta aad rabto inaan Admin-ka u gudbino.\n\nAma toos Admin-ka ugala hadal Telegram: @${ADMIN_TG}`,
   ticketMade: (code: string) => `✅ Farriintaada waa la gudbiyay.\n\nTikidhka: <b>${code}</b>\nAdmin-ku wuu kula soo xiriiri doonaa. Fadlan keydso lambarkan.\n\nAma toos Admin-ka ugala hadal Telegram: @${ADMIN_TG}`,
   ticketLimited: '⛔ Tikidh badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
   me: (name: string, wallet: string) => `⚙️ <b>Xogtayda</b>\nMagaca: ${name || '—'}\nWallet ID: <b>${wallet || '—'}</b>`,
