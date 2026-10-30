@@ -67,4 +67,44 @@ void main() {
       expect(await fitLogo(Uint8List.fromList([1, 2, 3])), isNull);
     });
   });
+
+  /// A [w] x [h] picture of [bg] with a [fg] rectangle ([rx], [ry], [rw], [rh]).
+  Future<Uint8List> compose(int w, int h, ui.Color bg, ui.Color fg, int rx, int ry, int rw, int rh) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.drawRect(ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), ui.Paint()..color = bg);
+    canvas.drawRect(ui.Rect.fromLTWH(rx.toDouble(), ry.toDouble(), rw.toDouble(), rh.toDouble()), ui.Paint()..color = fg);
+    final image = await recorder.endRecording().toImage(w, h);
+    return (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+  }
+
+  testWidgets('empty white margins are trimmed so the logo fills the tile, all of it kept', (tester) async {
+    await tester.runAsync(() async {
+      // A small wide logo in the middle of a big white picture.
+      final out = await fitLogo(await compose(1000, 600, const ui.Color(0xFFFFFFFF), red, 450, 290, 100, 20));
+      expect(await _size(out!), [tw, th]);
+      // The logo now spans nearly the whole tile width (without trimming it would be ~29 px wide).
+      expect(await _pixel(out, 14, th ~/ 2), [255, 0, 0, 255]);
+      expect(await _pixel(out, tw - 15, th ~/ 2), [255, 0, 0, 255]);
+      // A thin white margin is left around it.
+      expect(await _pixel(out, 2, th ~/ 2), [255, 255, 255, 255]);
+    });
+  });
+
+  testWidgets('a logo on its own dark background is not trimmed (its backdrop is part of it)', (tester) async {
+    await tester.runAsync(() async {
+      final out = await fitLogo(await compose(600, 250, const ui.Color(0xFF000000), const ui.Color(0xFFFFFFFF), 250, 100, 100, 50));
+      expect(await _size(out!), [tw, th]);
+      expect(await _pixel(out, 1, 1), [0, 0, 0, 255], reason: 'the dark backdrop stays');
+      expect(await _pixel(out, tw ~/ 2, th ~/ 2), [255, 255, 255, 255]);
+    });
+  });
+
+  testWidgets('an all-white picture is not a crash: it comes out as a white tile', (tester) async {
+    await tester.runAsync(() async {
+      final out = await fitLogo(await _solid(300, 200, const ui.Color(0xFFFFFFFF)));
+      expect(await _size(out!), [tw, th]);
+      expect(await _pixel(out, tw ~/ 2, th ~/ 2), [255, 255, 255, 255]);
+    });
+  });
 }
