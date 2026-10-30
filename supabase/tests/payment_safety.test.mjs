@@ -88,7 +88,8 @@ test('enough balance: it goes on as before; what already waits for Sahal is coun
   await setBalance((await waiting()) + 1500); // $15 free
   const first = await withdraw(cu, 10);
   assert.ok(first.orderCode);
-  await assert.rejects(withdraw(cu, 10), (e) => e.code === 'WITHDRAWAL_PROVIDER_BALANCE');
+  // (A different amount: an identical request is refused as a duplicate, which is not what is tested here.)
+  await assert.rejects(withdraw(cu, 11), (e) => e.code === 'WITHDRAWAL_PROVIDER_BALANCE');
   await withdraw(cu, 5);
 });
 
