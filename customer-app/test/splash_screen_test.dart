@@ -82,7 +82,7 @@ void main() {
     final auth = await _open(tester, ready: false);
     await tester.pump(const Duration(milliseconds: 3100));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('HOME'), findsNothing, 'the session is not known yet');
+    expect(find.text('HOME'), findsNothing, reason: 'the session is not known yet');
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     auth.finish();
     await tester.pump(const Duration(milliseconds: 500));
@@ -101,6 +101,6 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await _open(tester);
     await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('HOME'), findsOneWidget, 'no second 3-second animation');
+    expect(find.text('HOME'), findsOneWidget, reason: 'no second 3-second animation');
   });
 }
