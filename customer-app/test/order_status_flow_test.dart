@@ -34,7 +34,7 @@ Order _order(String id, String status, {String direction = 'deposit', String? re
       fee: '0.00',
       netAmount: '4.00',
       failureReason: reason,
-      createdAt: created ?? DateTime.now().subtract(const Duration(seconds: 20)),
+      createdAt: created ?? DateTime.now().subtract(const Duration(seconds: 5)),
       completedAt: status == 'completed' ? DateTime.now() : null,
     );
 
