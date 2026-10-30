@@ -43,7 +43,7 @@ jobs:
       # verification and the KYC withdrawal limits are off for them (withdrawal_verification.test.mjs
       # and withdraw_limits.test.mjs turn them on for themselves).
       - name: First-withdrawal verification off for the other suites
-        run: psql "$DATABASE_URL" -c "UPDATE app_settings SET value = 'off' WHERE key IN ('withdrawal_verification', 'withdraw_limits')"
+        run: psql "$DATABASE_URL" -c "UPDATE app_settings SET value = 'off' WHERE key IN ('withdrawal_verification', 'withdraw_limits')" -c "INSERT INTO app_settings (key, value) VALUES ('withdraw_balance_check', 'off') ON CONFLICT (key) DO UPDATE SET value = 'off'"
 
       - uses: actions/setup-node@v4
         with:

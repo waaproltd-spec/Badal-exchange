@@ -165,6 +165,22 @@ async function run() {
     await rpc('withdrawal_alerts_sent', { p_kind: 'stray', p_id: t.id });
     sent++;
   }
+  // Deposit / withdrawal errors and refused attempts (migrations/*_payment_safety.sql).
+  // Only said: nothing is credited, paid, retried or changed here.
+  const incidents: any[] = (await rpc('payment_incidents_todo')) ?? [];
+  for (const i of incidents) {
+    const icon = i.kind === 'blocked' ? '🚫' : '❌';
+    const what = i.kind === 'blocked' ? 'blocked' : i.kind === 'unverified' ? 'unverified' : 'failed';
+    await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
+      text: `${icon} <b>${i.direction === 'deposit' ? 'Deposit' : 'Withdrawal'} ${what}</b>\n` +
+        `Customer: ${esc(i.customerName ?? '-')} <code>${esc(i.customerPhone ?? '-')}</code>\n` +
+        `Transaction: <code>${esc(i.orderCode ?? 'no order created')}</code>\n` +
+        `Amount: $${esc(i.amount ?? '-')}\nProvider: ${esc(METHOD[i.method] ?? i.method ?? '-')}\n` +
+        `Status: ${what} (nothing was credited or taken)\nTime: ${esc(i.at)}\n` +
+        `Error: <code>${esc(i.code ?? '-')}</code> ${esc(i.error ?? '')}` });
+    sent++;
+  }
+  if (incidents.length > 0) await rpc('payment_incidents_sent', { p_ids: incidents.map((i) => i.id) });
   if (todo.sahal) {
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML', text: (SAHAL[todo.sahal.kind] ?? SAHAL.refused)(todo.sahal) });
     await rpc('withdrawal_alerts_sahal_sent', { p_key: todo.sahal.key ?? null });
