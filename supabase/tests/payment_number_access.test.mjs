@@ -171,19 +171,16 @@ test('the admin adds, blocks, unblocks and removes a number', async () => {
   assert.deepEqual(rows.map((r) => r.action), ['payment_numbers.grant', 'payment_numbers.add', 'payment_numbers.block', 'payment_numbers.unblock', 'payment_numbers.remove']);
 });
 
-test('another account\'s login number stays theirs; other customers and the permission itself are not affected', async () => {
+test('another account\'s login number can be used by an authorized customer, for deposits and withdrawals; nobody else is affected', async () => {
   const a = await customer();
   const b = await customer();
   await grant(a);
-  await rejects(deposit(a, 'evc_plus', `252${b.number}`), 'PAYMENT_NUMBER_TAKEN');
-  await rejects(rpc(manager, 'manage_add_payment_number', { p_customer_id: a.id, p_method: 'evc_plus', p_phone: `252${b.number}` }), 'PAYMENT_NUMBER_TAKEN');
-  await rejects(rpc(a.c, 'customer_add_payment_number', { p_method: 'evc_plus', p_phone: `252${b.number}` }), 'PAYMENT_NUMBER_TAKEN');
-  // A withdrawal only pays out to the number: allowed. A deposit from it stays refused afterwards.
+  assert.equal(await orderPhone(await deposit(a, 'evc_plus', `252${b.number}`)), `252${b.number}`);
   assert.equal(await orderPhone(await withdraw(a, 'evc_plus', `252${b.number}`)), `252${b.number}`);
-  await rejects(deposit(a, 'evc_plus', `252${b.number}`), 'PAYMENT_NUMBER_TAKEN');
+  await rpc(manager, 'manage_add_payment_number', { p_customer_id: a.id, p_method: 'golis', p_phone: `252${b.number}` });
   // B has no permission: still refused for A's number or anyone's.
   await rejects(withdraw(b, 'evc_plus', `252${a.number}`), 'PHONE_NOT_OWN');
-  // B has no permission: still refused for a new number, even the number A uses.
+  await rejects(deposit(b, 'evc_plus', `252${a.number}`), 'PHONE_NOT_OWN');
   const phone = `252${local()}`;
   await deposit(a, 'evc_plus', phone);
   await rejects(deposit(b, 'evc_plus', phone), 'PHONE_NOT_OWN');
