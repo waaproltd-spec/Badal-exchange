@@ -93,9 +93,12 @@ void main() {
     expect(find.textContaining('Could not open the gallery'), findsOneWidget);
   });
 
-  testWidgets('a built-in platform keeps its own logo: no logo card', (tester) async {
+  testWidgets('a built-in platform shows its own logo and can be given another', (tester) async {
     await tester.pumpWidget(_screen(_platform(builtIn: true)));
-    expect(find.byKey(const Key('platform-logo-card')), findsNothing);
+    expect(find.byKey(const Key('platform-logo-card')), findsOneWidget);
+    expect(find.text('The logo built into the Customer App'), findsOneWidget);
+    expect(find.text('Replace logo'), findsOneWidget);
+    expect(find.byKey(const Key('platform-logo-remove')), findsNothing, reason: 'nothing to bring back yet');
   });
 
   test('an unreadable logo from the server is ignored', () {

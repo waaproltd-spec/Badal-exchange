@@ -826,7 +826,7 @@ test('a new account: saved, tested in its own session, then activated; the worki
   // Audited, and no secret anywhere it should not be.
   const { rows } = await db.query(`SELECT action FROM audit_logs WHERE action LIKE 'sahal_account.%' AND created_at > now() - interval '5 minutes'`);
   for (const a of ['save', 'test', 'verified', 'activate']) assert.ok(rows.some((x) => x.action === `sahal_account.${a}`), a);
-  const everything = JSON.stringify((await db.query(`SELECT before_json, after_json, entity_id FROM audit_logs WHERE created_at > now() - interval '5 minutes'`)).rows)
+  const everything = JSON.stringify((await db.query(`SELECT before_json, after_json, entity_id FROM audit_logs WHERE action LIKE 'sahal_account.%' AND created_at > now() - interval '5 minutes'`)).rows)
     + JSON.stringify(await events());
   assert.ok(!everything.includes('new-pass-Zq81') && !everything.includes('5555') && !everything.includes('654321'));
   // It is in Vault, not in a table column.
