@@ -135,10 +135,13 @@ class _Period extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Text(title, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
-          const Spacer(),
-          Text(AppStrings.limitLeft(period.remaining),
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, color: color)),
+          Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700))),
+          Flexible(
+            child: Text(AppStrings.limitLeft(period.remaining),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, color: color)),
+          ),
         ]),
         const SizedBox(height: 6),
         ClipRRect(

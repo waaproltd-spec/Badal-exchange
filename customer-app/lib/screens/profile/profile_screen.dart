@@ -148,15 +148,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Container(
                   decoration: const BoxDecoration(gradient: AppColors.headerGradient),
-                  padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 10, 16, 14),
+                  padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 16, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppStrings.profile, style: AppTextStyles.appBarTitle.copyWith(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 10),
+                      Text(AppStrings.profile, style: AppTextStyles.appBarTitle.copyWith(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 6),
                       Container(
                         key: const Key('profile-header'),
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(18),
@@ -164,10 +164,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: Row(children: [
                           Container(
-                            width: 54,
-                            height: 54,
+                            width: 48,
+                            height: 48,
                             decoration: BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
-                            child: Center(child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
+                            child: Center(child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800))),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -176,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   maxLines: 1, overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
                               Text(user?.phone ?? '-', style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 13.5)),
-                              const SizedBox(height: 5),
+                              const SizedBox(height: 4),
                               Container(
                                 key: const Key('kyc-status'),
                                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
@@ -184,7 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                                   Icon(Icons.circle, size: 8, color: _statusColor),
                                   const SizedBox(width: 6),
-                                  Text(_statusLabel, style: TextStyle(color: _statusColor, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                                  Flexible(child: Text(_statusLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _statusColor, fontWeight: FontWeight.w700, fontSize: 12.5))),
                                 ]),
                               ),
                             ]),
@@ -195,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -215,7 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(20)),
                                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    Text(AppStrings.limitsDetails, style: TextStyle(color: AppColors.primaryDark, fontSize: 12, fontWeight: FontWeight.w700)),
+                                    Flexible(child: Text(AppStrings.limitsDetails, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppColors.primaryDark, fontSize: 12, fontWeight: FontWeight.w700))),
                                     Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.primaryDark),
                                   ]),
                                 ),
@@ -231,12 +231,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ]),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _Panel(
                         child: Row(children: [
                           const _IconDot(icon: Icons.language_rounded, color: Color(0xFF6A2BD9)),
                           const SizedBox(width: 10),
-                          Text(AppStrings.language, style: _title),
+                          Flexible(flex: 0, child: Text(AppStrings.language, maxLines: 1, overflow: TextOverflow.ellipsis, style: _title)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: ValueListenableBuilder<String>(
@@ -251,12 +251,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ]),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _Panel(
                         child: Row(children: [
                           const _IconDot(icon: Icons.dark_mode_rounded, color: Color(0xFF6A2BD9)),
                           const SizedBox(width: 10),
-                          Text(AppStrings.appearance, style: _title),
+                          Flexible(flex: 0, child: Text(AppStrings.appearance, maxLines: 1, overflow: TextOverflow.ellipsis, style: _title)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: ValueListenableBuilder<ThemeMode>(
@@ -275,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ]),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _NavPanel(
                         key: const Key('kyc-verification'),
                         icon: Icons.verified_user_rounded,
@@ -284,11 +284,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(color: _statusColor.withOpacity(0.16), borderRadius: BorderRadius.circular(20)),
-                          child: Text(_statusLabel, style: TextStyle(color: _statusColor, fontWeight: FontWeight.w700, fontSize: 12)),
+                          child: Text(_statusLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _statusColor, fontWeight: FontWeight.w700, fontSize: 12)),
                         ),
                         onTap: _openKyc,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _NavPanel(
                         key: const Key('change-password'),
                         icon: Icons.lock_reset_rounded,
@@ -296,14 +296,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: AppStrings.changePassword,
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       OutlinedButton.icon(
                         key: const Key('logout'),
                         onPressed: () => _confirmLogout(context),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
                           side: const BorderSide(color: AppColors.error, width: 1.5),
-                          minimumSize: const Size.fromHeight(46),
+                          minimumSize: const Size.fromHeight(42),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
                         ),
                         icon: const Icon(Icons.logout_rounded, size: 20),
@@ -329,7 +329,7 @@ class _Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),
@@ -346,10 +346,10 @@ class _IconDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 36,
-        height: 36,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: Icon(icon, size: 19, color: Colors.white),
+        child: Icon(icon, size: 17, color: Colors.white),
       );
 }
 
@@ -370,7 +370,7 @@ class _NavPanel extends StatelessWidget {
             _IconDot(icon: icon, color: color),
             const SizedBox(width: 10),
             Expanded(child: Text(title, style: _title)),
-            if (trailing != null) ...[trailing!, const SizedBox(width: 6)],
+            if (trailing != null) ...[Flexible(flex: 0, child: trailing!), const SizedBox(width: 6)],
             Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ]),
         ),
@@ -436,7 +436,7 @@ class _LimitRow extends StatelessWidget {
     final color = empty ? AppColors.error : near ? _amber : base;
     final percent = (period.fraction * 100).round();
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
+      padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
       decoration: BoxDecoration(
         color: AppColors.primaryTint.withOpacity(0.55),
         borderRadius: BorderRadius.circular(14),
@@ -446,7 +446,7 @@ class _LimitRow extends StatelessWidget {
           Expanded(child: Text(title, style: _title.copyWith(fontSize: 14))),
           Text('\$${_short(period.limit)}', style: _title.copyWith(fontSize: 16, fontWeight: FontWeight.w800)),
         ]),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Row(children: [
           Expanded(
             child: ClipRRect(
@@ -462,7 +462,7 @@ class _LimitRow extends StatelessWidget {
           const SizedBox(width: 8),
           Text('$percent%', style: TextStyle(color: color, fontSize: 12.5, fontWeight: FontWeight.w700)),
         ]),
-        const SizedBox(height: 5),
+        const SizedBox(height: 3),
         Row(children: [
           Expanded(
             child: FittedBox(
