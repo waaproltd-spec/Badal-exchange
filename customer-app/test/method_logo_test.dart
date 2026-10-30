@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:badal_exchange_customer/models/payment_method.dart';
 import 'package:badal_exchange_customer/widgets/method_icon.dart';
 import 'package:flutter/material.dart';
@@ -65,6 +67,32 @@ void main() {
     expect(image.image, isA<MemoryImage>(), reason: 'the manager\'s picture, not the asset');
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: Center(child: SizedBox(width: 120, child: MethodLogo(method: 'melbet'))))));
     expect(tester.widget<Image>(find.byType(Image)).image, isA<MemoryImage>());
+  });
+
+  testWidgets('a logo that cannot be read falls back to the logo built into the app', (tester) async {
+    applyPaymentMethodCatalog([
+      {'method': 'melbet', 'label': 'MELBET', 'kind': 'platform', 'color': '#CA8A04', 'initials': 'MB', 'cashdesk': true,
+       'logo': base64Encode(utf8.encode('this is not a picture'))},
+    ]);
+    await tester.pumpWidget(_icon('melbet'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byWidgetPredicate((w) => w is Image && w.image is AssetImage), findsOneWidget);
+    expect(find.text('MB'), findsNothing);
+  });
+
+  test('a logo change in the catalog is noticed (screens rebuild); the same catalog is not', () {
+    final base = {'method': 'melbet', 'label': 'MELBET', 'kind': 'platform', 'color': '#CA8A04', 'initials': 'MB', 'cashdesk': true};
+    applyPaymentMethodCatalog([{...base, 'logo': null}]);
+    final v0 = paymentMethodLogosVersion.value;
+    applyPaymentMethodCatalog([{...base, 'logo': null}]);
+    expect(paymentMethodLogosVersion.value, v0, reason: 'nothing changed');
+    applyPaymentMethodCatalog([{...base, 'logo': _png}]);
+    expect(paymentMethodLogosVersion.value, v0 + 1, reason: 'a manager gave it a logo');
+    applyPaymentMethodCatalog([{...base, 'logo': _png}]);
+    expect(paymentMethodLogosVersion.value, v0 + 1);
+    applyPaymentMethodCatalog([{...base, 'logo': null}]);
+    expect(paymentMethodLogosVersion.value, v0 + 2, reason: 'the logo was taken back');
   });
 
   testWidgets('the method grid shows an added platform\'s logo in the same wide tile as the built-in ones', (tester) async {

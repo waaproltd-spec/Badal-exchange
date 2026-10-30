@@ -246,6 +246,12 @@ check('a built-in platform can be given another logo: shown in the catalog, vali
     const catalog = await rpc(customer, 'payment_method_catalog');
     assert.equal(catalog.find((m) => m.method === 'melbet').logo, PNG);
     assert.equal(catalog.find((m) => m.method === 'onexbet').logo, null, 'the others keep theirs');
+    // Agent App and Customer App see the same logo, and a change reaches both.
+    assert.equal((await platform('melbet')).logo, PNG, 'the Agent App lists it');
+    const JPG = Buffer.concat([Buffer.from('ffd8ffe000104a464946', 'hex'), Buffer.alloc(200, 7)]).toString('base64');
+    await rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: JPG });
+    assert.equal((await platform('melbet')).logo, JPG, 'replaced in the Agent App');
+    assert.equal((await rpc(customer, 'payment_method_catalog')).find((m) => m.method === 'melbet').logo, JPG, 'and in the Customer App');
   } finally {
     const removed = await rpc(manager, 'manage_set_betting_platform_logo', { p_method: 'melbet', p_logo: '' });
     assert.equal(removed.logo, null);

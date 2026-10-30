@@ -89,9 +89,20 @@ Uint8List? _decodeLogo(Object? value) {
 void applyPaymentMethodCatalog(List<dynamic> json) {
   try {
     final list = json.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
-    if (list.isNotEmpty) paymentMethods = list;
+    if (list.isEmpty) return;
+    final changed = _logoSignature(list) != _logoSignature(paymentMethods);
+    paymentMethods = list;
+    // Screens already on show the new logos: the app shell rebuilds when a logo changed.
+    if (changed) paymentMethodLogosVersion.value++;
   } catch (_) {}
 }
+
+/// Counts up whenever a logo in the catalog changed (a manager gave a platform
+/// another logo, or took it back).
+final ValueNotifier<int> paymentMethodLogosVersion = ValueNotifier<int>(0);
+
+String _logoSignature(List<PaymentMethodInfo> list) =>
+    list.map((m) => '${m.id}:${m.logo == null ? 0 : Object.hashAll(m.logo!)}').join('|');
 
 PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
       (m) => m.id == id,

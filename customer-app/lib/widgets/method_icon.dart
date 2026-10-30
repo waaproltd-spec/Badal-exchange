@@ -54,8 +54,10 @@ class MethodIcon extends StatelessWidget {
             fit: BoxFit.contain,
             filterQuality: FilterQuality.medium,
             gaplessPlayback: true,
-            // An unreadable picture falls back to the initials, never an error box.
-            errorBuilder: (_, __, ___) => _InitialsIcon(info: info, size: size),
+            // An unreadable picture falls back to the built-in logo, or the initials: never an error box.
+            errorBuilder: (_, __, ___) => _logos.contains(method)
+                ? Image.asset('assets/methods/$method.png', fit: BoxFit.cover, filterQuality: FilterQuality.medium)
+                : _InitialsIcon(info: info, size: size),
           ),
         ),
       );
@@ -131,10 +133,12 @@ class MethodLogo extends StatelessWidget {
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.medium,
                 gaplessPlayback: true,
-                // An unreadable picture falls back to the initials, never an error box.
-                errorBuilder: (_, __, ___) => LayoutBuilder(
-                  builder: (context, box) => Center(child: _InitialsIcon(info: info, size: box.maxHeight)),
-                ),
+                // An unreadable picture falls back to the built-in logo, or the initials: never an error box.
+                errorBuilder: (_, __, ___) => _logos.contains(method)
+                    ? Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium)
+                    : LayoutBuilder(
+                        builder: (context, box) => Center(child: _InitialsIcon(info: info, size: box.maxHeight)),
+                      ),
               ),
             ),
           ),
