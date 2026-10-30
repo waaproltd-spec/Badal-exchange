@@ -289,6 +289,7 @@ BEGIN
   RETURN private.withdraw_state(u.id) || jsonb_build_object(
     'customer', jsonb_build_object('id', u.id, 'name', u.name, 'phone', u.phone, 'accountId', private.account_code(u.id)),
     'defaults', private.withdraw_settings_json(),
+    'kycApplicationId', (SELECT k.id FROM public.kyc_applications k WHERE k.customer_id = u.id ORDER BY k.submitted_at DESC LIMIT 1),
     'history', COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'orderCode', o.order_code, 'method', o.method, 'amount', private.money(o.amount_cents), 'status', o.status,
         'counted', o.status NOT IN ('failed', 'cancelled', 'expired'), 'createdAt', o.created_at) ORDER BY o.created_at DESC)

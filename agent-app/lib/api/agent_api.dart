@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../models/commission.dart';
 import '../models/deposit_board.dart';
 import '../models/kyc.dart';
+import '../models/withdraw_limits.dart';
 import '../models/withdrawal_verification.dart';
 import '../models/report_overview.dart';
 import '../models/wallet_adjustment.dart';
@@ -99,6 +100,39 @@ class AgentApi {
   /// Admin: approve | reject | resubmit, with a reason.
   Future<void> decideKyc(String id, String decision, String reason) async {
     await _map('manage_decide_kyc', {'p_id': id, 'p_decision': decision, 'p_reason': reason});
+  }
+
+  /// Admin: the default KYC withdrawal limits and the customers with what they withdrew.
+  /// [filter]: all | custom | near | reached | unverified | verified.
+  Future<({WithdrawLimitDefaults defaults, List<LimitCustomer> customers})> getWithdrawLimitCustomers(
+      {String? query, String filter = 'all'}) async {
+    final data = await _map('manage_withdraw_limit_customers', {'p_query': query, 'p_filter': filter});
+    return (
+      defaults: WithdrawLimitDefaults.fromJson((data['settings'] as Map).cast<String, dynamic>()),
+      customers: ((data['customers'] as List?) ?? const [])
+          .map((e) => LimitCustomer.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+    );
+  }
+
+  /// Admin: change the four default limits (dollars).
+  Future<WithdrawLimitDefaults> setWithdrawLimitDefaults(
+          {required String unverifiedDaily, required String unverifiedMonthly, required String verifiedDaily, required String verifiedMonthly}) async =>
+      WithdrawLimitDefaults.fromJson(await _map('manage_set_withdraw_limit_settings', {
+        'p_unverified_daily': unverifiedDaily,
+        'p_unverified_monthly': unverifiedMonthly,
+        'p_verified_daily': verifiedDaily,
+        'p_verified_monthly': verifiedMonthly,
+      }));
+
+  /// Admin: one customer's KYC status, limits, what is left and their withdrawals.
+  Future<CustomerWithdrawLimits> getCustomerWithdrawLimits(String customerId) async =>
+      CustomerWithdrawLimits.fromJson(await _map('manage_customer_withdraw_limits', {'p_customer_id': customerId}));
+
+  /// Admin: a customer's own limits; both null removes them (the defaults apply again).
+  Future<void> setCustomerWithdrawLimits(String customerId, {String? daily, String? monthly, String? note}) async {
+    await _map('manage_set_customer_withdraw_limits',
+        {'p_customer_id': customerId, 'p_daily': daily, 'p_monthly': monthly, 'p_note': note});
   }
 
   /// Admin: accounts waiting for (or given) withdrawal approval.
