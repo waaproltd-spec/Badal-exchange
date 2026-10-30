@@ -326,8 +326,8 @@ class CustomerApi {
 
   /// The name Sahal has for the customer's own Golis / ZAAD / EVC Plus number,
   /// or null when it has none. Throws when Sahal couldn't be asked.
-  Future<String?> getReceiverName(String method) async {
-    final data = await _client.invoke('receiver-name', {'method': method}) as Map<String, dynamic>;
+  Future<String?> getReceiverName(String method, [String? phone]) async {
+    final data = await _client.invoke('receiver-name', {'method': method, if (phone != null) 'phone': phone}) as Map<String, dynamic>;
     final name = (data['name'] as String?)?.trim();
     return data['found'] == true && name != null && name.isNotEmpty ? name : null;
   }

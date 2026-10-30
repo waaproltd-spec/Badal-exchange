@@ -71,7 +71,10 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   /// Another number an admin lets this customer use (loaded once), and the
   /// 9 digits chosen: the registered number unless the customer changes it.
   PaymentNumbers _numbers = PaymentNumbers.none;
-  String? _phoneLocal;
+  late final TextEditingController _phoneController = TextEditingController(text: _ownLocal ?? '');
+
+  /// The 9 digits in the number box, or null while they are not complete.
+  String? get _phoneLocal => _phoneController.text.length == 9 ? _phoneController.text : null;
 
 
   PaymentMethodInfo get _info => widget.option.info;
@@ -83,7 +86,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       c.addListener(() => setState(() {}));
     }
     _api = context.read<CustomerApi>();
-    _phoneLocal = _ownLocal;
+    _phoneController.addListener(() => setState(() {}));
     if (!_info.isPlatform) _loadNumbers();
     _amountController.addListener(_track);
     _accountController.addListener(_track);
@@ -123,6 +126,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     _accountController.dispose();
     _amountController.dispose();
     _codeController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -276,7 +280,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                         method: _info.id,
                         ownLocal: _ownLocal,
                         numbers: _numbers,
-                        onChanged: (v) => setState(() => _phoneLocal = v),
+                        controller: _phoneController,
                       ),
                     ),
                     const SizedBox(width: 12),

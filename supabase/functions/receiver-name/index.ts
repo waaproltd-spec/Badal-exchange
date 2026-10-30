@@ -54,15 +54,19 @@ Deno.serve(async (req) => {
   if (!authorization) return error(401, 'UNAUTHORIZED', 'Sign in first');
 
   let method = '';
+  let phone: string | null = null;
   try {
-    method = String((await req.json())?.method ?? '');
+    const body = await req.json();
+    method = String(body?.method ?? '');
+    // The number the money goes to, when it is not the registered one (the database checks it).
+    phone = body?.phone ? String(body.phone) : null;
   } catch {
     return error(400, 'VALIDATION_ERROR', 'Send {method}');
   }
 
   let checked: { method: string; mobile: string };
   try {
-    checked = await rpc('customer_begin_receiver_lookup', { p_method: method }, authorization);
+    checked = await rpc('customer_begin_receiver_lookup', { p_method: method, p_phone: phone }, authorization);
   } catch (err) {
     const e = err as RpcError;
     return error(e.status ?? 400, e.code ?? 'ERROR', e.message);

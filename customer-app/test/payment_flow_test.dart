@@ -94,7 +94,7 @@ class FakeCustomerApi extends CustomerApi {
 
   /// Sahal's name for the customer's own number.
   @override
-  Future<String?> getReceiverName(String method) async => 'YAASIIN MAXAMED AADAN';
+  Future<String?> getReceiverName(String method, [String? phone]) async => 'YAASIIN MAXAMED AADAN';
 
   /// eDahab earns a bonus; the others (EVC Plus, Golis, ZAAD excluded, the
   /// rest for this test) none.

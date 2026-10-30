@@ -11,16 +11,17 @@ import 'own_phone_box.dart';
 /// The registered number, locked, for everyone -- unless an admin authorized
 /// this customer for the network: then the number can be typed, or picked from
 /// the customer's saved numbers, and the registered number is one tap away.
-/// [onChanged] gets the 9 digits after 252, or null while they are not complete.
+/// The screen owns [controller] (the 9 digits after 252) and sends what it
+/// holds, so what the customer sees in the box is exactly what is used.
 class PayNumberBox extends StatefulWidget {
-  const PayNumberBox({super.key, required this.method, required this.ownLocal, required this.numbers, required this.onChanged, this.fieldKey});
+  const PayNumberBox({super.key, required this.method, required this.ownLocal, required this.numbers, required this.controller, this.fieldKey});
 
   final String method;
 
   /// The registered number's 9 digits; null when it can't be read.
   final String? ownLocal;
   final PaymentNumbers numbers;
-  final ValueChanged<String?> onChanged;
+  final TextEditingController controller;
   final Key? fieldKey;
 
   @override
@@ -28,17 +29,8 @@ class PayNumberBox extends StatefulWidget {
 }
 
 class _PayNumberBoxState extends State<PayNumberBox> {
-  late final TextEditingController _controller = TextEditingController(text: widget.ownLocal ?? '');
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   void _pick(String local) {
-    _controller.value = TextEditingValue(text: local, selection: TextSelection.collapsed(offset: local.length));
-    widget.onChanged(local.length == 9 ? local : null);
+    widget.controller.value = TextEditingValue(text: local, selection: TextSelection.collapsed(offset: local.length));
   }
 
   @override
@@ -73,12 +65,11 @@ class _PayNumberBoxState extends State<PayNumberBox> {
               Expanded(
                 child: TextField(
                   key: widget.fieldKey,
-                  controller: _controller,
+                  controller: widget.controller,
                   keyboardType: TextInputType.phone,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
                   style: AppTextStyles.fieldValue.copyWith(fontWeight: FontWeight.w800),
                   decoration: const InputDecoration(border: InputBorder.none, isDense: true, hintText: '61xxxxxxx'),
-                  onChanged: (v) => widget.onChanged(v.length == 9 ? v : null),
                 ),
               ),
               const SizedBox(width: 10),

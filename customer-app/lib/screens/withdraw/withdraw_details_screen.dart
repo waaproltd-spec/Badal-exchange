@@ -64,12 +64,14 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
   /// Another number an admin lets this customer use (loaded once), and the
   /// 9 digits chosen: the registered number unless the customer changes it.
   PaymentNumbers _numbers = PaymentNumbers.none;
-  String? _phoneLocal;
+  late final TextEditingController _phoneController = TextEditingController(text: _ownLocal ?? '');
+
+  /// The 9 digits in the number box, or null while they are not complete.
+  String? get _phoneLocal => _phoneController.text.length == 9 ? _phoneController.text : null;
 
   @override
   void initState() {
     super.initState();
-    _phoneLocal = _ownLocal;
     _checkAccess();
     _loadLimits();
     if (!_info.isPlatform) _loadNumbers();
@@ -140,6 +142,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
 
   @override
   void dispose() {
+    _phoneController.dispose();
     _identifierController.dispose();
     _amountController.dispose();
     super.dispose();
@@ -314,7 +317,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                         method: widget.method,
                         ownLocal: _ownLocal,
                         numbers: _numbers,
-                        onChanged: (v) => setState(() => _phoneLocal = v),
+                        controller: _phoneController,
                       ),
                     ),
                     const SizedBox(width: 12),

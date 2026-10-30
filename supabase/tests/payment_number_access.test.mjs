@@ -192,3 +192,18 @@ test('another account\'s login number can be used by an authorized customer, for
   const { error: e2 } = await a.c.from('customer_payment_numbers').select('*');
   assert.ok(e2, 'the numbers are not readable');
 });
+
+test('the receiver name is looked up for the number the money goes to: another number only for an authorized customer', async () => {
+  const a = await customer();
+  const other = local();
+  await rejects(rpc(a.c, 'customer_begin_receiver_lookup', { p_method: 'golis', p_phone: `252${other}` }), 'PHONE_NOT_OWN');
+  assert.deepEqual(await rpc(a.c, 'customer_begin_receiver_lookup', { p_method: 'golis', p_phone: `252${a.number}` }),
+    { method: 'golis', mobile: `0${a.number}` }, 'the registered number');
+  assert.deepEqual(await rpc(a.c, 'customer_begin_receiver_lookup', { p_method: 'golis' }),
+    { method: 'golis', mobile: `0${a.number}` }, 'no number given: as before');
+  await grant(a, ['evc_plus']);
+  await rejects(rpc(a.c, 'customer_begin_receiver_lookup', { p_method: 'golis', p_phone: `252${other}` }), 'PHONE_NOT_OWN');
+  await grant(a);
+  assert.deepEqual(await rpc(a.c, 'customer_begin_receiver_lookup', { p_method: 'golis', p_phone: `0${other}` }),
+    { method: 'golis', mobile: `0${other}` });
+});

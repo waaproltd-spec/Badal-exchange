@@ -24,26 +24,35 @@ PaymentNumbers _allowed({List<String> methods = const ['evc_plus', 'golis', 'tel
 class _Api extends CustomerApi {
   _Api(this.numbers) : super(ApiClient());
   final PaymentNumbers numbers;
+  final receiverAsked = <String?>[];
 
   @override
   Future<PaymentNumbers> getPaymentNumbers() async => numbers;
+
+  @override
+  Future<String?> getReceiverName(String method, [String? phone]) async {
+    receiverAsked.add(phone);
+    return 'NAME OF $phone';
+  }
 
   @override
   Future<Quote> createQuote({required String direction, required String method, required String amount}) async => Quote(
         quoteId: 'q1', method: method, direction: direction, amount: amount, rate: 1, fee: '0.00', netAmount: amount, walletDelta: '-$amount');
 }
 
-Future<void> _open(WidgetTester tester, PaymentNumbers numbers, {String method = 'evc_plus'}) async {
+Future<_Api> _open(WidgetTester tester, PaymentNumbers numbers, {String method = 'evc_plus'}) async {
+  final api = _Api(numbers);
   tester.view.physicalSize = const Size(800, 2400);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   AppLanguage.current.value = AppLanguage.english;
   await tester.pumpWidget(Provider<CustomerApi>.value(
-    value: _Api(numbers),
+    value: api,
     child: MaterialApp(home: WithdrawDetailsScreen(method: method, ownPhone: '252610338686', availableBalance: '900.00')),
   ));
   await tester.pump();
   await tester.pump();
+  return api;
 }
 
 void main() {
@@ -114,5 +123,19 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(tester.widget<WithdrawConfirmScreen>(find.byType(WithdrawConfirmScreen)).phoneNumber, '252610338686');
+  });
+
+  testWidgets('a number typed in the box is what the confirmation shows, and the receiver name is asked for that number', (tester) async {
+    final api = await _open(tester, _allowed());
+    await tester.enterText(find.byKey(const Key('withdraw-own-number')), '905999914');
+    await tester.enterText(find.byType(TextFormField).last, '1');
+    await tester.tap(find.byKey(const Key('withdraw-continue')));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+    expect(tester.widget<WithdrawConfirmScreen>(find.byType(WithdrawConfirmScreen)).phoneNumber, '252905999914');
+    expect(find.text('+252 905999914'), findsOneWidget);
+    expect(api.receiverAsked, ['252905999914']);
+    expect(find.text('NAME OF 252905999914'), findsOneWidget);
   });
 }

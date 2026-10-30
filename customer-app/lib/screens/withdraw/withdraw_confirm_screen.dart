@@ -80,7 +80,7 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   Future<void> _loadReceiverName() async {
     setState(() => _checkingReceiver = true);
     try {
-      final name = await context.read<CustomerApi>().getReceiverName(widget.quote.method);
+      final name = await context.read<CustomerApi>().getReceiverName(widget.quote.method, widget.phoneNumber);
       if (mounted) setState(() => _receiverName = name);
     } catch (_) {
       // No name from Sahal right now: the row is left out.
