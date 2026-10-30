@@ -147,7 +147,7 @@ BEGIN
     AND v_day + NEW.amount_cents <= l.verified_daily_cents AND v_month + NEW.amount_cents <= l.verified_monthly_cents;
   IF v_would_pass_kyc THEN
     PERFORM private.raise_api(403, 'WITHDRAWAL_KYC_REQUIRED', format(
-      E'Xadka lacag-bixinta ee aan la xaqiijin waa $%s maalintii iyo $%s bishii (waxaad maanta bixin kartaa ilaa $%s). Fadlan dhammaystir xaqiijinta KYC si aad u bixiso ilaa $%s maalintii iyo $%s bishii.\n'
+      'Xadka lacag-bixinta ee aan la xaqiijin waa $%s maalintii iyo $%s bishii (waxaad maanta bixin kartaa ilaa $%s). Fadlan dhammaystir xaqiijinta KYC si aad u bixiso ilaa $%s maalintii iyo $%s bishii. '
       'Without KYC you can withdraw up to $%s a day and $%s a month (up to $%s more today). Complete KYC verification to withdraw up to $%s a day and $%s a month.',
       private.withdraw_dollars(l.daily_cents), private.withdraw_dollars(l.monthly_cents), private.withdraw_dollars(LEAST(v_left_day, v_left_month)),
       private.withdraw_dollars(l.verified_daily_cents), private.withdraw_dollars(l.verified_monthly_cents),
@@ -155,13 +155,13 @@ BEGIN
       private.withdraw_dollars(l.verified_daily_cents), private.withdraw_dollars(l.verified_monthly_cents)));
   ELSIF NEW.amount_cents > v_left_day THEN
     PERFORM private.raise_api(403, 'WITHDRAWAL_DAILY_LIMIT', format(
-      E'Xadka maalinlaha ah ee lacag-bixinta ($%s) waa gaadhay ama waa dhaafayaa. Maanta waxaad bixin kartaa ilaa $%s oo kale. Wuxuu dib u bilaabmayaa 00:00 (waqtiga Soomaaliya).\n'
+      'Xadka maalinlaha ah ee lacag-bixinta ($%s) waa gaadhay ama waa dhaafayaa. Maanta waxaad bixin kartaa ilaa $%s oo kale. Wuxuu dib u bilaabmayaa 00:00 (waqtiga Soomaaliya). '
       'Daily withdrawal limit ($%s) reached. You can withdraw up to $%s more today. It starts again at 00:00 (Somalia time).',
       private.withdraw_dollars(l.daily_cents), private.withdraw_dollars(LEAST(v_left_day, v_left_month)),
       private.withdraw_dollars(l.daily_cents), private.withdraw_dollars(LEAST(v_left_day, v_left_month))));
   ELSE
     PERFORM private.raise_api(403, 'WITHDRAWAL_MONTHLY_LIMIT', format(
-      E'Xadka bil kasta ee lacag-bixinta ($%s) waa gaadhay ama waa dhaafayaa. Bishan waxaad bixin kartaa ilaa $%s oo kale. Wuxuu dib u bilaabmayaa 1da bisha.\n'
+      'Xadka bil kasta ee lacag-bixinta ($%s) waa gaadhay ama waa dhaafayaa. Bishan waxaad bixin kartaa ilaa $%s oo kale. Wuxuu dib u bilaabmayaa 1da bisha. '
       'Monthly withdrawal limit ($%s) reached. You can withdraw up to $%s more this month. It starts again on the 1st.',
       private.withdraw_dollars(l.monthly_cents), private.withdraw_dollars(v_left_month),
       private.withdraw_dollars(l.monthly_cents), private.withdraw_dollars(v_left_month)));
