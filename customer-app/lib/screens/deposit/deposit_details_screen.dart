@@ -11,6 +11,7 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/payment_errors.dart';
 import '../../utils/formatters.dart';
+import '../../utils/ussd.dart';
 import '../../widgets/flow_header.dart';
 import '../../widgets/own_phone_box.dart';
 import '../../widgets/payment_location_card.dart';
@@ -136,11 +137,11 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   /// carrier's send-money code to the deposit number.
   String? get _ussd {
     final merchant = widget.option.merchantUssd;
-    if (merchant != null) return _amount == null ? null : merchant.replaceAll('{amount}', _amountText);
+    if (merchant != null) return _amount == null ? null : merchant.replaceAll('{amount}', ussdAmount(_amountText));
     final prefix = _sendMoneyUssd[_info.id];
     final to = _localNumber(_payTo);
     if (prefix == null || to == null || _amount == null) return null;
-    return '*$prefix*$to*$_amountText#';
+    return '*$prefix*$to*${ussdAmount(_amountText)}#';
   }
 
   Future<void> _change() async {

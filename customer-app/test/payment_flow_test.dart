@@ -703,6 +703,23 @@ void main() {
       });
     }
 
+    testWidgets('an amount with cents: the code carries them after a star, never a "." (the dialer drops it)', (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option('evc_plus', '*789*090353102*{amount}#'), ownPhone: '252610338686')));
+      await tester.enterText(find.byKey(const Key('deposit-amount')), '57.52');
+      await tester.pump();
+      expect(find.text('*789*090353102*57*52#'), findsOneWidget);
+      expect(find.textContaining('57.52#'), findsNothing);
+    });
+
+    testWidgets('switched off: EVC Plus send-money code carries the cents the same way', (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option('evc_plus', null), ownPhone: '252610338686')));
+      await tester.enterText(find.byKey(const Key('deposit-amount')), '12.5');
+      await tester.pump();
+      expect(find.text('*712*610338686*12*50#'), findsOneWidget);
+    });
+
     testWidgets('switched off: EVC Plus keeps the *712* transfer to the deposit number', (tester) async {
       await _phone(tester);
       await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option('evc_plus', null), ownPhone: '252610338686')));
