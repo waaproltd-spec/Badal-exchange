@@ -115,7 +115,7 @@ test('nothing is sent before a chat is linked; the first /start links, another c
   start(OTHER, 'stranger');
   r = await run();
   assert.equal(r.status, 200);
-  assert.match(sent('sendMessage', CHAT)[0].body.text, /alerts are on/);
+  assert.match(sent('sendMessage', CHAT)[0].body.text, /waa shaqeynayaan/);
   assert.equal(sent('sendMessage', OTHER).length, 0, 'a stranger gets no answer');
   assert.equal(sent('sendMessage').length, 1, 'the earlier withdrawal is not announced');
   const m = (await agent.rpc('manage_withdrawal_alerts')).data;
@@ -140,7 +140,10 @@ test('a new withdrawal is announced once with code, number and exact amount; nev
   const msgs = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(w.orderCode));
   assert.equal(msgs.length, 1, 'announced once');
   const text = msgs[0].body.text;
-  assert.match(text, /Withdrawal waiting/);
+  assert.match(text, /Lacag-bixin ayaa sugaysa/);
+  for (const label of ['Magaca macmiilka', 'Lambarka telefoonka', 'Lambarka macaamilka', 'Lacagta', 'Shirkadda lacagta', 'Xaaladda macaamilka', 'Waqtiga']) {
+    assert.ok(text.includes(label), `${label} is in the message`);
+  }
   assert.match(text, /\$7\.50/);
   assert.ok(text.includes(number));
   assert.ok(!/pin|password|token|secret/i.test(text));
@@ -158,10 +161,11 @@ test('completed: the message turns into "paid" with the reference; failed shows 
   await run();
   const edits = sent('editMessageText', CHAT);
   const paid = edits.find((e) => e.body.text.includes(a.w.orderCode));
-  assert.match(paid.body.text, /Withdrawal paid/);
+  assert.match(paid.body.text, /Lacag-bixinta waa la bixiyay/);
   assert.match(paid.body.text, /Sahal 7509990001/);
   const failed = edits.find((e) => e.body.text.includes(b.w.orderCode));
-  assert.match(failed.body.text, /failed/);
+  assert.match(failed.body.text, /fashilantay/);
+  assert.match(failed.body.text, /Sababta saxda ah ee khaladka/);
   assert.match(failed.body.text, /Number not registered/);
   tg.calls.length = 0;
   await run();
@@ -178,10 +182,10 @@ test('not paid after 30 seconds: one reminder, with why', async (t) => {
   await db.query(`UPDATE orders SET created_at = now() - interval '31 seconds' WHERE id = $1`, [w.id]);
   await run();
   await run();
-  const reminders = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(`${w.orderCode} not paid after`));
+  const reminders = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(`${w.orderCode} lama bixin`));
   assert.equal(reminders.length, 1);
   // Sahal is off here: an agent pays it.
-  assert.match(reminders[0].body.text, /Needs an agent/);
+  assert.match(reminders[0].body.text, /Wakiil ayaa loo baahan yahay/);
 });
 
 test('unresolved for far too long: said once an hour, with why, changing nothing; final orders are not mentioned', async (t) => {
@@ -191,7 +195,7 @@ test('unresolved for far too long: said once an hour, with why, changing nothing
   const before = await wallet();
   await run();
   tg.calls.length = 0;
-  const said = () => sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Still unresolved') && c.body.text.includes(w.orderCode));
+  const said = () => sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Weli lama xalliyin') && c.body.text.includes(w.orderCode));
   await db.query(`UPDATE orders SET created_at = now() - interval '10 minutes' WHERE id = $1`, [w.id]);
   await run();
   assert.equal(said().length, 0, 'not before 15 minutes');
@@ -199,8 +203,8 @@ test('unresolved for far too long: said once an hour, with why, changing nothing
   await run();
   await run();
   assert.equal(said().length, 1, 'once');
-  assert.match(said()[0].body.text, /not paid yet/);
-  assert.match(said()[0].body.text, /never resent or refunded/);
+  assert.match(said()[0].body.text, /weli lama bixin/);
+  assert.match(said()[0].body.text, /lama dirayo mar kale/);
   // Not again within the hour; again after it.
   await run();
   assert.equal(said().length, 1);
@@ -219,7 +223,7 @@ test('unresolved for far too long: said once an hour, with why, changing nothing
   await db.query(`UPDATE orders SET created_at = now() - interval '20 minutes' WHERE id = $1`, [other.w.id]);
   await db.query(`UPDATE orders SET status = 'completed', completed_at = now() WHERE id = $1`, [other.w.id]);
   await run();
-  assert.equal(sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Still unresolved') && c.body.text.includes(other.w.orderCode)).length, 0);
+  assert.equal(sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Weli lama xalliyin') && c.body.text.includes(other.w.orderCode)).length, 0);
 });
 
 test('stuck_reason: the times for each kind of order, and managers can list them', async () => {
@@ -299,7 +303,7 @@ test('the SMS code still not entered after 2 minutes: a clearer alert, once', as
     await run();
     const late = sent('sendMessage', CHAT).filter((c) => /Sahal code not entered for 2 minutes/.test(c.body.text));
     assert.equal(late.length, 1, 'once');
-    assert.match(late[0].body.text, /SMS forwarder did not enter it/);
+    assert.match(late[0].body.text, /SMS forwarder-ku ma gelin/);
     assert.match(late[0].body.text, /Sahal Sign-in/);
   } finally {
     await db.query(`UPDATE merchant_feed_status SET state = $1, result_code = $2, message = $3 WHERE provider = 'golis'`,
@@ -320,7 +324,7 @@ test('a Sahal transfer that matched no withdrawal is reported once', async (t) =
   await run();
   const warn = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(id));
   assert.equal(warn.length, 1);
-  assert.match(warn[0].body.text, /matched no withdrawal/);
+  assert.match(warn[0].body.text, /aan u dhigmin wax lacag-bixin/);
   assert.match(warn[0].body.text, /\$3\.00/);
 });
 
@@ -340,7 +344,9 @@ test('a failed or refused deposit / withdrawal is told once with customer, phone
   const msgs = sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Incident Person'));
   assert.equal(msgs.length, 1, 'told once');
   const text = msgs[0].body.text;
-  for (const part of ['Withdrawal blocked', `252${number}`, 'no order created', '$12.50', 'EVC Plus', 'WITHDRAWAL_PROVIDER_BALANCE', 'balance too low']) {
+  assert.ok(!/pin|password|parol|token|secret/i.test(text), 'no secret in the message');
+  assert.ok(!/(blocked|failed|withdrawal|deposit|customer|amount|provider|error)\b/i.test(text.replace(/<code>[^<]*<\/code>/g, '')), 'no English words outside code');
+  for (const part of ['Lacag-bixin — La xannibay', 'Magaca macmiilka', 'Lambarka telefoonka', `252${number}`, 'Lambarka macaamilka', 'dalab lama sameynin', 'Lacagta: $12.50', 'Shirkadda lacagta: EVC Plus', 'Xaaladda macaamilka', 'Waqtiga', 'Sababta saxda ah ee khaladka', 'Haraaga Sahal kuma filna', 'WITHDRAWAL_PROVIDER_BALANCE']) {
     assert.ok(text.includes(part), `${part} is in the message`);
   }
 });
@@ -367,5 +373,5 @@ test('only managers see or unlink the chat; the worker functions are service-onl
   start(OTHER, 'new_owner');
   tg.calls.length = 0;
   await run();
-  assert.match(sent('sendMessage', OTHER)[0].body.text, /alerts are on/);
+  assert.match(sent('sendMessage', OTHER)[0].body.text, /waa shaqeynayaan/);
 });

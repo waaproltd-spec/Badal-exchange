@@ -3,6 +3,9 @@
 // platform worker secret. A withdrawal not paid after 30 seconds is
 // reminded once with why; Sahal needing a person is said at once.
 //
+// Every message to the admin chat is in Af-Soomaali (provider names such as
+// EVC Plus, eDahab, ZAAD and Golis stay as they are).
+//
 // Alerts only: reads withdrawals and Sahal transfers, sends/edits messages.
 // Nothing here sends money or changes an order, and no PIN, password or
 // login is ever put in a message.
@@ -14,7 +17,14 @@
 // (manage_withdrawal_alerts) so the next /start links.
 //
 // Secret: TELEGRAM_N8N_BOT_TOKEN [, TELEGRAM_API_BASE (tests)]
-const METHOD: Record<string, string> = { evc_plus: 'EVC Plus', golis: 'Golis (Sahal)', telesom: 'ZAAD', edahab: 'eDahab' };
+const METHOD: Record<string, string> = {
+  evc_plus: 'EVC Plus', golis: 'Golis (Sahal)', telesom: 'ZAAD', edahab: 'eDahab',
+  onexbet: '1XBET', melbet: 'MELBET', betwinner: 'BetWinner', winwin: 'WinWin', '888starz': '888STARZ',
+  dbbet: 'DBbet', betjam: 'BetJam', betongame: 'BetOnGame', luckypari: 'LuckyPari', goldpari: 'Goldpari', betandyou: 'Betandyou',
+};
+const STATE_SO: Record<string, string> = {
+  pending: 'sugaysa', processing: 'socda', completed: 'dhammaaday', failed: 'fashilmay', cancelled: 'la joojiyay', expired: 'dhacay',
+};
 
 async function rpc(fn: string, args: Record<string, unknown> = {}) {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -52,60 +62,97 @@ function telegram(token: string) {
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
 
 const STUCK: Record<string, string> = {
-  withdrawal_unresolved: 'not paid yet (see the earlier alert for why); held, never resent or refunded without a result',
-  deposit_processing: 'the deposit is still processing',
-  expiry_not_running: 'unpaid deposit should have expired: check the server jobs',
-  platform_deposit_open: 'platform deposit open for hours: check with the cashier',
+  withdrawal_unresolved: 'weli lama bixin (fiiri digniinta hore si aad u aragto sababta); waa la hayaa, lama dirayo mar kale lamana celinayo ilaa natiijo la helo',
+  deposit_processing: 'dhigashada weli waa socotaa',
+  expiry_not_running: 'dhigasho aan la bixin waa inuu dhacay: hubi shaqooyinka server-ka',
+  platform_deposit_open: 'dhigasho goob-ciyaareed ayaa saacado furan: la xiriir kaashiyaha',
+};
+
+/** Waqtiga Soomaaliya (UTC+3). */
+const when = (iso: unknown) => {
+  const d = new Date(String(iso ?? ''));
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${d.toLocaleString('en-GB', { timeZone: 'Africa/Mogadishu', hour12: false })} (waqtiga Soomaaliya)`;
+};
+
+/** Sababta khaladka, af-Soomaali: by code; the system's own text is only quoted. */
+const WHY: Record<string, string> = {
+  WITHDRAWAL_PROVIDER_BALANCE: 'Haraaga Sahal kuma filna lacagtan, sidaa darteed lacag-bixinta waa la joojiyay. Macmiilka lacag lagama jarin, dalab lama sameynin.',
+  WITHDRAWAL_KYC_REQUIRED: 'Macmiilka KYC ma dhammaystirin oo xadka lacag-bixinta ee aan la xaqiijin wuu dhaafay.',
+  WITHDRAWAL_DAILY_LIMIT: 'Macmiilku wuxuu gaadhay xadka maalinlaha ah ee lacag-bixinta.',
+  WITHDRAWAL_MONTHLY_LIMIT: 'Macmiilku wuxuu gaadhay xadka bil kasta ee lacag-bixinta.',
+  WITHDRAWAL_VERIFICATION_REQUIRED: 'Akoonka weli looma oggolaan lacag-bixinta marka ugu horreysa.',
+  INSUFFICIENT_BALANCE: 'Haraaga boorsada macmiilka kuma filna.',
+  DUPLICATE_WITHDRAWAL: 'Codsi lacag-bixin oo isku mid ah ayaa horey u socday.',
+  NETWORK: 'Xiriirka internetka ama server-ka wuu go\'ay (waqtigii baa dhamaaday).',
+  NETWORK_ERROR: 'Xiriirka internetka ama server-ka wuu go\'ay (waqtigii baa dhamaaday).',
+  ERROR: 'Cilad aan la garanayn ayaa dhacday app-ka dhexdiisa.',
+  ORDER_FAILED: 'Dalabka waa fashilmay; lacagta lama dhiibin ama waa la celiyay.',
+  ORDER_UNVERIFIED: 'Lacagta lama xaqiijin karin (jawaab aan cadayn ayaa la helay); waxba lama kordhin, dib looma dirin.',
+};
+const whyText = (code: unknown, raw: unknown) => {
+  const known = WHY[String(code ?? '')];
+  const detail = String(raw ?? '').trim();
+  const base = known ?? 'Cilad la xiriirta lacag-bixinta/dhigashada; fiiri koodka hoose.';
+  return `${esc(base)}${detail ? `\nQoraalka asalka ah ee nidaamka: <code>${esc(detail)}</code>` : ''}`;
 };
 
 type Order = {
   orderId: string; orderCode: string; method: string; status: string; payout: string; amount: string;
   phone: string | null; customerName: string | null; customerPhone: string | null; reference: string | null;
-  reason: string | null; review: boolean; messageId?: number;
+  reason: string | null; review: boolean; messageId?: number; createdAt?: string;
   delay?: { code: string; note: string | null; seconds: number } | null;
 };
 
 /** Why it still waits (migrations/*_withdrawal_speed.sql, withdrawal_delay). */
 const DELAY: Record<string, string> = {
-  provider_unavailable: 'Sahal is refusing or not answering; it goes out by itself once Sahal works again.',
-  provider_balance: 'Sahal balance is below this amount: top up Sahal; it then goes out by itself.',
-  confirming: 'The transfer is being confirmed. It is never resent: check Sahal before paying by hand.',
-  manual: 'Needs an agent: pay it by hand or reject it (the customer is refunded).',
-  waiting: 'In the queue for Sahal.',
+  provider_unavailable: 'Sahal wuu diidayaa ama ma jawaabayo; si toos ah ayuu u baxayaa marka Sahal shaqeeyo.',
+  provider_balance: 'Haraaga Sahal wuu ka yar yahay lacagtan: Sahal lacag ku shub; kadib si toos ah ayuu u baxayaa.',
+  confirming: 'Wareejinta waa la xaqiijinayaa. Lama dirayo mar kale: Sahal hubi kahor intaadan gacanta ku bixin.',
+  manual: 'Wakiil ayaa loo baahan yahay: gacanta ku bixi ama diid (macmiilka waa la celinayaa).',
+  waiting: 'Sahal ayaa sugaya safka.',
 };
 const delayText = (o: Order) =>
-  o.delay ? `${DELAY[o.delay.code] ?? o.delay.code}${o.delay.note ? `\nSahal said: ${esc(o.delay.note)}` : ''}` : '';
+  o.delay ? `${DELAY[o.delay.code] ?? o.delay.code}${o.delay.note ? `\nSahal wuxuu yiri: ${esc(o.delay.note)}` : ''}` : '';
 
 const SAHAL: Record<string, (s: any) => string> = {
-  code: (s) => `🔐 <b>Sahal needs its SMS code</b>\nOpen the Agent App → Sahal Sign-in and type the code sent to the merchant phone (10 minutes).\nWithdrawals waiting: ${s.waitingCount}`,
-  code_overdue: (s) => `🚨 <b>Sahal code not entered for 2 minutes</b>\nThe SMS forwarder did not enter it. Open the Agent App → Sahal Sign-in and type the code sent to the merchant phone (valid 10 minutes). Deposits keep being read while the old session works; Sahal withdrawals wait.\nWithdrawals waiting: ${s.waitingCount}`,
-  stopped: (s) => `⛔ <b>Sahal sign-in stopped</b>\n${esc(s.message ?? '')}\nOpen the Agent App → Sahal Sign-in → Sign in again.\nWithdrawals waiting: ${s.waitingCount}`,
-  refused: (s) => `⚠️ <b>Sahal refuses transfers</b>\n${esc(s.message ?? '')}\nWithdrawals waiting: ${s.waitingCount}`,
-  unreachable: (s) => `📡 <b>Sahal cannot be reached</b>\n${esc(s.message ?? '')}\nWithdrawals wait and go out by themselves when it answers.`,
-  ok: () => '✅ <b>Sahal works again</b>: waiting withdrawals are being sent.',
+  code: (s) => `🔐 <b>Sahal wuxuu u baahan yahay koodhka SMS-ka</b>\nFur Agent App → Sahal Sign-in oo ku qor koodhka loo diray taleefanka ganacsiga (10 daqiiqo).\nLacag-bixinada sugaya: ${s.waitingCount}`,
+  code_overdue: (s) => `🚨 <b>Koodhka Sahal 2 daqiiqo lama gelin</b>\nSMS forwarder-ku ma gelin. Fur Agent App → Sahal Sign-in oo ku qor koodhka loo diray taleefanka ganacsiga (wuxuu shaqeeyaa 10 daqiiqo). Dhigashooyinka waa la akhriyayaa inta fadhiga hore shaqeynayo; lacag-bixinada Sahal way sugayaan.\nLacag-bixinada sugaya: ${s.waitingCount}`,
+  stopped: (s) => `⛔ <b>Galitaanka Sahal wuu joogsaday</b>\n${esc(s.message ?? '')}\nFur Agent App → Sahal Sign-in → Mar kale gal.\nLacag-bixinada sugaya: ${s.waitingCount}`,
+  refused: (s) => `⚠️ <b>Sahal wuxuu diiday wareejinta</b>\n${esc(s.message ?? '')}\nLacag-bixinada sugaya: ${s.waitingCount}`,
+  unreachable: (s) => `📡 <b>Sahal lama gaadhi karo</b>\n${esc(s.message ?? '')}\nLacag-bixinada way sugayaan oo si toos ah ayay u baxayaan marka Sahal jawaabo.`,
+  ok: () => '✅ <b>Sahal wuu shaqeynayaa mar kale</b>: lacag-bixinada sugaya waa la dirayaa.',
 };
 
 const shownStatus = (o: Order) => o.status + (o.review ? ':review' : '');
 
 function orderText(o: Order) {
   const head = {
-    pending: '💸 <b>Withdrawal waiting</b>',
-    processing: '⏳ <b>Withdrawal being paid</b>',
-    completed: '✅ <b>Withdrawal paid</b>',
-    failed: '❌ <b>Withdrawal failed</b>',
-    cancelled: '❌ <b>Withdrawal cancelled</b>',
-    expired: '❌ <b>Withdrawal expired</b>',
-  }[o.status] ?? `<b>Withdrawal ${esc(o.status)}</b>`;
+    pending: '💸 <b>Lacag-bixin ayaa sugaysa</b>',
+    processing: '⏳ <b>Lacag-bixinta waa la bixinayaa</b>',
+    completed: '✅ <b>Lacag-bixinta waa la bixiyay</b>',
+    failed: '❌ <b>Lacag-bixinta waa fashilantay</b>',
+    cancelled: '❌ <b>Lacag-bixinta waa la joojiyay</b>',
+    expired: '❌ <b>Lacag-bixintii waa dhacday</b>',
+  }[o.status] ?? `<b>Lacag-bixin: ${esc(o.status)}</b>`;
+  const state = {
+    pending: 'Sugaysa', processing: 'La bixinayaa', completed: 'La bixiyay', failed: 'Fashilantay',
+    cancelled: 'La joojiyay', expired: 'Dhacday',
+  }[o.status] ?? o.status;
   const lines = [
     head,
-    `Code: <code>${esc(o.orderCode)}</code>`,
-    `Send: <b>$${esc(o.payout)}</b> by ${esc(METHOD[o.method] ?? o.method)}`,
-    `To: <code>${esc(o.phone)}</code>`,
-    `Customer: ${esc(o.customerName ?? '—')} (${esc(o.customerPhone ?? '')})`,
+    `Magaca macmiilka: ${esc(o.customerName ?? '—')}`,
+    `Lambarka telefoonka: <code>${esc(o.customerPhone ?? '—')}</code>`,
+    `Lambarka macaamilka: <code>${esc(o.orderCode)}</code>`,
+    `Lacagta: <b>$${esc(o.payout)}</b>`,
+    `Shirkadda lacagta: ${esc(METHOD[o.method] ?? o.method)}`,
+    `Loo dirayo: <code>${esc(o.phone ?? '—')}</code>`,
+    `Xaaladda macaamilka: ${esc(state)}`,
+    `Waqtiga: ${esc(when(o.createdAt))}`,
   ];
-  if (o.review) lines.push('⚠️ Held for review: check the payout before anything else.');
-  if (o.status === 'completed') lines.push(`Reference: <code>${esc(o.reference ?? '—')}</code>`);
-  if (o.reason) lines.push(`Reason: ${esc(o.reason)}`);
+  if (o.review) lines.push('⚠️ Waa la hayaa si loo hubiyo: hubi lacag-bixinta kahor wax kale.');
+  if (o.status === 'completed') lines.push(`Tixraaca: <code>${esc(o.reference ?? '—')}</code>`);
+  if (o.reason) lines.push(`Sababta saxda ah ee khaladka: ${whyText(o.status === 'failed' ? 'ORDER_FAILED' : null, o.reason)}`);
   return lines.join('\n');
 }
 
@@ -127,7 +174,7 @@ async function run() {
     if (!ok) continue; // not the agent's chat: no answer
     await tg('sendMessage', {
       chat_id: msg.chat.id,
-      text: 'Badal Exchange withdrawal alerts are on for this chat. New withdrawals will appear here.',
+      text: 'Digniinaha lacag-bixinta ee Badal Exchange waa shaqeynayaan wada-hadalkan. Lacag-bixinada cusub halkan ayay ka muuqan doonaan.',
     });
   }
   await rpc('withdrawal_alerts_report', { p_offset: offset });
@@ -146,7 +193,7 @@ async function run() {
     await tg('editMessageText', { chat_id: chat, message_id: o.messageId, text: orderText(o), parse_mode: 'HTML' });
     if (o.review) {
       await tg('sendMessage', { chat_id: chat, reply_to_message_id: o.messageId,
-        text: `⚠️ ${o.orderCode}: the payout result is unclear. Check the wallet history before paying again.` });
+        text: `⚠️ ${o.orderCode}: natiijada lacag-bixinta ma cada. Hubi taariikhda boorsada kahor intaadan mar kale bixin.` });
     }
     await rpc('withdrawal_alerts_sent', { p_kind: 'changed', p_id: o.orderId, p_status: shownStatus(o) });
     sent++;
@@ -154,14 +201,14 @@ async function run() {
   for (const o of (todo.remind ?? []) as Order[]) {
     await tg('sendMessage', { chat_id: chat, reply_to_message_id: o.messageId,
       parse_mode: 'HTML',
-      text: `⏰ <b>${esc(o.orderCode)} not paid after ${esc(o.delay?.seconds ?? 30)} s</b>: $${esc(o.payout)} to <code>${esc(o.phone)}</code>.\n${delayText(o)}` });
+      text: `⏰ <b>${esc(o.orderCode)} lama bixin ${esc(o.delay?.seconds ?? 30)} ilbiriqsi kadib</b>: $${esc(o.payout)} loo dirayo <code>${esc(o.phone)}</code>.\n${delayText(o)}` });
     await rpc('withdrawal_alerts_sent', { p_kind: 'remind', p_id: o.orderId });
     sent++;
   }
   for (const t of todo.strays ?? []) {
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
-      text: `⚠️ <b>Sahal transfer matched no withdrawal</b>\n$${esc(t.amount)} to <code>${esc(t.receiver)}</code>\n` +
-        `Sahal ref: <code>${esc(t.transactionId)}</code>\nCheck the amount and number (or a second payment).` });
+      text: `⚠️ <b>Wareejin Sahal ah oo aan u dhigmin wax lacag-bixin ah</b>\n$${esc(t.amount)} loo diray <code>${esc(t.receiver)}</code>\n` +
+        `Tixraaca Sahal: <code>${esc(t.transactionId)}</code>\nHubi lacagta iyo lambarka (ama lacag labaad oo la bixiyay).` });
     await rpc('withdrawal_alerts_sent', { p_kind: 'stray', p_id: t.id });
     sent++;
   }
@@ -170,14 +217,21 @@ async function run() {
   const incidents: any[] = (await rpc('payment_incidents_todo')) ?? [];
   for (const i of incidents) {
     const icon = i.kind === 'blocked' ? '🚫' : '❌';
-    const what = i.kind === 'blocked' ? 'blocked' : i.kind === 'unverified' ? 'unverified' : 'failed';
+    const what = i.kind === 'blocked' ? 'La xannibay' : i.kind === 'unverified' ? 'Lama xaqiijin' : 'Fashilmay';
+    const noMoney = i.direction === 'deposit'
+      ? 'lacag lama kordhin boorsada macmiilka'
+      : 'macmiilka lacag lagama jarin';
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
-      text: `${icon} <b>${i.direction === 'deposit' ? 'Deposit' : 'Withdrawal'} ${what}</b>\n` +
-        `Customer: ${esc(i.customerName ?? '-')} <code>${esc(i.customerPhone ?? '-')}</code>\n` +
-        `Transaction: <code>${esc(i.orderCode ?? 'no order created')}</code>\n` +
-        `Amount: $${esc(i.amount ?? '-')}\nProvider: ${esc(METHOD[i.method] ?? i.method ?? '-')}\n` +
-        `Status: ${what} (nothing was credited or taken)\nTime: ${esc(i.at)}\n` +
-        `Error: <code>${esc(i.code ?? '-')}</code> ${esc(i.error ?? '')}` });
+      text: `${icon} <b>${i.direction === 'deposit' ? 'Dhigasho' : 'Lacag-bixin'} — ${what}</b>\n` +
+        `Magaca macmiilka: ${esc(i.customerName ?? '—')}\n` +
+        `Lambarka telefoonka: <code>${esc(i.customerPhone ?? '—')}</code>\n` +
+        `Lambarka macaamilka: <code>${esc(i.orderCode ?? 'dalab lama sameynin')}</code>\n` +
+        `Lacagta: $${esc(i.amount ?? '—')}\n` +
+        `Shirkadda lacagta: ${esc(METHOD[i.method] ?? i.method ?? '—')}\n` +
+        `Xaaladda macaamilka: ${what} (${noMoney})\n` +
+        `Waqtiga: ${esc(when(i.at))}\n` +
+        `Sababta saxda ah ee khaladka: ${whyText(i.code, i.error)}\n` +
+        `Koodhka khaladka: <code>${esc(i.code ?? '—')}</code>` });
     sent++;
   }
   if (incidents.length > 0) await rpc('payment_incidents_sent', { p_ids: incidents.map((i) => i.id) });
@@ -191,18 +245,18 @@ async function run() {
   const stuck: any[] = (await rpc('stuck_orders_todo')) ?? [];
   if (stuck.length > 0) {
     const lines = stuck.map((o) =>
-      `• <code>${esc(o.orderCode)}</code> ${esc(o.direction)} ${esc(METHOD[o.method] ?? o.method)} $${esc(o.amount)} ` +
-      `${esc(o.status)} for ${esc(o.hours)} h: ${esc(STUCK[o.reason] ?? STUCK.withdrawal_unresolved)}`);
+      `• <code>${esc(o.orderCode)}</code> ${o.direction === 'deposit' ? 'dhigasho' : 'lacag-bixin'} ${esc(METHOD[o.method] ?? o.method)} $${esc(o.amount)} ` +
+      `${esc(STATE_SO[o.status] ?? o.status)} ${esc(o.hours)} saacadood: ${esc(STUCK[o.reason] ?? STUCK.withdrawal_unresolved)}`);
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
-      text: `⏳ <b>Still unresolved</b> (this alert changes nothing: no resend, no refund)\n${lines.join('\n')}` });
+      text: `⏳ <b>Weli lama xalliyin</b> (digniintan waxba ma beddelayso: lacag dib looma dirayo, lamana celinayo)\n${lines.join('\n')}` });
     await rpc('stuck_orders_sent', { p_ids: stuck.map((o) => o.orderId) });
     sent++;
   }
   const s = todo.summary;
   if (s) {
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
-      text: `📊 <b>Withdrawals ${esc(s.day)}</b>\nPaid: ${s.paidCount} ($${esc(s.paidTotal)})\n` +
-        `Failed/cancelled: ${s.failedCount}\nStill waiting: ${s.waitingCount} ($${esc(s.waitingTotal)})` });
+      text: `📊 <b>Lacag-bixinada ${esc(s.day)}</b>\nLa bixiyay: ${s.paidCount} ($${esc(s.paidTotal)})\n` +
+        `Fashilmay/la joojiyay: ${s.failedCount}\nWeli sugaya: ${s.waitingCount} ($${esc(s.waitingTotal)})` });
     await rpc('withdrawal_alerts_sent', { p_kind: 'summary', p_id: null, p_day: s.day });
     sent++;
   }
