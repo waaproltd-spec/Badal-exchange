@@ -459,3 +459,8 @@ verify_jwt = false
 enabled = true
 # The function checks the caller itself (session_can_manage).
 verify_jwt = false
+
+[functions.support-bot]
+enabled = true
+# Telegram calls it without a Supabase token; it checks Telegram's webhook secret itself.
+verify_jwt = false

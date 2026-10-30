@@ -97,6 +97,8 @@ jobs:
           supabase functions deploy golis-merchant --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Withdrawal alerts on Telegram (TELEGRAM_N8N_BOT_TOKEN); woken by the database with the worker secret.
           supabase functions deploy withdrawal-alerts --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          # BADAL AI Support Bot on Telegram (SUPPORT_BOT_TOKEN, SUPPORT_BOT_WEBHOOK_SECRET, ANTHROPIC_API_KEY); Telegram calls it with its webhook secret.
+          supabase functions deploy support-bot --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           supabase functions deploy sahal-sms-hook --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Verifies a new Sahal merchant login saved in the Admin Dashboard; woken by the database with the worker secret.
           supabase functions deploy sahal-account-verify --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
