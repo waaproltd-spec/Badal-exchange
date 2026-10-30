@@ -239,11 +239,11 @@ test('Sahal: listed once it has been read, with the same statuses; the total add
     assert.equal(body.totalCompanies, before.totalCompanies + 1);
     assert.equal(body.companies.length, before.companies.length + 1);
 
-    // Under the low-balance level ($50 unless set otherwise).
+    // Under the low-balance level ($5 unless set otherwise).
     await db.query('DELETE FROM sahal_balances');
-    await worker.rpc('sahal_balance_record', { p_balance: 20 });
+    await worker.rpc('sahal_balance_record', { p_balance: 3 });
     body = await rpc();
-    assert.deepEqual([company(body, 'sahal').status, company(body, 'sahal').balance], ['low', '20.00']);
+    assert.deepEqual([company(body, 'sahal').status, company(body, 'sahal').balance], ['low', '3.00']);
     assert.equal(body.lowCount, before.lowCount + 1);
 
     // An old read: last known, stale, left out of the total.
@@ -257,12 +257,12 @@ test('Sahal: listed once it has been read, with the same statuses; the total add
     await worker.rpc('sahal_balance_record', { p_balance: null, p_error: 'Sahal did not return a balance' });
     body = await rpc();
     const off = company(body, 'sahal');
-    assert.deepEqual([off.status, off.balance, off.lastError], ['offline', '20.00', 'Sahal did not return a balance']);
+    assert.deepEqual([off.status, off.balance, off.lastError], ['offline', '3.00', 'Sahal did not return a balance']);
 
     // Its detail: the recent reads, newest first; other companies still answer as before.
     const detail = (await manager.c.rpc('agent_company_detail', { p_method: 'sahal' })).data;
     assert.equal(detail.method, 'sahal');
-    assert.deepEqual(detail.checks.map((c) => [c.ok, c.balance]), [[false, null], [true, '20.00']]);
+    assert.deepEqual(detail.checks.map((c) => [c.ok, c.balance]), [[false, null], [true, '3.00']]);
     assert.deepEqual([detail.movements, detail.orders], [[], []]);
     const other = (await manager.c.rpc('agent_company_detail', { p_method: '888starz' })).data;
     assert.equal(other.method, '888starz');
