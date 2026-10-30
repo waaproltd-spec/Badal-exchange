@@ -53,4 +53,39 @@ void main() {
     await tester.pumpWidget(_icon('melbet'));
     expect(find.byKey(const Key('logo-melbet')), findsOneWidget);
   });
+
+  testWidgets('the method grid shows an added platform\'s logo in the same wide tile as the built-in ones', (tester) async {
+    applyPaymentMethodCatalog([
+      {'method': 'wowbet', 'label': 'wowbet', 'kind': 'platform', 'color': '#6B7280', 'initials': 'WO', 'cashdesk': true, 'logo': _png},
+      {'method': 'melbet', 'label': 'MELBET', 'kind': 'platform', 'color': '#CA8A04', 'initials': 'MB', 'cashdesk': true},
+    ]);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 240,
+            child: Column(mainAxisSize: MainAxisSize.min, children: const [
+              MethodLogo(method: 'wowbet'),
+              MethodLogo(method: 'melbet'),
+            ]),
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+    final added = tester.getSize(find.byKey(const Key('wide-logo-wowbet')));
+    final builtIn = tester.getSize(find.byKey(const Key('wide-logo-melbet')));
+    expect(added, builtIn, reason: 'the same 2.4 : 1 tile');
+    expect(added.width / added.height, closeTo(MethodLogo.aspect, 0.01));
+    expect(find.text('WO'), findsNothing);
+  });
+
+  testWidgets('an added platform without a logo keeps its initials in the grid', (tester) async {
+    applyPaymentMethodCatalog([
+      {'method': 'wowbet', 'label': 'wowbet', 'kind': 'platform', 'color': '#6B7280', 'initials': 'WO', 'cashdesk': true},
+    ]);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SizedBox(width: 240, height: 100, child: MethodLogo(method: 'wowbet')))));
+    expect(find.text('WO'), findsOneWidget);
+    expect(find.byKey(const Key('wide-logo-wowbet')), findsNothing);
+  });
 }

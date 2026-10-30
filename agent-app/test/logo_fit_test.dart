@@ -27,39 +27,44 @@ Future<List<int>> _size(Uint8List png) async {
 
 void main() {
   const red = ui.Color(0xFFFF0000);
+  final (tw, th) = logoSizes.first;
 
-  testWidgets('a wide logo is fitted whole into a square: both ends kept, white above and below', (tester) async {
+  testWidgets('a wide logo is fitted whole into the 2.4 : 1 tile: both ends kept, white above and below', (tester) async {
     await tester.runAsync(() async {
-      final out = await squareLogo(await _solid(400, 100, red));
+      final out = await fitLogo(await _solid(400, 100, red));
       expect(out, isNotNull);
-      expect(await _size(out!), [logoSize, logoSize]);
-      final mid = logoSize ~/ 2;
-      // The very left and right edges of the logo are there (nothing cut off)...
-      expect(await _pixel(out, 1, mid), [255, 0, 0, 255]);
-      expect(await _pixel(out, logoSize - 2, mid), [255, 0, 0, 255]);
+      expect(await _size(out!), [tw, th], reason: 'the 2.4 : 1 tile');
+      expect(tw / th, closeTo(2.4, 0.01));
+      final midY = th ~/ 2;
+      // A 4 : 1 logo is wider than the tile: both ends are there, nothing cut off...
+      expect(await _pixel(out, 1, midY), [255, 0, 0, 255]);
+      expect(await _pixel(out, tw - 2, midY), [255, 0, 0, 255]);
       // ...and the space above and below is white.
-      expect(await _pixel(out, mid, 2), [255, 255, 255, 255]);
-      expect(await _pixel(out, mid, logoSize - 3), [255, 255, 255, 255]);
+      expect(await _pixel(out, tw ~/ 2, 2), [255, 255, 255, 255]);
+      expect(await _pixel(out, tw ~/ 2, th - 3), [255, 255, 255, 255]);
     });
   });
 
   testWidgets('a tall logo is fitted whole too: white at the sides', (tester) async {
     await tester.runAsync(() async {
-      final out = await squareLogo(await _solid(100, 400, red));
-      expect(await _size(out!), [logoSize, logoSize]);
-      final mid = logoSize ~/ 2;
-      expect(await _pixel(out, mid, 1), [255, 0, 0, 255]);
-      expect(await _pixel(out, mid, logoSize - 2), [255, 0, 0, 255]);
-      expect(await _pixel(out, 2, mid), [255, 255, 255, 255]);
+      final out = await fitLogo(await _solid(100, 400, red));
+      expect(await _size(out!), [tw, th]);
+      final midX = tw ~/ 2;
+      // Top and bottom of the tall logo are there; white at the sides.
+      expect(await _pixel(out, midX, 1), [255, 0, 0, 255]);
+      expect(await _pixel(out, midX, th - 2), [255, 0, 0, 255]);
+      expect(await _pixel(out, 2, th ~/ 2), [255, 255, 255, 255]);
+      expect(await _pixel(out, tw - 3, th ~/ 2), [255, 255, 255, 255]);
     });
   });
 
-  testWidgets('a square logo fills the square; something that is not a picture gives null', (tester) async {
+  testWidgets('a logo of the tile\'s own shape fills it; something that is not a picture gives null', (tester) async {
     await tester.runAsync(() async {
-      final out = await squareLogo(await _solid(300, 300, red));
-      expect(await _pixel(out!, 1, 1), [255, 0, 0, 255]);
-      expect(await _pixel(out, logoSize - 2, logoSize - 2), [255, 0, 0, 255]);
-      expect(await squareLogo(Uint8List.fromList([1, 2, 3])), isNull);
+      final out = await fitLogo(await _solid(600, 250, red));
+      expect(await _size(out!), [tw, th]);
+      expect(await _pixel(out, 1, 1), [255, 0, 0, 255]);
+      expect(await _pixel(out, tw - 2, th - 2), [255, 0, 0, 255]);
+      expect(await fitLogo(Uint8List.fromList([1, 2, 3])), isNull);
     });
   });
 }

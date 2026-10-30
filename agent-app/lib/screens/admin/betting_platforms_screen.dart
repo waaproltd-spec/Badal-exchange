@@ -520,7 +520,7 @@ class _RemoveDialogState extends State<_RemoveDialog> {
   }
 }
 
-/// A platform's logo on a rounded tile.
+/// A platform's logo, whole, on a white 2.4 : 1 tile (as the Customer App shows it).
 class _LogoImage extends StatelessWidget {
   final Uint8List logo;
   final double size;
@@ -529,14 +529,17 @@ class _LogoImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(size * 0.24),
-      child: Image.memory(
-        logo,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => TintedIcon(icon: Icons.image_not_supported_outlined, color: AppColors.textFaint, size: size),
+      borderRadius: BorderRadius.circular(size * 0.2),
+      child: ColoredBox(
+        color: Colors.white,
+        child: Image.memory(
+          logo,
+          width: size * 2.4,
+          height: size,
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => TintedIcon(icon: Icons.image_not_supported_outlined, color: AppColors.textFaint, size: size),
+        ),
       ),
     );
   }
