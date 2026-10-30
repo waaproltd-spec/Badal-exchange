@@ -21,35 +21,39 @@ class DepositResultScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
+      // Until the server says completed or failed: the verifying screen with
+      // the clock and steps. The screen then changes by itself.
       body: SafeArea(
-        child: TransactionResultView(
-          order: order,
-          extra: order.methodInfo.isPlatform && !order.methodInfo.usesWithdrawalCode && order.depositCode != null
-              ? AppCard(
-                  color: AppColors.primaryTint,
-                  child: Column(
-                    children: [
-                      Text(
-                        AppStrings.depositCodeLabel.toUpperCase(),
-                        style: AppTextStyles.label.copyWith(color: AppColors.primaryDark),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        order.depositCode!,
-                        style: AppTextStyles.amountLarge.copyWith(color: AppColors.primaryDark, letterSpacing: 4),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        AppStrings.depositCodeUse(order.methodLabel),
-                        style: AppTextStyles.muted,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                )
-              : null,
-        ),
+        child: FollowOrder(order: order, builder: (context, order) => _body(order)),
       ),
     );
+  }
+
+  Widget _body(Order order) {
+    final Widget? code = order.methodInfo.isPlatform && !order.methodInfo.usesWithdrawalCode && order.depositCode != null
+        ? AppCard(
+            color: AppColors.primaryTint,
+            child: Column(
+              children: [
+                Text(
+                  AppStrings.depositCodeLabel.toUpperCase(),
+                  style: AppTextStyles.label.copyWith(color: AppColors.primaryDark),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  order.depositCode!,
+                  style: AppTextStyles.amountLarge.copyWith(color: AppColors.primaryDark, letterSpacing: 4),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  AppStrings.depositCodeUse(order.methodLabel),
+                  style: AppTextStyles.muted,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        : null;
+    return order.isFinal ? TransactionResultView(order: order, extra: code) : DepositVerifyingView(order: order, extra: code);
   }
 }

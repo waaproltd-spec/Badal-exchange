@@ -9,6 +9,8 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import 'sahal_account_screen.dart';
+import 'sahal_forwarder_card.dart';
 
 /// Sahal merchant sign-in: Sahal texts an access code to the merchant phone
 /// at every sign-in, so a manager starts it here and types the code in.
@@ -98,6 +100,22 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _StatusCard(status: s),
+                const SizedBox(height: 10),
+                ConsoleCard(
+                  key: const Key('feed-open-account'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SahalAccountScreen())),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.manage_accounts_rounded),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text('Sahal account & session: login, change account, test connection, reconnect',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                ),
                 if (s.needsCode) ...[
                   const GroupLabel('Access code'),
                   ConsoleCard(
@@ -105,7 +123,9 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const Text('Sahal sent an SMS to the merchant phone (252905999914): '
-                            '"-SAHAL SERVICES- Access code is ……". Type that code here within 10 minutes.'),
+                            '"-SAHAL SERVICES- Access code is ……". The Agent App on that phone enters it by '
+                            'itself when SMS permission is allowed. If it does not, type it here within 10 minutes.',
+                            key: Key('feed-auto-hint')),
                         const SizedBox(height: 12),
                         TextField(
                           key: const Key('feed-code'),
@@ -160,6 +180,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedPayouts(v)),
                   ),
                 ),
+                const SahalForwarderCard(),
                 const SizedBox(height: 16),
                 const Text(
                   'Each sign-in makes Sahal text a new code, so sign in only when needed: the server keeps the '

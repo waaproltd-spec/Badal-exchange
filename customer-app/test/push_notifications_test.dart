@@ -197,16 +197,13 @@ void main() {
     expect(find.text('EXo1'), findsOneWidget);
   });
 
-  testWidgets('arriving while the app is open: a banner with the Somali text; View opens the order', (tester) async {
+  testWidgets('a withdrawal arriving while the app is open: no banner (the app already shows it)', (tester) async {
     await _start(tester);
     _platform.foreground.add(_withdrawDone);
-    await tester.pumpAndSettle(); // the banner has slid in
-    expect(find.text('Withdrawal-kaagu wuu guulaystay'), findsOneWidget);
-    expect(find.text('Lacagtaada si guul leh ayaa loo bixiyey.'), findsOneWidget);
-    await tester.tap(find.text('View'));
     await tester.pumpAndSettle();
-    expect(_api.opened, ['o1']);
-    expect(find.byKey(const Key('transaction-details')), findsOneWidget);
+    expect(find.text('Withdrawal-kaagu wuu guulaystay'), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(_api.opened, isEmpty);
   });
 
   test('only our two notifications are understood', () {

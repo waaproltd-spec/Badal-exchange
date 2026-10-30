@@ -19,6 +19,8 @@ dependencies:
   permission_handler: ^11.3.1
   shared_preferences: ^2.2.3
   url_launcher: ^6.3.1
+  # A logo for a betting platform added here (picked from the gallery, shrunk to 128 x 128).
+  image_picker: 1.1.2
   supabase_flutter: ^2.15.4
 
 # supabase_flutter pulls in app_links; 6.4.1+ reads `flutter.compileSdkVersion`

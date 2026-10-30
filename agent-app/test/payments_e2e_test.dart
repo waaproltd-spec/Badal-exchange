@@ -102,6 +102,9 @@ void main() {
     api = AgentApi(client: ApiClient(supabase: newClient()));
     await api.login(phone: '252610000002', password: 'ChangeMe123!');
     await api.loadMethodCatalog();
+    // The backend suites may leave Sahal payouts on, and Sahal then takes the
+    // EVC Plus withdrawals these tests pay from the phone.
+    await api.setSahalPayouts(mode: 'off');
     bridge = SmsBridge(api: api, logStore: SmsLogStore.instance);
     device = FakePayoutDevice();
     runner = PayoutRunner(api: api, device: device);
@@ -116,6 +119,7 @@ void main() {
       final w = wallets.first; // the oldest: the one withdrawals are paid from
       await api.savePayoutWallet(id: w.id, method: method, phoneNumber: w.phoneNumber, deviceId: payoutPhone, simSlot: slot);
       await api.setPayoutWalletPin(w.id, pin);
+      if (method == 'evc_plus') await api.setPayoutWalletUssdCode(w.id, '5566');
     }
     // Withdrawals left waiting by earlier runs would be swept too.
     for (final o in await api.getPayoutQueue()) {

@@ -9,6 +9,7 @@ import '../../widgets/console_widgets.dart';
 import '../../widgets/order_card.dart';
 import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
+import 'agent_reports_screens.dart';
 
 /// Responsibilities an agent can hold. 'manage_settings' grants every
 /// management function (this Account → Admin features area).
@@ -48,7 +49,20 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Agents')),
+      appBar: AppBar(title: const Text('Agents'), actions: [
+        IconButton(
+          key: const Key('agents-performance'),
+          tooltip: 'Performance',
+          icon: const Icon(Icons.bar_chart_rounded),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AgentPerformanceScreen())),
+        ),
+        IconButton(
+          key: const Key('agents-login-history'),
+          tooltip: 'Login history',
+          icon: const Icon(Icons.manage_history_rounded),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginHistoryScreen())),
+        ),
+      ]),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
         icon: const Icon(Icons.person_add_alt_1_rounded),
@@ -108,6 +122,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
   late AgentListItem _agent = widget.agent;
   List<AgentDevice>? _devices;
   List<Order>? _orders;
+  List<LoginEvent>? _logins;
   bool _busy = false;
 
   @override
@@ -119,11 +134,13 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
   Future<void> _loadExtras() async {
     final api = context.read<Session>().api;
     try {
-      final results = await Future.wait([api.getAgentDevices(_agent.id), api.getAgentOrders(_agent.id)]);
+      final results = await Future.wait(
+          [api.getAgentDevices(_agent.id), api.getAgentOrders(_agent.id), api.getLoginHistory(userId: _agent.id)]);
       if (!mounted) return;
       setState(() {
         _devices = results[0] as List<AgentDevice>;
         _orders = results[1] as List<Order>;
+        _logins = results[2] as List<LoginEvent>;
       });
     } catch (e) {
       if (mounted) showSnack(context, errorText(e, 'Could not load devices and orders.'));
@@ -164,6 +181,41 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
     await _act(() => api.setAgentEnabled(_agent.id, enable), enable ? 'Agent enabled.' : 'Agent disabled.');
   }
 
+  Future<void> _edit() async {
+    final result = await showDialog<(String, String)>(
+      context: context,
+      builder: (_) => _EditAgentDialog(name: _agent.name, phone: _agent.phone ?? ''),
+    );
+    if (result == null || !mounted) return;
+    final api = context.read<Session>().api;
+    await _act(() => api.updateAgent(_agent.id, name: result.$1, phone: result.$2), 'Details saved.');
+  }
+
+  Future<void> _resetPassword() async {
+    final password = await showDialog<String>(context: context, builder: (_) => _NewPasswordDialog(name: _agent.name));
+    if (password == null || !mounted) return;
+    final api = context.read<Session>().api;
+    await _act(() => api.resetAgentPassword(_agent.id, password),
+        'Password reset. ${_agent.name} is signed out and logs in with the new password.');
+    _loadExtras();
+  }
+
+  Future<void> _delete() async {
+    final reason = await showDialog<String>(context: context, builder: (_) => _DeleteAgentDialog(name: _agent.name));
+    if (reason == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await context.read<Session>().api.deleteAgent(_agent.id, reason);
+      if (!mounted) return;
+      showSnack(context, '${_agent.name} deleted.');
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e, 'Could not delete the agent.'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _editResponsibilities() async {
     final selected = await showDialog<List<String>>(
       context: context,
@@ -190,8 +242,36 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                 InfoRow('Status', a.isActive ? 'Active' : 'Disabled'),
                 InfoRow('Created', a.createdAt != null ? formatDate(a.createdAt!) : '—'),
                 InfoRow('Last seen', a.lastSeenAt != null ? formatDateTime(a.lastSeenAt!) : '—'),
+                InfoRow('Last login', a.lastLoginAt != null ? formatDateTime(a.lastLoginAt!) : '—'),
+                InfoRow('Access', a.fullAdmin ? 'Full administrator' : 'Agent'),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                key: const Key('agent-edit'),
+                onPressed: _busy ? null : _edit,
+                icon: const Icon(Icons.edit_rounded),
+                label: const Text('Edit'),
+              ),
+              OutlinedButton.icon(
+                key: const Key('agent-reset-password'),
+                onPressed: _busy ? null : _resetPassword,
+                icon: const Icon(Icons.lock_reset_rounded),
+                label: const Text('Reset password'),
+              ),
+              OutlinedButton.icon(
+                key: const Key('agent-delete'),
+                onPressed: _busy ? null : _delete,
+                style: OutlinedButton.styleFrom(foregroundColor: AppColors.statusFailed),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Delete'),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Row(
@@ -263,6 +343,24 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
               ),
               const SizedBox(height: 8),
             ],
+          const GroupLabel('Logins and security'),
+          if (_logins == null)
+            const Padding(padding: EdgeInsets.all(16), child: LoadingView())
+          else if (_logins!.isEmpty)
+            const ConsoleCard(child: Text('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary)))
+          else
+            ConsoleCard(
+              key: const Key('agent-logins'),
+              child: Column(children: [
+                for (final e in _logins!.take(20))
+                  InfoRow(
+                    e.action == 'user.login' || e.actorName == null || e.actorName == a.name
+                        ? e.label
+                        : '${e.label} by ${e.actorName}',
+                    formatDateTime(e.createdAt),
+                  ),
+              ]),
+            ),
           const GroupLabel('Orders processed'),
           if (_orders == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
@@ -401,6 +499,168 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Name and phone (the phone is the login).
+class _EditAgentDialog extends StatefulWidget {
+  final String name;
+  final String phone;
+  const _EditAgentDialog({required this.name, required this.phone});
+
+  @override
+  State<_EditAgentDialog> createState() => _EditAgentDialogState();
+}
+
+class _EditAgentDialogState extends State<_EditAgentDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final _name = TextEditingController(text: widget.name);
+  late final _phone = TextEditingController(text: widget.phone);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit agent'),
+      content: Form(
+        key: _formKey,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextFormField(
+            key: const Key('edit-name'),
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Full name'),
+            validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+          ),
+          TextFormField(
+            key: const Key('edit-phone'),
+            controller: _phone,
+            decoration: const InputDecoration(labelText: 'Phone number (their login)'),
+            keyboardType: TextInputType.phone,
+            validator: (v) => (v ?? '').trim().length < 6 ? 'Enter a phone number' : null,
+          ),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) Navigator.of(context).pop((_name.text.trim(), _phone.text.trim()));
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+/// A new password, typed twice; it is never shown again.
+class _NewPasswordDialog extends StatefulWidget {
+  final String name;
+  const _NewPasswordDialog({required this.name});
+
+  @override
+  State<_NewPasswordDialog> createState() => _NewPasswordDialogState();
+}
+
+class _NewPasswordDialogState extends State<_NewPasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reset password'),
+      content: Form(
+        key: _formKey,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('${widget.name} is signed out everywhere and logs in with the new password.',
+              style: const TextStyle(color: AppColors.textSecondary)),
+          TextFormField(
+            key: const Key('new-agent-password'),
+            controller: _password,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'New password'),
+            validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+          ),
+          TextFormField(
+            key: const Key('confirm-agent-password'),
+            controller: _confirm,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Confirm new password'),
+            validator: (v) => v != _password.text ? 'Passwords do not match' : null,
+          ),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) Navigator.of(context).pop(_password.text);
+          },
+          child: const Text('Reset'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Deleting asks why; the account is kept for its history.
+class _DeleteAgentDialog extends StatefulWidget {
+  final String name;
+  const _DeleteAgentDialog({required this.name});
+
+  @override
+  State<_DeleteAgentDialog> createState() => _DeleteAgentDialogState();
+}
+
+class _DeleteAgentDialogState extends State<_DeleteAgentDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Delete ${widget.name}?'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text(
+          'They are signed out and can no longer log in. Their orders and the audit trail are kept.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        TextField(
+          key: const Key('delete-reason'),
+          controller: _reason,
+          decoration: const InputDecoration(labelText: 'Reason'),
+          onChanged: (_) => setState(() {}),
+        ),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
+          onPressed: _reason.text.trim().length < 3 ? null : () => Navigator.of(context).pop(_reason.text.trim()),
+          child: const Text('Delete'),
+        ),
+      ],
     );
   }
 }

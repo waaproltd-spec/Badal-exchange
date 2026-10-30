@@ -5,6 +5,7 @@ import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../l10n/strings.dart';
 import '../models/payment_method.dart';
+import '../models/payment_numbers.dart';
 import '../theme/colors.dart';
 import '../theme/theme_mode.dart';
 import '../theme/text_styles.dart';
@@ -14,15 +15,17 @@ enum PaymentDirection { deposit, withdraw }
 
 /// Opens the Deposit or Withdraw method picker as a bottom sheet over the
 /// (dimmed) wallet dashboard. Returns the chosen method, or null when the
-/// sheet is closed.
-Future<PaymentMethodOption?> showPaymentMethodSheet(BuildContext context, PaymentDirection direction) {
+/// sheet is closed. [ownPhone] (the customer's registered number) limits
+/// mobile money to that number's own network: deposits come from it and
+/// withdrawals go to it.
+Future<PaymentMethodOption?> showPaymentMethodSheet(BuildContext context, PaymentDirection direction, {String? ownPhone}) {
   return showModalBottomSheet<PaymentMethodOption>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withOpacity(0.45),
-    builder: (_) => PaymentMethodSheet(direction: direction),
+    builder: (_) => PaymentMethodSheet(direction: direction, ownPhone: ownPhone),
   );
 }
 
@@ -32,9 +35,12 @@ Future<PaymentMethodOption?> showPaymentMethodSheet(BuildContext context, Paymen
 /// on small phones. Only if even the shortest cards can't fit (a very small
 /// screen or many methods) does the grid scroll.
 class PaymentMethodSheet extends StatefulWidget {
-  const PaymentMethodSheet({super.key, required this.direction});
+  const PaymentMethodSheet({super.key, required this.direction, this.ownPhone});
 
   final PaymentDirection direction;
+
+  /// The customer's registered number: a deposit shows only its network's mobile money.
+  final String? ownPhone;
 
   @override
   State<PaymentMethodSheet> createState() => _PaymentMethodSheetState();
@@ -55,10 +61,21 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
   @override
   void initState() {
     super.initState();
-    _future = context.read<CustomerApi>().getPaymentMethods();
+    _future = _load();
   }
 
-  void _retry() => setState(() => _future = context.read<CustomerApi>().getPaymentMethods());
+  void _retry() => setState(() => _future = _load());
+
+  /// The customer's numbers: when an admin authorized another number on a
+  /// network, that network is offered too (never fails: none if unreadable).
+  PaymentNumbers _numbers = PaymentNumbers.none;
+
+  Future<List<PaymentMethodOption>> _load() async {
+    final api = context.read<CustomerApi>();
+    final results = await Future.wait<Object>([api.getPaymentMethods(), api.getPaymentNumbers()]);
+    _numbers = results[1] as PaymentNumbers;
+    return results[0] as List<PaymentMethodOption>;
+  }
 
   bool get _isDeposit => widget.direction == PaymentDirection.deposit;
 
@@ -162,7 +179,7 @@ class _PaymentMethodSheetState extends State<PaymentMethodSheet> {
                     ),
                   );
                 }
-                final methods = snapshot.data!;
+                final methods = depositMethodsFor(snapshot.data!, widget.ownPhone, numbers: _numbers);
                 if (methods.isEmpty) return SizedBox(height: placeholder, child: _Message(text: AppStrings.noMethods));
                 final (cardHeight, gridHeight) = layout(methods.length);
                 return SizedBox(

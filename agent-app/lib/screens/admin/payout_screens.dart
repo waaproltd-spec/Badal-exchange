@@ -468,6 +468,7 @@ class PayoutSettingsScreen extends StatefulWidget {
 class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
   List<PayoutWallet>? _wallets;
   List<AutoPayoutSettings> _safeguards = const [];
+  SahalPayoutSettings? _sahal;
   String? _error;
   PayoutDeviceStatus? _device;
   bool _auto = false;
@@ -486,10 +487,13 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       final g = await _session.api.getAutoPayouts();
       final d = await _session.payouts.device.status();
       final auto = await PayoutRunner.autoPayoutEnabled();
+      // An older server has no Sahal payouts: the rest still shows.
+      final sahal = await _session.api.getSahalPayouts().then<SahalPayoutSettings?>((v) => v).catchError((_) => null);
       if (mounted) {
         setState(() {
           _wallets = w;
           _safeguards = g;
+          _sahal = sahal;
           _device = d;
           _auto = auto;
           _error = null;
@@ -600,6 +604,31 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       ),
     );
     if (ok == true) await _run(() => _session.api.setPayoutWalletPin(w.id, pin.text.trim()), 'PIN saved.');
+  }
+
+  Future<void> _setCode(PayoutWallet w) async {
+    final code = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('*736 code for ${w.methodLabel} ${w.phoneNumber}'),
+        content: TextField(
+          controller: code,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: '*736 code',
+            helperText: 'The last number in *736*number*amount*CODE#. The PIN is typed after it.\nStored encrypted; it is never shown again.',
+            helperMaxLines: 3,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save code')),
+        ],
+      ),
+    );
+    if (ok == true) await _run(() => _session.api.setPayoutWalletUssdCode(w.id, code.text.trim()), '*736 code saved.');
   }
 
   Future<void> _setMode(AutoPayoutSettings g, String mode) async {
@@ -749,6 +778,134 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     );
   }
 
+  Future<void> _setSahalMode(SahalPayoutSettings g, String mode) async {
+    if (mode == g.mode) return;
+    if (mode == 'test' &&
+        !await _confirm(
+          context,
+          'Test Sahal payouts',
+          'Only a \$${g.testAmount} Golis, ZAAD or EVC Plus withdrawal is sent automatically from Sahal in Test mode. '
+              'While Sahal is on, the phone does not pay EVC Plus withdrawals.\n\n'
+              '1. Set that method\'s minimum withdrawal to \$${g.testAmount} (Payment methods).\n'
+              '2. From a customer account, withdraw \$${g.testAmount} by Golis, ZAAD or EVC Plus.\n'
+              '3. The server sends it from Sahal within a minute and completes the withdrawal.\n\n'
+              'Then switch to Live. Stop paying these withdrawals by hand from then on.',
+          'Start test',
+        )) {
+      return;
+    }
+    if (mode == 'live' &&
+        !await _confirm(
+          context,
+          'Go live?',
+          'Every Golis, ZAAD and EVC Plus withdrawal will be sent automatically from Sahal, up to \$${g.dailyLimit} a day. '
+              'Do not also pay them by hand.',
+          'Go live',
+        )) {
+      return;
+    }
+    await _run(() => _session.api.setSahalPayouts(mode: mode),
+        mode == 'off' ? 'Sahal payouts off.' : (mode == 'test' ? 'Test mode on.' : 'Live.'));
+  }
+
+  Future<void> _editSahalLimit(SahalPayoutSettings g) async {
+    final daily = TextEditingController(text: g.dailyLimit);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Sahal daily limit'),
+        content: TextField(
+          key: const Key('sahal-daily'),
+          controller: daily,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Daily limit (\$)', helperText: 'Sent from Sahal per day'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final d = double.tryParse(daily.text.trim());
+    if (d == null) {
+      if (mounted) showSnack(context, 'Enter the amount in dollars.');
+      return;
+    }
+    await _run(() => _session.api.setSahalPayouts(dailyLimit: d), 'Limit saved.');
+  }
+
+  Widget _sahalCard(SahalPayoutSettings g) {
+    final help = switch (g.mode) {
+      'live' => 'Every Golis, ZAAD and EVC Plus withdrawal is sent from Sahal by the server, within the daily limit.',
+      'test' => 'Only a \$${g.testAmount} Golis, ZAAD or EVC Plus withdrawal is sent from Sahal.',
+      _ => 'Nothing is sent from Sahal automatically.',
+    };
+    String label(String s) => switch (s) {
+          'success' => 'sent',
+          'failed' => 'refused',
+          'ambiguous' => 'unclear: check Sahal',
+          _ => 'sending',
+        };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ConsoleCard(
+        key: const Key('auto-sahal'),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Text('Golis, ZAAD & EVC Plus (from Sahal)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            key: const Key('auto-mode-sahal'),
+            segments: const [
+              ButtonSegment(value: 'off', label: Text('Off')),
+              ButtonSegment(value: 'test', label: Text('Test')),
+              ButtonSegment(value: 'live', label: Text('Live')),
+            ],
+            selected: {g.mode},
+            onSelectionChanged: (v) => _setSahalMode(g, v.first),
+          ),
+          const SizedBox(height: 6),
+          Text(help, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+          InfoRow('Sent today', '\$${g.paidToday} of \$${g.dailyLimit}'),
+          InfoRow(
+            'Sahal balance',
+            g.balance == null
+                ? 'Not read yet'
+                : '\$${g.balance}${g.balanceSeenAt != null ? ' (${formatDateTime(g.balanceSeenAt!)})' : ''}',
+          ),
+          if (g.needsBalance > 0)
+            Text('${g.needsBalance} waiting for more Sahal balance: top up Sahal and they go out.',
+                key: const Key('sahal-needs-balance'), style: const TextStyle(color: AppColors.statusPending)),
+          InfoRow('\$${g.testAmount} test', g.testPassed ? 'Passed' : 'Not passed yet'),
+          if (g.waiting > 0) InfoRow('Waiting', '${g.waiting}'),
+          if (g.unclear > 0)
+            Text('${g.unclear} transfer(s) without a clear answer: check them in Sahal before paying again.',
+                style: const TextStyle(color: AppColors.statusFailed)),
+          for (final a in g.recent.take(5)) ...[
+            Text(
+              '${a.orderCode} · \$${a.amount} → ${a.receiver}${a.receiverName != null ? ' (${a.receiverName})' : ''} · '
+              '${label(a.status)}${a.transferId != null ? ' · ${a.transferId}' : ''}'
+              '${a.status == 'failed' && a.reply != null ? ' · ${a.reply}' : ''}',
+              style: const TextStyle(fontSize: 12.5),
+            ),
+            if (a.canRetry)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: Key('sahal-retry-${a.orderCode}'),
+                  onPressed: () => _run(() => _session.api.retrySahalPayout(a.orderId!), '${a.orderCode} will be sent again.'),
+                  child: const Text('Try again'),
+                ),
+              ),
+          ],
+          Wrap(spacing: 8, children: [
+            TextButton(onPressed: () => _editSahalLimit(g), child: const Text('Limit')),
+          ]),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _setAuto(bool on) async {
     await PayoutRunner.setAutoPayoutEnabled(on);
     final deviceId = _session.deviceId;
@@ -800,6 +957,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                   ),
                   const GroupLabel('Automatic payout safeguards'),
                   for (final g in _safeguards) _safeguardCard(g),
+                  if (_sahal != null) _sahalCard(_sahal!),
                   Row(children: [
                     const Expanded(child: GroupLabel('Badal Exchange wallets')),
                     TextButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('Add')),
@@ -815,9 +973,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: ConsoleCard(
                         onTap: () => _edit(w),
-                        child: Row(children: [
-                          Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               Text('${_methodLabel(w.method)} ${w.phoneNumber}', style: const TextStyle(fontWeight: FontWeight.w700)),
                               Text(
                                 [
@@ -829,12 +985,17 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                                 ].join(' • '),
                                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                               ),
+                              Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
+                                TextButton(onPressed: () => _setPin(w), child: Text(w.hasPin ? 'Change PIN' : 'Set PIN')),
+                                if (w.method == 'evc_plus')
+                                  TextButton(
+                                      onPressed: () => _setCode(w), child: Text(w.hasCode ? 'Change *736 code' : 'Set *736 code')),
+                                IconButton(
+                                    tooltip: 'Remove',
+                                    onPressed: () => _delete(w),
+                                    icon: const Icon(Icons.delete_outline_rounded)),
+                              ]),
                             ]),
-                          ),
-                          TextButton(onPressed: () => _setPin(w), child: Text(w.hasPin ? 'Change PIN' : 'Set PIN')),
-                          IconButton(
-                              tooltip: 'Remove', onPressed: () => _delete(w), icon: const Icon(Icons.delete_outline_rounded)),
-                        ]),
                       ),
                     ),
                 ],

@@ -1,5 +1,7 @@
 /// Models for the Agent App console endpoints (backend/src/routes/agentConsole.ts).
 /// Money stays a decimal string, exactly as the backend formats it.
+import 'dart:convert';
+import 'dart:typed_data';
 
 DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
 String _money(dynamic v) => (v ?? '0.00').toString();
@@ -321,6 +323,10 @@ class HomeAd {
   final String title;
   final String? body;
   final String? imageUrl;
+
+  /// The picture a manager chose from the gallery (JPEG, PNG or WebP), kept
+  /// with the ad; null when the ad has none (it may still have an old link).
+  final Uint8List? image;
   final String? linkUrl;
   final bool enabled;
   final int sortOrder;
@@ -330,6 +336,7 @@ class HomeAd {
     required this.title,
     this.body,
     this.imageUrl,
+    this.image,
     this.linkUrl,
     required this.enabled,
     required this.sortOrder,
@@ -340,10 +347,20 @@ class HomeAd {
         title: j['title'] as String? ?? '',
         body: j['body'] as String?,
         imageUrl: j['imageUrl'] as String?,
+        image: _adImage(j['image']),
         linkUrl: j['linkUrl'] as String?,
         enabled: j['enabled'] as bool? ?? true,
         sortOrder: j['sortOrder'] as int? ?? 0,
       );
+}
+
+Uint8List? _adImage(Object? v) {
+  if (v is! String || v.isEmpty) return null;
+  try {
+    return base64Decode(v);
+  } catch (_) {
+    return null;
+  }
 }
 
 class DepositNumber {
@@ -383,5 +400,304 @@ class AppNotification {
         title: j['title'] as String? ?? '',
         body: j['body'] as String? ?? '',
         createdAt: _date(j['createdAt']) ?? DateTime.now(),
+      );
+}
+
+/// The redesigned Dashboard's extra figures (agent_dashboard_stats): money
+/// per status, customers, the 7 days ending [day], and the top services
+/// (betting-platform orders) and mobile-money deposit methods of those days.
+class DashboardStats {
+  final DateTime day;
+  final Map<String, String> amounts;
+  final int totalCustomers;
+  final int newCustomersThisMonth;
+  final List<DashboardDay> days;
+  final List<DashboardTop> topServices;
+  final List<DashboardTop> topDepositMethods;
+
+  const DashboardStats({
+    required this.day,
+    required this.amounts,
+    required this.totalCustomers,
+    required this.newCustomersThisMonth,
+    required this.days,
+    required this.topServices,
+    required this.topDepositMethods,
+  });
+
+  String amount(String key) => amounts[key] ?? '0.00';
+
+  factory DashboardStats.fromJson(Map<String, dynamic> j) => DashboardStats(
+        day: DateTime.parse(j['day'] as String),
+        amounts: {
+          for (final e in ((j['amounts'] as Map?) ?? const {}).entries) e.key as String: '${e.value}',
+        },
+        totalCustomers: (j['totalCustomers'] as num?)?.toInt() ?? 0,
+        newCustomersThisMonth: (j['newCustomersThisMonth'] as num?)?.toInt() ?? 0,
+        days: ((j['days'] as List?) ?? const []).map((e) => DashboardDay.fromJson(e as Map<String, dynamic>)).toList(),
+        topServices:
+            ((j['topServices'] as List?) ?? const []).map((e) => DashboardTop.fromJson(e as Map<String, dynamic>)).toList(),
+        topDepositMethods: ((j['topDepositMethods'] as List?) ?? const [])
+            .map((e) => DashboardTop.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class DashboardDay {
+  final DateTime day;
+  final int deposits;
+  final int withdrawals;
+  final int orders;
+
+  const DashboardDay({required this.day, required this.deposits, required this.withdrawals, required this.orders});
+
+  factory DashboardDay.fromJson(Map<String, dynamic> j) => DashboardDay(
+        day: DateTime.parse(j['day'] as String),
+        deposits: (j['deposits'] as num?)?.toInt() ?? 0,
+        withdrawals: (j['withdrawals'] as num?)?.toInt() ?? 0,
+        orders: (j['orders'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// One row of a top list: a method, how many, and how much.
+class DashboardTop {
+  final String method;
+  final String label;
+  final int count;
+  final String amount;
+
+  const DashboardTop({required this.method, required this.label, required this.count, required this.amount});
+
+  factory DashboardTop.fromJson(Map<String, dynamic> j) => DashboardTop(
+        method: j['method'] as String? ?? '',
+        label: j['label'] as String? ?? '',
+        count: ((j['orders'] ?? j['count']) as num?)?.toInt() ?? 0,
+        amount: '${j['amount'] ?? '0.00'}',
+      );
+}
+
+/// Users screen counts (agent_customer_overview): all-time totals, and the
+/// customers who joined between [from] and [to].
+class CustomerOverview {
+  final int total;
+  final int active;
+  final int blocked;
+  final int joined;
+
+  const CustomerOverview({required this.total, required this.active, required this.blocked, required this.joined});
+
+  factory CustomerOverview.fromJson(Map<String, dynamic> j) => CustomerOverview(
+        total: (j['total'] as num?)?.toInt() ?? 0,
+        active: (j['active'] as num?)?.toInt() ?? 0,
+        blocked: (j['blocked'] as num?)?.toInt() ?? 0,
+        joined: (j['new'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// One customer's withdrawal bonus, as a manager sees it (manage_customer_bonus).
+class CustomerBonus {
+  final String balance;
+
+  /// The rate they earn now: "1%"; "0%" when off.
+  final String rate;
+  final String totalEarned;
+  final bool enabled;
+
+  /// Their own rate in basis points (50, 100, 150, 200), or null for the default.
+  final int? customRateBp;
+  final int defaultRateBp;
+
+  /// The bonus for everyone; when off nobody earns, whatever is set here.
+  final bool programmeOn;
+  final List<CustomerBonusEntry> entries;
+
+  const CustomerBonus({
+    required this.balance,
+    required this.rate,
+    required this.totalEarned,
+    required this.enabled,
+    required this.customRateBp,
+    required this.defaultRateBp,
+    required this.programmeOn,
+    required this.entries,
+  });
+
+  int get rateBp => customRateBp ?? defaultRateBp;
+
+  factory CustomerBonus.fromJson(Map<String, dynamic> j) => CustomerBonus(
+        balance: j['balance'] as String? ?? '0.00',
+        rate: j['rate'] as String? ?? '0%',
+        totalEarned: j['totalEarned'] as String? ?? '0.00',
+        enabled: j['enabled'] as bool? ?? true,
+        customRateBp: (j['customRateBp'] as num?)?.toInt(),
+        defaultRateBp: (j['defaultRateBp'] as num?)?.toInt() ?? 100,
+        programmeOn: j['programmeOn'] as bool? ?? false,
+        entries: [
+          for (final e in (j['entries'] as List? ?? const [])) CustomerBonusEntry.fromJson(e as Map<String, dynamic>),
+        ],
+      );
+}
+
+class CustomerBonusEntry {
+  /// 'earned' or 'moved'.
+  final String kind;
+
+  /// Exact, possibly a fraction of a cent ("0.006").
+  final String amount;
+  final DateTime createdAt;
+  final String? rate;
+  final String? orderCode;
+
+  /// The order it was earned on: amount, 'deposit' or 'withdraw', method.
+  final String? withdrawal;
+  final String? direction;
+  final String? methodLabel;
+
+  /// Moved entries: the cents credited to the main wallet.
+  final String? movedToMain;
+
+  /// The Bonus screen's history, across customers.
+  final String? customerName;
+  final String? customerPhone;
+
+  /// Why it is less than the rate gives ("Daily bonus limit reached").
+  final String? note;
+
+  const CustomerBonusEntry({
+    required this.kind,
+    required this.amount,
+    required this.createdAt,
+    this.rate,
+    this.orderCode,
+    this.withdrawal,
+    this.direction,
+    this.methodLabel,
+    this.movedToMain,
+    this.customerName,
+    this.customerPhone,
+    this.note,
+  });
+
+  bool get earned => kind == 'earned';
+
+  factory CustomerBonusEntry.fromJson(Map<String, dynamic> j) => CustomerBonusEntry(
+        kind: j['kind'] as String,
+        amount: j['amount'] as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+        rate: j['rate'] as String?,
+        orderCode: j['orderCode'] as String?,
+        withdrawal: (j['orderAmount'] ?? j['withdrawal']) as String?,
+        direction: j['direction'] as String?,
+        methodLabel: j['methodLabel'] as String?,
+        movedToMain: j['movedToMain'] as String?,
+        customerName: j['customerName'] as String?,
+        customerPhone: j['customerPhone'] as String?,
+        note: j['note'] as String?,
+      );
+}
+
+/// One transaction type a manager can make earn a bonus: a direction of a method.
+class BonusType {
+  final String direction;
+  final String method;
+  final String label;
+
+  /// 'mobile_money' or 'platform'.
+  final String kind;
+  final bool eligible;
+
+  const BonusType({
+    required this.direction,
+    required this.method,
+    required this.label,
+    required this.kind,
+    required this.eligible,
+  });
+
+  String get key => '$direction:$method';
+
+  factory BonusType.fromJson(Map<String, dynamic> j) => BonusType(
+        direction: j['direction'] as String,
+        method: j['method'] as String,
+        label: j['label'] as String? ?? j['method'] as String,
+        kind: j['kind'] as String? ?? 'mobile_money',
+        eligible: j['eligible'] as bool? ?? false,
+      );
+}
+
+class BonusCustomer {
+  final String id;
+  final String name;
+  final String phone;
+  final String balance;
+  final String totalEarned;
+  final String rate;
+
+  const BonusCustomer({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.balance,
+    required this.totalEarned,
+    required this.rate,
+  });
+
+  factory BonusCustomer.fromJson(Map<String, dynamic> j) => BonusCustomer(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '',
+        phone: j['phone'] as String? ?? '',
+        balance: j['balance'] as String? ?? '0.00',
+        totalEarned: j['totalEarned'] as String? ?? '0.00',
+        rate: j['rate'] as String? ?? '0%',
+      );
+}
+
+/// The Bonus screen (manage_bonus_settings).
+class BonusSettings {
+  final bool enabled;
+  final int defaultRateBp;
+  final List<BonusType> types;
+  final String totalBalance;
+  final String totalEarned;
+
+  /// Moved by customers to their main wallets ("used").
+  final String totalMoved;
+
+  /// Per customer; null: no limit.
+  final String? dailyLimit;
+  final String? monthlyLimit;
+  final List<BonusCustomer> customers;
+  final List<CustomerBonusEntry> history;
+
+  const BonusSettings({
+    required this.enabled,
+    required this.defaultRateBp,
+    required this.types,
+    required this.totalBalance,
+    required this.totalEarned,
+    required this.customers,
+    required this.history,
+    this.totalMoved = '0.00',
+    this.dailyLimit,
+    this.monthlyLimit,
+  });
+
+  List<String> get eligibleKeys => [for (final t in types) if (t.eligible) t.key];
+
+  factory BonusSettings.fromJson(Map<String, dynamic> j) => BonusSettings(
+        enabled: j['enabled'] as bool? ?? false,
+        defaultRateBp: (j['defaultRateBp'] as num?)?.toInt() ?? 100,
+        types: [for (final t in (j['types'] as List? ?? const [])) BonusType.fromJson(t as Map<String, dynamic>)],
+        totalBalance: j['totalBalance'] as String? ?? '0.00',
+        totalEarned: j['totalEarned'] as String? ?? '0.00',
+        totalMoved: j['totalMoved'] as String? ?? '0.00',
+        dailyLimit: j['dailyLimit'] as String?,
+        monthlyLimit: j['monthlyLimit'] as String?,
+        customers: [
+          for (final c in (j['customers'] as List? ?? const [])) BonusCustomer.fromJson(c as Map<String, dynamic>),
+        ],
+        history: [
+          for (final e in (j['history'] as List? ?? const [])) CustomerBonusEntry.fromJson(e as Map<String, dynamic>),
+        ],
       );
 }

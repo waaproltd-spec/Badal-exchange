@@ -11,11 +11,14 @@ import '../utils/formatters.dart';
 /// beside it, then the promo code and Wallet ID side by side. Every value comes
 /// from the backend (customer_wallet); nothing is made up on the device.
 class WalletCard extends StatelessWidget {
-  const WalletCard({super.key, required this.wallet, this.loading = false, this.error});
+  const WalletCard({super.key, required this.wallet, this.loading = false, this.error, this.onBonusTap});
 
   final Wallet? wallet;
   final bool loading;
   final String? error;
+
+  /// Opens the Bonus wallet.
+  final VoidCallback? onBonusTap;
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +97,7 @@ class WalletCard extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 12),
                 color: Colors.white.withOpacity(0.18),
               ),
-              _BonusTile(value: Formatters.money(wallet?.bonusBalance ?? '0.00')),
+              _BonusTile(value: Formatters.money(wallet?.bonusBalance ?? '0.00'), onTap: onBonusTap),
             ],
           ),
           const SizedBox(height: 12),
@@ -215,15 +218,19 @@ class _CodeTile extends StatelessWidget {
 
 /// The bonus balance, compact, beside the available balance.
 class _BonusTile extends StatelessWidget {
-  const _BonusTile({required this.value});
+  const _BonusTile({required this.value, this.onTap});
 
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
+    return InkWell(
       key: const Key('bonus'),
-      constraints: const BoxConstraints(maxWidth: 120),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 130),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -248,7 +255,9 @@ class _BonusTile extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null) Icon(Icons.chevron_right_rounded, size: 18, color: Colors.white.withOpacity(0.7)),
         ],
+      ),
       ),
     );
   }

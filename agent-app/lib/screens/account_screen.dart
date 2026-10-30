@@ -11,11 +11,18 @@ import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
+import 'admin/betting_platforms_screen.dart';
+import 'admin/bonus_settings_screen.dart';
 import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
 import 'admin/merchant_feed_screen.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
+import 'admin/kyc_screens.dart';
+import 'admin/payment_numbers_screens.dart';
+import 'admin/withdraw_limits_screens.dart';
+import 'admin/unconfirmed_deposits_screen.dart';
+import 'admin/withdrawal_verification_screen.dart';
 import 'manage_screens.dart';
 import 'wallet/wallet_history_screen.dart';
 
@@ -134,6 +141,36 @@ class _AccountScreenState extends State<AccountScreen> {
               onTap: () => _open(const MethodSettingsListScreen(title: 'Withdrawal Limits', focus: MethodFocus.limits)),
             ),
             _NavRow(
+              icon: Icons.speed_rounded,
+              color: AppColors.purple,
+              label: 'Customer Withdrawal Limits (KYC)',
+              onTap: () => _open(const WithdrawLimitsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sim_card_rounded,
+              color: AppColors.statusCompleted,
+              label: 'Customer Payment Numbers',
+              onTap: () => _open(const PaymentNumbersScreen()),
+            ),
+            _NavRow(
+              icon: Icons.badge_rounded,
+              color: AppColors.statusProcessing,
+              label: 'KYC Management',
+              onTap: () => _open(const KycManagementScreen()),
+            ),
+            _NavRow(
+              icon: Icons.verified_user_rounded,
+              color: AppColors.statusFailed,
+              label: 'Withdrawal Verification',
+              onTap: () => _open(const WithdrawalVerificationScreen()),
+            ),
+            _NavRow(
+              icon: Icons.hourglass_top_rounded,
+              color: AppColors.statusPending,
+              label: 'Unconfirmed Deposits',
+              onTap: () => _open(const UnconfirmedDepositsScreen()),
+            ),
+            _NavRow(
               icon: Icons.phone_in_talk_rounded,
               color: AppColors.statusCompleted,
               label: 'Manage Deposit Numbers',
@@ -144,6 +181,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusProcessing,
               label: 'Payment Integrations',
               onTap: () => _open(const IntegrationsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sports_soccer_rounded,
+              color: AppColors.accentOrange,
+              label: 'Betting Platforms',
+              onTap: () => _open(const BettingPlatformsScreen()),
             ),
             _NavRow(
               icon: Icons.storefront_rounded,
@@ -188,6 +231,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.accentOrange,
               label: 'Promo Code',
               onTap: () => _open(const PromoCodeScreen()),
+            ),
+            _NavRow(
+              icon: Icons.redeem_rounded,
+              color: AppColors.statusCompleted,
+              label: 'Bonus',
+              onTap: () => _open(const BonusSettingsScreen()),
             ),
             _NavRow(
               icon: Icons.account_balance_wallet_rounded,

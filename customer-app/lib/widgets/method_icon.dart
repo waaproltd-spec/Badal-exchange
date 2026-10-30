@@ -18,7 +18,8 @@ class MethodIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (_logos.contains(method)) {
+    // A logo a manager gave the platform replaces the one built into the app.
+    if (_logos.contains(method) && methodInfo(method).logo == null) {
       return Container(
         key: Key('logo-$method'),
         width: size,
@@ -34,6 +35,46 @@ class MethodIcon extends StatelessWidget {
       );
     }
     final info = methodInfo(method);
+    if (info.logo != null) {
+      // A platform added in the Agent App, with the logo a manager gave it.
+      return Container(
+        key: Key('logo-$method'),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(size * 0.24),
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.24),
+          child: Image.memory(
+            info.logo!,
+            // The whole logo, on white: a wide or square logo is never cropped.
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.medium,
+            gaplessPlayback: true,
+            // An unreadable picture falls back to the built-in logo, or the initials: never an error box.
+            errorBuilder: (_, __, ___) => _logos.contains(method)
+                ? Image.asset('assets/methods/$method.png', fit: BoxFit.cover, filterQuality: FilterQuality.medium)
+                : _InitialsIcon(info: info, size: size),
+          ),
+        ),
+      );
+    }
+    return _InitialsIcon(info: info, size: size);
+  }
+}
+
+/// The method's initials on a tile in its color.
+class _InitialsIcon extends StatelessWidget {
+  const _InitialsIcon({required this.info, required this.size});
+
+  final PaymentMethodInfo info;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: size,
       height: size,
@@ -69,7 +110,40 @@ class MethodLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!_logos.contains(method)) {
+    if (!_logos.contains(method) || methodInfo(method).logo != null) {
+      final info = methodInfo(method);
+      if (info.logo != null) {
+        // A platform added in the Agent App: its logo in the same wide tile
+        // as the built-in ones, whole (never cropped or stretched).
+        return AspectRatio(
+          aspectRatio: aspect,
+          child: DecoratedBox(
+            key: Key('wide-logo-$method'),
+            // No fill of its own: the logo's tile is opaque and covers it, and a
+            // white layer underneath would show as a thin light outline round a
+            // dark tile (the built-in dark logos have none).
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(radius),
+              child: Image.memory(
+                info.logo!,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+                gaplessPlayback: true,
+                // An unreadable picture falls back to the built-in logo, or the initials: never an error box.
+                errorBuilder: (_, __, ___) => _logos.contains(method)
+                    ? Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium)
+                    : LayoutBuilder(
+                        builder: (context, box) => Center(child: _InitialsIcon(info: info, size: box.maxHeight)),
+                      ),
+              ),
+            ),
+          ),
+        );
+      }
       return LayoutBuilder(
         builder: (context, box) => Center(child: MethodIcon(method: method, size: box.maxHeight)),
       );

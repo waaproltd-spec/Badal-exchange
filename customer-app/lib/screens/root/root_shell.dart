@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
+import '../../models/payment_method.dart';
 import '../../services/push_notifications.dart';
+import '../../services/success_sound.dart';
 import '../../widgets/transaction_views.dart';
 import '../home/home_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -18,7 +22,7 @@ class RootShell extends StatefulWidget {
   State<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends State<RootShell> {
+class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   int _index = 0;
 
   late final List<Widget> _tabs = [
@@ -29,9 +33,16 @@ class _RootShellState extends State<RootShell> {
 
   PushNotifications? get _push => PushNotifications.instance;
 
+  /// Back in the app: the latest platform logos (a manager may have changed one).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(context.read<CustomerApi>().loadMethodCatalog());
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final push = _push;
     if (push == null) return;
     // Signed in: this device gets the customer's notifications.
@@ -44,6 +55,7 @@ class _RootShellState extends State<RootShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _push?.opened.removeListener(_openFromNotification);
     _push?.foreground.removeListener(_showForeground);
     super.dispose();
@@ -62,6 +74,7 @@ class _RootShellState extends State<RootShell> {
     }
     try {
       final order = await context.read<CustomerApi>().getOrder(m.orderId);
+      SuccessSound.instance.observe([order]);
       if (mounted) await showTransactionDetails(context, order);
     } catch (_) {
       // Not this customer's order, or offline: the Orders tab still has it.
@@ -69,11 +82,14 @@ class _RootShellState extends State<RootShell> {
     }
   }
 
-  /// Arrived while the app is open: a banner that opens the details.
+  /// Arrived while the app is open: a message to all customers shows as a
+  /// banner. A deposit or withdrawal shows nothing more: the app already
+  /// shows it (its result screen, Orders, the balance).
   void _showForeground() {
     final m = _push?.foreground.value;
     if (m == null || !mounted) return;
     _push?.foreground.value = null;
+    if (!m.isBroadcast) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       key: Key('push-banner-${m.isBroadcast ? 'broadcast' : m.orderId}'),
       duration: const Duration(seconds: 6),
@@ -95,12 +111,23 @@ class _RootShellState extends State<RootShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _index, children: _tabs),
+      // The screens are built again when a platform's logo changed.
+      body: ValueListenableBuilder<int>(
+        valueListenable: paymentMethodLogosVersion,
+        builder: (_, version, __) => KeyedSubtree(
+          key: ValueKey(version),
+          child: IndexedStack(index: _index, children: _tabs),
+        ),
+      ),
       // Compact bar; NavigationBar adds the device's bottom safe area itself.
       bottomNavigationBar: NavigationBar(
         height: 62,
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          setState(() => _index = i);
+          // The limits show what was withdrawn up to now.
+          if (i == 2) ProfileScreen.refresh.value++;
+        },
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.home_outlined),

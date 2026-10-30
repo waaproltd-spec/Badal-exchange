@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../api/api_exception.dart';
 import '../../l10n/strings.dart';
+import '../../models/payment_method.dart';
 import '../../state/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
@@ -132,7 +133,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       label: AppStrings.phoneNumber,
                       controller: _phoneController,
                       textInputAction: TextInputAction.next,
-                      validator: (v) => RegExp(r'^\d{9}$').hasMatch(v ?? '') ? null : AppStrings.enterPhone9,
+                      validator: (v) => !RegExp(r'^\d{9}$').hasMatch(v ?? '')
+                          ? AppStrings.enterPhone9
+                          : (hasApprovedPhonePrefix(v!) ? null : AppStrings.phonePrefixes),
                     ),
                     const SizedBox(height: 14),
                     AuthTextField(

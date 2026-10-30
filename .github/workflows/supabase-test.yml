@@ -39,9 +39,30 @@ jobs:
           echo "SUPABASE_SERVICE_ROLE_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
           echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
 
+      # The other suites' new customers withdraw at once: first-withdrawal
+      # verification and the KYC withdrawal limits are off for them (withdrawal_verification.test.mjs
+      # and withdraw_limits.test.mjs turn them on for themselves).
+      - name: First-withdrawal verification off for the other suites
+        run: psql "$DATABASE_URL" -c "UPDATE app_settings SET value = 'off' WHERE key IN ('withdrawal_verification', 'withdraw_limits')" -c "INSERT INTO app_settings (key, value) VALUES ('withdraw_balance_check', 'off') ON CONFLICT (key) DO UPDATE SET value = 'off'"
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      # The Edge Functions with stand-in settings (tests/make-functions-env.mjs):
+      # fake logins pointing at the tests' stand-in portals on this machine.
+      - name: Serve Edge Functions for the tests
+        run: |
+          export FUNCTIONS_GATEWAY=$(docker network inspect supabase_network_badal-exchange -f '{{(index .IPAM.Config 0).Gateway}}')
+          echo "gateway: $FUNCTIONS_GATEWAY"
+          node supabase/tests/make-functions-env.mjs
+          nohup supabase functions serve --env-file supabase/tests/.functions.env > /tmp/functions.log 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_E2E_URL/functions/v1/golis-merchant" || true)
+            if grep -q "Serving functions" /tmp/functions.log && [ "$code" = "403" ]; then echo "served"; exit 0; fi
+            sleep 2
+          done
+          echo "::warning::functions serve did not report ready"; cat /tmp/functions.log
 
       - name: Backend tests (Auth, RPC, RLS, Realtime)
         working-directory: supabase/tests
@@ -53,12 +74,19 @@ jobs:
           npm install --no-audit --no-fund
           npm test
 
+      - name: Edge Functions log
+        if: always()
+        run: tail -n 200 /tmp/functions.log || true
+
+      # always(): the apps' tests run even when a backend test failed.
       - uses: subosito/flutter-action@v2
+        if: always()
         with:
           flutter-version: '3.24.0'
           channel: stable
 
       - name: Customer App against Supabase
+        if: always()
         working-directory: customer-app
         run: |
           flutter pub get

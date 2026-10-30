@@ -81,6 +81,15 @@ before(async () => {
   await db.query(`UPDATE withdrawal_alert_chat SET chat_id = NULL, chat_name = NULL, linked_at = NULL, update_offset = 0,
                     summary_day = (now() AT TIME ZONE 'Africa/Mogadishu')::date`);
   await db.query(`DELETE FROM withdrawal_alerts`);
+  // Orders the other suites left unresolved for a long time are not this file's business:
+  // they count as already said, so only the orders made here are looked at.
+  await db.query(`INSERT INTO stuck_order_alerts (order_id, alerts, last_alert_at)
+                    SELECT o.id, 1, now() FROM orders o WHERE private.stuck_reason(o) IS NOT NULL
+                    ON CONFLICT (order_id) DO UPDATE SET alerts = 1, last_alert_at = now()`);
+  // Sahal's own alerts are tested on their own below.
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
+  // Deposit / withdrawal incidents the other suites left are not this file's business either.
+  await db.query(`UPDATE payment_incidents SET alerted_at = now() WHERE alerted_at IS NULL`);
 });
 beforeEach(() => { tg.calls.length = 0; });
 after(async () => {
@@ -106,7 +115,7 @@ test('nothing is sent before a chat is linked; the first /start links, another c
   start(OTHER, 'stranger');
   r = await run();
   assert.equal(r.status, 200);
-  assert.match(sent('sendMessage', CHAT)[0].body.text, /alerts are on/);
+  assert.match(sent('sendMessage', CHAT)[0].body.text, /waa shaqeynayaan/);
   assert.equal(sent('sendMessage', OTHER).length, 0, 'a stranger gets no answer');
   assert.equal(sent('sendMessage').length, 1, 'the earlier withdrawal is not announced');
   const m = (await agent.rpc('manage_withdrawal_alerts')).data;
@@ -131,7 +140,10 @@ test('a new withdrawal is announced once with code, number and exact amount; nev
   const msgs = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(w.orderCode));
   assert.equal(msgs.length, 1, 'announced once');
   const text = msgs[0].body.text;
-  assert.match(text, /Withdrawal waiting/);
+  assert.match(text, /Lacag-bixin ayaa sugaysa/);
+  for (const label of ['Magaca macmiilka', 'Lambarka telefoonka', 'Lambarka macaamilka', 'Lacagta', 'Shirkadda lacagta', 'Xaaladda macaamilka', 'Waqtiga']) {
+    assert.ok(text.includes(label), `${label} is in the message`);
+  }
   assert.match(text, /\$7\.50/);
   assert.ok(text.includes(number));
   assert.ok(!/pin|password|token|secret/i.test(text));
@@ -149,26 +161,156 @@ test('completed: the message turns into "paid" with the reference; failed shows 
   await run();
   const edits = sent('editMessageText', CHAT);
   const paid = edits.find((e) => e.body.text.includes(a.w.orderCode));
-  assert.match(paid.body.text, /Withdrawal paid/);
+  assert.match(paid.body.text, /Lacag-bixinta waa la bixiyay/);
   assert.match(paid.body.text, /Sahal 7509990001/);
   const failed = edits.find((e) => e.body.text.includes(b.w.orderCode));
-  assert.match(failed.body.text, /failed/);
+  assert.match(failed.body.text, /fashilantay/);
+  assert.match(failed.body.text, /Sababta saxda ah ee khaladka/);
   assert.match(failed.body.text, /Number not registered/);
   tg.calls.length = 0;
   await run();
   assert.equal(sent('editMessageText').length, 0, 'edited once');
 });
 
-test('still waiting after 15 minutes: one reminder', async (t) => {
+test('not paid after 30 seconds: one reminder, with why', async (t) => {
   if (!served) return t.skip('withdrawal-alerts is not served');
   const { w } = await withdrawal(2);
   await run();
-  await db.query(`UPDATE orders SET created_at = now() - interval '16 minutes' WHERE id = $1`, [w.id]);
   tg.calls.length = 0;
   await run();
+  assert.equal(sent('sendMessage', CHAT).filter((c) => c.body.text.includes(w.orderCode)).length, 0, 'not before 30 s');
+  await db.query(`UPDATE orders SET created_at = now() - interval '31 seconds' WHERE id = $1`, [w.id]);
   await run();
-  const reminders = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(`${w.orderCode} is still waiting`));
+  await run();
+  const reminders = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(`${w.orderCode} lama bixin`));
   assert.equal(reminders.length, 1);
+  // Sahal is off here: an agent pays it.
+  assert.match(reminders[0].body.text, /Wakiil ayaa loo baahan yahay/);
+});
+
+test('unresolved for far too long: said once an hour, with why, changing nothing; final orders are not mentioned', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const { customer, w } = await withdrawal(3);
+  const wallet = async () => (await customer.rpc('customer_wallet')).data;
+  const before = await wallet();
+  await run();
+  tg.calls.length = 0;
+  const said = () => sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Weli lama xalliyin') && c.body.text.includes(w.orderCode));
+  await db.query(`UPDATE orders SET created_at = now() - interval '10 minutes' WHERE id = $1`, [w.id]);
+  await run();
+  assert.equal(said().length, 0, 'not before 15 minutes');
+  await db.query(`UPDATE orders SET created_at = now() - interval '16 minutes' WHERE id = $1`, [w.id]);
+  await run();
+  await run();
+  assert.equal(said().length, 1, 'once');
+  assert.match(said()[0].body.text, /weli lama bixin/);
+  assert.match(said()[0].body.text, /lama dirayo mar kale/);
+  // Not again within the hour; again after it.
+  await run();
+  assert.equal(said().length, 1);
+  await db.query(`UPDATE stuck_order_alerts SET last_alert_at = now() - interval '61 minutes' WHERE order_id = $1`, [w.id]);
+  await run();
+  assert.equal(said().length, 2, 'an hour later');
+  // It only said it: the order and the money are as they were.
+  assert.equal((await db.query('SELECT status FROM orders WHERE id = $1', [w.id])).rows[0].status, 'pending');
+  assert.deepEqual(await wallet(), before);
+  // At most 24 reminders.
+  await db.query(`UPDATE stuck_order_alerts SET alerts = 24, last_alert_at = now() - interval '2 hours' WHERE order_id = $1`, [w.id]);
+  await run();
+  assert.equal(said().length, 2, 'capped');
+  // Once final, never mentioned.
+  const other = await withdrawal(2);
+  await db.query(`UPDATE orders SET created_at = now() - interval '20 minutes' WHERE id = $1`, [other.w.id]);
+  await db.query(`UPDATE orders SET status = 'completed', completed_at = now() WHERE id = $1`, [other.w.id]);
+  await run();
+  assert.equal(sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Weli lama xalliyin') && c.body.text.includes(other.w.orderCode)).length, 0);
+});
+
+test('stuck_reason: the times for each kind of order, and managers can list them', async () => {
+  const { w } = await withdrawal(1);
+  // The order with some fields changed, only in the query: nothing is written.
+  const reason = async (patch, minutes) => (await db.query(
+    `SELECT private.stuck_reason(jsonb_populate_record(NULL::public.orders, to_jsonb(o) || $2::jsonb)) AS r FROM orders o WHERE id = $1`,
+    [w.id, JSON.stringify({ ...patch, created_at: new Date(Date.now() - minutes * 60000).toISOString() })])).rows[0].r;
+
+  // A withdrawal by mobile money: 15 minutes.
+  assert.equal(await reason({}, 14), null);
+  assert.equal(await reason({}, 16), 'withdrawal_unresolved');
+  assert.equal(await reason({ status: 'processing' }, 16), 'withdrawal_unresolved');
+  // A betting-platform withdrawal is a cashier's: 60 minutes.
+  assert.equal(await reason({ method: 'winwin' }, 30), null);
+  assert.equal(await reason({ method: 'winwin' }, 61), 'withdrawal_unresolved');
+  // Final orders are never stuck, however old.
+  for (const status of ['completed', 'failed', 'cancelled', 'expired']) {
+    assert.equal(await reason({ status }, 60 * 24 * 5), null, status);
+  }
+  // Deposits.
+  const dep = { direction: 'deposit' };
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'evc_plus' }, 31), null, 'it expires at 30; the job has a few minutes');
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'evc_plus' }, 36), 'expiry_not_running');
+  assert.equal(await reason({ ...dep, status: 'processing', method: 'evc_plus' }, 16), 'deposit_processing');
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'winwin' }, 300), null);
+  assert.equal(await reason({ ...dep, status: 'pending', method: 'winwin' }, 361), 'platform_deposit_open');
+  assert.equal((await db.query('SELECT status, direction FROM orders WHERE id = $1', [w.id])).rows[0].status, 'pending', 'nothing was written');
+
+  // Managers see the list; a customer does not.
+  const list = (await agent.rpc('manage_stuck_orders')).data;
+  assert.ok(Array.isArray(list));
+  const { customer } = await withdrawal(1);
+  assert.notEqual((await customer.rpc('manage_stuck_orders')).error, null);
+  assert.notEqual((await customer.rpc('stuck_orders_todo')).error, null, 'the worker function is service-only');
+});
+
+test('Sahal needing a person is said at once, once, and the all-clear after', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const feed = (await db.query(`SELECT state, result_code, message FROM merchant_feed_status WHERE provider = 'golis'`)).rows[0];
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'live' WHERE id`);
+  await db.query(`INSERT INTO private.merchant_feed_sessions (provider, second_at) VALUES ('golis', now())
+                  ON CONFLICT (provider) DO UPDATE SET second_at = now()`);
+  await db.query(`UPDATE merchant_feed_status SET state = 'needs_code', result_code = '1001' WHERE provider = 'golis'`);
+  try {
+    await run();
+    await run();
+    const asks = sent('sendMessage', CHAT).filter((c) => /Sahal wuxuu u baahan yahay koodhka SMS-ka/.test(c.body.text));
+    assert.equal(asks.length, 1, 'once');
+    assert.match(asks[0].body.text, /Sahal Sign-in/);
+
+    tg.calls.length = 0;
+    await db.query(`UPDATE merchant_feed_status SET state = 'ok', result_code = '2001' WHERE provider = 'golis'`);
+    await run();
+    await run();
+    assert.equal(sent('sendMessage', CHAT).filter((c) => /Sahal wuu shaqeynayaa mar kale/.test(c.body.text)).length, 1);
+  } finally {
+    await db.query(`UPDATE merchant_feed_status SET state = $1, result_code = $2, message = $3 WHERE provider = 'golis'`,
+      [feed.state, feed.result_code, feed.message]);
+    await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
+    await db.query(`UPDATE withdrawal_alert_chat SET sahal_alert_key = NULL WHERE id`);
+  }
+});
+
+test('the SMS code still not entered after 2 minutes: a clearer alert, once', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const feed = (await db.query(`SELECT state, result_code, message FROM merchant_feed_status WHERE provider = 'golis'`)).rows[0];
+  await db.query(`UPDATE sahal_payout_settings SET mode = 'live' WHERE id`);
+  await db.query(`INSERT INTO private.merchant_feed_sessions (provider, second_at) VALUES ('golis', now())
+                  ON CONFLICT (provider) DO UPDATE SET second_at = now()`);
+  await db.query(`UPDATE merchant_feed_status SET state = 'needs_code', result_code = '1001' WHERE provider = 'golis'`);
+  try {
+    await run();
+    assert.equal(sent('sendMessage', CHAT).filter((c) => /Koodhka Sahal .* lama gelin/.test(c.body.text)).length, 0, 'not at once: the forwarder usually enters it');
+    await db.query(`UPDATE private.merchant_feed_sessions SET second_at = now() - interval '3 minutes' WHERE provider = 'golis'`);
+    await run();
+    await run();
+    const late = sent('sendMessage', CHAT).filter((c) => /Koodhka Sahal 2 daqiiqo lama gelin/.test(c.body.text));
+    assert.equal(late.length, 1, 'once');
+    assert.match(late[0].body.text, /SMS forwarder-ku ma gelin/);
+    assert.match(late[0].body.text, /Sahal Sign-in/);
+  } finally {
+    await db.query(`UPDATE merchant_feed_status SET state = $1, result_code = $2, message = $3 WHERE provider = 'golis'`,
+      [feed.state, feed.result_code, feed.message]);
+    await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
+    await db.query(`UPDATE withdrawal_alert_chat SET sahal_alert_key = NULL WHERE id`);
+  }
 });
 
 test('a Sahal transfer that matched no withdrawal is reported once', async (t) => {
@@ -182,8 +324,31 @@ test('a Sahal transfer that matched no withdrawal is reported once', async (t) =
   await run();
   const warn = sent('sendMessage', CHAT).filter((c) => c.body.text.includes(id));
   assert.equal(warn.length, 1);
-  assert.match(warn[0].body.text, /matched no withdrawal/);
+  assert.match(warn[0].body.text, /aan u dhigmin wax lacag-bixin/);
   assert.match(warn[0].body.text, /\$3\.00/);
+});
+
+test('a failed or refused deposit / withdrawal is told once with customer, phone, transaction, amount, provider, status, time and the exact error', async (t) => {
+  if (!served) return t.skip('withdrawal-alerts is not served');
+  const number = golisNumber();
+  const { rows: [u] } = await db.query(
+    `WITH u AS (INSERT INTO public.users (role, phone, name, password_hash)
+                VALUES ('customer', $1, 'Incident Person', private.hash_password($2)) RETURNING id)
+     INSERT INTO public.wallets (customer_id, available_cents) SELECT id, 0 FROM u RETURNING customer_id`, [`252${number}`, PASSWORD]);
+  await db.query(
+    `INSERT INTO payment_incidents (direction, kind, customer_id, order_code, method, amount_text, error_code, error_text, source)
+     VALUES ('withdraw', 'blocked', $1, NULL, 'evc_plus', '12.50', 'WITHDRAWAL_PROVIDER_BALANCE', 'balance too low', 'app')`, [u.customer_id]);
+  tg.calls.length = 0;
+  await run();
+  await run();
+  const msgs = sent('sendMessage', CHAT).filter((c) => c.body.text.includes('Incident Person'));
+  assert.equal(msgs.length, 1, 'told once');
+  const text = msgs[0].body.text;
+  assert.ok(!/pin|password|parol|token|secret/i.test(text), 'no secret in the message');
+  assert.ok(!/(blocked|failed|withdrawal|deposit|customer|amount|provider|error)\b/i.test(text.replace(/<code>[^<]*<\/code>/g, '')), 'no English words outside code');
+  for (const part of ['Lacag-bixin — La xannibay', 'Magaca macmiilka', 'Lambarka telefoonka', `252${number}`, 'Lambarka macaamilka', 'dalab lama sameynin', 'Lacagta: $12.50', 'Shirkadda lacagta: EVC Plus', 'Xaaladda macaamilka', 'Waqtiga', 'Sababta saxda ah ee khaladka', 'Haraaga Sahal kuma filna', 'WITHDRAWAL_PROVIDER_BALANCE']) {
+    assert.ok(text.includes(part), `${part} is in the message`);
+  }
 });
 
 test('only managers see or unlink the chat; the worker functions are service-only', async (t) => {
@@ -208,5 +373,5 @@ test('only managers see or unlink the chat; the worker functions are service-onl
   start(OTHER, 'new_owner');
   tg.calls.length = 0;
   await run();
-  assert.match(sent('sendMessage', OTHER)[0].body.text, /alerts are on/);
+  assert.match(sent('sendMessage', OTHER)[0].body.text, /waa shaqeynayaan/);
 });

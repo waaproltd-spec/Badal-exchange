@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
+import '../../models/bonus.dart';
 import '../../models/order.dart';
 import '../../models/payment_method.dart';
 import '../../models/player.dart';
@@ -55,6 +56,16 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
   String? _playerError;
   bool _checkingPlayer = false;
 
+  /// The bonus this withdrawal earns once paid; null while unknown or none.
+  BonusPreview? _bonus;
+
+  /// Golis, ZAAD, EVC Plus: the name Sahal has for the number. Shown only
+  /// once known; it never holds up Confirm.
+  String? _receiverName;
+  bool _checkingReceiver = false;
+
+  static const _namedMethods = {'golis', 'telesom', 'evc_plus'};
+
   bool get _findsPlayer => methodInfo(widget.quote.method).usesWithdrawalCode;
 
   @override
@@ -62,6 +73,28 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
     super.initState();
     _idempotencyKey = const Uuid().v4();
     if (_findsPlayer) _findPlayer();
+    _loadBonus();
+    if (_namedMethods.contains(widget.quote.method)) _loadReceiverName();
+  }
+
+  Future<void> _loadReceiverName() async {
+    setState(() => _checkingReceiver = true);
+    try {
+      final name = await context.read<CustomerApi>().getReceiverName(widget.quote.method, widget.phoneNumber);
+      if (mounted) setState(() => _receiverName = name);
+    } catch (_) {
+      // No name from Sahal right now: the row is left out.
+    } finally {
+      if (mounted) setState(() => _checkingReceiver = false);
+    }
+  }
+
+  /// Best effort: without an answer the row is simply not shown.
+  Future<void> _loadBonus() async {
+    try {
+      final bonus = await context.read<CustomerApi>().getBonusPreview(widget.quote.method, widget.quote.amount);
+      if (mounted) setState(() => _bonus = bonus);
+    } catch (_) {}
   }
 
   Future<void> _findPlayer() async {
@@ -188,6 +221,15 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                       label: '${AppStrings.sendTo} (${info.isPlatform ? AppStrings.accountId : AppStrings.phoneNumber})',
                       value: info.isPlatform ? (widget.accountId ?? '') : _phone(widget.phoneNumber),
                     ),
+                  if (_checkingReceiver || _receiverName != null) ...[
+                    const SummaryDivider(),
+                    SummaryRow(
+                      label: AppStrings.receiverName,
+                      value: _receiverName ?? AppStrings.checkingPlayer,
+                      valueColor: _receiverName == null ? AppColors.textMuted : null,
+                      valueKey: const Key('receiver-name'),
+                    ),
+                  ],
                   const SummaryDivider(),
                   SummaryRow(label: AppStrings.amount, value: Formatters.money(quote.amount)),
                   if (quote.rate != 1) ...[
@@ -204,6 +246,22 @@ class _WithdrawConfirmScreenState extends State<WithdrawConfirmScreen> {
                     value: Formatters.money(quote.netAmount),
                     emphasize: true,
                   ),
+                  if (_bonus != null) ...[
+                    const SummaryDivider(),
+                    SummaryRow(
+                      label: AppStrings.bonusRow(_bonus!.rate),
+                      value: '+${Formatters.money(_bonus!.amount)}',
+                      valueColor: AppColors.success,
+                      valueKey: const Key('withdraw-bonus'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, bottom: 4),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(AppStrings.bonusGoesTo, style: AppTextStyles.muted.copyWith(fontSize: 12.5)),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

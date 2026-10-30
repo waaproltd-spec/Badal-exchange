@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import 'payment_numbers.dart';
 
 /// Payment methods. The backend is the single source of truth
 /// (backend/src/lib/methods.ts, served at GET /meta/payment-methods); the
@@ -9,7 +13,8 @@ import '../l10n/strings.dart';
 /// Mobile money identifies the customer by their phone number on that
 /// service; betting platforms by their account ID on that platform.
 class PaymentMethodInfo {
-  const PaymentMethodInfo(this.id, this.label, this.isPlatform, this.color, this.initials);
+  const PaymentMethodInfo(this.id, this.label, this.isPlatform, this.color, this.initials, {bool? cashdesk, this.logo})
+      : _cashdesk = cashdesk;
 
   final String id;
   final String label;
@@ -19,12 +24,21 @@ class PaymentMethodInfo {
   /// Short mark shown on the method's tile/icon.
   final String initials;
 
+  /// A logo a manager gave a platform added in the Agent App (PNG or JPEG);
+  /// the built-in methods keep theirs in assets/methods/.
+  final Uint8List? logo;
+
+  /// From the catalog; null in the bundled copy (then the built-in list).
+  final bool? _cashdesk;
+
   /// What the customer types for this method.
   String get identifierLabel => AppStrings.identifierLabel(label, isPlatform);
 
   /// Deposits for this method are collected automatically with the
   /// withdrawal code the customer gets from the platform's cash desk.
-  bool get usesWithdrawalCode => const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet'}.contains(id);
+  /// The server says so per method (a platform added in the Agent App too).
+  bool get usesWithdrawalCode =>
+      _cashdesk ?? const {'888starz', 'onexbet', 'winwin', 'betwinner', 'dbbet', 'betjam', 'betongame', 'melbet'}.contains(id);
   String get identifierHint => AppStrings.identifierHint(isPlatform);
 }
 
@@ -54,7 +68,21 @@ PaymentMethodInfo _fromJson(Map<String, dynamic> m) {
     m['kind'] == 'platform',
     Color(int.parse('FF$hex', radix: 16)),
     m['initials'] as String? ?? label.substring(0, label.length < 2 ? label.length : 2).toUpperCase(),
+    cashdesk: m['cashdesk'] as bool?,
+    logo: _decodeLogo(m['logo']),
   );
+}
+
+/// The catalog's base64 logo, or null when there is none or it is unreadable
+/// (the initials show then; a bad logo never breaks the catalog).
+Uint8List? _decodeLogo(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  try {
+    final bytes = base64Decode(value.replaceAll(RegExp(r'\s'), ''));
+    return bytes.isEmpty || bytes.length > 100000 ? null : bytes;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Replaces [paymentMethods] with the backend catalog; keeps the current
@@ -62,9 +90,20 @@ PaymentMethodInfo _fromJson(Map<String, dynamic> m) {
 void applyPaymentMethodCatalog(List<dynamic> json) {
   try {
     final list = json.map((e) => _fromJson(e as Map<String, dynamic>)).toList();
-    if (list.isNotEmpty) paymentMethods = list;
+    if (list.isEmpty) return;
+    final changed = _logoSignature(list) != _logoSignature(paymentMethods);
+    paymentMethods = list;
+    // Screens already on show the new logos: the app shell rebuilds when a logo changed.
+    if (changed) paymentMethodLogosVersion.value++;
   } catch (_) {}
 }
+
+/// Counts up whenever a logo in the catalog changed (a manager gave a platform
+/// another logo, or took it back).
+final ValueNotifier<int> paymentMethodLogosVersion = ValueNotifier<int>(0);
+
+String _logoSignature(List<PaymentMethodInfo> list) =>
+    list.map((m) => '${m.id}:${m.logo == null ? 0 : Object.hashAll(m.logo!)}').join('|');
 
 PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
       (m) => m.id == id,
@@ -73,6 +112,42 @@ PaymentMethodInfo methodInfo(String id) => paymentMethods.firstWhere(
 
 /// A method the backend currently offers (enabled), with the numbers or
 /// accounts customers send deposits to.
+/// The mobile-money network of each approved phone prefix (the first two of
+/// the nine digits after +252). New customers can only register with one of
+/// these; the server applies the same list (private.customer_network).
+const phonePrefixNetworks = <String, String>{
+  '61': 'evc_plus',
+  '77': 'evc_plus',
+  '90': 'golis',
+  '63': 'telesom',
+  '62': 'edahab',
+};
+
+/// Whether the nine digits typed after +252 start with an approved prefix.
+bool hasApprovedPhonePrefix(String nineDigits) =>
+    nineDigits.length >= 2 && phonePrefixNetworks.containsKey(nineDigits.substring(0, 2));
+
+/// The customer's own mobile-money network, from their registered number's
+/// prefix (last 9 digits): 61 and 77 EVC Plus, 90 Golis, 63 ZAAD, 62 eDahab.
+/// Null for any other number (an account registered before the list), or none.
+String? ownMobileMethod(String? phone) {
+  final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+  if (digits.length < 9) return null;
+  return phonePrefixNetworks[digits.substring(digits.length - 9, digits.length - 7)];
+}
+
+/// Deposits are paid from the customer's own number and withdrawals paid to
+/// it, so of the mobile-money methods only their own network is offered;
+/// betting platforms all stay.
+/// A number of no known network keeps every method. A customer an admin
+/// authorized to use another number ([numbers]) also keeps the networks the
+/// admin allowed them.
+List<PaymentMethodOption> depositMethodsFor(List<PaymentMethodOption> methods, String? phone, {PaymentNumbers? numbers}) {
+  final own = ownMobileMethod(phone);
+  if (own == null) return methods;
+  return [for (final m in methods) if (m.info.isPlatform || m.info.id == own || (numbers?.allows(m.info.id) ?? false)) m];
+}
+
 class PaymentMethodOption {
   const PaymentMethodOption({
     required this.info,

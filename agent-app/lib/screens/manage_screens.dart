@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,6 +7,7 @@ import '../api/agent_api.dart';
 import '../api/api_exception.dart';
 import '../models/console.dart';
 import '../models/payment_methods.dart';
+import '../services/ad_image_picker.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
@@ -79,7 +82,7 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
 
   Future<void> _edit([HomeAd? ad]) async {
     final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => _HomeAdForm(ad: ad)),
+      MaterialPageRoute(builder: (_) => HomeAdForm(ad: ad)),
     );
     if (saved == true) load();
   }
@@ -161,27 +164,38 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
   }
 }
 
-class _HomeAdForm extends StatefulWidget {
+/// Add or edit a Home Ad. The picture is chosen from the phone's gallery and
+/// saved together with the ad.
+class HomeAdForm extends StatefulWidget {
   final HomeAd? ad;
-  const _HomeAdForm({this.ad});
+  final AdImagePicker pickImage;
+  const HomeAdForm({super.key, this.ad, this.pickImage = pickAdImageFromGallery});
 
   @override
-  State<_HomeAdForm> createState() => _HomeAdFormState();
+  State<HomeAdForm> createState() => _HomeAdFormState();
 }
 
-class _HomeAdFormState extends State<_HomeAdForm> {
+enum _Upload { idle, uploading, done, failed }
+
+class _HomeAdFormState extends State<HomeAdForm> {
   final _formKey = GlobalKey<FormState>();
   late final _title = TextEditingController(text: widget.ad?.title);
   late final _body = TextEditingController(text: widget.ad?.body);
-  late final _image = TextEditingController(text: widget.ad?.imageUrl);
   late final _link = TextEditingController(text: widget.ad?.linkUrl);
   late final _order = TextEditingController(text: '${widget.ad?.sortOrder ?? 0}');
   late bool _enabled = widget.ad?.enabled ?? true;
   bool _saving = false;
 
+  /// The picture chosen in this form (not saved yet), and whether the ad's
+  /// current picture is to be taken off.
+  Uint8List? _picked;
+  bool _removed = false;
+  _Upload _upload = _Upload.idle;
+  String? _problem;
+
   @override
   void dispose() {
-    for (final c in [_title, _body, _image, _link, _order]) {
+    for (final c in [_title, _body, _link, _order]) {
       c.dispose();
     }
     super.dispose();
@@ -194,26 +208,134 @@ class _HomeAdFormState extends State<_HomeAdForm> {
     return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? 'Enter a full link starting with https://' : null;
   }
 
+  Future<void> _choose() async {
+    Uint8List? bytes;
+    try {
+      bytes = await widget.pickImage();
+    } catch (_) {
+      if (mounted) setState(() => _problem = 'Could not open the gallery.');
+      return;
+    }
+    if (bytes == null || !mounted) return;
+    final why = adImageProblem(bytes);
+    setState(() {
+      if (why != null) {
+        _problem = why;
+      } else {
+        _picked = bytes;
+        _removed = false;
+        _problem = null;
+        _upload = _Upload.idle;
+      }
+    });
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+    final withImage = _picked != null;
+    setState(() {
+      _saving = true;
+      _problem = null;
+      _upload = withImage ? _Upload.uploading : _Upload.idle;
+    });
     String? orNull(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
     try {
       await context.read<Session>().api.saveHomeAd(
             id: widget.ad?.id,
             title: _title.text.trim(),
             body: orNull(_body),
-            imageUrl: orNull(_image),
+            imageUrl: _removed ? null : widget.ad?.imageUrl,
             linkUrl: orNull(_link),
             enabled: _enabled,
             sortOrder: int.tryParse(_order.text.trim()) ?? 0,
+            image: _picked,
+            removeImage: _removed && _picked == null,
           );
+      if (!mounted) return;
+      if (withImage) {
+        setState(() => _upload = _Upload.done);
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not save the ad.'));
+      setState(() {
+        _saving = false;
+        _upload = withImage ? _Upload.failed : _Upload.idle;
+        _problem = errorText(e, 'Could not save the ad.');
+      });
+      if (!withImage) showSnack(context, _problem!);
     }
+  }
+
+  Widget _imageCard() {
+    final shown = _picked ?? (_removed ? null : widget.ad?.image);
+    final link = _picked == null && !_removed ? (widget.ad?.imageUrl ?? '') : '';
+    Widget? preview;
+    if (shown != null) {
+      preview = Image.memory(shown, key: const Key('ad-image-preview'), fit: BoxFit.cover);
+    } else if (link.isNotEmpty) {
+      preview = Image.network(link,
+          key: const Key('ad-image-preview'), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink());
+    }
+    final status = switch (_upload) {
+      _Upload.uploading => ('Uploading…', AppColors.textSecondary),
+      _Upload.done => ('Upload successful', AppColors.statusCompleted),
+      _Upload.failed => ('Upload failed${_problem == null ? '' : ': $_problem'}. The ad and its previous picture are unchanged.', AppColors.statusFailed),
+      _Upload.idle => null,
+    };
+    return Column(
+      key: const Key('ad-image-card'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Image (optional)', style: TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        if (preview != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(height: 132, width: double.infinity, child: preview),
+          ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            OutlinedButton.icon(
+              key: const Key('ad-image-choose'),
+              onPressed: _saving ? null : _choose,
+              icon: const Icon(Icons.photo_library_outlined),
+              label: Text(preview == null ? 'Choose Image' : 'Change Image'),
+            ),
+            if (preview != null)
+              TextButton(
+                key: const Key('ad-image-remove'),
+                onPressed: _saving
+                    ? null
+                    : () => setState(() {
+                          _picked = null;
+                          _removed = true;
+                          _upload = _Upload.idle;
+                        }),
+                child: const Text('Remove'),
+              ),
+          ],
+        ),
+        if (_picked != null && _upload == _Upload.idle)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text('Saved when you tap Save.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          ),
+        if (status != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(status.$1, key: const Key('ad-image-status'), style: TextStyle(color: status.$2, fontWeight: FontWeight.w700)),
+          ),
+        if (_problem != null && _upload != _Upload.failed)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(_problem!, key: const Key('ad-image-problem'), style: const TextStyle(color: AppColors.statusFailed)),
+          ),
+      ],
+    );
   }
 
   @override
@@ -237,12 +359,7 @@ class _HomeAdFormState extends State<_HomeAdForm> {
               maxLength: 500,
               maxLines: 3,
             ),
-            TextFormField(
-              controller: _image,
-              decoration: const InputDecoration(labelText: 'Image link (optional)', hintText: 'https://...'),
-              keyboardType: TextInputType.url,
-              validator: _url,
-            ),
+            _imageCard(),
             const SizedBox(height: 14),
             TextFormField(
               controller: _link,

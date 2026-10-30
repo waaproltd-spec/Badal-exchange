@@ -163,7 +163,9 @@ test('deposit completed: one notification in Somali, data only type and order id
     assert.deepEqual(m.notification, DEPOSIT);
     assert.deepEqual(m.data, { type: 'deposit_completed', orderId: o.id });
   }
-  const text = JSON.stringify(sent);
+  // The words the customer sees carry no number, amount or code. (Only the notification: the data part is
+  // checked exactly above, and random ids or device tokens can contain "252" by chance.)
+  const text = JSON.stringify(sent.map((m) => m.notification));
   for (const secretBit of ['1847412855', '4.00', o.orderCode, '252']) assert.ok(!text.includes(secretBit), `no ${secretBit}`);
   assert.deepEqual((await queued(o.id)).map((x) => [x.status, x.devices]), [['sent', 2]]);
 });

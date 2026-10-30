@@ -39,7 +39,7 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 3));
 
     // A customer places a deposit and a withdrawal.
-    final phone = '2528${(DateTime.now().millisecondsSinceEpoch % 100000000).toString().padLeft(8, '0')}';
+    final phone = '25263${(DateTime.now().millisecondsSinceEpoch % 10000000).toString().padLeft(7, '0')}'; // 63: an approved prefix
     final customer = newClient();
     await customer.rpc('register_customer', params: {'p_phone': phone, 'p_name': 'Agent E2E', 'p_password': 'Customer-Pass-1'});
     await customer.auth.signInWithPassword(email: authEmailFor(phone), password: 'Customer-Pass-1');
@@ -117,7 +117,7 @@ void main() {
 
     // Management (Account -> Admin features).
     final methods = await api.getMethodSettings();
-    expect(methods.length, 10);
+    expect(methods.length, 12); // + BetJam, BetOnGame
     await api.setMethodEnabled('golis', false);
     await api.setMethodEnabled('golis', true);
     await api.setWithdrawalLimits('evc_plus', min: 1, max: 500);

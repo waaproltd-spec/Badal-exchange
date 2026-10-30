@@ -20,6 +20,7 @@ import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/transaction_views.dart';
 import '../../widgets/wallet_card.dart';
+import '../bonus/bonus_screen.dart';
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../withdraw/withdraw_details_screen.dart';
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const int _recentOrdersCount = 3;
   List<HomeAd> _ads = const [];
 
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
         context.read<OrdersProvider>().load(),
         _loadAds(),
       ]);
+
+  Future<void> _openBonus() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BonusScreen()));
+    if (mounted) _refresh();
+  }
 
   /// Ads are optional decoration: a failure just leaves the section hidden.
   Future<void> _loadAds() async {
@@ -69,7 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Deposit and Withdraw both pick a method in the bottom sheet, then open
   /// that method's form.
   Future<void> _goDeposit() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit,
+        ownPhone: context.read<AuthProvider>().user?.phone);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -80,7 +88,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _goWithdraw() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw,
+        ownPhone: context.read<AuthProvider>().user?.phone);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -120,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onDeposit: _goDeposit,
                   onWithdraw: _goWithdraw,
                   onNotifications: _openNotifications,
+                  onBonus: _openBonus,
                 ),
                 if (_ads.isNotEmpty)
                   Padding(
@@ -192,6 +202,7 @@ class _WalletHeader extends StatelessWidget {
     required this.onDeposit,
     required this.onWithdraw,
     required this.onNotifications,
+    required this.onBonus,
   });
 
   final double topInset;
@@ -199,6 +210,7 @@ class _WalletHeader extends StatelessWidget {
   final VoidCallback onDeposit;
   final VoidCallback onWithdraw;
   final VoidCallback onNotifications;
+  final VoidCallback onBonus;
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +258,12 @@ class _WalletHeader extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              WalletCard(wallet: walletState.wallet, loading: walletState.loading, error: walletState.error),
+              WalletCard(
+                wallet: walletState.wallet,
+                loading: walletState.loading,
+                error: walletState.error,
+                onBonusTap: onBonus,
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -425,6 +442,10 @@ class _RecentOrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // As the customer sees it (an unpaid deposit reads Failed after 3
+    // minutes); the details sheet gets the server's order.
+    final real = this.order;
+    final order = real.shown;
     final isDeposit = order.isDeposit;
     final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
@@ -434,7 +455,7 @@ class _RecentOrderTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => showTransactionDetails(context, order),
+        onTap: () => showTransactionDetails(context, real),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -462,6 +483,7 @@ class _RecentOrderTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.muted.copyWith(fontSize: 12),
                     ),
+                    if (!order.isFinal) ...[const SizedBox(height: 2), const VerifyingNote(fontSize: 11.5)],
                   ],
                 ),
               ),
@@ -479,7 +501,7 @@ class _RecentOrderTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  StatusBadge(status: order.status, compact: true),
+                  OrderStatusSlot(order: order, compact: true),
                 ],
               ),
             ],

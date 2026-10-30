@@ -4,17 +4,25 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../utils/payment_errors.dart';
+import '../../utils/formatters.dart';
+import '../../utils/ussd.dart';
 import '../../widgets/flow_header.dart';
+import '../../models/payment_numbers.dart';
+import '../../widgets/pay_number_box.dart';
 import '../../widgets/payment_location_card.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'deposit_processing_screen.dart';
+
+/// What one deposit may be, shown under the amount and checked before sending.
+const kDepositMin = '0.01';
+const kDepositMax = '4000.00';
 
 /// "Complete Deposit": the chosen method, the amount (plus the account ID for
 /// betting platforms), and where to send the money -- for EVC Plus and
@@ -55,6 +63,24 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   bool _submitting = false;
   String? _error;
 
+  /// What was last sent to the server about this form (Unconfirmed Deposits).
+  String? _tracked;
+  Future<void>? _tracking;
+  late final CustomerApi _api;
+
+  /// Another number an admin lets this customer use (loaded once), and the
+  /// 9 digits chosen: the registered number unless the customer changes it.
+  PaymentNumbers _numbers = PaymentNumbers.none;
+  final TextEditingController _phoneController = TextEditingController();
+
+  /// The 9 digits typed in the number box; the registered number while the box
+  /// is empty; null while the typing is not complete.
+  String? get _phoneLocal {
+    final typed = _phoneController.text;
+    if (typed.isEmpty) return _ownLocal;
+    return typed.length == 9 ? typed : null;
+  }
+
 
   PaymentMethodInfo get _info => widget.option.info;
 
@@ -64,7 +90,17 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     for (final c in [_accountController, _amountController, _codeController]) {
       c.addListener(() => setState(() {}));
     }
+    _api = context.read<CustomerApi>();
+    _phoneController.addListener(() => setState(() {}));
+    if (!_info.isPlatform) _loadNumbers();
+    _amountController.addListener(_track);
+    _accountController.addListener(_track);
     if (_cashDesk) _fillSavedAccount();
+  }
+
+  Future<void> _loadNumbers() async {
+    final n = await _api.getPaymentNumbers();
+    if (mounted) setState(() => _numbers = n);
   }
 
   /// Cash desk: the account ID starts as the one the customer used last
@@ -78,18 +114,31 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     }
   }
 
+  /// The form as it is now: a valid amount (or, for a cash desk, an
+  /// account ID) is recorded as a deposit the customer has not confirmed.
+  void _track() {
+    final amount = _cashDesk ? null : (_amount == null ? null : _amountText);
+    final account = _info.isPlatform ? _accountController.text.trim() : null;
+    if (amount == null && (account == null || account.isEmpty)) return;
+    final now = '$amount|$account';
+    if (now == _tracked) return;
+    _tracked = now;
+    _tracking = _api.trackDepositDraft(method: _info.id, amount: amount, accountId: account);
+  }
+
   @override
   void dispose() {
     _accountController.dispose();
     _amountController.dispose();
     _codeController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
   String get _amountText => _amountController.text.trim();
   num? get _amount {
     final n = num.tryParse(_amountText);
-    return n != null && n > 0 ? n : null;
+    return n != null && n >= num.parse(kDepositMin) && n <= num.parse(kDepositMax) ? n : null;
   }
 
   /// 888STARZ / 1XBET: the customer withdraws to our cash desk in the
@@ -98,7 +147,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
 
   bool get _ready =>
       (_cashDesk || _amount != null) &&
-      (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _ownLocal != null) &&
+      (_info.isPlatform ? _accountController.text.trim().isNotEmpty : _phoneLocal != null) &&
       (!_info.usesWithdrawalCode || _codeController.text.trim().isNotEmpty);
 
   String? get _ownLocal => _localNumber(widget.ownPhone);
@@ -110,15 +159,15 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   /// carrier's send-money code to the deposit number.
   String? get _ussd {
     final merchant = widget.option.merchantUssd;
-    if (merchant != null) return _amount == null ? null : merchant.replaceAll('{amount}', _amountText);
+    if (merchant != null) return _amount == null ? null : merchant.replaceAll('{amount}', ussdAmount(_amountText));
     final prefix = _sendMoneyUssd[_info.id];
     final to = _localNumber(_payTo);
     if (prefix == null || to == null || _amount == null) return null;
-    return '*$prefix*$to*$_amountText#';
+    return '*$prefix*$to*${ussdAmount(_amountText)}#';
   }
 
   Future<void> _change() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit, ownPhone: widget.ownPhone);
     if (option == null || !mounted || option.info.id == _info.id) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => DepositDetailsScreen(option: option, ownPhone: widget.ownPhone),
@@ -139,6 +188,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
       _error = null;
     });
     final api = context.read<CustomerApi>();
+    // The form is recorded before the request, so the request is tied to it.
+    await _tracking;
+    if (!mounted) return;
     try {
       // The backend checks the method and amount before anything is created.
       // A cash-desk deposit has no amount: the platform says it.
@@ -147,7 +199,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
           : (await api.createQuote(direction: 'deposit', method: _info.id, amount: _amountText)).amount;
       if (!mounted) return;
       final key = const Uuid().v4();
-      final phone = _info.isPlatform ? null : '252$_ownLocal';
+      final phone = _info.isPlatform ? null : '252$_phoneLocal';
       final account = _info.isPlatform ? _accountController.text.trim() : null;
       final code = _info.usesWithdrawalCode ? _codeController.text.trim() : null;
       await Navigator.of(context).push(MaterialPageRoute(
@@ -164,12 +216,8 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
           ),
         ),
       ));
-    } on ApiException catch (e) {
-      setState(() {
-        _error = e.message;
-      });
-    } catch (_) {
-      setState(() => _error = AppStrings.somethingWentWrong);
+    } catch (e) {
+      setState(() => _error = PaymentErrors.handle(api, e, isDeposit: true, method: _info.id, amount: _amountText));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -226,9 +274,30 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
                 const SizedBox(height: 16),
                 _amountBox(),
               ] else ...[
-                _amountBox(),
-                const SizedBox(height: 12),
-                _OwnNumberLine(local: _ownLocal, text: AppStrings.payFromOwnNumber),
+                // The registered number (locked) beside the amount, then the limits.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: PayNumberBox(
+                        fieldKey: const Key('own-number'),
+                        method: _info.id,
+                        ownLocal: _ownLocal,
+                        numbers: _numbers,
+                        controller: _phoneController,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 2, child: _amountBox()),
+                  ],
+                ),
+                if (_ownLocal == null) ...[
+                  const SizedBox(height: 8),
+                  Text(AppStrings.noRegisteredNumber, style: AppTextStyles.muted.copyWith(color: AppColors.error)),
+                ],
+                const SizedBox(height: 10),
+                _LimitsLine(min: Formatters.money(kDepositMin), max: Formatters.money(kDepositMax)),
               ],
               if (!_cashDesk && _amount != null && (_payTo != null || widget.option.merchantUssd != null)) ...[
                 const SizedBox(height: 22),
@@ -317,27 +386,26 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   }
 }
 
-/// The registered number mobile money is paid from or to: shown, never
-/// edited.
-class _OwnNumberLine extends StatelessWidget {
-  const _OwnNumberLine({required this.local, required this.text});
+/// "Minimum deposit is $0.01, maximum is $4000.00", the amounts in bold.
+class _LimitsLine extends StatelessWidget {
+  const _LimitsLine({required this.min, required this.max});
 
-  final String? local;
-  final String text;
+  final String min;
+  final String max;
 
   @override
   Widget build(BuildContext context) {
-    if (local == null) {
-      return Text(AppStrings.noRegisteredNumber, style: AppTextStyles.muted.copyWith(color: AppColors.error));
-    }
-    return Row(
-      key: const Key('own-number'),
-      children: [
-        Icon(Icons.verified_user_outlined, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Expanded(child: Text(text, style: AppTextStyles.muted.copyWith(fontSize: 13))),
-        Text('+252 $local', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-      ],
+    final base = AppTextStyles.muted.copyWith(fontSize: 12.5);
+    final bold = base.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimary);
+    final (a, b) = AppStrings.depositLimitsParts;
+    return Text.rich(
+      key: const Key('deposit-limits'),
+      TextSpan(style: base, children: [
+        TextSpan(text: a),
+        TextSpan(text: min, style: bold),
+        TextSpan(text: b),
+        TextSpan(text: max, style: bold),
+      ]),
     );
   }
 }

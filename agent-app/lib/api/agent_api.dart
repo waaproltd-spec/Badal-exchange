@@ -1,5 +1,15 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:uuid/uuid.dart';
 
+import '../models/commission.dart';
+import '../models/deposit_board.dart';
+import '../models/kyc.dart';
+import '../models/payment_numbers.dart';
+import '../models/withdraw_limits.dart';
+import '../models/withdrawal_verification.dart';
+import '../models/report_overview.dart';
 import '../models/wallet_adjustment.dart';
 import '../models/agent_profile.dart';
 import '../models/payout.dart';
@@ -63,6 +73,133 @@ class AgentApi {
 
   Future<List<Order>> getPendingDeposits() async =>
       (await _list('agent_pending_deposits')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+
+  /// The "Lacagaha Sugaya Xaqiijinta" board: summary and the deposits of [from, to).
+  Future<DepositBoard> getDepositBoard({DateTime? from, DateTime? to}) async =>
+      DepositBoard.fromJson(await _map('agent_deposit_board', {
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+      }));
+
+  /// Admin: KYC applications by status ('all' for every one), with a search.
+  Future<({List<KycListItem> items, Map<String, int> counts, String provider})> getKycApplications(
+      {String status = 'pending_review', String? query}) async {
+    final data = await _map('manage_kyc_applications', {'p_status': status, 'p_query': query});
+    return (
+      items: ((data['applications'] as List?) ?? const [])
+          .map((e) => KycListItem.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      counts: ((data['counts'] as Map?) ?? const {}).map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+      provider: data['provider'] as String? ?? 'none',
+    );
+  }
+
+  /// Admin: one application with its documents (the viewing is audited).
+  Future<KycApplication> getKycApplication(String id) async =>
+      KycApplication.fromJson(await _map('manage_kyc_application', {'p_id': id}));
+
+  /// Admin: approve | reject | resubmit, with a reason.
+  Future<void> decideKyc(String id, String decision, String reason) async {
+    await _map('manage_decide_kyc', {'p_id': id, 'p_decision': decision, 'p_reason': reason});
+  }
+
+  /// Admin: the default KYC withdrawal limits and the customers with what they withdrew.
+  /// [filter]: all | custom | near | reached | unverified | verified.
+  Future<({WithdrawLimitDefaults defaults, List<LimitCustomer> customers})> getWithdrawLimitCustomers(
+      {String? query, String filter = 'all'}) async {
+    final data = await _map('manage_withdraw_limit_customers', {'p_query': query, 'p_filter': filter});
+    return (
+      defaults: WithdrawLimitDefaults.fromJson((data['settings'] as Map).cast<String, dynamic>()),
+      customers: ((data['customers'] as List?) ?? const [])
+          .map((e) => LimitCustomer.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+    );
+  }
+
+  /// Admin: change the four default limits (dollars).
+  Future<WithdrawLimitDefaults> setWithdrawLimitDefaults(
+          {required String unverifiedDaily, required String unverifiedMonthly, required String verifiedDaily, required String verifiedMonthly}) async =>
+      WithdrawLimitDefaults.fromJson(await _map('manage_set_withdraw_limit_settings', {
+        'p_unverified_daily': unverifiedDaily,
+        'p_unverified_monthly': unverifiedMonthly,
+        'p_verified_daily': verifiedDaily,
+        'p_verified_monthly': verifiedMonthly,
+      }));
+
+  /// Admin: one customer's KYC status, limits, what is left and their withdrawals.
+  Future<CustomerWithdrawLimits> getCustomerWithdrawLimits(String customerId) async =>
+      CustomerWithdrawLimits.fromJson(await _map('manage_customer_withdraw_limits', {'p_customer_id': customerId}));
+
+  /// Admin: a customer's own limits; both null removes them (the defaults apply again).
+  Future<void> setCustomerWithdrawLimits(String customerId, {String? daily, String? monthly, String? note}) async {
+    await _map('manage_set_customer_withdraw_limits',
+        {'p_customer_id': customerId, 'p_daily': daily, 'p_monthly': monthly, 'p_note': note});
+  }
+
+  /// Admin: customers with whether they may use another payment number.
+  /// [filter]: all | authorized | revoked.
+  Future<List<PaymentNumberCustomer>> getPaymentNumberCustomers({String? query, String filter = 'all'}) async {
+    final data = await _map('manage_payment_number_customers', {'p_query': query, 'p_filter': filter});
+    return ((data['customers'] as List?) ?? const [])
+        .map((e) => PaymentNumberCustomer.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// Admin: one customer's permission and every number on file.
+  Future<CustomerPaymentNumbers> getCustomerPaymentNumbers(String customerId) async =>
+      CustomerPaymentNumbers.fromJson(await _map('manage_customer_payment_numbers', {'p_customer_id': customerId}));
+
+  /// Admin: grant (with the networks) or revoke the permission.
+  Future<void> setPaymentNumberAccess(String customerId, {required bool enabled, List<String>? methods, String? note}) async {
+    await _map('manage_set_payment_number_access',
+        {'p_customer_id': customerId, 'p_enabled': enabled, 'p_methods': methods, 'p_note': note});
+  }
+
+  /// Admin: register a number for a customer.
+  Future<void> addPaymentNumber(String customerId, {required String method, required String phone, String? label}) async {
+    await _map('manage_add_payment_number', {'p_customer_id': customerId, 'p_method': method, 'p_phone': phone, 'p_label': label});
+  }
+
+  /// Admin: block or unblock one number.
+  Future<void> setPaymentNumberBlocked(String numberId, bool blocked) async {
+    await _map('manage_set_payment_number_blocked', {'p_number_id': numberId, 'p_blocked': blocked});
+  }
+
+  /// Admin: remove one number from the customer's list.
+  Future<void> removePaymentNumber(String numberId) async {
+    await _map('manage_remove_payment_number', {'p_number_id': numberId});
+  }
+
+  /// Admin: accounts waiting for (or given) withdrawal approval.
+  Future<({List<WithdrawalVerification> requests, Map<String, int> counts, String? whatsapp})> getWithdrawalVerifications(
+      {String status = 'pending'}) async {
+    final data = await _map('manage_withdrawal_verifications', {'p_status': status});
+    return (
+      requests: ((data['requests'] as List?) ?? const [])
+          .map((e) => WithdrawalVerification.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      counts: ((data['counts'] as Map?) ?? const {}).map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+      whatsapp: data['whatsapp'] as String?,
+    );
+  }
+
+  /// approve | reject | restrict (a reason for the last two).
+  Future<void> decideWithdrawalVerification(String customerId, String decision, {String? reason}) async {
+    await _map('manage_decide_withdrawal_verification',
+        {'p_customer_id': customerId, 'p_decision': decision, 'p_reason': reason});
+  }
+
+  /// Admin: Unconfirmed Deposits started in [from, to) (default: the last 7 days).
+  Future<UnconfirmedDeposits> getUnconfirmedDeposits({DateTime? from, DateTime? to}) async =>
+      UnconfirmedDeposits.fromJson(await _map('manage_unconfirmed_deposits', {
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+      }));
+
+  /// Rejects a waiting deposit (nothing was credited, no money moves).
+  Future<void> rejectDeposit(String orderId, {required String reason}) async {
+    await _map('agent_reject_deposit', {'p_order_id': orderId, 'p_reason': reason});
+  }
 
   Future<List<Order>> getPendingWithdrawals() async =>
       (await _list('agent_pending_withdrawals')).map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
@@ -148,6 +285,22 @@ class AgentApi {
         'p_device_id': deviceId,
       });
 
+  /// Sahal's access-code SMS, read on the merchant phone. The server enters
+  /// the code only while Sahal is waiting for one; the answer says what it
+  /// did (submitted / not_waiting / expired / ignored / off), never the code.
+  Future<Map<String, dynamic>> submitSahalSmsCode({
+    required String sender,
+    required String body,
+    required DateTime receivedAt,
+    String? deviceId,
+  }) =>
+      _map('agent_sahal_sms_code', {
+        'p_sender': sender,
+        'p_body': body,
+        'p_received_at': receivedAt.toUtc().toIso8601String(),
+        'p_device_id': deviceId,
+      });
+
   // ---- Withdrawal payouts (this phone dials them) ----
 
   Future<List<PayoutOrder>> getPayoutQueue() async =>
@@ -212,6 +365,11 @@ class AgentApi {
     await _client.rpc('manage_set_payout_wallet_pin', {'p_id': id, 'p_pin': pin});
   }
 
+  /// The number EVC's *736 code carries (*736*number*amount*CODE#), apart from the PIN.
+  Future<void> setPayoutWalletUssdCode(String id, String code) async {
+    await _client.rpc('manage_set_payout_wallet_ussd_code', {'p_id': id, 'p_code': code});
+  }
+
   /// Server safeguards for automatic payouts, per method.
   Future<List<AutoPayoutSettings>> getAutoPayouts() async =>
       (await _list('manage_auto_payouts')).map((e) => AutoPayoutSettings.fromJson(e as Map<String, dynamic>)).toList();
@@ -225,6 +383,17 @@ class AgentApi {
         'p_daily_limit': dailyLimit,
         'p_min_balance': minBalance,
       }));
+
+  /// Golis / ZAAD / EVC Plus withdrawals sent from Sahal by the server.
+  Future<SahalPayoutSettings> getSahalPayouts() async => SahalPayoutSettings.fromJson(await _map('manage_sahal_payouts'));
+
+  /// [mode] off | test | live (live only after a $0.10 test went out); [dailyLimit] in dollars.
+  Future<SahalPayoutSettings> setSahalPayouts({String? mode, double? dailyLimit}) async =>
+      SahalPayoutSettings.fromJson(await _map('manage_set_sahal_payouts', {'p_mode': mode, 'p_daily_limit': dailyLimit}));
+
+  /// Sends a withdrawal Sahal refused (nothing was sent) again.
+  Future<SahalPayoutSettings> retrySahalPayout(String orderId) async =>
+      SahalPayoutSettings.fromJson(await _map('manage_sahal_retry', {'p_order_id': orderId}));
 
   /// The payout wallet's balance as read on the phone.
   Future<AutoPayoutSettings> setPayoutBalance(String method, double balance) async =>
@@ -297,6 +466,13 @@ class AgentApi {
 
   Future<DashboardSummary> getDashboard() async => DashboardSummary.fromJson(await _map('agent_dashboard'));
 
+  /// The Dashboard's money, customers, 7-day chart and top lists, for the 7 days ending [day] (today when null).
+  Future<DashboardStats> getDashboardStats({DateTime? day}) async => DashboardStats.fromJson(await _map('agent_dashboard_stats', {
+        'p_day': day == null
+            ? null
+            : '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+      }));
+
   Future<List<CustomerSummary>> getCustomers({
     String? query,
     String status = 'all',
@@ -312,13 +488,58 @@ class AgentApi {
     return data.map((e) => CustomerSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Customer totals, and how many joined from [from] to [to] (days, inclusive).
+  Future<CustomerOverview> getCustomerOverview({required DateTime from, required DateTime to}) async =>
+      CustomerOverview.fromJson(await _map('agent_customer_overview', {'p_from': _isoDay(from), 'p_to': _isoDay(to)}));
+
+  static String _isoDay(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   Future<CustomerDetail> getCustomer(String id) async =>
       CustomerDetail.fromJson(await _map('agent_customer', {'p_id': id}));
+
+  /// Managers: the Bonus screen -- on/off, the rate, eligible types, balances, history.
+  Future<BonusSettings> getBonusSettings() async => BonusSettings.fromJson(await _map('manage_bonus_settings'));
+
+  /// Any left null stays as it is; [eligible] is the full list ('withdraw:edahab', ...).
+  Future<BonusSettings> setBonusSettings({bool? enabled, int? defaultRateBp, List<String>? eligible}) async =>
+      BonusSettings.fromJson(await _map('manage_set_bonus_settings', {
+        'p_enabled': enabled,
+        'p_default_bp': defaultRateBp,
+        'p_eligible': eligible,
+      }));
+
+  /// Managers: one customer's withdrawal bonus and its setting.
+  Future<CustomerBonus> getCustomerBonus(String id) async =>
+      CustomerBonus.fromJson(await _map('manage_customer_bonus', {'p_customer_id': id}));
+
+  /// Bonus limits per customer, in dollars; empty clears one.
+  Future<BonusSettings> setBonusLimits({required String daily, required String monthly}) async =>
+      BonusSettings.fromJson(await _map('manage_set_bonus_limits', {'p_daily': daily, 'p_monthly': monthly}));
+
+  /// Sets their rate (50, 100, 150 or 200 basis points) and/or turns it on or off.
+  Future<CustomerBonus> setCustomerBonus(String id, {int? rateBp, bool? enabled}) async =>
+      CustomerBonus.fromJson(await _map('manage_set_customer_bonus', {
+        'p_customer_id': id,
+        'p_rate_bp': rateBp,
+        'p_enabled': enabled,
+      }));
 
   Future<List<LedgerEntry>> getCustomerLedger(String id) async =>
       (await _list('agent_customer_ledger', {'p_id': id}))
           .map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>))
           .toList();
+
+  /// Commission: today | yesterday | this_month | last_3_months | last_6_months |
+  /// last_1_year | all_time | custom (from/to YYYY-MM-DD); [method] one company
+  /// (null: all); [agent] (managers) an agent id, 'automatic', or null for everyone.
+  Future<CommissionReport> getCommission({required String range, String? from, String? to, String? method, String? agent}) async =>
+      CommissionReport.fromJson(await _map('agent_commission',
+          {'p_range': range, 'p_from': from, 'p_to': to, 'p_method': method, 'p_agent': agent}));
+
+  /// Reports: today | yesterday | last_month | all_time | custom (from/to YYYY-MM-DD).
+  Future<ReportOverview> getReportOverview({required String range, String? from, String? to}) async =>
+      ReportOverview.fromJson(await _map('agent_report_overview', {'p_range': range, 'p_from': from, 'p_to': to}));
 
   Future<ReportSummary> getReport({required String period, String? from, String? to}) async =>
       ReportSummary.fromJson(await _map('agent_reports', {'p_period': period, 'p_from': from, 'p_to': to}));
@@ -415,6 +636,13 @@ class AgentApi {
   Future<MerchantFeedStatus> getMerchantFeedStatus() async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_status', {'p_provider': 'golis'}));
 
+  /// SMS forwarding: an SMS-forwarding app on the merchant phone posts Sahal's
+  /// access-code SMS to the server with a token made here. Status is
+  /// {configured, createdAt, lastUsedAt}; the token is shown once, when made.
+  Future<Map<String, dynamic>> getSahalSmsHook() async => _map('manage_sahal_sms_hook_status', {});
+  Future<String> rotateSahalSmsHook() async => (await _map('manage_sahal_sms_hook_rotate', {}))['token'] as String;
+  Future<Map<String, dynamic>> revokeSahalSmsHook() async => _map('manage_sahal_sms_hook_revoke', {});
+
   /// Starts a Sahal sign-in; Sahal texts an access code to the merchant phone.
   Future<MerchantFeedStatus> merchantFeedSignIn() async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_sign_in', {'p_provider': 'golis'}));
@@ -430,6 +658,45 @@ class AgentApi {
   /// The access code from Sahal's SMS.
   Future<MerchantFeedStatus> merchantFeedCode(String code) async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_code', {'p_provider': 'golis', 'p_code': code}));
+
+  /// The Sahal merchant account: status, a new login saved as pending (the
+  /// working one is not touched), tested in its own session, then activated.
+  /// The server never sends a password, PIN, session id or code back.
+  Future<SahalAccountStatus> getSahalAccount() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_status', {}));
+
+  Future<SahalAccountStatus> saveSahalAccount({
+    required String username,
+    required String password,
+    String? pin,
+    String? currency,
+  }) async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_save', {
+        'p_username': username,
+        'p_password': password,
+        'p_pin': (pin ?? '').isEmpty ? null : pin,
+        'p_currency': (currency ?? '').isEmpty ? null : currency,
+      }));
+
+  Future<SahalAccountStatus> testSahalAccount() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_test', {}));
+
+  Future<SahalAccountStatus> sahalAccountCode(String code) async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_code', {'p_code': code}));
+
+  Future<SahalAccountStatus> discardSahalAccount() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_discard', {}));
+
+  Future<SahalAccountStatus> activateSahalAccount({required bool depositCodesUpdated}) async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_account_activate', {'p_deposit_codes_updated': depositCodesUpdated}));
+
+  /// Reads Sahal's list with the working session (no new sign-in, no SMS).
+  Future<SahalAccountStatus> checkSahalConnection() async =>
+      SahalAccountStatus.fromJson(await _map('manage_sahal_connection_check', {}));
+
+  /// Renew an idle session by itself (on), or only when a withdrawal needs it (off).
+  Future<bool> setSahalRenewIdle(bool on) async =>
+      (await _map('manage_sahal_session_options', {'p_renew_idle': on}))['renewIdle'] as bool? ?? on;
 
   /// Withdrawal limits in dollars.
   Future<void> setWithdrawalLimits(String method, {required double min, required double max}) async {
@@ -461,6 +728,83 @@ class AgentApi {
 
   Future<void> setAgentResponsibilities(String id, List<String> responsibilities) async {
     await _client.rpc('admin_set_agent_responsibilities', {'p_id': id, 'p_responsibilities': responsibilities});
+  }
+
+  Future<void> updateAgent(String id, {required String name, required String phone}) async {
+    await _client.rpc('admin_update_agent', {'p_id': id, 'p_name': name, 'p_phone': phone});
+  }
+
+  /// A new password for another agent; they are signed out everywhere.
+  Future<void> resetAgentPassword(String id, String newPassword) async {
+    await _client.rpc('admin_reset_agent_password', {'p_id': id, 'p_new_password': newPassword});
+  }
+
+  /// Hidden and unable to log in; kept with its orders and audit trail.
+  Future<void> deleteAgent(String id, String reason) async {
+    await _client.rpc('admin_delete_agent', {'p_id': id, 'p_reason': reason});
+  }
+
+  Future<List<LoginEvent>> getLoginHistory({String? userId}) async =>
+      (await _list('admin_login_history', {'p_user_id': userId}))
+          .map((e) => LoginEvent.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<List<AgentPerformance>> getAgentPerformance({required DateTime from, required DateTime to}) async =>
+      (await _list('admin_agent_performance', {'p_from': _isoDay(from), 'p_to': _isoDay(to)}))
+          .map((e) => AgentPerformance.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  // Betting platforms
+
+  Future<({List<BettingAdapter> adapters, List<BettingPlatform> platforms})> getBettingPlatforms() async {
+    final data = await _map('manage_betting_platforms');
+    return (
+      adapters: [for (final a in (data['adapters'] as List? ?? const [])) BettingAdapter.fromJson(a as Map<String, dynamic>)],
+      platforms: [for (final p in (data['platforms'] as List? ?? const [])) BettingPlatform.fromJson(p as Map<String, dynamic>)],
+    );
+  }
+
+  /// A new platform, switched off; its credentials are entered next.
+  Future<String> createBettingPlatform(String name, String adapter) async =>
+      (await _map('manage_create_betting_platform', {'p_name': name, 'p_adapter': adapter}))['method'] as String;
+
+  /// Empty secrets keep the saved ones. Any change needs a new Test connection.
+  Future<BettingPlatform> saveBettingPlatform(
+    String method, {
+    String? apiUrl,
+    String? login,
+    String? password,
+    String? accountId,
+    String? apiSecret,
+    String? apiKey,
+  }) async =>
+      BettingPlatform.fromJson(await _map('manage_save_betting_platform', {
+        'p_method': method,
+        'p_api_url': apiUrl,
+        'p_login': login,
+        'p_password': password,
+        'p_account_id': accountId,
+        'p_api_secret': apiSecret,
+        'p_api_key': apiKey,
+      }));
+
+  /// Tries the saved credentials against the provider (no money moves).
+  Future<BettingPlatform> testBettingPlatform(String method) async => BettingPlatform.fromJson(
+      await _client.getFunction('cashdeskbot/platform-test/${Uri.encodeComponent(method)}') as Map<String, dynamic>);
+
+  Future<BettingPlatform> setBettingPlatformActive(String method, bool active) async =>
+      BettingPlatform.fromJson(await _map('manage_set_betting_platform_active', {'p_method': method, 'p_active': active}));
+
+  /// A logo (PNG or JPEG, already shrunk) for a platform added here, or null
+  /// to remove it. The Customer App shows it with the platform's name.
+  Future<BettingPlatform> setBettingPlatformLogo(String method, Uint8List? logo) async =>
+      BettingPlatform.fromJson(await _map('manage_set_betting_platform_logo', {
+        'p_method': method,
+        'p_logo': logo == null ? null : base64Encode(logo),
+      }));
+
+  Future<void> deleteBettingPlatform(String method, String reason) async {
+    await _client.rpc('manage_delete_betting_platform', {'p_method': method, 'p_reason': reason});
   }
 
   Future<List<AgentDevice>> getAgentDevices(String id) async =>
@@ -547,8 +891,15 @@ class AgentApi {
     String? linkUrl,
     required bool enabled,
     int sortOrder = 0,
+    // A newly chosen picture (JPEG, PNG or WebP). Saved together with the ad,
+    // so a failure leaves the ad and its previous picture unchanged. Null
+    // keeps the current picture; [removeImage] drops it.
+    Uint8List? image,
+    bool removeImage = false,
   }) async {
     await _client.rpc('manage_save_home_ad', {
+      'p_image': image == null ? null : base64Encode(image),
+      'p_remove_image': removeImage,
       'p_id': id,
       'p_title': title,
       'p_body': body,

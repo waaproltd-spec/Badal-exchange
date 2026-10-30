@@ -58,9 +58,61 @@ export const BRANDS: Record<string, Brand> = {
 
 export const brandForMethod = (method: string) => Object.values(BRANDS).find((b) => b.method === method);
 
+/** A database function with the service key (the Edge Functions' own access). */
+async function serviceRpc(fn: string, args: Record<string, unknown>) {
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const headers: Record<string, string> = { apikey: key, 'Content-Type': 'application/json' };
+  if (!key.startsWith('sb_')) headers.Authorization = `Bearer ${key}`;
+  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/${fn}`, { method: 'POST', headers, body: JSON.stringify(args) });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new ApiError(502, 'CONFIG_UNAVAILABLE', data?.message ?? `${fn} failed`);
+  return data;
+}
+
+/** Credentials saved in the Agent App (Betting Platforms), or null. Only the
+ *  version that passed its Test connection, unless [forTest]. */
+export async function savedCredentials(method: string, forTest = false): Promise<(Creds & { version: string; name: string }) | null> {
+  const c = await serviceRpc('betting_platform_config', { p_method: method, p_for_test: forTest });
+  if (!c || c.adapter !== 'cashdeskbot') return null;
+  return {
+    baseUrl: String(c.baseUrl ?? '').trim().replace(/\/$/, ''),
+    login: String(c.login ?? '').trim(),
+    cashierpass: String(c.cashierpass ?? '').trim(),
+    hash: String(c.hash ?? '').trim(),
+    cashdeskid: String(c.cashdeskid ?? '').trim(),
+    version: String(c.version),
+    name: String(c.name ?? method),
+  };
+}
+
+/** Records a Test connection for the version it tested (betting_platform_record_test). */
+export const recordPlatformTest = (method: string, version: string, ok: boolean, message: string, testedBy: string | null) =>
+  serviceRpc('betting_platform_record_test', {
+    p_method: method, p_version: version, p_ok: ok, p_message: message, p_tested_by: testedBy,
+  });
+
+/** A platform added in the Agent App has no Edge Function secrets of its own. */
+export async function brandFor(method: string): Promise<Brand | undefined> {
+  const known = brandForMethod(method);
+  if (known) return known;
+  const saved = await savedCredentials(method).catch(() => null);
+  return saved ? { key: method, label: saved.name, method, envPrefix: '' } : undefined;
+}
+
+/** The credentials to use for real: tested ones saved in the app, else the
+ *  brand's Edge Function secrets (as before). */
+export async function credentialsFor(brand: Brand): Promise<Creds> {
+  const saved = await savedCredentials(brand.method).catch(() => null);
+  if (saved) return saved;
+  return getCredentials(brand);
+}
+
 export function getCredentials(brand: Brand = BRANDS['888starz']): Creds {
   const name = (k: string) => `${brand.envPrefix}_${k.toUpperCase()}`;
-  const env = (k: string) => Deno.env.get(name(k)) ?? '';
+  // Trimmed: a value pasted into the dashboard often carries a space or newline,
+  // which changes the signature and CashdeskBot then refuses every request.
+  const env = (k: string) => (Deno.env.get(name(k)) ?? '').trim();
   const missing = ['login', 'cashierpass', 'hash', 'cashdeskid'].filter((k) => !env(k));
   if (missing.length > 0) {
     throw new ApiError(

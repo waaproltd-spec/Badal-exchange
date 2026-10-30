@@ -11,6 +11,7 @@ import '../state/live_updates.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
+import '../widgets/dashboard_widgets.dart';
 import '../widgets/state_views.dart';
 import 'company/company_balances_screen.dart';
 import 'pending_deposits_screen.dart';
@@ -19,11 +20,14 @@ import 'sms_transactions_screen.dart';
 
 /// Dashboard: the agent's overview. Pending counts open the screens where
 /// those orders are actioned; the other counts open History filtered. Also
-/// hosts the automatic EVC Plus SMS matching control and recent activity.
+/// the money behind each count, customers, a 7-day chart, the status ring,
+/// top services and deposit methods for a chosen day (its 7 days), the
+/// automatic EVC Plus SMS matching control and recent activity.
 class DashboardScreen extends StatefulWidget {
   final ValueChanged<HistoryFilter> onOpenHistory;
+  final VoidCallback? onOpenUsers;
 
-  const DashboardScreen({super.key, required this.onOpenHistory});
+  const DashboardScreen({super.key, required this.onOpenHistory, this.onOpenUsers});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -35,6 +39,10 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
   bool _loading = true;
   bool _smsBusy = false;
   CompanyBalancesOverview? _companies;
+  DashboardStats? _stats;
+
+  /// The day the chart and top lists end on; null is today.
+  DateTime? _day;
 
   @override
   void initState() {
@@ -52,6 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
       final session = context.read<Session>();
       final summary = await session.api.getDashboard();
       if (session.canViewCompanyBalances) _loadCompanies(session);
+      _loadStats(session);
       if (!mounted) return;
       setState(() {
         _summary = summary;
@@ -72,6 +81,27 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
       final c = await session.api.getCompanyBalances();
       if (mounted) setState(() => _companies = c);
     } catch (_) {}
+  }
+
+  /// The extra figures; their failure (or an older server) never hides the dashboard.
+  Future<void> _loadStats(Session session) async {
+    try {
+      final s = await session.api.getDashboardStats(day: _day);
+      if (mounted) setState(() => _stats = s);
+    } catch (_) {}
+  }
+
+  Future<void> _pickDay() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _day ?? now,
+      firstDate: DateTime(2026, 1, 1),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _day = picked);
+    _loadStats(context.read<Session>());
   }
 
   Future<void> _openCompanies() async {
@@ -101,6 +131,9 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
     if (mounted) setState(() => _smsBusy = false);
   }
 
+  /// "\$30.00" under a status count, once the figures are in.
+  String? _money(String key) => _stats == null ? null : '\$${_stats!.amount(key)}';
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const LoadingView();
@@ -119,10 +152,31 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 2),
-          const Text('Manage your transactions', style: TextStyle(color: AppColors.textSecondary)),
-          const SizedBox(height: 16),
+          const Text('Manage your transactions and company balances', style: TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                key: const Key('dashboard-day'),
+                onPressed: _pickDay,
+                icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                label: Text(longDay(_stats?.day ?? _day ?? DateTime.now())),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.outlined(tooltip: 'Refresh', onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+          ]),
+          const SizedBox(height: 12),
           if (session.canViewCompanyBalances) ...[
             _CompanyBalancesCard(data: _companies, onTap: _openCompanies),
+            const SizedBox(height: 12),
+          ],
+          if (_stats != null) ...[
+            CustomersCard(
+              total: _stats!.totalCustomers,
+              newThisMonth: _stats!.newCustomersThisMonth,
+              onTap: widget.onOpenUsers,
+            ),
             const SizedBox(height: 12),
           ],
           TwoColumnGrid(children: [
@@ -131,6 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               color: AppColors.statusPending,
               value: '${s.pendingDeposits}',
               label: 'Pending Deposits',
+              caption: _money('pendingDeposits'),
               onTap: () => _push('Pending Deposits', const PendingDepositsScreen()),
             ),
             StatCard(
@@ -138,6 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               color: AppColors.statusProcessing,
               value: '${s.pendingWithdrawals}',
               label: 'Pending Withdrawals',
+              caption: _money('pendingWithdrawals'),
               onTap: () => _push('Pending Withdrawals', const PendingWithdrawalsScreen()),
             ),
             StatCard(
@@ -145,6 +201,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               color: AppColors.purple,
               value: '${s.processing}',
               label: 'Processing',
+              caption: _money('processing'),
               onTap: () => widget.onOpenHistory(const HistoryFilter(status: 'processing')),
             ),
             StatCard(
@@ -152,6 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               color: AppColors.statusCompleted,
               value: '${s.completed}',
               label: 'Completed',
+              caption: _money('completed'),
               onTap: () => widget.onOpenHistory(const HistoryFilter(status: 'completed')),
             ),
             StatCard(
@@ -159,6 +217,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               color: AppColors.statusFailed,
               value: '${s.failed}',
               label: 'Failed',
+              caption: _money('failed'),
               onTap: () => widget.onOpenHistory(const HistoryFilter(status: 'failed')),
             ),
             StatCard(
@@ -170,6 +229,35 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
             ),
           ]),
           const SizedBox(height: 16),
+          if (_stats != null) ...[
+            TransactionsOverviewCard(days: _stats!.days),
+            const SizedBox(height: 12),
+            TransactionStatusCard(
+              completed: s.completed,
+              pending: s.pendingDeposits + s.pendingWithdrawals,
+              processing: s.processing,
+              failed: s.failed,
+            ),
+            const SizedBox(height: 12),
+            TopListCard(
+              key: const Key('dashboard-top-services'),
+              title: 'Top Services / Orders',
+              countLabel: 'orders',
+              rows: _stats!.topServices,
+              emptyText: 'No completed orders in these 7 days.',
+              onViewAll: () => widget.onOpenHistory(const HistoryFilter(type: 'order')),
+            ),
+            const SizedBox(height: 12),
+            TopListCard(
+              key: const Key('dashboard-top-deposits'),
+              title: 'Top Deposit Methods',
+              countLabel: 'txns',
+              rows: _stats!.topDepositMethods,
+              emptyText: 'No completed deposits in these 7 days.',
+              onViewAll: () => widget.onOpenHistory(const HistoryFilter(type: 'deposit')),
+            ),
+            const SizedBox(height: 16),
+          ],
           if (Platform.isAndroid)
             _SmsMatchingCard(
               isListening: session.smsBridge.isListening,

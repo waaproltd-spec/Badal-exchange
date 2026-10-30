@@ -195,7 +195,7 @@ class PayoutRunner {
 
       UssdPayoutResult result;
       try {
-        result = await device.runPayout(simSlot: start.simSlot, ussd: start.ussd, pin: pin);
+        result = await device.runPayout(simSlot: start.simSlot, ussd: start.dialString, pin: pin);
       } catch (e) {
         // Unknown whether the PIN reached the carrier: unclear, so a retry
         // needs a manager to confirm the money did not go out.

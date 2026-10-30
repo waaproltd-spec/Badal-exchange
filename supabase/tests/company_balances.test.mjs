@@ -87,6 +87,8 @@ before(async () => {
 });
 after(async () => {
   standIn.close();
+  // An open keep-alive connection from the Edge Function would hold the process (the file timed out now and then).
+  standIn.closeAllConnections?.();
   await db.end();
 });
 
@@ -191,10 +193,10 @@ test('withdrawals waiting for a top-up: low, with how much more is needed', asyn
 
 test('a low balance on its own, and an old read: low, then stale and left out of the total', async (t) => {
   if (!served) return t.skip('company-balances is not served');
-  registers[1] = { Balance: 900, Limit: 12.5 };
+  registers[1] = { Balance: 900, Limit: 2.5 };
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '1 minute'`);
   const low = company((await balances(manager.c, '?refresh=1')).body, '888starz');
-  assert.deepEqual([low.status, low.balance, low.limit, low.topUpNeeded], ['low', '900.00', '12.50', null]);
+  assert.deepEqual([low.status, low.balance, low.limit, low.topUpNeeded], ['low', '900.00', '2.50', null]);
 
   await db.query(`UPDATE cashdesk_balances SET checked_at = checked_at - interval '20 minutes' WHERE method = '888starz'`);
   // The worker's own refresh is what normally keeps it fresh; read without one.
@@ -217,4 +219,61 @@ test('nobody can set a balance from the app', async (t) => {
   assert.ok(e2);
   await assert.rejects(worker.rpc('company_balance_record', { p_method: 'golis', p_balance: 5, p_limit: null, p_error: null })
     .then((r) => { if (r.error) throw r.error; }));
+});
+
+test('Sahal: listed once it has been read, with the same statuses; the total adds it only when fresh; its detail shows the reads', async (t) => {
+  if (!served) return t.skip('company-balances is not served');
+  await db.query('DELETE FROM sahal_balances');
+  try {
+    const rpc = async () => (await manager.c.rpc('agent_company_balances')).data;
+    const before = await rpc();
+    assert.equal(company(before, 'sahal'), undefined, 'nothing is listed until Sahal has been read');
+
+    await worker.rpc('sahal_balance_record', { p_balance: 1234.5 });
+    let body = await rpc();
+    const sahal = company(body, 'sahal');
+    assert.deepEqual([sahal.label, sahal.status, sahal.balance, sahal.limit, sahal.connected, sahal.source],
+      ['Sahal', 'available', '1234.50', null, true, 'Sahal merchant account']);
+    assert.equal(body.companies[0].method, 'sahal', 'listed first');
+    assert.equal(body.total, (Number(before.total) + 1234.5).toFixed(2));
+    assert.equal(body.totalCompanies, before.totalCompanies + 1);
+    assert.equal(body.companies.length, before.companies.length + 1);
+
+    // Under the low-balance level ($5 unless set otherwise).
+    await db.query('DELETE FROM sahal_balances');
+    await worker.rpc('sahal_balance_record', { p_balance: 3 });
+    body = await rpc();
+    assert.deepEqual([company(body, 'sahal').status, company(body, 'sahal').balance], ['low', '3.00']);
+    assert.equal(body.lowCount, before.lowCount + 1);
+
+    // An old read: last known, stale, left out of the total.
+    await db.query(`UPDATE sahal_balances SET checked_at = now() - interval '20 minutes'`);
+    body = await rpc();
+    assert.equal(company(body, 'sahal').status, 'stale');
+    assert.equal(body.total, before.total);
+    assert.equal(body.unavailableCount, before.unavailableCount + 1);
+
+    // The last read failed: offline, with the reason; the last known balance stays visible.
+    await worker.rpc('sahal_balance_record', { p_balance: null, p_error: 'Sahal did not return a balance' });
+    body = await rpc();
+    const off = company(body, 'sahal');
+    assert.deepEqual([off.status, off.balance, off.lastError], ['offline', '3.00', 'Sahal did not return a balance']);
+
+    // Its detail: the recent reads, newest first; other companies still answer as before.
+    const detail = (await manager.c.rpc('agent_company_detail', { p_method: 'sahal' })).data;
+    assert.equal(detail.method, 'sahal');
+    assert.deepEqual(detail.checks.map((c) => [c.ok, c.balance]), [[false, null], [true, '3.00']]);
+    assert.deepEqual([detail.movements, detail.orders], [[], []]);
+    const other = (await manager.c.rpc('agent_company_detail', { p_method: '888starz' })).data;
+    assert.equal(other.method, '888starz');
+    assert.ok(Array.isArray(other.movements) && Array.isArray(other.checks));
+
+    // Nobody can set a Sahal balance from the app; customers cannot see it.
+    assert.ok((await manager.c.rpc('sahal_balance_record', { p_balance: 999999 })).error);
+    assert.ok((await manager.c.from('sahal_balances').insert({ ok: true, balance_cents: 1 })).error);
+    const cu = await newUser('customer');
+    assert.ok((await cu.c.rpc('agent_company_detail', { p_method: 'sahal' })).error);
+  } finally {
+    await db.query('DELETE FROM sahal_balances');
+  }
 });

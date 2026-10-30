@@ -71,7 +71,12 @@ Future<void> _phone(WidgetTester tester, [Size size = const Size(393, 851)]) asy
 }
 
 void main() {
-  setUp(() => AppLanguage.current.value = AppLanguage.english);
+  setUp(() {
+    AppLanguage.current.value = AppLanguage.english;
+    // The orders here were made at a fixed time: "now" is a few seconds after.
+    Order.clock = () => DateTime(2026, 10, 21, 19, 41, 10);
+  });
+  tearDown(() => Order.clock = DateTime.now);
 
   final deposit = _order(id: 'd1', direction: 'deposit', before: '0.25', after: '1.25', ref: '7497945808');
   final withdrawal = _order(
@@ -123,17 +128,18 @@ void main() {
     await tester.tap(find.text('Deposit · EVC Plus'));
     await tester.pumpAndSettle();
     expect(valueOf('EVC PLUS Account'), '+252610346060');
-    expect(valueOf('Transfer ID'), '7497945808');
+    expect(find.text('Transfer ID'), findsNothing, reason: 'the transfer number is for agents only');
     expect(valueOf('Balance After'), '\$1.25');
   });
 
-  testWidgets('an unpaid deposit has no balance lines and says it waits for the payment', (tester) async {
+  testWidgets('an unpaid deposit has no balance lines and says it is being verified', (tester) async {
     await _phone(tester);
     await tester.pumpWidget(_host(const OrdersListScreen(), [unpaid]));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Deposit · EVC Plus'));
     await tester.pumpAndSettle();
-    expect(find.text('Waiting for your payment'), findsOneWidget);
+    expect(find.text('Your payment is being verified…'), findsAtLeastNWidgets(1));
+    expect(find.text('Pending'), findsNothing);
     expect(find.text('Balance Before'), findsNothing);
     expect(find.text('Balance After'), findsNothing);
   });
@@ -143,13 +149,14 @@ void main() {
     await tester.pumpWidget(_host(DepositResultScreen(order: deposit)));
     expect(find.text('USD Deposited'), findsOneWidget);
     expect(find.text('Deposit Confirmed'), findsOneWidget);
-    expect(find.text('7497945808'), findsOneWidget);
+    expect(find.text('7497945808'), findsNothing, reason: 'the transfer number is for agents only');
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(_host(WithdrawResultScreen(
         order: _order(id: 'w2', direction: 'withdraw', status: 'processing', before: '2.00', after: '1.00'))));
     expect(find.text('USD Withdrawn'), findsOneWidget);
-    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('Your payment is being verified…'), findsOneWidget);
+    expect(find.text('Pending'), findsNothing);
     expect(find.text('Withdrawal Confirmed'), findsNothing, reason: 'only once it is paid out');
     await tester.scrollUntilVisible(find.byKey(const Key('back-to-home')), 120, scrollable: find.byType(Scrollable).first);
     expect(tester.takeException(), isNull);
@@ -185,5 +192,35 @@ void main() {
     await tester.pumpWidget(_host(DepositResultScreen(order: deposit)));
     expect(find.text('Dhigashada waa la xaqiijiyay'), findsOneWidget);
     expect(find.text('USD la dhigay'), findsOneWidget);
+  });
+
+  testWidgets('a late withdrawal says why; an on-time one says nothing extra', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    await _phone(tester);
+    final late = Order(
+      id: 'w-late', orderCode: 'EX8N5NPM', direction: 'withdraw', method: 'evc_plus', status: 'pending',
+      statusMessage: 'pending', phoneNumber: '252610346060', amount: '1.00', fee: '0.00', netAmount: '1.00',
+      createdAt: DateTime(2026, 10, 28, 16, 44), delay: 'provider_unavailable');
+    await tester.pumpWidget(_host(WithdrawResultScreen(order: late)));
+    expect(find.byKey(const Key('delay-notice')), findsOneWidget);
+    expect(find.text('Maxay u daahday?'), findsOneWidget);
+    expect(find.textContaining('Lacagtaadu way badbaadsan tahay'), findsOneWidget);
+
+    final onTime = _order(id: 'w-ok', direction: 'withdraw', status: 'pending');
+    await tester.pumpWidget(_host(WithdrawResultScreen(order: onTime)));
+    expect(find.byKey(const Key('delay-notice')), findsNothing);
+  });
+
+  test('every delay code has its own words, and an unknown one still reads well', () {
+    AppLanguage.current.value = AppLanguage.english;
+    final texts = ['provider_unavailable', 'provider_balance', 'confirming', 'manual', 'waiting', 'something_new']
+        .map(AppStrings.delayReason)
+        .toList();
+    expect(texts.toSet().length, 5, reason: 'waiting and an unknown code share the queue text');
+    expect(texts[0], contains('will be sent automatically'));
+    expect(Order.fromJson({
+      'id': 'x', 'orderCode': 'EXX', 'direction': 'withdraw', 'method': 'golis', 'status': 'pending',
+      'amount': '1.00', 'fee': '0.00', 'netAmount': '1.00', 'createdAt': '2026-10-28T13:44:00Z', 'delay': 'manual',
+    }).delay, 'manual');
   });
 }
