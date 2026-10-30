@@ -271,7 +271,7 @@ test('Sahal needing a person is said at once, once, and the all-clear after', as
   try {
     await run();
     await run();
-    const asks = sent('sendMessage', CHAT).filter((c) => /Sahal needs its SMS code/.test(c.body.text));
+    const asks = sent('sendMessage', CHAT).filter((c) => /Sahal wuxuu u baahan yahay koodhka SMS-ka/.test(c.body.text));
     assert.equal(asks.length, 1, 'once');
     assert.match(asks[0].body.text, /Sahal Sign-in/);
 
@@ -279,7 +279,7 @@ test('Sahal needing a person is said at once, once, and the all-clear after', as
     await db.query(`UPDATE merchant_feed_status SET state = 'ok', result_code = '2001' WHERE provider = 'golis'`);
     await run();
     await run();
-    assert.equal(sent('sendMessage', CHAT).filter((c) => /Sahal works again/.test(c.body.text)).length, 1);
+    assert.equal(sent('sendMessage', CHAT).filter((c) => /Sahal wuu shaqeynayaa mar kale/.test(c.body.text)).length, 1);
   } finally {
     await db.query(`UPDATE merchant_feed_status SET state = $1, result_code = $2, message = $3 WHERE provider = 'golis'`,
       [feed.state, feed.result_code, feed.message]);
@@ -297,11 +297,11 @@ test('the SMS code still not entered after 2 minutes: a clearer alert, once', as
   await db.query(`UPDATE merchant_feed_status SET state = 'needs_code', result_code = '1001' WHERE provider = 'golis'`);
   try {
     await run();
-    assert.equal(sent('sendMessage', CHAT).filter((c) => /Sahal code not entered/.test(c.body.text)).length, 0, 'not at once: the forwarder usually enters it');
+    assert.equal(sent('sendMessage', CHAT).filter((c) => /Koodhka Sahal .* lama gelin/.test(c.body.text)).length, 0, 'not at once: the forwarder usually enters it');
     await db.query(`UPDATE private.merchant_feed_sessions SET second_at = now() - interval '3 minutes' WHERE provider = 'golis'`);
     await run();
     await run();
-    const late = sent('sendMessage', CHAT).filter((c) => /Sahal code not entered for 2 minutes/.test(c.body.text));
+    const late = sent('sendMessage', CHAT).filter((c) => /Koodhka Sahal 2 daqiiqo lama gelin/.test(c.body.text));
     assert.equal(late.length, 1, 'once');
     assert.match(late[0].body.text, /SMS forwarder-ku ma gelin/);
     assert.match(late[0].body.text, /Sahal Sign-in/);
