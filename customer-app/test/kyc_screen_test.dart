@@ -26,9 +26,9 @@ class _FakeApi extends CustomerApi {
     required String documentType,
     required String fullName,
     required String documentNumber,
-    required String country,
-    required String dateOfBirth,
-    required String expiryDate,
+    String? country,
+    String? dateOfBirth,
+    String? expiryDate,
     required List<int> front,
     List<int>? back,
     required List<int> selfie,
@@ -64,10 +64,6 @@ Future<void> _tap(WidgetTester tester, Finder f) async {
 }
 
 void main() {
-  test('the country of issue offers Somalia only', () {
-    expect(kycCountries, [('SO', 'Somalia')]);
-  });
-
   setUp(() => AppLanguage.current.value = AppLanguage.english);
 
   testWidgets('not submitted: document, details, photos, selfie, review, submit -> Pending Admin Review', (tester) async {
@@ -80,10 +76,6 @@ void main() {
     final next = find.byKey(const Key('kyc-details-continue'));
     await tester.enterText(find.byKey(const Key('kyc-name')), 'Yasin Mohamed Adan');
     await tester.enterText(find.byKey(const Key('kyc-number')), 'nid789456');
-    await _tap(tester, find.byKey(const Key('kyc-dob')));
-    await _tap(tester, find.text('OK'));
-    await _tap(tester, find.byKey(const Key('kyc-expiry')));
-    await _tap(tester, find.text('OK'));
     await _tap(tester, find.byKey(const Key('kyc-photo-front')));
     expect(tester.widget<ElevatedButton>(find.descendant(of: next, matching: find.byType(ElevatedButton))).onPressed, isNull,
         reason: 'a national ID needs its back too');
@@ -97,13 +89,16 @@ void main() {
 
     expect(find.text('Review & Submit'), findsOneWidget);
     expect(find.text('NID789456'), findsOneWidget);
-    expect(find.text('Somalia'), findsOneWidget);
+    expect(find.text('Somalia'), findsNothing);
+    expect(find.text('Country of Issue'), findsNothing);
+    expect(find.text('Date of Birth'), findsNothing);
+    expect(find.text('Expiry Date'), findsNothing);
     await _tap(tester, find.byKey(const Key('kyc-submit')));
     expect(api.submitted!['type'], 'national_id');
     expect(api.submitted!['name'], 'Yasin Mohamed Adan');
-    expect(api.submitted!['country'], 'SO');
+    expect([api.submitted!['country'], api.submitted!['dob'], api.submitted!['expiry']], [null, null, null],
+        reason: 'the form no longer asks for them');
     expect([api.submitted!['front'], api.submitted!['back'], api.submitted!['selfie']], [9, 9, 7]);
-    expect(api.submitted!['dob'], matches(RegExp(r'^\d{4}-\d\d-\d\d$')));
     expect(find.byKey(const Key('kyc-status-pending_review')), findsOneWidget);
     expect(find.text('Pending Admin Review'), findsOneWidget);
   });
@@ -122,5 +117,45 @@ void main() {
     await _pump(tester, KycStatus.fromJson({'status': 'resubmission_required', 'canSubmit': true, 'reason': 'Photo is blurred'}));
     expect(find.text('Resubmission Required'), findsWidgets); // the heading and the timeline
     expect(find.text('Photo is blurred'), findsOneWidget);
+  });
+
+  testWidgets('the ID card form: name, number, front and back side by side, Continue; no country or dates', (tester) async {
+    await _pump(tester, KycStatus.fromJson({'status': 'not_submitted', 'canSubmit': true}));
+    await _tap(tester, find.byKey(const Key('kyc-start')));
+    await _tap(tester, find.byKey(const Key('kyc-type-national_id')));
+    await _tap(tester, find.byKey(const Key('kyc-type-continue')));
+    expect(find.byKey(const Key('kyc-name')), findsOneWidget);
+    expect(find.byKey(const Key('kyc-number')), findsOneWidget);
+    expect(find.byKey(const Key('kyc-photo-front')), findsOneWidget);
+    expect(find.byKey(const Key('kyc-photo-back')), findsOneWidget);
+    expect(find.byKey(const Key('kyc-details-continue')), findsOneWidget);
+    for (final k in ['kyc-country', 'kyc-dob', 'kyc-expiry']) {
+      expect(find.byKey(Key(k)), findsNothing, reason: k);
+    }
+    // Front and back are side by side: the same row.
+    final front = tester.getRect(find.byKey(const Key('kyc-photo-front')));
+    final back = tester.getRect(find.byKey(const Key('kyc-photo-back')));
+    expect(front.top, back.top);
+    expect(front.right, lessThan(back.left));
+  });
+
+  testWidgets('the whole ID card form fits one small screen: nothing to scroll to', (tester) async {
+    tester.view.physicalSize = const Size(720, 1280); // 360 x 640 dp
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final api = _FakeApi(KycStatus.fromJson({'status': 'not_submitted', 'canSubmit': true}));
+    await tester.pumpWidget(Provider<CustomerApi>.value(
+        value: api, child: MaterialApp(theme: AppTheme.current, home: KycScreen(key: UniqueKey(), pickPhoto: _fakePhoto))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('kyc-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('kyc-type-national_id')));
+    await tester.tap(find.byKey(const Key('kyc-type-continue')));
+    await tester.pumpAndSettle();
+    final screen = tester.getRect(find.byType(Scaffold));
+    for (final k in ['kyc-name', 'kyc-number', 'kyc-photo-front', 'kyc-photo-back', 'kyc-details-continue']) {
+      final r = tester.getRect(find.byKey(Key(k)));
+      expect(r.bottom, lessThanOrEqualTo(screen.bottom), reason: '$k is on screen without scrolling');
+    }
   });
 }

@@ -136,6 +136,24 @@ test('invalid details, unreadable images and a name that does not match: Admin R
   assert.match(d.checks.find((c) => c.key === 'image_selfie').detail, /Not a JPEG or PNG/);
 });
 
+test('an application without country, date of birth and expiry (the shorter form): no check fails for them', async () => {
+  const cu = await customer();
+  const s = await rpc(cu.c, 'customer_submit_kyc', passport({ p_document_type: 'national_id', p_document_number: 'NID789456',
+    p_country: null, p_date_of_birth: null, p_expiry_date: null, p_back: goodDoc }));
+  assert.equal(s.status, 'pending_review');
+  const d = await detail(s.id);
+  assert.deepEqual(failed(d), [], 'nothing failed: the fields are not asked for');
+  assert.ok(!d.checks.some((c) => ['country', 'date_of_birth', 'expiry_date'].includes(c.key)), 'no check for what was not given');
+  assert.match(d.reviewReason, /No identity-verification service is configured/);
+  assert.equal(d.dateOfBirth, null);
+  assert.equal(d.expiryDate, null);
+  assert.ok(d.documents.front && d.documents.back);
+  // The name and the images are still checked.
+  const bad = await customer('Ahmed Ali');
+  const s2 = await rpc(bad.c, 'customer_submit_kyc', passport({ p_country: null, p_date_of_birth: '', p_expiry_date: '', p_front: tinyImage }));
+  assert.deepEqual(failed(await detail(s2.id)).sort(), ['image_front', 'name_matches_account']);
+});
+
 test('national ID needs the back too; a missing image is a failed check', async () => {
   const cu = await customer();
   const s = await rpc(cu.c, 'customer_submit_kyc', passport({ p_document_type: 'national_id', p_document_number: 'NID789456' }));

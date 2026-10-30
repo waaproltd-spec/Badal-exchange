@@ -65,7 +65,6 @@ class KycScreen extends StatefulWidget {
 enum _Step { status, intro, type, details, selfie, review }
 
 class _KycScreenState extends State<KycScreen> {
-  static final _iso = DateFormat('yyyy-MM-dd');
   static final _when = DateFormat('d MMM yyyy, HH:mm');
 
   KycStatus? _status;
@@ -77,9 +76,6 @@ class _KycScreenState extends State<KycScreen> {
   String _type = 'passport';
   final _name = TextEditingController();
   final _number = TextEditingController();
-  String _country = 'SO';
-  DateTime? _dob;
-  DateTime? _expiry;
   Uint8List? _front;
   Uint8List? _back;
   Uint8List? _selfie;
@@ -130,20 +126,8 @@ class _KycScreenState extends State<KycScreen> {
     });
   }
 
-  Future<void> _pickDate({required bool birth}) async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: birth ? DateTime(now.year - 25) : DateTime(now.year + 2),
-      firstDate: birth ? DateTime(1920) : now,
-      lastDate: birth ? now : DateTime(now.year + 20),
-    );
-    if (picked == null) return;
-    setState(() => birth ? _dob = picked : _expiry = picked);
-  }
-
   bool get _detailsReady =>
-      _name.text.trim().isNotEmpty && _number.text.trim().isNotEmpty && _dob != null && _expiry != null &&
+      _name.text.trim().isNotEmpty && _number.text.trim().isNotEmpty &&
       _front != null && (_type == 'passport' || _back != null);
 
   Future<void> _submit() async {
@@ -156,9 +140,6 @@ class _KycScreenState extends State<KycScreen> {
             documentType: _type,
             fullName: _name.text.trim(),
             documentNumber: _number.text.trim(),
-            country: _country,
-            dateOfBirth: _iso.format(_dob!),
-            expiryDate: _iso.format(_expiry!),
             front: _front!,
             back: _type == 'national_id' ? _back : null,
             selfie: _selfie!,
@@ -308,18 +289,6 @@ class _KycScreenState extends State<KycScreen> {
         ]),
       );
 
-  Widget _dateField(String label, DateTime? value, {required bool birth}) => Padding(
-        padding: const EdgeInsets.only(top: 14),
-        child: InkWell(
-          key: Key(birth ? 'kyc-dob' : 'kyc-expiry'),
-          onTap: () => _pickDate(birth: birth),
-          child: InputDecorator(
-            decoration: InputDecoration(labelText: label, suffixIcon: const Icon(Icons.calendar_month_rounded)),
-            child: Text(value == null ? '' : _iso.format(value)),
-          ),
-        ),
-      );
-
   List<Widget> _details() => [
         Text(_t('Enter your details exactly as shown on your document.', 'Geli xogtaada sida ay ugu qoran tahay dukumentiga.'),
             style: AppTextStyles.muted),
@@ -340,21 +309,17 @@ class _KycScreenState extends State<KycScreen> {
               decoration: InputDecoration(labelText: _type == 'passport' ? _t('Passport Number', 'Lambarka Baasaboorka')
                   : _t('ID Number', 'Lambarka Aqoonsiga')),
             ),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              key: const Key('kyc-country'),
-              value: _country,
-              isExpanded: true,
-              decoration: InputDecoration(labelText: _t('Country of Issue', 'Dalka laga bixiyay')),
-              items: [for (final (code, name) in kycCountries) DropdownMenuItem(value: code, child: Text(name))],
-              onChanged: (v) => setState(() => _country = v ?? _country),
-            ),
-            _dateField(_t('Date of Birth', 'Taariikhda Dhalashada'), _dob, birth: true),
-            _dateField(_t('Expiry Date', 'Taariikhda Dhicitaanka'), _expiry, birth: false),
           ]),
         ),
-        _photoBox('front', _type == 'passport' ? _t('Upload Passport Photo', 'Sawirka Baasaboorka') : _t('ID card: front', 'Kaarka: hore'), _front),
-        if (_type == 'national_id') _photoBox('back', _t('ID card: back', 'Kaarka: gadaal'), _back),
+        if (_type == 'passport')
+          _photoBox('front', _t('Upload Passport Photo', 'Sawirka Baasaboorka'), _front)
+        else
+          // Front and back side by side, so the whole form fits one screen.
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: _photoBox('front', _t('ID card: front', 'Kaarka: hore'), _front)),
+            const SizedBox(width: 14),
+            Expanded(child: _photoBox('back', _t('ID card: back', 'Kaarka: gadaal'), _back)),
+          ]),
         const SizedBox(height: 20),
         PrimaryButton(key: const Key('kyc-details-continue'), label: AppStrings.continueLabel,
             onPressed: _detailsReady ? () => setState(() => _step = _Step.selfie) : null),
@@ -394,9 +359,6 @@ class _KycScreenState extends State<KycScreen> {
         _row(_t('Document Type', 'Nooca Dukumentiga'), _type == 'passport' ? _t('Passport', 'Baasaboor') : _t('National ID', 'Kaarka Aqoonsiga')),
         _row(_t('Full Name', 'Magaca'), _name.text.trim()),
         _row(_type == 'passport' ? _t('Passport Number', 'Lambarka Baasaboorka') : _t('ID Number', 'Lambarka Aqoonsiga'), _number.text.trim().toUpperCase()),
-        _row(_t('Country of Issue', 'Dalka'), kycCountries.firstWhere((c) => c.$1 == _country, orElse: () => (_country, _country)).$2),
-        _row(_t('Date of Birth', 'Taariikhda Dhalashada'), _dob == null ? '' : _iso.format(_dob!)),
-        _row(_t('Expiry Date', 'Taariikhda Dhicitaanka'), _expiry == null ? '' : _iso.format(_expiry!)),
         const SizedBox(height: 8),
         Row(children: [
           for (final b in [_front, if (_type == 'national_id') _back, _selfie])

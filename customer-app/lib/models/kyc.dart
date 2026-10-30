@@ -45,9 +45,3 @@ class KycStatus {
         reason: j['reason'] as String?,
       );
 }
-
-/// Countries of issue offered: Somalia only (ISO code). The server still
-/// reads any ISO code on an application already made.
-const kycCountries = [
-  ('SO', 'Somalia'),
-];
