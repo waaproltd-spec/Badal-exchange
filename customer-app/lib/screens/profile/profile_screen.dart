@@ -152,11 +152,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppStrings.profile, style: AppTextStyles.appBarTitle.copyWith(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 6),
+                      Text(AppStrings.profile, style: AppTextStyles.appBarTitle.copyWith(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
                       Container(
                         key: const Key('profile-header'),
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(18),
@@ -164,8 +164,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: Row(children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
                             child: Center(child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800))),
                           ),
@@ -233,7 +233,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 6),
                       _Panel(
-                        child: Row(children: [
+                        child: Column(children: [
+                        Row(children: [
                           const _IconDot(icon: Icons.language_rounded, color: Color(0xFF6A2BD9)),
                           const SizedBox(width: 10),
                           Flexible(flex: 0, child: Text(AppStrings.language, maxLines: 1, overflow: TextOverflow.ellipsis, style: _title)),
@@ -250,10 +251,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                         ]),
-                      ),
-                      const SizedBox(height: 6),
-                      _Panel(
-                        child: Row(children: [
+                        const SizedBox(height: 6),
+                        Row(children: [
                           const _IconDot(icon: Icons.dark_mode_rounded, color: Color(0xFF6A2BD9)),
                           const SizedBox(width: 10),
                           Flexible(flex: 0, child: Text(AppStrings.appearance, maxLines: 1, overflow: TextOverflow.ellipsis, style: _title)),
@@ -273,6 +272,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                           ),
+                        ]),
                         ]),
                       ),
                       const SizedBox(height: 6),
@@ -303,7 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
                           side: const BorderSide(color: AppColors.error, width: 1.5),
-                          minimumSize: const Size.fromHeight(42),
+                          minimumSize: const Size.fromHeight(40),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
                         ),
                         icon: const Icon(Icons.logout_rounded, size: 20),
@@ -436,7 +436,7 @@ class _LimitRow extends StatelessWidget {
     final color = empty ? AppColors.error : near ? _amber : base;
     final percent = (period.fraction * 100).round();
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       decoration: BoxDecoration(
         color: AppColors.primaryTint.withOpacity(0.55),
         borderRadius: BorderRadius.circular(14),
