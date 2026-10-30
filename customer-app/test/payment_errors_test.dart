@@ -2,6 +2,7 @@ import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/api_exception.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
+import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/utils/payment_errors.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,6 +20,21 @@ class _Api extends CustomerApi {
   }) async =>
       reports.add('$direction|$method|$amount|$code');
 }
+
+Order _order(String direction, String status, String? reason) => Order(
+      id: 'o',
+      orderCode: 'EXTEST',
+      direction: direction,
+      method: 'evc_plus',
+      status: status,
+      statusMessage: status,
+      amount: '5.00',
+      fee: '0.00',
+      netAmount: '5.00',
+      amountPending: false,
+      createdAt: DateTime(2026, 10, 30),
+      failureReason: reason,
+    );
 
 void main() {
   tearDown(() => AppLanguage.current.value = AppLanguage.somali);
@@ -66,5 +82,15 @@ void main() {
         isDeposit: false, method: 'evc_plus', amount: '1');
     PaymentErrors.handle(api, StateError('boom'), isDeposit: false, method: 'golis', amount: '9');
     expect(api.reports, ['deposit|evc_plus|5|NETWORK', 'withdraw|golis|9|ERROR']);
+  });
+
+  test('why an order failed is Somali only; an internal note on a waiting order is never shown', () {
+    AppLanguage.current.value = AppLanguage.english;
+    expect(PaymentErrors.failureText(_order('deposit', 'pending', 'Check the player\'s account before completing')), isNull);
+    expect(PaymentErrors.failureText(_order('deposit', 'completed', null)), isNull);
+    expect(PaymentErrors.failureText(_order('deposit', 'failed', 'Platform gave no clear answer')), PaymentErrors.deposit);
+    expect(PaymentErrors.failureText(_order('withdraw', 'failed', null)), PaymentErrors.withdraw);
+    expect(PaymentErrors.failureText(_order('withdraw', 'failed', 'Transaction failed. Your balance was not charged.')),
+        'Dalabku wuu fashilmay. Lacag lagaama jarin.');
   });
 }

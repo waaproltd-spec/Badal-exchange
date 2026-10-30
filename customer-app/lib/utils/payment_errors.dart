@@ -2,6 +2,7 @@ import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../l10n/server_text.dart';
 import '../l10n/strings.dart';
+import '../models/order.dart';
 
 /// What the customer reads when a deposit or a withdrawal goes wrong: always
 /// Somali, whatever language the app is set to. Technical details go to the
@@ -48,6 +49,18 @@ class PaymentErrors {
       if (somali.isNotEmpty && (AppLanguage.isSomali || somali != error.message)) return '❌ $somali';
     }
     return generic;
+  }
+
+  /// Why a deposit or withdrawal did not go through, for the customer: Somali
+  /// only. A reason with a known Somali wording is shown in it; any other
+  /// (an English technical note) is the fixed message. Nothing for an order
+  /// that has not failed, so an internal note never reaches the customer.
+  static String? failureText(Order order) {
+    if (order.status != 'failed' && order.status != 'expired' && order.status != 'cancelled') return null;
+    final reason = order.failureReason ?? '';
+    final somali = somaliServerText(reason);
+    if (reason.isNotEmpty && somali != reason) return somali;
+    return order.isDeposit ? deposit : withdraw;
   }
 
   /// The Somali message, and a note to the server (fire and forget) so the

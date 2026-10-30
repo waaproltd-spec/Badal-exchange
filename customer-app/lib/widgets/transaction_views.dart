@@ -11,6 +11,7 @@ import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 import '../services/success_sound.dart';
 import '../utils/formatters.dart';
+import '../utils/payment_errors.dart';
 import 'method_icon.dart';
 import '../l10n/server_text.dart';
 
@@ -530,8 +531,8 @@ List<Widget> _rows(Order order, {required bool includeType}) => [
           valueColor: AppColors.statusCompleted,
           strong: true,
         ),
-      if (order.failureReason != null && order.failureReason!.isNotEmpty)
-        DetailRow(label: AppStrings.status, value: serverText(order.failureReason!), valueColor: AppColors.statusFailed),
+      if (PaymentErrors.failureText(order) != null)
+        DetailRow(label: AppStrings.status, value: PaymentErrors.failureText(order)!, valueColor: AppColors.statusFailed),
       DetailRow(label: AppStrings.dateTime, value: Formatters.dateTime(order.createdAt)),
     ];
 
