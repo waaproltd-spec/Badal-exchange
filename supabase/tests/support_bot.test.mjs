@@ -274,8 +274,12 @@ test('Admin ticket: the customer writes, gets a ticket code; management sees and
   const c = await linked();
   let r = await send(callback(c.chat, 'admin'));
   assert.match(texts(r)[0], /qor farriinta/);
+  assert.match(texts(r)[0], /@Badalexchangeadmin/);
+  assert.equal(r.calls.find((x) => x.method === 'sendMessage').body.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Badalexchangeadmin');
   r = await send(message(c.chat, { text: 'Lacagtaydii dhigasho ah ma soo gelin' }));
   const code = texts(r)[0].match(/#BADAL\d+/)[0];
+  assert.match(texts(r)[0], /@Badalexchangeadmin/);
+  assert.equal(r.calls.find((x) => x.method === 'sendMessage').body.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Badalexchangeadmin');
   const { tickets } = { tickets: (await manager.rpc('manage_support_tickets', { p_status: 'open' })).data };
   const ticket = tickets.find((x) => x.code === code);
   assert.ok(ticket);

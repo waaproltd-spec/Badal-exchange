@@ -23,6 +23,8 @@
 const TG_BASE = (Deno.env.get('SUPPORT_TELEGRAM_API_BASE') || 'https://api.telegram.org').replace(/\/$/, '');
 const AI_BASE = (Deno.env.get('SUPPORT_AI_API_BASE') || 'https://api.anthropic.com').replace(/\/$/, '');
 const MODEL = Deno.env.get('SUPPORT_AI_MODEL') || 'claude-sonnet-5-5';
+/** The admin's own Telegram, offered to the customer next to a ticket. */
+const ADMIN_TG = (Deno.env.get('SUPPORT_ADMIN_TELEGRAM') || 'Badalexchangeadmin').replace(/^@/, '');
 
 // ------------------------------------------------------------------ Somali
 
@@ -49,7 +51,7 @@ const T = {
   faq:
     '❓ <b>Su’aalaha inta badan la isweydiiyo</b>\n\n• <b>Dhigashadaydu ma muuqato?</b> Waxay soo muuqataa marka lacag-bixintaada la xaqiijiyo. Sug daqiiqado ama qor su’aashaada.\n• <b>Bixintaydu way dib u dhacday?</b> Waxaa laga yaabaa inay sugayso hubin. Sug 5 daqiiqo, kadib la xiriir Admin.\n• <b>Xaddiga bixinta?</b> Waxaad ka eeg kartaa Profile-kaaga App-ka.\n• <b>PIN ama password?</b> Ma weydiino, ha na siin weligaa.',
   askTicket: '🎧 Fadlan qor farriinta aad rabto inaan Admin-ka u gudbino .',
-  ticketMade: (code: string) => `✅ Farriintaada waa la gudbiyay.\n\nTikidhka: <b>${code}</b>\nAdmin-ku wuu kula soo xiriiri doonaa. Fadlan keydso lambarkan.`,
+  ticketMade: (code: string) => `✅ Farriintaada waa la gudbiyay.\n\nTikidhka: <b>${code}</b>\nAdmin-ku wuu kula soo xiriiri doonaa. Fadlan keydso lambarkan.\n\nAma toos Admin-ka ugala hadal Telegram: @${ADMIN_TG}`,
   ticketLimited: '⛔ Tikidh badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
   me: (name: string, wallet: string) => `⚙️ <b>Xogtayda</b>\nMagaca: ${name || '—'}\nWallet ID: <b>${wallet || '—'}</b>`,
   unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
@@ -113,6 +115,9 @@ async function rpc(fn: string, args: Record<string, unknown>) {
 
 const say = (chat: number, text: string, extra: Record<string, unknown> = {}) =>
   tg('sendMessage', { chat_id: chat, text, parse_mode: 'HTML', disable_web_page_preview: true, ...extra });
+
+/** A button that opens the admin's own Telegram chat. */
+const adminLink = () => ({ inline_keyboard: [[{ text: '💬 La hadal Admin-ka (Telegram)', url: `https://t.me/${ADMIN_TG}` }]] });
 
 const menu = () => ({
   inline_keyboard: [
@@ -178,7 +183,7 @@ async function onCallback(cb: any) {
     case 'me': return void (await say(chat, T.me(esc(s.name), esc(s.walletId)), { reply_markup: menu() }));
     case 'admin':
       await rpc('support_set_state', { p_chat: chat, p_state: 'awaiting_ticket' });
-      return void (await say(chat, T.askTicket));
+      return void (await say(chat, T.askTicket, { reply_markup: adminLink() }));
   }
 }
 
@@ -231,7 +236,7 @@ async function onMessage(m: any, from: any) {
   if (s.state === 'awaiting_ticket' && text) {
     const r = await rpc('support_create_ticket', { p_chat: chat, p_message: text });
     if (!r.ok) return void (await say(chat, r.limited ? T.ticketLimited : T.needLink, { reply_markup: menu() }));
-    return void (await say(chat, T.ticketMade(esc(r.code)), { reply_markup: menu() }));
+    return void (await say(chat, T.ticketMade(esc(r.code)), { reply_markup: adminLink() }));
   }
 
   if (!text) return void (await say(chat, T.otherRefused));
