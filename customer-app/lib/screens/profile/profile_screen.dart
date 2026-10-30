@@ -464,11 +464,28 @@ class _LimitRow extends StatelessWidget {
         ]),
         const SizedBox(height: 5),
         Row(children: [
-          Text('${AppStrings.limitUsed}: ', style: TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
-          Text('\$${period.used}', style: _title.copyWith(fontSize: 13)),
-          const Spacer(),
-          Text('${AppStrings.limitRemaining}: ', style: TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
-          Text('\$${period.remaining}', style: TextStyle(color: empty ? AppColors.error : _green, fontSize: 13, fontWeight: FontWeight.w800)),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('${AppStrings.limitUsed}: ', style: TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
+                Text('\$${period.used}', style: _title.copyWith(fontSize: 13)),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerEnd,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('${AppStrings.limitRemaining}: ', style: TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
+                Text('\$${period.remaining}',
+                    style: TextStyle(color: empty ? AppColors.error : _green, fontSize: 13, fontWeight: FontWeight.w800)),
+              ]),
+            ),
+          ),
         ]),
       ]),
     );
