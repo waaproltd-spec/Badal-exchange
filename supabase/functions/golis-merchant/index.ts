@@ -278,7 +278,16 @@ async function run() {
   if (fresh) await rpc('sahal_payout_retry_now', {}).catch(() => null);
   // A payout problem must not look like a feed problem (the feed read fine).
   const payouts = await sendPayouts(session!).catch((err) => ({ error: (err as Error).message }));
+  // Sahal's balance for Company Balances; never in the way of the feed or the payouts.
+  await recordBalance(session!).catch(() => null);
   return { feed: result, payouts };
+}
+
+/** About once a minute: Sahal's balance, recorded as read (or why it could not be). */
+async function recordBalance(session: string) {
+  if ((await rpc('sahal_balance_due', { p_max_age_seconds: 60 })) !== true) return;
+  const value = await balance(session);
+  await rpc('sahal_balance_record', { p_balance: value, p_error: value === null ? 'Sahal did not return a balance' : null });
 }
 
 const MAX_PAYOUTS_PER_RUN = 3;

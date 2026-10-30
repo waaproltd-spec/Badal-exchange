@@ -242,3 +242,7 @@ FROM public.payment_integrations i WHERE i.kind = 'betting' AND i.deleted_at IS 
 SELECT e ->> 'method' AS method, e ->> 'label' AS label, (e ->> 'enabled') AS enabled,
        (e ->> 'logo') IS NOT NULL AS logo_in_catalog, length(e ->> 'logo') AS logo_base64_chars
 FROM jsonb_array_elements(public.payment_method_catalog()) e WHERE e ->> 'kind' = 'platform' ORDER BY (e ->> 'order')::int;
+
+\echo '== 21. Sahal balance reads (Company Balances): the last ones, newest first (read-only) =='
+SELECT to_char(checked_at, 'MM-DD HH24:MI:SS') AS at, ok, round(balance_cents / 100.0, 2) AS balance_usd, error
+FROM public.sahal_balances ORDER BY checked_at DESC LIMIT 8;

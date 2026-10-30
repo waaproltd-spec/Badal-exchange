@@ -65,9 +65,9 @@ const standIn = http.createServer((req, res) => {
       return reply({ resultCode: 2001, transactionInfo: portal.rows });
     }
     // Sending money (Sahal payouts): only when a test switches it on.
-    if (portal.payouts && req.url === '/api/account/balance') {
+    if ((portal.payouts || portal.balance) && req.url === '/api/account/balance') {
       if (!portal.sessions.has(b.sessionId)) return reply({ resultCode: 4005, replyMessage: 'Session expired' });
-      return reply({ resultCode: 2001, currentBalance: '1,000.00' });
+      return reply({ resultCode: 2001, currentBalance: portal.balance ?? '1,000.00' });
     }
     if (portal.payouts && (req.url === '/api/account/find' || req.url === '/api/money/b2p')) {
       // Sahal's ER0654: the list still reads, transfers are refused.
@@ -110,16 +110,18 @@ beforeEach(async () => {
   await db.query(`DELETE FROM private.merchant_feed_sessions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM merchant_transactions WHERE provider = 'golis'`);
   await db.query(`DELETE FROM private.merchant_feed_events WHERE provider = 'golis'`);
+  await db.query('DELETE FROM sahal_balances');
   await db.query(`DELETE FROM vault.secrets WHERE name LIKE 'sahal_account_%'`);
   await db.query(`DELETE FROM private.sahal_accounts`);
   await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'sahal_renew_idle'`);
   Object.assign(portal, { login: 'ok', sessions: new Set(), rows: [], pending: null, slow: false, cookieFor: {}, firstRows: [], refuseList: false,
-    payouts: false, canSend: new Set(), transfers: [], findDown: false, unclear: false, er0654: null });
+    payouts: false, canSend: new Set(), transfers: [], findDown: false, unclear: false, er0654: null, balance: null });
   seen.length = 0;
 });
 after(async () => {
   standIn.close();
   await db.query(`UPDATE merchant_feed_status SET state = 'ready' WHERE provider = 'golis'`);
+  await db.query('DELETE FROM sahal_balances');
   await db.end();
 });
 
@@ -1192,4 +1194,32 @@ test('SMS forwarder: revoked, nothing gets in', async (t) => {
   await waitForCode();
   assert.equal((await hook(token, { from: '898', text: SAHAL_SMS })).status, 403);
   assert.equal((await status()).state, 'needs_code');
+});
+
+test('Sahal balance: read with the feed about once a minute and recorded as read; a failed read is recorded with its reason', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  portal.rows = [row('7012000001', '1.00', '252610346060')];
+  portal.balance = '1,234.56';
+  const r = await run();
+  assert.equal(r.status, 200, r.body);
+  assert.equal(calls('/api/account/balance'), 1);
+  let rows = (await db.query('SELECT ok, balance_cents, error FROM sahal_balances')).rows;
+  assert.deepEqual(rows.map((x) => [x.ok, String(x.balance_cents)]), [[true, '123456']]);
+
+  // A second run inside the minute does not ask again, and the feed is as before.
+  await run();
+  assert.equal(calls('/api/account/balance'), 1);
+  assert.equal((await status()).state, 'ok');
+  assert.equal((await stored()).length, 1);
+
+  // Due again: a read that fails is recorded with why; the good read stays.
+  await db.query(`UPDATE sahal_balances SET checked_at = now() - interval '2 minutes'`);
+  portal.balance = null; // the stand-in has no balance to give
+  await run();
+  rows = (await db.query('SELECT ok, balance_cents, error FROM sahal_balances ORDER BY checked_at')).rows;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1].ok, false);
+  assert.match(rows[1].error, /did not return a balance/);
+  assert.equal(String(rows[0].balance_cents), '123456');
+  assert.equal((await status()).state, 'ok', 'a balance problem is not a feed problem');
 });
