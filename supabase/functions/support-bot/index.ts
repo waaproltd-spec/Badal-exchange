@@ -55,6 +55,9 @@ const T = {
     '❓ <b>Su’aalaha inta badan la isweydiiyo</b>\n\n• <b>Dhigashadaydu ma muuqato?</b> Waxay soo muuqataa marka lacag-bixintaada la xaqiijiyo. Sug daqiiqado ama qor su’aashaada.\n• <b>Bixintaydu way dib u dhacday?</b> Waxaa laga yaabaa inay sugayso hubin. Sug 5 daqiiqo, kadib la xiriir Admin.\n• <b>Xaddiga bixinta?</b> Waxaad ka eeg kartaa Profile-kaaga App-ka.\n• <b>PIN ama password?</b> Ma weydiino, ha na siin weligaa.',
   contactAdmin: `🎧 <b>La xiriir Admin</b>
 Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN_TG}). Halkaas ku sharax cilada, oo isaga ayaa kaa caawin doona.`,
+  balance: (b: { available: string; pending: string; bonus: string }) =>
+    `💰 <b>Haraagayga</b>\nHaraaga la isticmaali karo: <b>$${b.available}</b>\nGunno: $${b.bonus}` +
+    (Number(b.pending) > 0 ? `\nLacagta la sugayo: $${b.pending}` : ''),
   me: (name: string, wallet: string) => `⚙️ <b>Xogtayda</b>\nMagaca: ${name || '—'}\nWallet ID: <b>${wallet || '—'}</b>`,
   unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
   voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor su’aashaada qoraal ahaan.',
@@ -63,7 +66,7 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   aiFailed: '⚠️ Hadda ma awoodo inaan su’aasha ka jawaabo. Fadlan mar kale isku day daqiiqado kadib, ama taabo <b>La xiriir Admin</b>.',
   status: { completed: 'Waa dhammaystiray', pending: 'Waa la sugayaa', processing: 'Waa la farsamaynayaa', failed: 'Waa fashilmay', cancelled: 'Waa la joojiyay', expired: 'Waa dhacay' } as Record<string, string>,
   buttons: {
-    deposit: '⬇️ Dhigasho', withdraw: '⬆️ Bixin', orders: '📋 Dalabyadayda', history: '🕘 Taariikhda Macaamilka',
+    deposit: '⬇️ Dhigasho', withdraw: '⬆️ Bixin', balance: '💰 Haraagayga', orders: '📋 Dalabyadayda', history: '🕘 Taariikhda Macaamilka',
     faq: '❓ Su’aalaha Inta Badan La Isweydiiyo', admin: '🎧 La xiriir Admin', me: '⚙️ Xogtayda',
   },
 };
@@ -124,6 +127,7 @@ const adminLink = () => ({ inline_keyboard: [[{ text: '💬 La hadal Admin-ka (T
 const menu = () => ({
   inline_keyboard: [
     [{ text: T.buttons.deposit, callback_data: 'deposit' }, { text: T.buttons.withdraw, callback_data: 'withdraw' }],
+    [{ text: T.buttons.balance, callback_data: 'balance' }],
     [{ text: T.buttons.orders, callback_data: 'orders' }, { text: T.buttons.history, callback_data: 'history' }],
     [{ text: T.buttons.faq, callback_data: 'faq' }],
     [{ text: T.buttons.admin, url: `https://t.me/${ADMIN_TG}` }, { text: T.buttons.me, callback_data: 'me' }],
@@ -179,6 +183,10 @@ async function onCallback(cb: any) {
   switch (cb.data) {
     case 'deposit': await say(chat, T.depositHelp); return showOrders(chat, 'deposit');
     case 'withdraw': await say(chat, T.withdrawHelp); return showOrders(chat, 'withdraw');
+    case 'balance': {
+      const b = await rpc('support_balance', { p_chat: chat });
+      return void (await say(chat, b ? T.balance({ available: esc(b.available), pending: esc(b.pending), bonus: esc(b.bonus) }) : T.needLink, { reply_markup: menu() }));
+    }
     case 'orders': return showOrders(chat, 'all');
     case 'history': return showOrders(chat, 'all');
     case 'faq': return void (await say(chat, T.faq, { reply_markup: menu() }));

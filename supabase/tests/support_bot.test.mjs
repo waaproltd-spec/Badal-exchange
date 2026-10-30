@@ -250,6 +250,35 @@ test('the AI is limited: 20 answers an hour a chat; not linked: no AI at all', a
   assert.ok(!p.calls.some((x) => x.method === 'getFile'));
 });
 
+test('Haraagayga: the linked customer\'s balance in Somali, read only; not linked: nothing', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const c = await linked();
+  const menuResult = await send(message(c.chat, { text: '/menu' }));
+  const buttons = menuResult.calls.find((x) => x.method === 'sendMessage').body.reply_markup.inline_keyboard.flat();
+  assert.ok(buttons.some((b) => b.callback_data === 'balance' && b.text.includes('Haraagayga')));
+
+  await db.query(`UPDATE wallets SET available_cents = 12345, pending_cents = 250 WHERE customer_id = $1`, [c.id]);
+  const before = (await db.query(`SELECT available_cents, pending_cents FROM wallets WHERE customer_id = $1`, [c.id])).rows[0];
+  const r = await send(callback(c.chat, 'balance'));
+  const text = texts(r)[0];
+  assert.match(text, /Haraagayga/);
+  assert.match(text, /Haraaga la isticmaali karo: <b>\$123\.45<\/b>/);
+  assert.match(text, /Lacagta la sugayo: \$2\.50/);
+  assert.equal(r.ai.length, 0);
+  assert.deepEqual((await db.query(`SELECT available_cents, pending_cents FROM wallets WHERE customer_id = $1`, [c.id])).rows[0], before, 'read only');
+
+  // A chat that is not linked gets no balance, and no number.
+  const stranger = nextChat();
+  await send(message(stranger, { text: '/start' }));
+  const s = await send(callback(stranger, 'balance'));
+  assert.match(texts(s)[0], /geli <b>Wallet ID<\/b>/);
+  assert.ok(!/\$/.test(texts(s)[0]), 'no amount shown');
+  // Only the bot can read it.
+  const cu = await login(c.phone);
+  const { error } = await cu.rpc('support_balance', { p_chat: c.chat });
+  assert.ok(error, 'refused to a customer');
+});
+
 test('orders: the latest are listed in Somali; a deposit that is not completed is not shown', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const c = await linked();
