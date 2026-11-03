@@ -107,7 +107,11 @@ test('the guards are in the functions themselves (a later migration that rewrite
        AND proname IN ('agent_withdrawal_complete', 'agent_withdrawal_fail', 'agent_reject_deposit', 'agent_ingest_payment_sms',
                        'agent_payout_confirmation', 'agent_payout_report_step1', 'agent_payout_report_step2', 'agent_payout_start_dial',
                        'agent_exchange_payout_confirmation', 'agent_exchange_report_step1', 'agent_exchange_report_step2', 'agent_exchange_start_dial')`);
-  assert.ok(rows.length >= 12);
+  const names = new Set(rows.map((r) => r.proname));
+  for (const core of ['agent_withdrawal_complete', 'agent_withdrawal_fail', 'agent_reject_deposit', 'agent_ingest_payment_sms',
+                      'agent_payout_confirmation', 'agent_payout_report_step1', 'agent_payout_report_step2', 'agent_payout_start_dial']) {
+    assert.ok(names.has(core), `${core} exists`);
+  }
   for (const r of rows) assert.match(r.def, /require_agent_duty/, `${r.proname} checks the duty`);
   const { rows: reg } = await db.query(`SELECT pg_get_functiondef(oid) AS def FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = 'register_customer'`);
   assert.match(reg[0].def, /security_signups/, 'register_customer keeps its sign-up limit');

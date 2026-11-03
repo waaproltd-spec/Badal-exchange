@@ -76,8 +76,10 @@ BEGIN
       n := n + 1;
     END LOOP;
   END LOOP;
-  IF n < 12 THEN
-    RAISE EXCEPTION 'expected to guard at least 12 functions, guarded %', n;
+  -- (The agent_exchange_* functions of an earlier design no longer exist: whichever of the names exist are guarded,
+  -- and the eight payment entry points of today must all be there.)
+  IF n < 8 THEN
+    RAISE EXCEPTION 'expected to guard at least 8 functions, guarded %', n;
   END IF;
 END $$;
 
