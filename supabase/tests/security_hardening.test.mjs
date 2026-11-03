@@ -146,14 +146,14 @@ test('the audit log is final: no update, delete or truncate, even for the databa
   assert.ok((await db.query(`SELECT 1 FROM audit_logs WHERE id = $1 AND action <> 'tampered'`, [row.id])).rows.length === 1);
 });
 
-test('sign-ups are limited for the whole service (60 in 10 minutes), and the limit lifts when the window passes', async () => {
+test('sign-ups are limited for the whole service (150 in 10 minutes), and the limit lifts when the window passes', async () => {
   // Inside a transaction that is rolled back: other suites registering at the same time are not affected and no account is left behind.
   const attempt = async (minutesAgo) => {
     const c = await db.connect();
     try {
       await c.query('BEGIN');
       await c.query(`DELETE FROM security_signups`);
-      await c.query(`INSERT INTO security_signups (at) SELECT now() - make_interval(mins => $1) FROM generate_series(1, 60)`, [minutesAgo]);
+      await c.query(`INSERT INTO security_signups (at) SELECT now() - make_interval(mins => $1) FROM generate_series(1, 150)`, [minutesAgo]);
       return await c.query(`SELECT public.register_customer($1, 'Sign Up Limit', 'LongEnough123!')`, [`252${phone('61')}`]);
     } finally {
       await c.query('ROLLBACK');

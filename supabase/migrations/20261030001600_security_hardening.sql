@@ -9,7 +9,7 @@
 -- 2. Money added to a wallet by an agent who is not a manager is capped per
 --    Somalia day (app_settings 'wallet_adjust_agent_daily_cap', dollars).
 -- 3. The audit log can never be changed, deleted or emptied, by anyone.
--- 4. Sign-ups are limited (60 in 10 minutes for the whole service).
+-- 4. Sign-ups are limited (150 in 10 minutes for the whole service; app_settings 'signup_limit_per_10min').
 -- 5. Suspicious activity is recorded and sent to the admin on Telegram (in
 --    Somali, through the existing alert worker): many withdrawals in a short
 --    time, a large wallet adjustment, a change of the payment-number
@@ -18,7 +18,8 @@
 
 INSERT INTO public.app_settings (key, value) VALUES
   ('agent_duty_enforcement', 'on'),
-  ('wallet_adjust_agent_daily_cap', '2000')
+  ('wallet_adjust_agent_daily_cap', '2000'),
+  ('signup_limit_per_10min', '150')
 ON CONFLICT (key) DO NOTHING;
 
 -- ------------------------------------------------------------ 1. agent duties
@@ -146,7 +147,8 @@ DECLARE
   r record;
   def text;
   check_sql text := E'BEGIN\n  DELETE FROM public.security_signups WHERE at < now() - interval ''1 day'';\n'
-    || E'  IF (SELECT count(*) FROM public.security_signups WHERE at > now() - interval ''10 minutes'') >= 60 THEN\n'
+    || E'  IF (SELECT count(*) FROM public.security_signups WHERE at > now() - interval ''10 minutes'')\n'
+    || E'      >= COALESCE(NULLIF(btrim((SELECT value FROM public.app_settings WHERE key = ''signup_limit_per_10min'')), '''')::int, 150) THEN\n'
     || E'    PERFORM private.raise_api(429, ''RATE_LIMITED'', ''Too many sign-ups right now. Please try again in a few minutes.'');\n'
     || E'  END IF;\n  INSERT INTO public.security_signups DEFAULT VALUES;\n';
 BEGIN
@@ -359,3 +361,25 @@ REVOKE ALL ON FUNCTION private.security_watch_deposits() FROM PUBLIC, anon, auth
 DROP TRIGGER IF EXISTS orders_security_watch_deposits ON public.orders;
 CREATE TRIGGER orders_security_watch_deposits AFTER UPDATE OF status ON public.orders
   FOR EACH ROW EXECUTE FUNCTION private.security_watch_deposits();
+
+
+-- ------------------------------------- 7. private functions are not for anon
+
+-- A scan of the database found twelve helper functions in the private schema
+-- that anyone (including a signed-out visitor) was allowed to execute because
+-- they were created without the default revoke. The private schema is not
+-- exposed by the API, so this was not reachable from the apps, but there is
+-- no reason to leave it open: take execute away from PUBLIC and anon, and keep
+-- it for signed-in users and the service (what they had), except for the two
+-- helpers the row policies call.
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN SELECT p.oid::regprocedure AS sig FROM pg_proc p
+           WHERE p.pronamespace = 'private'::regnamespace AND p.prosecdef
+             AND has_function_privilege('anon', p.oid, 'EXECUTE') AND p.proname NOT IN ('app_role', 'is_staff') LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', r.sig);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', r.sig);
+  END LOOP;
+END $$;

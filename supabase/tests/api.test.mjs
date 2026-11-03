@@ -581,8 +581,16 @@ test('registration: 61, 77, 90, 63 and 62 are accepted, each in its network; eve
   }
   // Sign-up allows 10 per 15 minutes per IP and the suites after this one register customers too:
   // move these test sign-ups out of that window (this test database only).
-  await db.query(`UPDATE audit_logs SET created_at = created_at - interval '1 hour'
-                    WHERE action = 'user.register' AND created_at > now() - interval '15 minutes'`);
+  // (The audit log can not be edited -- not even here -- except by a session that switches the triggers off, as this test database does.)
+  const fixture = await db.connect();
+  try {
+    await fixture.query(`SET session_replication_role = replica`);
+    await fixture.query(`UPDATE audit_logs SET created_at = created_at - interval '1 hour'
+                           WHERE action = 'user.register' AND created_at > now() - interval '15 minutes'`);
+  } finally {
+    await fixture.query(`RESET session_replication_role`);
+    fixture.release();
+  }
   // Refused: a prefix of no network we pay through, in every form, with the message that says which are accepted.
   for (const prefix of ['60', '64', '65', '66', '67', '68', '69', '70', '71', '76', '78', '79', '91', '99', '10']) {
     for (const form of ['252', '+252 ', '0', '']) {

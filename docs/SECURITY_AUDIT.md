@@ -57,12 +57,13 @@ leaks limited information; **Low** = hygiene.
 | 4 | Medium | Support bot: a Wallet ID that existed was answered differently from one that did not (an oracle: Wallet IDs are `BE` + 6 digits). | **Fixed** — both are answered identically; only the owner's own Telegram contact finishes linking; wrong IDs are still counted (5 an hour) and now raise an alert. |
 | 5 | Medium | Support bot webhook secret compared with `!==` (not constant time). | **Fixed** — constant-time compare. The one-time setup address carries the secret in its URL: **rotate `SUPPORT_BOT_WEBHOOK_SECRET` after setup** (see R4). |
 | 6 | Medium | No alerts for suspicious activity (only payment errors and stuck orders). | **Added** — recorded in `security_events` and said once in Somali to the linked admin chat by the existing alert worker: 8+ withdrawals in 10 minutes by one customer, wallet additions of $500+, deposits of $300+, a change of the payment-number permission, 5+ wrong Wallet IDs on the support bot. |
-| 7 | Medium | Sign-ups had a per-IP limit only. | **Fixed** — also 60 sign-ups per 10 minutes service-wide. |
+| 7 | Medium | Sign-ups had a per-IP limit only. | **Fixed** — also 150 sign-ups per 10 minutes service-wide (`signup_limit_per_10min`). |
 | 8 | Medium | Customer password attempts are limited only by Supabase Auth's own rate limits; the repository has no account lock-out and local config shows `minimum_password_length = 6` (the server's sign-up and change-password rules require 8). | **Open (needs your authorization)** — dashboard settings, see R2. |
 | 9 | Medium | Payment SMS are trusted if they come from a registered agent device: `agent_register_device` accepts any device id and `agent_ingest_payment_sms` does not prove the SMS came from the wallet's phone. An agent **with the deposit duty** could submit a forged SMS and get a deposit credited. | **Partly mitigated** (duty now required; large credited deposits alert). Remaining risk: R3. |
 | 10 | Medium | Any agent can read all customers' names, phones, wallets and orders directly (the row policies allow every staff member). | **Open** — changing the policies could break the Agent App's live lists; see R5. |
 | 11 | Low | Edge Functions allow any origin (`Access-Control-Allow-Origin: *`); they use bearer tokens, not cookies, so this is not exploitable. | Open (cosmetic). |
 | 12 | Low | `support_contacts` is callable without sign-in (the login screen's help numbers). | Intended. |
+| 13 | Low | Twelve helper functions in the `private` schema (not exposed by the API) could be executed by a signed-out visitor because they were created without the default revoke (found by the new permission scan in CI). | **Fixed** — `anon` and PUBLIC lose execute; signed-in users and the service keep what they had. |
 
 No Critical finding was identified in the code that was reviewed.
 
