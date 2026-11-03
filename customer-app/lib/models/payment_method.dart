@@ -59,7 +59,7 @@ List<PaymentMethodInfo> paymentMethods = const <PaymentMethodInfo>[
   PaymentMethodInfo('888starz', '888STARZ', true, Color(0xFF7C3AED), '888'),
 ];
 
-PaymentMethodInfo _fromJson(Map<String, dynamic> m) {
+PaymentMethodInfo _fromJson(Map<String, dynamic> m, {bool? cashdeskFallback}) {
   final hex = (m['color'] as String? ?? '#6B7280').replaceFirst('#', '');
   final label = m['label'] as String? ?? m['method'] as String;
   return PaymentMethodInfo(
@@ -68,7 +68,7 @@ PaymentMethodInfo _fromJson(Map<String, dynamic> m) {
     m['kind'] == 'platform',
     Color(int.parse('FF$hex', radix: 16)),
     m['initials'] as String? ?? label.substring(0, label.length < 2 ? label.length : 2).toUpperCase(),
-    cashdesk: m['cashdesk'] as bool?,
+    cashdesk: m['cashdesk'] as bool? ?? cashdeskFallback,
     logo: _decodeLogo(m['logo']),
   );
 }
@@ -180,7 +180,10 @@ class PaymentMethodOption {
     return PaymentMethodOption(
       // The backend sends label/kind/styling with each method; fall back to
       // the catalog only for older responses.
-      info: json['label'] != null ? _fromJson(json) : methodInfo(json['method'] as String),
+      // An older server's list does not say which platforms are cash desks: the catalog does.
+      info: json['label'] != null
+          ? _fromJson(json, cashdeskFallback: methodInfo(json['method'] as String)._cashdesk)
+          : methodInfo(json['method'] as String),
       depositNumbers: ((json['depositNumbers'] as List<dynamic>?) ?? const [])
           .map((e) => e as Map<String, dynamic>)
           .map((e) => (number: e['number'] as String, label: e['label'] as String?))

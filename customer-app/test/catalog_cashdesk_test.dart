@@ -24,4 +24,27 @@ void main() {
     ]);
     expect(methodInfo('onexbet').usesWithdrawalCode, isTrue);
   });
+
+  test('the deposit screen\'s method list says whether a platform is a cash desk, and the catalog fills in when an older server does not', () {
+    final before = paymentMethods;
+    addTearDown(() => paymentMethods = before);
+    applyPaymentMethodCatalog([
+      {'method': 'luckypari', 'label': 'LuckyPari', 'kind': 'platform', 'color': '#6B7280', 'initials': 'LU', 'cashdesk': true},
+      {'method': 'manualplat', 'label': 'Manual', 'kind': 'platform', 'color': '#6B7280', 'initials': 'MA', 'cashdesk': false},
+    ]);
+    Map<String, dynamic> option(String method, {Object? cashdesk = 'absent'}) => {
+          'method': method, 'label': method, 'kind': 'platform', 'color': '#6B7280', 'initials': 'XX',
+          if (cashdesk != 'absent') 'cashdesk': cashdesk,
+        };
+    // The server's list says it: that wins.
+    expect(PaymentMethodOption.fromJson(option('luckypari', cashdesk: true)).info.usesWithdrawalCode, isTrue);
+    expect(PaymentMethodOption.fromJson(option('luckypari', cashdesk: false)).info.usesWithdrawalCode, isFalse);
+    // An older server's list does not: the catalog's flag is used (not the built-in eight).
+    expect(PaymentMethodOption.fromJson(option('luckypari')).info.usesWithdrawalCode, isTrue);
+    expect(PaymentMethodOption.fromJson(option('manualplat')).info.usesWithdrawalCode, isFalse);
+    // A built-in platform with neither: as before.
+    expect(PaymentMethodOption.fromJson(option('onexbet')).info.usesWithdrawalCode, isTrue);
+    // Unknown to both: not a cash desk.
+    expect(PaymentMethodOption.fromJson(option('unknownplat')).info.usesWithdrawalCode, isFalse);
+  });
 }

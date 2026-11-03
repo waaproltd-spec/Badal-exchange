@@ -112,3 +112,17 @@ test('an unknown platform is still not found; only management can save credentia
   const { error } = await cu.rpc('manage_save_betting_platform', { p_method: key, p_login: 'x', p_password: 'y', p_account_id: '1', p_api_secret: 'z' });
   assert.ok(error, 'a customer can not');
 });
+
+test('the Customer App\'s method list (customer_payment_methods) says which platforms are cash desks, from the same rule as the catalog', async () => {
+  const number = `61${String(seed + 1).padStart(7, '0').slice(-7)}`;
+  await db.query(`INSERT INTO public.users (role, phone, name, password_hash) VALUES ('customer', $1, 'Methods Test', private.hash_password($2)) ON CONFLICT DO NOTHING`, [`252${number}`, PASSWORD]);
+  const cu = await login(`252${number}`);
+  const methods = await rpc(cu, 'customer_payment_methods');
+  const byKey = Object.fromEntries(methods.map((m) => [m.method, m]));
+  for (const m of methods) assert.equal(typeof m.cashdesk, 'boolean', `${m.method} says whether it is a cash desk`);
+  assert.equal(byKey.onexbet.cashdesk, true);
+  assert.equal(byKey.evc_plus.cashdesk, false);
+  // The platform of the tests above: connected -> a cash desk; made manual again by a credentials change -> not.
+  const catalog = await catalogRow(key);
+  assert.equal(byKey[key]?.cashdesk ?? false, catalog.cashdesk, 'the same answer as the catalog');
+});
