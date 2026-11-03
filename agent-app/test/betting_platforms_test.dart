@@ -118,6 +118,34 @@ void main() {
     expect(api.calls.last, 'delete Contract ended');
   });
 
+  testWidgets('the list shows how customers use each platform: cash desk code, or manual until the cash desk is connected', (tester) async {
+    final api = _FakeApi()..p = BettingPlatform.fromJson({
+          'method': 'betandyou', 'name': 'Betandyou', 'adapter': 'cashdeskbot', 'builtIn': false, 'active': true,
+          'status': 'not_configured', 'mode': 'manual',
+        });
+    await _pump(tester, const BettingPlatformsScreen(), api);
+    expect(find.text('Betandyou'), findsOneWidget);
+    expect(find.text('Not set up'), findsOneWidget);
+    expect(find.byKey(const Key('platform-mode-betandyou')), findsOneWidget);
+    expect(find.textContaining('account ID + amount (manual until connected)'), findsOneWidget);
+    expect(tester.widget<Switch>(find.byKey(const Key('platform-active-betandyou'))).value, isTrue, reason: 'it stays on: it was already live');
+
+    api.p = BettingPlatform.fromJson({
+      'method': 'betandyou', 'name': 'Betandyou', 'adapter': 'cashdeskbot', 'builtIn': false, 'active': true,
+      'status': 'connected', 'mode': 'cashdesk',
+    });
+    await tester.pumpWidget(const SizedBox());
+    await _pump(tester, const BettingPlatformsScreen(), api);
+    expect(find.text('Connected'), findsOneWidget);
+    expect(find.textContaining('account ID + code (cash desk)'), findsOneWidget);
+  });
+
+  testWidgets('an older server that sends no mode shows no mode line', (tester) async {
+    final api = _FakeApi()..p = _p('connected', saved: true, active: true);
+    await _pump(tester, const BettingPlatformsScreen(), api);
+    expect(find.byKey(const Key('platform-mode-premierbet')), findsNothing);
+  });
+
   testWidgets('the list: status per platform; switching on an untested one is refused with the reason', (tester) async {
     final api = _FakeApi()..p = _p('not_tested', saved: true);
     await _pump(tester, const BettingPlatformsScreen(), api);

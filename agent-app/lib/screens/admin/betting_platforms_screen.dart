@@ -134,6 +134,10 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                                 Text(p.statusLabel,
                                     key: Key('platform-status-${p.method}'),
                                     style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: _statusColor(p.status))),
+                                if (p.modeLabel != null)
+                                  Text(p.modeLabel!,
+                                      key: Key('platform-mode-${p.method}'),
+                                      style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
                                 if (p.lastTestAt != null)
                                   Text('Tested ${formatDateTime(p.lastTestAt!)}',
                                       style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),

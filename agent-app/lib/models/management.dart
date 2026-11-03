@@ -612,6 +612,11 @@ class BettingPlatform {
   /// 'connected', 'error', 'not_tested', 'not_configured', or 'server'
   /// (a built-in platform still on its Edge Function secrets).
   final String status;
+
+  /// What customers get: 'cashdesk' (account ID and a code, checked
+  /// automatically) or 'manual' (account ID and amount, handled by hand until
+  /// the cash desk is connected). Null from an older server.
+  final String? mode;
   final String? apiUrl;
   final String? accountId;
   final String? login;
@@ -634,6 +639,7 @@ class BettingPlatform {
     required this.builtIn,
     required this.active,
     required this.status,
+    this.mode,
     this.apiUrl,
     this.accountId,
     this.login,
@@ -648,6 +654,13 @@ class BettingPlatform {
   });
 
   bool get connected => status == 'connected';
+
+  /// How customers deposit with this platform right now.
+  String? get modeLabel => switch (mode) {
+        'cashdesk' => 'Customers: account ID + code (cash desk)',
+        'manual' => 'Customers: account ID + amount (manual until connected)',
+        _ => null,
+      };
 
   String get statusLabel => switch (status) {
         'connected' => 'Connected',
@@ -664,6 +677,7 @@ class BettingPlatform {
         builtIn: j['builtIn'] as bool? ?? false,
         active: j['active'] as bool? ?? false,
         status: j['status'] as String? ?? 'not_configured',
+        mode: j['mode'] as String?,
         apiUrl: j['apiUrl'] as String?,
         accountId: j['accountId'] as String?,
         login: j['login'] as String?,
