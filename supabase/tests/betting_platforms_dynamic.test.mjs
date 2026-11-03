@@ -95,7 +95,7 @@ test('connected (credentials passed their test): it becomes a cash desk for cust
 test('a platform made in the Agent App is dynamic too: listed, off, not offered to customers until tested; the built-in ones are unchanged', async () => {
   const made = await rpc(manager, 'manage_create_betting_platform', { p_name: `Dynamic Two ${seed}` });
   const p = await listed(made.method);
-  assert.deepEqual([p.status, p.active, p.mode, p.builtIn], ['not_configured', false, 'manual', false]);
+  assert.deepEqual([p.status, p.active, p.mode, p.builtIn], ['not_configured', false, 'cashdesk', false], 'a platform made here is a cash-desk platform by definition (off until it is connected)');
   assert.equal((await db.query(`SELECT legacy_manual FROM payment_integrations WHERE method_key = $1`, [made.method])).rows[0].legacy_manual, false);
   await assert.rejects(rpc(manager, 'manage_set_betting_platform_active', { p_method: made.method, p_active: true }), (e) => e.code === 'NOT_TESTED');
   const built = await listed('onexbet');
@@ -106,8 +106,9 @@ test('a platform made in the Agent App is dynamic too: listed, off, not offered 
 test('an unknown platform is still not found; only management can save credentials', async () => {
   await assert.rejects(rpc(manager, 'manage_save_betting_platform', {
     p_method: 'nosuchplatform', p_login: 'a', p_password: 'b', p_account_id: '1', p_api_secret: 'c' }), (e) => e.code === 'NOT_FOUND');
-  const { rows: [c] } = await db.query(`SELECT phone FROM users WHERE role = 'customer' ORDER BY created_at DESC LIMIT 1`);
-  const cu = await login(c.phone);
+  const number = `61${String(seed).padStart(7, '0').slice(-7)}`;
+  await db.query(`INSERT INTO public.users (role, phone, name, password_hash) VALUES ('customer', $1, 'Platform Test', private.hash_password($2))`, [`252${number}`, PASSWORD]);
+  const cu = await login(`252${number}`);
   const { error } = await cu.rpc('manage_save_betting_platform', { p_method: key, p_login: 'x', p_password: 'y', p_account_id: '1', p_api_secret: 'z' });
   assert.ok(error, 'a customer can not');
 });
