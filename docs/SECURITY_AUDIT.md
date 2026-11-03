@@ -136,4 +136,16 @@ exactly like a real one and can never be linked.
 
 ## CI results
 
-_(filled in below when the run finishes)_
+Run 226 (commit b3e1496, "Supabase tests"):
+
+* Backend tests (Auth, RPC, RLS, Realtime, Edge Functions, security and
+  permission scan, support bot, dynamic betting platforms): **passed, no failures**.
+* Customer App against Supabase: **passed**.
+* Agent App against Supabase: **141 passed, 2 failed**. The two failures are the
+  known baseline in `payments_e2e_test.dart`; they fail the same way on the
+  branch without any of the security changes and are unrelated to them.
+  Every new security, payment-number, platform and logo test passes.
+
+Earlier runs on older commits (223–225) failed only because of tests that
+polluted the shared test database; those tests were rewritten to run in
+rolled-back transactions and the failures are gone in run 226.
