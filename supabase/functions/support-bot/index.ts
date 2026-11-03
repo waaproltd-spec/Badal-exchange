@@ -35,11 +35,10 @@ const T = {
   welcome:
     '👋 Ku soo dhawoow <b>BADAL AI Support Bot</b>.\n\nWaxaan ku caawinaa macaamiisha BADAL Exchange. Fadlan geli <b>Wallet ID</b>-gaaga (tusaale: BE000000) si aan kuu aqoonsado.',
   askContact:
-    '✅ Wallet ID-gan waa la helay. Si aan u hubino inaad adigu tahay, fadlan taabo badhanka hoose oo la wadaag lambarkaaga Telegram-ka.',
+    '🔐 Si aan u hubino akoonkaaga, fadlan taabo badhanka hoose oo la wadaag lambarkaaga Telegram-ka (waa inuu ahaado kan akoonkaaga ku diiwaangashan).',
   shareButton: '📱 La wadaag lambarkayga',
-  wrongWallet: '❌ Wallet ID-gan lama helin. Fadlan hubi oo mar kale isku day.',
   walletLimited: '⛔ Isku-day badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
-  wrongContact: '❌ Lambarkan ma aha kan akoonkaaga ku diiwaangashan. Waan ku xaqiijin kari waynay.',
+  wrongContact: '❌ Waan ku xaqiijin kari waynay. Hubi Wallet ID-gaaga iyo lambarka Telegram-ka, kadibna qor /start mar kale.',
   contactNotOwn: '❌ Fadlan la wadaag lambarkaaga adiga u gaarka ah (badhanka hoose).',
   linked: (name: string) => `✅ Waad ku mahadsan tahay${name ? ', ' + name : ''}! Akoonkaaga waa la xaqiijiyay.\n\nFadlan dooro adeegga aad rabto:`,
   menuTitle: 'Fadlan dooro adeegga aad rabto:',
@@ -80,6 +79,14 @@ WHAT YOU DO: Answer the customer's text questions about deposits, withdrawals, s
 RULES: You only receive text: if the customer says they sent a screenshot, image or voice message, tell them in Somali that this bot works with text only and ask them to write the problem. Never ask for, accept or repeat a PIN, password, card number or one-time code; if the customer writes one, tell them never to send it. You cannot move money, refund, credit, cancel, approve or change anything, and you must never say or promise that you did. Do not guess balances or order results: use only what the customer's orders below say. If the problem needs a person (money missing, a payment not credited after waiting, a wrong number, a dispute) tell them to press "La xiriir Admin" and give the details. Do not discuss other topics: politely say in Somali that you only help with BADAL Exchange. Keep answers short (at most about 8 lines), friendly and plain.`;
 
 // ----------------------------------------------------------------- plumbing
+
+/** Compares secrets without stopping at the first difference. */
+function same(given: string | null, expected: string | undefined): boolean {
+  if (!given || !expected || given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < given.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -263,7 +270,8 @@ const shareKeyboard = () => ({
 
 async function linkWallet(chat: number, wallet: string) {
   const r = await rpc('support_start_link', { p_chat: chat, p_wallet: wallet });
-  if (!r.ok) return void (await say(chat, r.limited ? T.walletLimited : T.wrongWallet));
+  // Same answer whether or not the Wallet ID exists: it can not be found out from here.
+  if (!r.ok) return void (await say(chat, T.walletLimited));
   await say(chat, T.askContact, { reply_markup: shareKeyboard() });
 }
 
@@ -281,7 +289,7 @@ Deno.serve(async (req) => {
     const given = req.headers.get('x-telegram-bot-api-secret-token') ?? url.searchParams.get('key');
     // Says why, so the one-time setup can be fixed (nothing here reveals the secret).
     if (!expected) return new Response('Forbidden: the secret SUPPORT_BOT_WEBHOOK_SECRET is not set in Supabase', { status: 403 });
-    if (given !== expected) return new Response('Forbidden: the key in the address does not match SUPPORT_BOT_WEBHOOK_SECRET', { status: 403 });
+    if (!same(given, expected)) return new Response('Forbidden: the key in the address does not match SUPPORT_BOT_WEBHOOK_SECRET', { status: 403 });
     try {
       const hook = `${Deno.env.get('SUPABASE_URL')}/functions/v1/support-bot`;
       await tg('setWebhook', { url: hook, secret_token: expected, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
@@ -294,7 +302,7 @@ Deno.serve(async (req) => {
   }
 
   if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
-  if (!expected || req.headers.get('x-telegram-bot-api-secret-token') !== expected) return new Response('Forbidden', { status: 403 });
+  if (!same(req.headers.get('x-telegram-bot-api-secret-token'), expected)) return new Response('Forbidden', { status: 403 });
   try {
     const update = await req.json();
     if (update.callback_query) await onCallback(update.callback_query);

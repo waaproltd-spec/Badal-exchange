@@ -235,6 +235,15 @@ async function run() {
     sent++;
   }
   if (incidents.length > 0) await rpc('payment_incidents_sent', { p_ids: incidents.map((i) => i.id) });
+  // Suspicious activity (migrations/*_security_hardening.sql): said once, in Somali.
+  // Only said: nothing is blocked, refunded or changed here.
+  const security: any[] = (await rpc('security_events_todo')) ?? [];
+  for (const e of security) {
+    await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
+      text: `🚨 <b>Digniin amni — ${esc(e.title)}</b>\n${esc(e.detail)}\nWaqtiga: ${esc(when(e.at))}` });
+    sent++;
+  }
+  if (security.length > 0) await rpc('security_events_sent', { p_ids: security.map((e) => e.id) });
   if (todo.sahal) {
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML', text: (SAHAL[todo.sahal.kind] ?? SAHAL.refused)(todo.sahal) });
     await rpc('withdrawal_alerts_sahal_sent', { p_key: todo.sahal.key ?? null });

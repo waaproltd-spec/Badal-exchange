@@ -90,8 +90,13 @@ before(async () => {
   await db.query(`UPDATE sahal_payout_settings SET mode = 'off' WHERE id`);
   // Deposit / withdrawal incidents the other suites left are not this file's business either.
   await db.query(`UPDATE payment_incidents SET alerted_at = now() WHERE alerted_at IS NULL`);
+  await db.query(`UPDATE security_events SET alerted_at = now() WHERE alerted_at IS NULL`);
 });
-beforeEach(() => { tg.calls.length = 0; });
+beforeEach(async () => {
+  tg.calls.length = 0;
+  // Security alerts from other suites are not what these tests count.
+  await db.query(`UPDATE security_events SET alerted_at = now() WHERE alerted_at IS NULL`);
+});
 after(async () => {
   standIn.close();
   await db.query(`UPDATE withdrawal_alert_chat SET chat_id = NULL, chat_name = NULL, linked_at = NULL, update_offset = 0`);

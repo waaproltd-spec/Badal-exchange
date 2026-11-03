@@ -145,19 +145,33 @@ test('linking: the Wallet ID, then the customer\'s own contact with the register
   assert.match(texts(r)[0], /Wallet ID/);
   assert.match(texts(r)[0], /tusaale: BE000000\)/, 'the example is not a real Wallet ID');
 
+  // A Wallet ID that does not exist is answered exactly like one that does: it can not be found out.
   r = await send(message(chat, { text: 'BE000000' }));
-  assert.match(texts(r)[0], /lama helin/);
+  const wrongAnswer = r.calls.find((x) => x.method === 'sendMessage');
+  assert.match(wrongAnswer.body.text, /la wadaag lambarkaaga Telegram/);
+  assert.equal(wrongAnswer.body.reply_markup.keyboard[0][0].request_contact, true);
 
   r = await send(message(chat, { text: c.wallet }));
   const ask = r.calls.find((x) => x.method === 'sendMessage');
+  assert.equal(ask.body.text, wrongAnswer.body.text, 'the same answer');
+  assert.deepEqual(ask.body.reply_markup, wrongAnswer.body.reply_markup);
   assert.match(ask.body.text, /la wadaag lambarkaaga Telegram/);
   assert.equal(ask.body.reply_markup.keyboard[0][0].request_contact, true);
+
+  // With a Wallet ID that does not exist, nobody can finish: even their own contact is refused.
+  const other = await customer();
+  const ghost = nextChat();
+  await send(message(ghost, { text: '/start' }));
+  await send(message(ghost, { text: 'BE000001' }));
+  const ghostContact = await send(message(ghost, { contact: { phone_number: `+${other.phone}`, user_id: ghost } }));
+  assert.match(texts(ghostContact)[0], /Waan ku xaqiijin kari waynay/);
+  assert.equal((await db.query(`SELECT customer_id FROM support_chats WHERE chat_id = $1`, [ghost])).rows[0].customer_id, null);
 
   // Someone else's contact, or another number: refused.
   r = await send(message(chat, { contact: { phone_number: `+${c.phone}`, user_id: 1 } }));
   assert.match(texts(r)[0], /adiga u gaarka ah/);
   r = await send(message(chat, { contact: { phone_number: '+252619999999', user_id: chat } }));
-  assert.match(texts(r)[0], /ma aha kan akoonkaaga/);
+  assert.match(texts(r)[0], /Waan ku xaqiijin kari waynay/);
   assert.equal((await db.query(`SELECT customer_id FROM support_chats WHERE chat_id = $1`, [chat])).rows[0].customer_id, null);
 
   // The Wallet ID again, then the right contact.
