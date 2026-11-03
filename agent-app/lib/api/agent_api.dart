@@ -574,6 +574,7 @@ class AgentApi {
   /// Every company's cash register balance; [refresh] reads the connected
   /// ones again (the server limits how often).
   Future<CompanyBalancesOverview> getCompanyBalances({bool refresh = false, DateTime? from, DateTime? to}) async {
+    loadMethodCatalog().ignore(); // a logo uploaded since the app started shows without a release
     final data = await _client.getFunction('company-balances', {
       if (refresh) 'refresh': '1',
       if (from != null) 'from': from.toUtc().toIso8601String(),
@@ -757,6 +758,7 @@ class AgentApi {
   // Betting platforms
 
   Future<({List<BettingAdapter> adapters, List<BettingPlatform> platforms})> getBettingPlatforms() async {
+    loadMethodCatalog().ignore();
     final data = await _map('manage_betting_platforms');
     return (
       adapters: [for (final a in (data['adapters'] as List? ?? const [])) BettingAdapter.fromJson(a as Map<String, dynamic>)],
