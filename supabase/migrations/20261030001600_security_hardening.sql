@@ -244,8 +244,13 @@ CREATE TRIGGER wallet_adjustments_security_watch AFTER INSERT ON public.wallet_a
 -- (c) The permission to use another payment number is granted or taken away.
 CREATE OR REPLACE FUNCTION private.security_watch_number_access()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_changed boolean := true;
 BEGIN
-  IF TG_OP = 'INSERT' OR NEW.enabled IS DISTINCT FROM OLD.enabled THEN
+  IF TG_OP = 'UPDATE' THEN
+    v_changed := NEW.enabled IS DISTINCT FROM OLD.enabled;
+  END IF;
+  IF v_changed THEN
     PERFORM private.security_event('payment_number_access', 'medium', NEW.customer_id, COALESCE(NEW.revoked_by, NEW.granted_by), NULL, 0,
       CASE WHEN NEW.enabled THEN 'Oggolaansho lambar kale ayaa la siiyay' ELSE 'Oggolaanshaha lambar kale waa la qaaday' END,
       private.security_customer_text(NEW.customer_id) || E'\nWax ka beddelay: ' ||
