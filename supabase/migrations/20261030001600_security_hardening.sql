@@ -335,3 +335,20 @@ BEGIN
   ON CONFLICT (chat_id) DO UPDATE SET pending_customer_id = v_customer, state = 'awaiting_contact', updated_at = now();
   RETURN jsonb_build_object('ok', true);
 END $$;
+
+-- (e) A large deposit is credited (a forged payment SMS would end like this).
+CREATE OR REPLACE FUNCTION private.security_watch_deposits()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NEW.direction = 'deposit' AND NEW.status = 'completed' AND OLD.status IS DISTINCT FROM 'completed' AND NEW.amount_cents >= 30000 THEN
+    PERFORM private.security_event('large_deposit', 'medium', NEW.customer_id, NEW.agent_id, NEW.order_code, 0,
+      'Dhigasho weyn ayaa la xaqiijiyay',
+      private.security_customer_text(NEW.customer_id) || E'\nLacagta: $' || private.money(NEW.amount_cents) ||
+      E'\nLambarka macaamilka: ' || NEW.order_code || E'\nShirkadda lacagta: ' || private.method_label(NEW.method));
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION private.security_watch_deposits() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS orders_security_watch_deposits ON public.orders;
+CREATE TRIGGER orders_security_watch_deposits AFTER UPDATE OF status ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION private.security_watch_deposits();
