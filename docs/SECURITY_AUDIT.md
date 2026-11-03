@@ -51,7 +51,7 @@ leaks limited information; **Low** = hygiene.
 
 | # | Sev | Finding | Status |
 |---|-----|---------|--------|
-| 1 | High | **Agent duties were not enforced by the server.** `evc_deposit` / `evc_withdraw` only changed what the Agent App showed. Any active agent (even one with no duties, or only "view company balances") could complete or fail **any** withdrawal (a failed one refunds the customer), reject any deposit, run payouts, and feed payment SMS. | **Fixed** — each of those 8 payment entry points now requires its duty (managers always pass); switch `app_settings.agent_duty_enforcement`. |
+| 1 | High | **Agent duties were not enforced by the server.** `evc_deposit` / `evc_withdraw` only changed what the Agent App showed. Any active agent (even one with no duties, or only "view company balances") could complete or fail **any** withdrawal (a failed one refunds the customer), reject any deposit, run payouts, and feed payment SMS. | **Fixed** — each of those 8 payment entry points now requires its duty (managers always pass); shipped **switched off** so no live payout is disturbed; switch `app_settings.agent_duty_enforcement` to `on` once every agent has the right duty. |
 | 2 | High | **Any active agent could add up to $100,000 to any wallet, as often as they liked**, without approval (`agent_wallet_adjust`). A stolen or dishonest agent account could create money. | **Mitigated** — ordinary agents are capped per Somalia day (default $2,000, `wallet_adjust_agent_daily_cap`); deductions are not capped; additions of $500+ alert the admin on Telegram; managers remain uncapped but audited. Remaining risk: see R1. |
 | 3 | Medium | The audit log could be edited or emptied by the service role / database owner. | **Fixed** — update, delete and truncate are refused by triggers. |
 | 4 | Medium | Support bot: a Wallet ID that existed was answered differently from one that did not (an oracle: Wallet IDs are `BE` + 6 digits). | **Fixed** — both are answered identically; only the owner's own Telegram contact finishes linking; wrong IDs are still counted (5 an hour) and now raise an alert. |
@@ -130,8 +130,8 @@ exactly like a real one and can never be linked.
    Any agent who does payouts, deposits or SMS must have the matching duty (and
    anyone with only "view company balances" will no longer be able to do payment
    work — that is the intent). Give duties in the Agent App first.
-2. Or set `agent_duty_enforcement` to `off` after deploying and turn it on once
-   the list is right (the setting is in `app_settings`).
+2. The migration ships with `agent_duty_enforcement` = `off` (nothing changes for
+   agents). Turn it `on` in `app_settings` once the list is right.
 3. Nothing in the migration changes a customer record, a balance or an order.
 
 ## CI results

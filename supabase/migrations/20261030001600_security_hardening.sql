@@ -5,7 +5,7 @@
 --    App showed: any agent could complete or fail any withdrawal, reject any
 --    deposit, run payouts and feed payment SMS. Each of those calls now needs
 --    the duty (managers -- admins and agents with manage_settings -- always
---    pass). app_settings 'agent_duty_enforcement' = 'off' switches it off.
+--    pass). Shipped OFF (app_settings 'agent_duty_enforcement' = 'off'); set it 'on' once every agent has the right duty.
 -- 2. Money added to a wallet by an agent who is not a manager is capped per
 --    Somalia day (app_settings 'wallet_adjust_agent_daily_cap', dollars).
 -- 3. The audit log can never be changed, deleted or emptied, by anyone.
@@ -17,7 +17,7 @@
 -- Nothing here changes a customer's data, a balance or an existing order.
 
 INSERT INTO public.app_settings (key, value) VALUES
-  ('agent_duty_enforcement', 'on'),
+  ('agent_duty_enforcement', 'off'),
   ('wallet_adjust_agent_daily_cap', '2000'),
   ('signup_limit_per_10min', '150')
 ON CONFLICT (key) DO NOTHING;

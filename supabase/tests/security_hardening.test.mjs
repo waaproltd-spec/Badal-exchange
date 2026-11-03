@@ -60,6 +60,17 @@ async function customer(balanceCents = 100000) {
   return { id: u.customer_id, phone: `252${number}` };
 }
 const ghost = () => randomUUID();
+// The shipped default is 'off' (turned on in the Agent App's settings once every
+// agent has the right duties); the tests of the check itself switch it on and put it back.
+const enforcement = (v) => db.query(`UPDATE app_settings SET value = $1 WHERE key = 'agent_duty_enforcement'`, [v]);
+async function enforced(fn) {
+  await enforcement('on');
+  try {
+    return await fn();
+  } finally {
+    await enforcement('off');
+  }
+}
 
 before(async () => { manager = await login('252610000002'); });
 after(() => db.end());
@@ -67,12 +78,14 @@ after(() => db.end());
 test('agent duties: without the duty an agent can not complete or fail withdrawals, reject deposits or feed payment SMS', async () => {
   const none = await agent([]);
   const viewOnly = await agent(['view_company_balances']);
+  await enforced(async () => {
   for (const a of [none, viewOnly]) {
     assert.equal(await code(rpc(a.c, 'agent_withdrawal_complete', { p_order_id: ghost(), p_transaction_ref: 'REF12345', p_idempotency_key: randomUUID() })), 'FORBIDDEN');
     assert.equal(await code(rpc(a.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN');
     assert.equal(await code(rpc(a.c, 'agent_reject_deposit', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN');
     assert.equal(await code(rpc(a.c, 'agent_ingest_payment_sms', { p_sender: '192', p_body: 'x', p_received_at: new Date().toISOString() })), 'FORBIDDEN');
   }
+  });
 });
 
 test('agent duties: each duty opens its own calls only; managers always pass', async () => {
@@ -81,23 +94,25 @@ test('agent duties: each duty opens its own calls only; managers always pass', a
   const boss = await agent(['manage_settings']);
   // Past the duty check an unknown order is simply not found (anything but FORBIDDEN).
   const notForbidden = async (promise) => assert.notEqual(await code(promise), 'FORBIDDEN');
+  await enforced(async () => {
   await notForbidden(rpc(withdraw.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' }));
   await notForbidden(rpc(deposit.c, 'agent_reject_deposit', { p_order_id: ghost(), p_reason: 'not paid' }));
   await notForbidden(rpc(boss.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' }));
   await notForbidden(rpc(boss.c, 'agent_reject_deposit', { p_order_id: ghost(), p_reason: 'not paid' }));
   assert.equal(await code(rpc(withdraw.c, 'agent_reject_deposit', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN', 'withdraw duty is not the deposit duty');
   assert.equal(await code(rpc(deposit.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN', 'deposit duty is not the withdraw duty');
+  });
 });
 
 test('agent duties: the kill switch turns the check off, and back on', async () => {
   const none = await agent([]);
-  await db.query(`UPDATE app_settings SET value = 'off' WHERE key = 'agent_duty_enforcement'`);
-  try {
-    assert.notEqual(await code(rpc(none.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN');
-  } finally {
-    await db.query(`UPDATE app_settings SET value = 'on' WHERE key = 'agent_duty_enforcement'`);
-  }
-  assert.equal(await code(rpc(none.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN');
+  await enforcement('off');
+  assert.notEqual(await code(rpc(none.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN');
+  await enforced(async () => {
+    assert.equal(await code(rpc(none.c, 'agent_withdrawal_fail', { p_order_id: ghost(), p_reason: 'not paid' })), 'FORBIDDEN');
+  });
+  const { rows: [r] } = await db.query(`SELECT value FROM app_settings WHERE key = 'agent_duty_enforcement'`);
+  assert.equal(r.value, 'off', 'the shipped default stays off');
 });
 
 test('the guards are in the functions themselves (a later migration that rewrites one must keep them)', async () => {
