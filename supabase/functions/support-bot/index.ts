@@ -71,10 +71,7 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   decisionAlready: (status: string) => `ℹ️ Codsigan horey ayaa loo go'aamiyay (${status === 'approved' ? 'la fasaxay' : 'la diiday'}).`,
   decisionRestricted: '⛔ Akoonkan bixintiisa waa la hakiyay; ka beddel Agent App-ka.',
   decisionDone: (status: string, who: string, when: string) =>
-    `\n\n${status === 'approved' ? '✅ <b>La fasaxay</b>' : '❌ <b>La diiday</b>'}\nMaamule: ${who}\nWaqtiga: ${when}`,
-  groupLinked: '✅ Kooxdan waa la xaqiijiyay. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaa lagu soo diri doonaa; maamulayaasha kooxdu waxay fasaxi/diidi karaan.',
-  groupAnonymous: '⚠️ Fariintan waxaa loo diray sidii <b>maamule qarsoon</b> (anonymous), sidaas darteed ma garan karo yaad tahay. Fadlan ka damiso <b>Remain anonymous</b> (Group → Administrators → magacaaga), kadibna mar kale qor /linkgroup.',
-  groupNotAllowed: '⛔ Kaliya maamulaha la ogol yahay ayaa kooxda xiri kara.',
+    `\n\n${status === 'approved' ? '✅ <b>CODSIGA WAA LA FASAXAY</b>' : '❌ <b>CODSIGA WAA LA DIIDAY</b>'}\n👨‍💼 Maamulaha: ${who}\n🕒 Waqtiga: ${when}`,
   btnApprove: '✅ Fasax',
   btnReject: '❌ Diid',
   adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
@@ -364,7 +361,9 @@ async function onDecision(cb: any, requestId: string, decision: 'approve' | 'rej
     return void (await alert(T.approvalUnknown));
   }
   await tg('answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {});
-  const when = new Date(r.decidedAt).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+  // Somali time (Africa/Mogadishu, GMT+3).
+  const when = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Mogadishu', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .format(new Date(r.decidedAt)).replace(',', '');
   // The administrator's message: the buttons go, the outcome stays.
   try {
     const original = String(cb.message?.text ?? '');

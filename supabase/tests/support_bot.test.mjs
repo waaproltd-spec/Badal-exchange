@@ -456,6 +456,10 @@ test('Approve in Telegram: the account is approved, the customer is told, the ad
   assert.match(told.body.text, /Akoonkaaga waa la fasaxay/);
   assert.ok(r.calls.find((x) => x.method === 'editMessageText'), 'the admin message shows the outcome');
   assert.deepEqual(r.calls.find((x) => x.method === 'editMessageText').body.reply_markup.inline_keyboard, [], 'the buttons are gone');
+  const edited = r.calls.find((x) => x.method === 'editMessageText').body.text;
+  assert.match(edited, /CODSIGA WAA LA FASAXAY/);
+  assert.match(edited, /Maamulaha: /);
+  assert.match(edited, /Waqtiga: \d\d\/\d\d\/\d{4} \d\d:\d\d/);
   // The customer can withdraw now (as the Agent App's approval does).
   const cu = await login(w.c.phone);
   const { data } = await cu.rpc('customer_withdrawal_access');
