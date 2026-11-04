@@ -54,13 +54,10 @@ class _HomeShellState extends State<HomeShell> {
           const AccountScreen(),
         ],
       ),
-      // The bottom bar keeps its size when the phone's text size is large, so six labels fit.
-      bottomNavigationBar: MediaQuery(
-        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-        child: NavigationBar(
+      bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        // Six tabs: on a narrow phone only the selected one shows its label.
-        labelBehavior: MediaQuery.sizeOf(context).width < 360
+        // Six tabs: on a narrow phone, or with a large text size, only the selected one shows its label.
+        labelBehavior: MediaQuery.sizeOf(context).width < 360 || MediaQuery.textScalerOf(context).scale(10) > 11.5
             ? NavigationDestinationLabelBehavior.onlyShowSelected
             : NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -96,7 +93,6 @@ class _HomeShellState extends State<HomeShell> {
             label: tr('Account'),
           ),
         ],
-      ),
       ),
     );
   }
