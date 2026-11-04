@@ -35,6 +35,10 @@ const _byCode = <String, String>{
   'SESSION_REPLACED': 'Akoonkan taleefan kale ayaa laga galay. Dib u gal.',
   'NOT_AVAILABLE': 'Adeeggan hadda lama heli karo.',
   'PLAYER_LOOKUP_UNAVAILABLE': 'Ciyaaryahanka hadda lama hubin karo. Mar kale isku day.',
+  'TIP_NOT_FOUND': 'Taladan hadda lama heli karo.',
+  'TIP_IS_FREE': 'Taladan waa bilaash: wax lacag ah looma baahna.',
+  'PRICE_CHANGED': 'Qiimaha talada waa isbeddelay. Fadlan hubi oo mar kale xaqiiji.',
+  'INSUFFICIENT_FUNDS': 'Haraaga boorsadaadu kuma filna taladan.',
   'PENDING_NOT_FOUND': 'Codsigan horay ayaa loo dhammeeyay ama wuu dhacay.',
 };
 

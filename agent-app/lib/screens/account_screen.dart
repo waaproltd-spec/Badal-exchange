@@ -13,6 +13,7 @@ import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
 import 'admin/betting_platforms_screen.dart';
+import 'admin/tips_screens.dart';
 import 'admin/bonus_settings_screen.dart';
 import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
@@ -115,6 +116,14 @@ class _AccountScreenState extends State<AccountScreen> {
 
           GroupLabel(tr('Settings')),
           const AppSettingsPanel(),
+
+          GroupLabel(tr('TIPS')),
+          _NavRow(
+            icon: Icons.receipt_long_rounded,
+            color: AppColors.statusCompleted,
+            label: tr('Tips purchases'),
+            onTap: () => _open(const TipPurchasesScreen(manager: false)),
+          ),
 
           GroupLabel(tr('Admin features')),
           if (!canManage)
@@ -242,6 +251,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusCompleted,
               label: tr('Bonus'),
               onTap: () => _open(const BonusSettingsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.tips_and_updates_rounded,
+              color: AppColors.statusCompleted,
+              label: tr('TIPS Management'),
+              onTap: () => _open(const TipsManagementScreen()),
             ),
             _NavRow(
               icon: Icons.account_balance_wallet_rounded,

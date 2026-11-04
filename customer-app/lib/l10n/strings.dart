@@ -62,6 +62,7 @@ class AppStrings {
   static String get haveAccount => _t('Already have an account?', 'Horay akoon ma u lahayd?');
   static String get logout => _t('Log Out', 'Ka Bax');
   static String get logoutConfirm => _t('Are you sure you want to log out?', 'Ma hubtaa inaad ka baxayso?');
+  static String get retry => _t('Try again', 'Mar kale isku day');
   static String get cancel => _t('Cancel', 'Jooji');
   static String get createYourAccount => _t('Create your account', 'Samee akoonkaaga');
   static String get registerSubtitle =>
@@ -452,6 +453,52 @@ class AppStrings {
   static String get bonusEarned => _t('Bonus earned', 'Gunno la helay');
   static String get bonusMovedTitle => _t('Moved to main wallet', 'Loo wareejiyay boorsada weyn');
   static String get couldNotLoadBonus => _t('Could not load the bonus', 'Gunnada lama soo rarin');
+
+  // ---- Tips (Shaxaha)
+  static String get tips => _t('TIPS', 'Shaxaha');
+  static String get tipsSubtitle => _t('Betting tips and odds codes', 'Talooyin iyo koodhadh ciyaareed');
+  static String get tipsAll => _t('All', 'Dhammaan');
+  static String get tipsFree => _t('Free', 'Bilaash');
+  static String get tipsPaid => _t('Paid', 'Lacag');
+  static String get tipsEmpty => _t('No tips here yet', 'Weli talooyin ma jiraan');
+  static String get tipsCouldNotLoad => _t('Could not load the tips', 'Talooyinka lama soo rarin');
+  static String get oddsCode => _t('Odds Code', 'Koodhka Odds-ka');
+  static String get copyCode => _t('Copy Code', 'Koobiyee Koodhka');
+  static String get codeCopied => _t('Code copied', 'Koodhka waa la koobiyeeyay');
+  static String get tipLocked => _t('Locked', 'Xiran');
+  static String get tipOwned => _t('Purchased', 'La iibsaday');
+  static String get unlockTip => _t('Unlock', 'Fur');
+  static String get tipTeams => _t('teams', 'kooxood');
+  static String get tipTotalOdds => _t('Total odds', 'Odds-ka guud');
+  static String get tipMatches => _t('Matches', 'Ciyaaraha');
+  static String get tipNote => _t('Note', 'Qoraal');
+  static String get tipBuyTitle => _t('Buy this tip?', 'Ma iibsanaysaa taladan?');
+  static String tipBuyMessage(String price, String balance) => _t(
+      '\$$price will be taken from your wallet and the code unlocked at once. Your balance: \$$balance.',
+      '\$$price ayaa laga qaadi doonaa boorsadaada, koodhkana isla markiiba waa furmayaa. Haraagaaga: \$$balance.');
+  static String get tipBuyConfirm => _t('Pay & unlock', 'Bixi oo fur');
+  static String get tipNotEnough => _t('Your balance is not enough for this tip. Deposit first.',
+      'Haraaga boorsadaadu kuma filna taladan. Marka hore lacag dhig.');
+  static String tipUnlocked(String balance) =>
+      _t('Unlocked. Your balance: \$$balance', 'Waa furmay. Haraagaaga: \$$balance');
+  static String get tipAlreadyOwned => _t('You already own this tip. Nothing was charged.',
+      'Taladan horay ayaad u iibsatay. Lacag lagama qaadin.');
+  static String get tipPriceChanged => _t('The price changed. Please check it and try again.',
+      'Qiimaha waa isbeddelay. Fadlan hubi oo mar kale isku day.');
+  static String get tipCouldNotBuy => _t('Could not complete the purchase. You were not charged.',
+      'Iibsiga lama dhammaystirin. Lacag lagama qaadin.');
+  static String sportName(String sport) => switch (sport) {
+        'football' => _t('Football', 'Kubadda Cagta'),
+        'basketball' => _t('Basketball', 'Kubadda Koleyga'),
+        'tennis' => _t('Tennis', 'Tenis'),
+        'volleyball' => _t('Volleyball', 'Fooliibool'),
+        'baseball' => _t('Baseball', 'Beysbool'),
+        'hockey' => _t('Hockey', 'Heeki'),
+        'cricket' => _t('Cricket', 'Kirikit'),
+        'rugby' => _t('Rugby', 'Rugbi'),
+        'boxing' => _t('Boxing', 'Feerka'),
+        _ => _t('Other', 'Kale'),
+      };
 
   // Receiver name (Golis, ZAAD, EVC Plus)
   static String get receiverName => _t('Receiver Name', 'Magaca Qaataha');

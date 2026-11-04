@@ -10,6 +10,7 @@ import '../models/order.dart';
 import '../models/payment_method.dart';
 import '../models/player.dart';
 import '../models/quote.dart';
+import '../models/tip.dart';
 import '../models/wallet.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
@@ -313,6 +314,30 @@ class CustomerApi {
   Future<Order> getOrder(String id) async {
     final data = await _client.rpc('customer_order', {'p_id': id}) as Map<String, dynamic>;
     return Order.fromJson(data);
+  }
+
+  // ---------------------------------------------------------------------
+  // Tips (Shaxaha)
+  // ---------------------------------------------------------------------
+
+  /// [filter]: all, free or paid. A paid tip that is not bought has no code.
+  Future<List<Tip>> getTips([String filter = 'all']) async {
+    final data = await _client.rpc('customer_tips', {'p_filter': filter}) as Map<String, dynamic>;
+    return [for (final t in (data['tips'] as List? ?? const [])) Tip.fromJson(t as Map<String, dynamic>)];
+  }
+
+  Future<Tip> getTip(String id) async {
+    final data = await _client.rpc('customer_tip', {'p_id': id}) as Map<String, dynamic>;
+    return Tip.fromJson(data);
+  }
+
+  /// Pays for a tip from the wallet and unlocks it, in one step on the server. [expectedPrice] is
+  /// what the confirmation showed: a changed price is PRICE_CHANGED and nothing is charged.
+  /// Asking again for a tip already owned charges nothing.
+  Future<TipPurchase> buyTip(String id, {String? expectedPrice}) async {
+    final data = await _client.rpc('customer_buy_tip', {'p_tip_id': id, 'p_expected_price': expectedPrice})
+        as Map<String, dynamic>;
+    return TipPurchase.fromJson(data);
   }
 
   // ---------------------------------------------------------------------

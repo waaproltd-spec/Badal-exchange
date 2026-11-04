@@ -16,6 +16,7 @@ import '../models/payout.dart';
 import '../models/match_result.dart';
 import '../models/console.dart';
 import '../models/management.dart';
+import '../models/tips.dart';
 import '../models/payment_methods.dart';
 import '../models/order.dart';
 import '../models/company_balance.dart';
@@ -955,6 +956,69 @@ class AgentApi {
       'p_sort_order': sortOrder,
     });
   }
+
+  // ---- TIPS (Shaxaha)
+
+  /// status: all | published | draft | free | paid
+  Future<List<ManagedTip>> getTips([String status = 'all']) async {
+    final data = await _map('manage_tips', {'p_status': status});
+    return [for (final t in (data['tips'] as List? ?? const [])) ManagedTip.fromJson(t as Map<String, dynamic>)];
+  }
+
+  Future<TipsStats> getTipsStats() async => TipsStats.fromJson(await _map('manage_tips_stats'));
+
+  /// Creates (id null) or edits a tip. A new tip is a draft until it is published. [image] is a
+  /// JPEG, PNG or WebP; [removeImage] drops the current one.
+  Future<ManagedTip> saveTip({
+    String? id,
+    required String title,
+    required String sport,
+    required int teamCount,
+    required bool isPaid,
+    String? price,
+    required String oddsCode,
+    double? totalOdds,
+    List<TipMatchEntry> matches = const [],
+    String? note,
+    Uint8List? image,
+    bool removeImage = false,
+  }) async =>
+      ManagedTip.fromJson(await _map('manage_save_tip', {
+        'p_id': id,
+        'p_title': title,
+        'p_sport': sport,
+        'p_team_count': teamCount,
+        'p_is_paid': isPaid,
+        'p_price': price,
+        'p_odds_code': oddsCode,
+        'p_total_odds': totalOdds,
+        'p_matches': [for (final m in matches) m.toJson()],
+        'p_note': note,
+        'p_image': image == null ? null : base64Encode(image),
+        'p_remove_image': removeImage,
+      }));
+
+  Future<ManagedTip> publishTip(String id, bool published) async =>
+      ManagedTip.fromJson(await _map('manage_publish_tip', {'p_id': id, 'p_published': published}));
+
+  Future<void> deleteTip(String id) async {
+    await _client.rpc('manage_delete_tip', {'p_id': id});
+  }
+
+  /// Purchase history, of one tip or of all (managers).
+  Future<List<TipPurchaseRecord>> getTipPurchases({String? tipId}) async {
+    final data = await _map('manage_tip_purchases', {'p_tip_id': tipId, 'p_limit': 200});
+    return [for (final p in (data['purchases'] as List? ?? const [])) TipPurchaseRecord.fromJson(p as Map<String, dynamic>)];
+  }
+
+  /// Gives the price back to the customer's wallet and withdraws the access. Once per purchase.
+  Future<void> refundTipPurchase(String id, String reason) async {
+    await _client.rpc('manage_refund_tip_purchase', {'p_purchase_id': id, 'p_reason': reason});
+  }
+
+  /// The Agent App view of the customers' purchases (any agent; view only).
+  Future<TipPurchasesView> getAgentTipPurchases({String? search}) async =>
+      TipPurchasesView.fromJson(await _map('agent_tip_purchases', {'p_limit': 200, 'p_search': search}));
 
   Future<void> deleteHomeAd(String id) async {
     await _client.rpc('manage_delete_home_ad', {'p_id': id});
