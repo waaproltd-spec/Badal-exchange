@@ -84,6 +84,9 @@ BEGIN
   IF p_blocked THEN
     IF u.status <> 'active' THEN PERFORM private.raise_api(409, 'ALREADY_BLOCKED', 'This customer is already blocked'); END IF;
     UPDATE public.users SET status = 'disabled', updated_at = now() WHERE id = u.id;   -- bans the login, ends the sessions
+    -- A nudge for a phone that has the app open: its live connection sees the wallet row change, asks the
+    -- server, is told the account is blocked and signs out at once. Only the timestamp changes: no amount.
+    UPDATE public.wallets SET updated_at = now() WHERE customer_id = u.id;
   ELSE
     IF u.status = 'active' THEN PERFORM private.raise_api(409, 'NOT_BLOCKED', 'This customer is not blocked'); END IF;
     UPDATE public.users SET status = 'active', updated_at = now() WHERE id = u.id;

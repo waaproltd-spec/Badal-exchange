@@ -163,6 +163,15 @@ class AppStrings {
       'Wada-hadalka taageerada weli lama diyaarin. Fadlan isku day mar dambe.');
   static String couldNotOpen(String app, String link) =>
       _t('Could not open $app. Contact us at $link', 'Lama furi karo $app. Nagala soo xiriir $link');
+  // ---- Blocked account
+  static String get accountBlockedTitle => _t('Account Blocked', 'Akoonka Waa La Xiray');
+  static String get accountBlockedMessage => _t(
+      'Your account has been blocked by the administrator. You cannot access your account at this time.',
+      'Akoonkaaga waxaa xiray maamulka. Hadda ma geli kartid akoonkaaga.');
+  static String get accountBlockedHint => _t('Please contact customer support for more information.',
+      'Fadlan la xiriir adeegga macaamiisha haddii aad u baahan tahay faahfaahin dheeraad ah.');
+  static String get contactSupport => _t('Contact Support', 'La Xiriir Taageerada');
+  static String get supportNotSet => _t('The support contact is not set yet.', 'Xiriirka taageerada weli lama dejin.');
   static String get openedOnAnotherPhone => _t('This account was opened on another phone. Log in again to use it here.',
       'Akoonkan taleefan kale ayaa laga galay. Dib u gal si aad halkan uga isticmaasho.');
   static String get invalidLogin =>

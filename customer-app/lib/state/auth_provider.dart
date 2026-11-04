@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +20,7 @@ class AuthProvider extends ChangeNotifier {
       : _appLock = appLock ?? AppLock.instance {
     apiClient.onSessionExpired = _handleSessionExpired;
     apiClient.onSessionReplaced = _handleSessionReplaced;
+    apiClient.onAccountBlocked = _handleAccountBlocked;
   }
 
   final ApiClient apiClient;
@@ -54,6 +55,7 @@ class AuthProvider extends ChangeNotifier {
         _user = AuthUser(phone: phone, name: name ?? '');
         unawaited(apiClient.startLive());
         unawaited(_verifyRestoredSession());
+        _startAccountCheck();
       } else if (apiClient.hasSession) {
         await apiClient.signOut();
       }
@@ -140,6 +142,7 @@ class AuthProvider extends ChangeNotifier {
     await apiClient.secureStorage.write(key: SecureStorageKeys.userName, value: name);
     unawaited(apiClient.startLive());
     _user = AuthUser(phone: phone, name: name);
+    _startAccountCheck();
     notifyListeners();
   }
 
@@ -153,7 +156,53 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
+  /// How often a signed-in phone asks the server whether the account is still open (a block is also seen
+  /// at once by any call the app makes, and when the wallet changes live).
+  static const _accountCheckEvery = Duration(seconds: 20);
+  Timer? _accountCheck;
+
+  void _startAccountCheck() {
+    _accountCheck?.cancel();
+    _accountCheck = Timer.periodic(_accountCheckEvery, (_) => checkAccount());
+  }
+
+  /// Asks the server; a blocked account signs this phone out through [onAccountBlocked].
+  Future<void> checkAccount() async {
+    if (_user == null) return;
+    try {
+      await customerApi.verifySession();
+    } catch (_) {
+      // Blocked: handled by the api client. Offline or anything else: try again later.
+    }
+  }
+
+  /// For tests: signed in as [user] without a server.
+  @visibleForTesting
+  void debugSignIn(AuthUser user) {
+    _user = user;
+    notifyListeners();
+  }
+
+  /// The administrator blocked this account: this phone is signed out (the server already ended every
+  /// session on every device) and the login screen shows the Account Blocked card. Nothing of the
+  /// customer's data is touched.
+  void _handleAccountBlocked() {
+    if (_user == null) return;
+    unawaited(() async {
+      _accountCheck?.cancel();
+      try {
+        await customerApi.logout();
+      } catch (_) {}
+      await _clearSession();
+      navigatorKey?.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen(blocked: true)),
+        (route) => false,
+      );
+    }());
+  }
+
   Future<void> _clearSession() async {
+    _accountCheck?.cancel();
     // The PIN and fingerprint choice belong to this sign-in only.
     await _appLock.disable();
     await apiClient.secureStorage.delete(key: SecureStorageKeys.userPhone);

@@ -49,6 +49,10 @@ class ApiClient {
   /// (SESSION_REPLACED). Set by `AuthProvider`.
   void Function()? onSessionReplaced;
 
+  /// Called when the server says the account is blocked ("Account is disabled") while the customer is
+  /// signed in: the app signs this phone out and shows the Account Blocked message. Set by `AuthProvider`.
+  void Function()? onAccountBlocked;
+
   static Future<void> initialize() async {
     if (AppConfig.supabaseAnonKey.isEmpty) {
       debugPrint('SUPABASE_ANON_KEY is not set; build with --dart-define=SUPABASE_ANON_KEY=...');
@@ -110,6 +114,7 @@ class ApiClient {
       return await guard(call);
     } on ApiException catch (e) {
       if (e.code == 'SESSION_REPLACED') onSessionReplaced?.call();
+      if (e.code == 'ACCOUNT_BLOCKED' && hasSession) onAccountBlocked?.call();
       rethrow;
     }
   }
@@ -192,12 +197,16 @@ class ApiClient {
     try {
       return await call();
     } on PostgrestException catch (e) {
+      // A blocked (disabled) customer: every call is refused with this message, whatever the function.
+      if (e.message.startsWith('Account is disabled')) {
+        throw ApiException(status: 403, code: 'ACCOUNT_BLOCKED', message: AppStrings.accountBlockedMessage);
+      }
       final code = e.hint ?? e.code ?? 'ERROR';
       throw ApiException(status: _statusFor(e.code), code: code, message: serverText(e.message, code: code), details: e.details);
     } on AuthException catch (e) {
       final code = e.code ?? '';
       if (code == 'user_banned') {
-        throw ApiException(status: 403, code: 'FORBIDDEN', message: serverText('Account is disabled'));
+        throw ApiException(status: 403, code: 'ACCOUNT_BLOCKED', message: AppStrings.accountBlockedMessage);
       }
       if (code == 'invalid_credentials' || e.statusCode == '400') {
         throw ApiException(status: 401, code: 'UNAUTHORIZED', message: AppStrings.invalidLogin);

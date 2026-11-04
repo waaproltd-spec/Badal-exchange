@@ -7,6 +7,7 @@ import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
 import '../../services/push_notifications.dart';
+import '../../state/auth_provider.dart';
 import '../../services/success_sound.dart';
 import '../../widgets/floating_nav_bar.dart';
 import '../../widgets/transaction_views.dart';
@@ -39,7 +40,11 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   /// Back in the app: the latest platform logos (a manager may have changed one).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(context.read<CustomerApi>().loadMethodCatalog());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(context.read<CustomerApi>().loadMethodCatalog());
+      // Back in the app: has the account been blocked meanwhile?
+      unawaited(context.read<AuthProvider>().checkAccount());
+    }
   }
 
   @override

@@ -98,11 +98,16 @@ test('a blocked customer: login banned, sessions gone, every customer call refus
   await asUser(managerId, async (tx) => {
     await tx.query(`INSERT INTO public.wallets (customer_id, available_cents) VALUES ($1, 500) ON CONFLICT (customer_id) DO NOTHING`, [customerId]);
     const hasAuth = (await tx.query(`SELECT count(*)::int AS n FROM auth.users WHERE id = $1`, [customerId])).rows[0].n;
+    if (hasAuth) {
+      // The customer is signed in on three devices (a phone, a tablet, another phone).
+      for (let i = 0; i < 3; i++) await tx.query(`INSERT INTO auth.sessions (id, user_id) VALUES (gen_random_uuid(), $1)`, [customerId]);
+      assert.ok((await tx.query(`SELECT count(*)::int AS n FROM auth.sessions WHERE user_id = $1`, [customerId])).rows[0].n >= 3);
+    }
     await block(tx);
     if (hasAuth) {
       const a = (await tx.query(`SELECT banned_until FROM auth.users WHERE id = $1`, [customerId])).rows[0];
       assert.ok(a.banned_until && new Date(a.banned_until) > new Date('2900-01-01'), 'the login is banned');
-      assert.equal((await tx.query(`SELECT count(*)::int AS n FROM auth.sessions WHERE user_id = $1`, [customerId])).rows[0].n, 0, 'signed out everywhere');
+      assert.equal((await tx.query(`SELECT count(*)::int AS n FROM auth.sessions WHERE user_id = $1`, [customerId])).rows[0].n, 0, 'signed out on every device: all sessions are gone');
     }
     // A token the customer still holds is useless: the API refuses every call.
     await tx.as(customerId);
@@ -296,6 +301,11 @@ test('real sign-in: a blocked customer can not log in, after unblocking can agai
         method: 'POST', headers: { apikey: ANON_KEY, Authorization: `Bearer ${first.body.access_token}`, 'Content-Type': 'application/json' }, body: '{}',
       });
       assert.equal(rpc.ok, false);
+      // The saved refresh token (what another phone or tablet would use) is dead too: no new access token.
+      const refresh = await fetch(`${URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST', headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: first.body.refresh_token }),
+      });
+      assert.equal(refresh.ok, false, 'the old refresh token gives nothing');
       await set(false, null);
       assert.equal((await login()).ok, true);
     } finally {

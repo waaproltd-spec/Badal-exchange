@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/account_blocked_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,7 +23,10 @@ class LoginScreen extends StatefulWidget {
   /// Shown above the form, e.g. why the app came back here.
   final String? message;
 
-  const LoginScreen({super.key, this.message});
+  /// Opens with the Account Blocked card (the customer was signed out because the account was blocked).
+  final bool blocked;
+
+  const LoginScreen({super.key, this.message, this.blocked = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -34,6 +39,16 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = true;
   bool _submitting = false;
   late String? _error = widget.message;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.blocked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showAccountBlocked(context);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -62,7 +77,17 @@ class _LoginScreenState extends State<LoginScreen> {
         (route) => false,
       );
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.status == 401 ? AppStrings.invalidLogin : e.message);
+      if (!mounted) return;
+      if (e.code == 'ACCOUNT_BLOCKED') {
+        // A blocked account can not log in: the same Account Blocked card, nothing else.
+        setState(() {
+          _error = null;
+          _submitting = false; // no spinner behind the card
+        });
+        await showAccountBlocked(context);
+        return;
+      }
+      setState(() => _error = e.status == 401 ? AppStrings.invalidLogin : e.message);
     } catch (_) {
       if (mounted) setState(() => _error = AppStrings.somethingWentWrong);
     } finally {
