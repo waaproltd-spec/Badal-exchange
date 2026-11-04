@@ -802,3 +802,30 @@ Uint8List? _logoBytes(Object? v) {
     return null;
   }
 }
+
+/// Which source is carrying deposit payments right now: Sahal (primary), the Agent SIM reading SMS 898
+/// (fallback), or neither.
+class PaymentSource {
+  /// sahal | agent_sim | none
+  final String source;
+  final DateTime? sahalCheckedAt;
+  final DateTime? simSeenAt;
+  final int creditedBySmsToday;
+  final int waitingToday;
+
+  const PaymentSource({
+    required this.source,
+    this.sahalCheckedAt,
+    this.simSeenAt,
+    this.creditedBySmsToday = 0,
+    this.waitingToday = 0,
+  });
+
+  factory PaymentSource.fromJson(Map<String, dynamic> j) => PaymentSource(
+        source: j['source'] as String? ?? 'none',
+        sahalCheckedAt: _date(j['sahalCheckedAt']),
+        simSeenAt: _date(j['simSeenAt']),
+        creditedBySmsToday: (j['creditedBySmsToday'] as num?)?.toInt() ?? 0,
+        waitingToday: (j['waitingToday'] as num?)?.toInt() ?? 0,
+      );
+}

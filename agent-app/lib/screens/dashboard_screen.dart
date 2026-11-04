@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../api/api_exception.dart';
 import '../models/company_balance.dart';
 import '../models/console.dart';
+import '../models/management.dart' show PaymentSource;
 import '../state/history_filter.dart';
 import '../state/live_updates.dart';
 import '../state/session.dart';
@@ -45,6 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
   bool _loading = true;
   bool _smsBusy = false;
   CompanyBalancesOverview? _companies;
+  PaymentSource? _source;
   DashboardStats? _stats;
 
   /// The day the chart and top lists end on; null is today.
@@ -65,7 +67,10 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
     try {
       final session = context.read<Session>();
       final summary = await session.api.getDashboard();
-      if (session.canViewCompanyBalances) _loadCompanies(session);
+      if (session.canViewCompanyBalances) {
+        _loadCompanies(session);
+        _loadSource(session);
+      }
       _loadStats(session);
       if (!mounted) return;
       DashboardScreen.pending.value = summary.pendingDeposits + summary.pendingWithdrawals;
@@ -87,6 +92,14 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
     try {
       final c = await session.api.getCompanyBalances();
       if (mounted) setState(() => _companies = c);
+    } catch (_) {}
+  }
+
+  /// Which payment source is active; its failure (or an older server) never hides the dashboard.
+  Future<void> _loadSource(Session session) async {
+    try {
+      final c = await session.api.getPaymentSource();
+      if (mounted) setState(() => _source = c);
     } catch (_) {}
   }
 
@@ -189,6 +202,10 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
           if (session.canViewCompanyBalances) ...[
             _CompanyBalancesCard(data: _companies, onTap: _openCompanies),
             const SizedBox(height: 12),
+            if (_source != null) ...[
+              PaymentSourceCard(data: _source!),
+              const SizedBox(height: 12),
+            ],
           ],
           if (_stats != null) ...[
             CustomersCard(
@@ -520,6 +537,64 @@ class _SmsMatchingCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Which source is carrying deposit payments: Sahal (primary), the Agent SIM reading SMS 898, or neither.
+class PaymentSourceCard extends StatelessWidget {
+  final PaymentSource data;
+
+  const PaymentSourceCard({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon, title, note) = switch (data.source) {
+      'sahal' => (
+          AppColors.statusCompleted,
+          Icons.check_circle_rounded,
+          tr('Sahal Active'),
+          tr('Payments are read from Sahal. The Agent SIM takes over by itself if Sahal stops.')
+        ),
+      'agent_sim' => (
+          AppColors.statusPending,
+          Icons.sim_card_rounded,
+          tr('Agent SIM Fallback Active'),
+          tr('Sahal is not answering: payments are read from SMS 898 on the Agent SIM. Sahal takes over again by itself.')
+        ),
+      _ => (
+          AppColors.statusFailed,
+          Icons.error_rounded,
+          tr('Both Sources Unavailable'),
+          tr('Sahal is not answering and no Agent phone is reading SMS. Open the Agent App on the phone with the Sahal SIM.')
+        ),
+    };
+    return Container(
+      key: const Key('payment-source'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, key: const Key('payment-source-title'), style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(note, style: const TextStyle(fontSize: 13)),
+            if (data.creditedBySmsToday > 0 || data.waitingToday > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                trp('Credited from SMS today: {0} · waiting: {1}', ['${data.creditedBySmsToday}', '${data.waitingToday}']),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ]),
+        ),
+      ]),
     );
   }
 }

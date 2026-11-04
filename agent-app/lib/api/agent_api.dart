@@ -650,6 +650,14 @@ class AgentApi {
   Future<MerchantFeedStatus> getMerchantFeedStatus() async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_status', {'p_provider': 'golis'}));
 
+  /// Sahal Active / Agent SIM Fallback Active / Both Sources Unavailable.
+  Future<PaymentSource> getPaymentSource() async => PaymentSource.fromJson(await _map('manage_payment_source'));
+
+  /// The phone says its SMS reader is running (every minute): the Agent SIM fallback counts on it.
+  Future<void> smsHeartbeat(String deviceId) async {
+    await _client.rpc('agent_sms_heartbeat', {'p_device_id': deviceId});
+  }
+
   /// SMS forwarding: an SMS-forwarding app on the merchant phone posts Sahal's
   /// access-code SMS to the server with a token made here. Status is
   /// {configured, createdAt, lastUsedAt}; the token is shown once, when made.

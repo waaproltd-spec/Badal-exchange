@@ -154,6 +154,29 @@ class SomnetEvcPlusParser implements _PaymentParser {
   }
 }
 
+/// Sahal's own notice to the merchant phone, from shortcode 898. This is the fallback source of a
+/// deposit: it is paired with the Sahal feed's row of the same payment and never credits twice.
+/// "[SAHAL] Tix: 7543914546, Waxaad $1 ka heshay YASIIN MAXAMED AADAN (252610346060) Tar: , Haraagaagu waa $225.35"
+class SahalSmsParser implements _PaymentParser {
+  const SahalSmsParser();
+
+  @override
+  List<String> get senders => const ['898'];
+
+  static final _pattern = _re(
+      r'\[SAHAL\][\s\S]*?Tix:\s*(\w+)[\s\S]*?Waxaad\s+\$?\s*' + _amount + r'\s*\$?\s*ka\s+heshay[\s\S]*?\((\d{6,15})\)');
+
+  @override
+  ParsedPaymentSms? tryParse(String sender, String body) {
+    if (!_fromSender(senders, sender)) return null;
+    final m = _pattern.firstMatch(body);
+    if (m == null) return null;
+    final amount = _parseAmount(m.group(2)!);
+    if (amount == null) return null;
+    return ParsedPaymentSms(provider: 'Sahal', amount: amount, phone: m.group(3)!, transactionRef: m.group(1));
+  }
+}
+
 /// Somtel eDahab payout sent.
 /// "1.98 Dollar ayad u warejisay Yaasiin Maxamed Aadan. No: 620346060.Tixrac: PP260808.2240.E07703 ..."
 class SomtelEdahabPayoutSentParser implements _PayoutSentParser {
@@ -247,6 +270,7 @@ class PaymentSmsParsers {
     HormuudEvcPlusParser(),
     SomtelEdahabParser(),
     SomnetEvcPlusParser(),
+    SahalSmsParser(),
   ];
 
   static const List<_PayoutSentParser> payoutsSent = [

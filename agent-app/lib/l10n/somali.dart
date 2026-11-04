@@ -1313,4 +1313,11 @@ const Map<String, String> somaliTexts = {
   'Customer phone number': 'Lambarka telefoonka macaamiilka',
   'Test push': 'Tijaabi ogeysiiska',
   'Goes to this one customer only, never to everyone.': 'Wuxuu u tagaa hal macaamiil kaliya, ma aha dhammaan.',
+  'Sahal Active': 'Sahal waa shaqeynayaa',
+  'Agent SIM Fallback Active': 'Agent SIM (bedel) ayaa shaqeynaya',
+  'Both Sources Unavailable': 'Labada isha midna ma jirto',
+  'Payments are read from Sahal. The Agent SIM takes over by itself if Sahal stops.': 'Lacagaha waxaa laga akhriyaa Sahal. Haddii Sahal istaago, Agent SIM ayaa si toos ah u qaadanaya.',
+  'Sahal is not answering: payments are read from SMS 898 on the Agent SIM. Sahal takes over again by itself.': 'Sahal ma jawaabayo: lacagaha waxaa laga akhriyaa SMS 898 ee Agent SIM. Sahal marka uu soo noqdo si toos ah ayuu dib u qaadanayaa.',
+  'Sahal is not answering and no Agent phone is reading SMS. Open the Agent App on the phone with the Sahal SIM.': 'Sahal ma jawaabayo, mana jiro telefoon Agent ah oo SMS akhrinaya. Fur Agent App-ka telefoonka ay ku jirto SIM-ka Sahal.',
+  'Credited from SMS today: {0} · waiting: {1}': 'Maanta laga dhigay SMS: {0} · sugaya: {1}',
 };

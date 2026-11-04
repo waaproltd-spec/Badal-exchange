@@ -94,9 +94,20 @@ class SmsBridge {
       onError: (Object error, StackTrace stackTrace) => stop(),
       cancelOnError: false,
     );
-    _retryTimer = Timer.periodic(const Duration(minutes: 1), (_) => _enqueueWork(_flushQueue));
+    _retryTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _enqueueWork(_flushQueue);
+      _heartbeat();
+    });
+    _heartbeat();
     _enqueueWork(_flushQueue);
     _enqueueWork(_scanInbox);
+  }
+
+  /// Tells the server this phone is reading SMS (the Agent SIM fallback for Sahal counts on it).
+  void _heartbeat() {
+    final id = _deviceId;
+    if (id == null) return;
+    unawaited(_api.smsHeartbeat(id).catchError((Object _) {}));
   }
 
   Future<void> stop() async {
