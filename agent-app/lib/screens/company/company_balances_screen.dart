@@ -119,8 +119,6 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                       label: tr('No balance connection'),
                     ),
                   ]),
-                  const SizedBox(height: 12),
-                  _BalanceCard(data: data),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text(trp('Could not refresh: {0}', [_error]),
@@ -195,58 +193,9 @@ class _LimitCard extends StatelessWidget {
             key: const Key('total-limit-note'),
             style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Total Balance, below the summary cards: the verified balances added up.
-class _BalanceCard extends StatelessWidget {
-  final CompanyBalancesOverview data;
-  const _BalanceCard({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final left = data.unavailableCount;
-    return Container(
-      key: const Key('total-balance'),
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.purple, AppColors.purpleDark]),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(Icons.account_balance_wallet_rounded, color: Colors.white.withOpacity(0.9), size: 22),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Tx('Total Balance',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text('\$${data.total}',
-                key: const Key('total-amount'),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 40, height: 1.1)),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            trp('Verified balances of {0} {1}{2}', [data.totalCompanies, data.totalCompanies == 1 ? tr('company') : tr('companies'), left > 0 ? ' · $left not included (offline or not updated)' : '']),
-            key: const Key('total-note'),
-            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12.5),
-          ),
           const SizedBox(height: 4),
           Text(trp('Updated {0}', [formatDateTime(data.generatedAt)]),
-              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11.5)),
+              key: const Key('updated-at'), style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11.5)),
         ],
       ),
     );
