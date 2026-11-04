@@ -54,7 +54,10 @@ class _HomeShellState extends State<HomeShell> {
           const AccountScreen(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      // The bottom bar keeps its size when the phone's text size is large, so six labels fit.
+      bottomNavigationBar: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: NavigationBar(
         selectedIndex: _index,
         // Six tabs: on a narrow phone only the selected one shows its label.
         labelBehavior: MediaQuery.sizeOf(context).width < 360
@@ -93,6 +96,7 @@ class _HomeShellState extends State<HomeShell> {
             label: tr('Account'),
           ),
         ],
+      ),
       ),
     );
   }
