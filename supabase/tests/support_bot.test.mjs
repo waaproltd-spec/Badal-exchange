@@ -19,7 +19,7 @@ const db = new pg.Pool({ connectionString: DATABASE_URL });
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 
 // The stand-in Telegram (4993) and AI (4992): every call they got.
-const tg = { calls: [], files: new Map() };
+const tg = { calls: [], files: new Map(), members: new Map() };
 const ai = { calls: [], reply: 'Sawirkan wuxuu muujinayaa in lacag-bixintu dib u dhacday. Fadlan sug 5 daqiiqo.' };
 const telegram = http.createServer((req, res) => {
   const chunks = [];
@@ -35,6 +35,7 @@ const telegram = http.createServer((req, res) => {
     tg.calls.push({ method, body });
     let result = true;
     if (method === 'sendMessage') result = { message_id: 1 };
+    if (method === 'getChatMember') result = { status: tg.members.get(body.user_id) ?? 'member' };
     if (method === 'getFile') result = { file_path: 'photos/f1.jpg', file_size: tg.files.get(body.file_id) ?? 1000 };
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, result }));
@@ -506,7 +507,7 @@ test('only the linked administrator can decide: anybody else is refused and noth
   assert.equal((await dbRequest(w.c.id)).status, 'pending');
   // Nor can anybody call the decision from the database.
   const cu = await login(w.c.phone);
-  const { error } = await cu.rpc('support_approval_decide', { p_request: (await dbRequest(w.c.id)).id, p_admin_tg: w.adminChat, p_admin_name: 'x', p_decision: 'approve' });
+  const { error } = await cu.rpc('support_approval_decide', { p_request: (await dbRequest(w.c.id)).id, p_admin_tg: w.adminChat, p_admin_name: 'x', p_decision: 'approve', p_chat: w.adminChat });
   assert.ok(error, 'refused to a customer');
 });
 
@@ -518,4 +519,57 @@ test('asking twice sends the administrator one request, not two', async (t) => {
   assert.equal(again.calls.filter((x) => x.body?.chat_id === w.adminChat).length, 0);
   assert.match(texts(again).join('\n'), /sug jawaabtiisa/);
   assert.equal(Number((await db.query(`SELECT count(*) AS n FROM support_approval_requests WHERE customer_id = $1`, [w.c.id])).rows[0].n), 1);
+});
+
+test('a group of administrators: /linkgroup by the administrator; requests go to the group; only group administrators decide', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const group = -(1000000000 + seed);
+  const inGroup = (from, text) => send({ update_id: updateId++, message: { message_id: updateId, chat: { id: group, type: 'supergroup' }, from, text } });
+
+  // A stranger can not make a group the place the requests go to.
+  const stranger = nextChat();
+  const refused = await inGroup({ id: stranger, username: 'someone' }, '/linkgroup');
+  assert.match(texts(refused).join('\n'), /Kaliya maamulaha/);
+  assert.notEqual(Number((await db.query(`SELECT chat_id FROM support_admin`)).rows[0]?.chat_id ?? 0), group);
+
+  // The administrator's own account can.
+  const adminUser = nextChat();
+  const ok = await inGroup({ id: adminUser, username: 'Badalexchangeadmin' }, '/linkgroup@Badalaisupportbot');
+  assert.match(texts(ok).join('\n'), /Kooxdan waa la xaqiijiyay/);
+  assert.equal(Number((await db.query(`SELECT chat_id FROM support_admin`)).rows[0].chat_id), group);
+
+  // A customer's request goes to the group, with the two buttons.
+  const c = await customer();
+  const code = `BX${c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const was = (await db.query(`SELECT value FROM app_settings WHERE key = 'withdrawal_verification'`)).rows[0]?.value;
+  if (verificationWas === undefined) verificationWas = was ?? null;
+  await db.query(`INSERT INTO app_settings (key, value) VALUES ('withdrawal_verification', 'on') ON CONFLICT (key) DO UPDATE SET value = 'on'`);
+  await db.query(`DELETE FROM withdrawal_approvals WHERE customer_id = $1`, [c.id]);
+  const chat = nextChat();
+  const r = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: chat, type: 'private' }, from: { id: chat }, text: `/start fasax_${code}` } });
+  const toGroup = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === group);
+  assert.ok(toGroup, 'the group got the request');
+  const [approve] = toGroup.body.reply_markup.inline_keyboard.flat().map((b) => b.callback_data);
+
+  const pressInGroup = (userId) => send({ update_id: updateId++, callback_query: { id: `cb${updateId}`, data: approve, from: { id: userId, username: `u${userId}` }, message: { message_id: 7, text: 'Codsi fasax bixin', chat: { id: group, type: 'supergroup' } } } });
+  // An ordinary member of the group can not decide.
+  const member = nextChat();
+  tg.members.set(member, 'member');
+  const no = await pressInGroup(member);
+  assert.ok(no.calls.find((x) => x.method === 'answerCallbackQuery' && /ogol/.test(x.body.text ?? '')));
+  assert.equal((await dbRequest(c.id)).status, 'pending');
+  // A group administrator can.
+  const boss = nextChat();
+  tg.members.set(boss, 'administrator');
+  const yes = await pressInGroup(boss);
+  assert.equal((await dbRequest(c.id)).status, 'approved');
+  assert.equal(Number((await dbRequest(c.id)).decided_by_tg), boss);
+  assert.match(yes.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === chat).body.text, /Akoonkaaga waa la fasaxay/);
+  // Pressed in some other chat, even by an administrator there: refused.
+  const w2 = await waitingRequest();
+  const elsewhere = nextChat();
+  tg.members.set(elsewhere, 'administrator');
+  const other = await send({ update_id: updateId++, callback_query: { id: `cb${updateId}`, data: w2.approve, from: { id: elsewhere }, message: { message_id: 7, text: 'x', chat: { id: -elsewhere, type: 'supergroup' } } } });
+  assert.ok(other.calls.find((x) => x.method === 'answerCallbackQuery' && /ogol/.test(x.body.text ?? '')));
+  assert.equal((await dbRequest(w2.c.id)).status, 'pending');
 });

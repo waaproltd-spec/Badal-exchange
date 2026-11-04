@@ -72,6 +72,8 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   decisionRestricted: '⛔ Akoonkan bixintiisa waa la hakiyay; ka beddel Agent App-ka.',
   decisionDone: (status: string, who: string, when: string) =>
     `\n\n${status === 'approved' ? '✅ <b>La fasaxay</b>' : '❌ <b>La diiday</b>'}\nMaamule: ${who}\nWaqtiga: ${when}`,
+  groupLinked: '✅ Kooxdan waa la xaqiijiyay. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaa lagu soo diri doonaa; maamulayaasha kooxdu waxay fasaxi/diidi karaan.',
+  groupNotAllowed: '⛔ Kaliya maamulaha la ogol yahay ayaa kooxda xiri kara.',
   btnApprove: '✅ Fasax',
   btnReject: '❌ Diid',
   adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
@@ -226,7 +228,18 @@ async function onCallback(cb: any) {
 
 async function onMessage(m: any, from: any) {
   const chat: number = m.chat?.id;
-  if (!chat || m.chat?.type !== 'private') return; // private chats only
+  // A group: only /linkgroup, said by the administrator, makes it the place the approval requests go to.
+  if (chat && (m.chat?.type === 'group' || m.chat?.type === 'supergroup')) {
+    if (typeof m.text === 'string' && /^\/linkgroup(@\w+)?$/.test(m.text.trim())) {
+      const current = await rpc('support_admin_chat', {});
+      const isAdmin = String(from?.username ?? '').toLowerCase() === ADMIN_TG.toLowerCase() || (current && Number(current) === Number(from?.id));
+      if (!isAdmin) return void (await say(chat, T.groupNotAllowed));
+      await rpc('support_admin_link', { p_chat: chat });
+      return void (await say(chat, T.groupLinked));
+    }
+    return;
+  }
+  if (!chat || m.chat?.type !== 'private') return; // otherwise private chats only
 
   // Text only: voice, audio, photos, screenshots, videos, documents and everything else is refused, never downloaded.
   if (typeof m.text !== 'string' && !m.contact) {
@@ -325,8 +338,20 @@ async function approvalRequest(chat: number, account: string, from: any) {
 /** The administrator pressed Approve / Reject under a request. */
 async function onDecision(cb: any, requestId: string, decision: 'approve' | 'reject') {
   const name = cb.from?.username ? `@${cb.from.username}` : [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(' ') || String(cb.from?.id ?? '');
+  // In a group, Telegram says whether the person who pressed is the group's creator or an administrator.
+  const chatId = Number(cb.message?.chat?.id);
+  let verified = false;
+  if (chatId < 0) {
+    try {
+      const member = await tg('getChatMember', { chat_id: chatId, user_id: Number(cb.from?.id) });
+      verified = member?.status === 'creator' || member?.status === 'administrator';
+    } catch (err) {
+      console.error('support-bot member check', safe(err));
+    }
+  }
   const r = await rpc('support_approval_decide', {
     p_request: requestId, p_admin_tg: Number(cb.from?.id), p_admin_name: name, p_decision: decision,
+    p_chat: chatId, p_verified: verified,
   });
   const alert = (text: string) => tg('answerCallbackQuery', { callback_query_id: cb.id, text, show_alert: true }).catch(() => {});
   if (!r.ok) {
