@@ -13,6 +13,7 @@ import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
 import 'admin/betting_platforms_screen.dart';
+import 'admin/broadcast_screens.dart';
 import 'admin/tips_screens.dart';
 import 'admin/bonus_settings_screen.dart';
 import 'admin/payout_screens.dart';
@@ -251,6 +252,12 @@ class _AccountScreenState extends State<AccountScreen> {
               color: AppColors.statusCompleted,
               label: tr('Bonus'),
               onTap: () => _open(const BonusSettingsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.schedule_send_rounded,
+              color: const Color(0xFF229ED9),
+              label: tr('Scheduled Messages'),
+              onTap: () => _open(const BroadcastScreen()),
             ),
             _NavRow(
               icon: Icons.tips_and_updates_rounded,

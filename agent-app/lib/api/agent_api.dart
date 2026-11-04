@@ -16,6 +16,7 @@ import '../models/payout.dart';
 import '../models/match_result.dart';
 import '../models/console.dart';
 import '../models/management.dart';
+import '../models/broadcast.dart';
 import '../models/tips.dart';
 import '../models/customer_block.dart';
 import '../models/payment_methods.dart';
@@ -967,6 +968,38 @@ class AgentApi {
       'p_sort_order': sortOrder,
     });
   }
+
+  // ---- Scheduled messages (Telegram support bot)
+
+  Future<BroadcastData> getBroadcasts() async => BroadcastData.fromJson(await _map('manage_broadcasts'));
+
+  /// Creates (id null) or edits a schedule. [time] is "HH:MM" in Mogadishu time; [weekday] 1 (Monday) to 7 (Sunday).
+  Future<BroadcastSchedule> saveBroadcast({
+    String? id,
+    required String message,
+    required String kind,
+    required String time,
+    int? weekday,
+    int? monthDay,
+    bool active = true,
+  }) async =>
+      BroadcastSchedule.fromJson(await _map('manage_save_broadcast', {
+        'p_id': id,
+        'p_message': message,
+        'p_kind': kind,
+        'p_time': time,
+        'p_weekday': kind == 'weekly' ? weekday : null,
+        'p_month_day': kind == 'monthly' ? monthDay : null,
+        'p_status': active ? 'active' : 'paused',
+      }));
+
+  Future<void> setBroadcastActive(String id, bool active) =>
+      _map('manage_set_broadcast_status', {'p_id': id, 'p_status': active ? 'active' : 'paused'});
+
+  Future<void> deleteBroadcast(String id) => _map('manage_delete_broadcast', {'p_id': id});
+
+  /// Sends [message] to the team chat only (never to customers).
+  Future<void> testBroadcast(String message) => _map('manage_test_broadcast', {'p_message': message});
 
   // ---- TIPS (Shaxaha)
 

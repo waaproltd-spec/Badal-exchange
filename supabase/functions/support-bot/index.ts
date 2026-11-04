@@ -386,6 +386,55 @@ async function onDecision(cb: any, requestId: string, decision: 'approve' | 'rej
   }
 }
 
+// ---------------------------------------------------------- scheduled messages
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The worker for the scheduled mass messages (woken every minute by the database): starts the runs that are due,
+ * then sends the waiting messages, about 25 a second (Telegram allows ~30), and waits out Telegram's own
+ * "retry after". The messages are plain text, as the administrator wrote them.
+ */
+async function broadcastWorker(): Promise<Response> {
+  await rpc('broadcast_tick', {});
+  const started = Date.now();
+  let sent = 0;
+  let failed = 0;
+  let released = 0;
+  while (Date.now() - started < 45_000) {
+    const batch: { id: number; chatId: number; text: string }[] = (await rpc('broadcast_claim', { p_limit: 25 })) ?? [];
+    if (!batch.length) break;
+    const t0 = Date.now();
+    const results: { id: number; ok: boolean; error?: string }[] = [];
+    const later: number[] = [];
+    let wait = 0;
+    for (const d of batch) {
+      try {
+        await tg('sendMessage', { chat_id: d.chatId, text: d.text, disable_web_page_preview: true });
+        results.push({ id: d.id, ok: true });
+        sent++;
+      } catch (err) {
+        const message = safe(err);
+        const slow = /retry after (\d+)/i.exec(message);
+        if (slow) {
+          wait = Math.max(wait, Number(slow[1]) * 1000);
+          later.push(d.id);
+          released++;
+        } else {
+          results.push({ id: d.id, ok: false, error: /blocked|deactivated|chat not found|kicked/i.test(message) ? 'blocked' : message.slice(0, 120) });
+          failed++;
+        }
+      }
+    }
+    if (results.length) await rpc('broadcast_result', { p_results: results });
+    if (later.length) await rpc('broadcast_release', { p_ids: later });
+    if (wait) await sleep(Math.min(wait, 20_000));
+    const spent = Date.now() - t0;
+    if (spent < 1100) await sleep(1100 - spent);
+  }
+  return json({ ok: true, sent, failed, released });
+}
+
 const shareKeyboard = () => ({
   keyboard: [[{ text: T.shareButton, request_contact: true }]], resize_keyboard: true, one_time_keyboard: true,
 });
@@ -423,6 +472,20 @@ Deno.serve(async (req) => {
     }
   }
 
+  // The scheduled messages' worker: only the database's timer (the platform worker secret) may call it.
+  if (path.endsWith('/broadcast')) {
+    if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
+    const worker = req.headers.get('x-worker-secret');
+    if (!worker || (await rpc('platform_worker_check', { p_secret: worker }).catch(() => false)) !== true) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    try {
+      return await broadcastWorker();
+    } catch (err) {
+      console.error('support-bot broadcast', safe(err));
+      return json({ ok: false, error: safe(err) }, 500);
+    }
+  }
   if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
   if (!same(req.headers.get('x-telegram-bot-api-secret-token'), expected)) return new Response('Forbidden', { status: 403 });
   try {
