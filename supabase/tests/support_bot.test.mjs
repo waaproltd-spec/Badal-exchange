@@ -416,7 +416,7 @@ test('withdrawal approval from the Customer App: /start fasax_<Customer ID> reac
   const spam = nextChat();
   for (let i = 0; i < 5; i++) await send(message(spam, { text: `/start fasax_${code}` }));
   const limited = await send(message(spam, { text: `/start fasax_${code}` }));
-  assert.match(texts(limited).join('\n'), /Codsiyo badan/);
+  assert.match(texts(limited).join('\n'), /codsiyo badan muddo gaaban/);
 });
 
 let verificationWas; // restored when the file is done

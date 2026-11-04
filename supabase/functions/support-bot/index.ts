@@ -61,7 +61,7 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   approvalSent: '⏳ Codsigaaga waxaa loo gudbiyey maamulka.\n\nFadlan sug inta akoonkaaga la fasaxayo. Marka la ansixiyo, waxaad awoodi doontaa inaad lacagta kala baxdo.',
   approvalAlready: '✅ Akoonkaaga horey ayaa loo fasaxay bixinta. Waad bixin kartaa.',
   approvalUnknown: '❌ Customer ID-gan lama helin. Fadlan ka fur App-ka Bixinta mar kale oo taabo Telegram.',
-  approvalLimited: '⛔ Codsiyo badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
+  approvalLimited: '⛔ Waxaad samaysay codsiyo badan muddo gaaban gudaheed.\n\nFadlan sug hal saac kadibna mar kale isku day. Mahadsanid.',
   approvalNoAdmin: '⚠️ Hadda codsiga si toos ah ugama gaarsiin karo maamulka. Fadlan taabo badhanka hoose oo ka dir Admin-ka.',
   approvalWaiting: '⏳ Codsigaagii hore maamulka ayaa haya. Fadlan sug jawaabtiisa.',
   approvalRestricted: '⛔ Akoonkaaga bixintiisa waa la hakiyay. Fadlan la xiriir Admin-ka.',
