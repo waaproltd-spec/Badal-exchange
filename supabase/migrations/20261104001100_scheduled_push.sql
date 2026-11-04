@@ -146,7 +146,8 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_ids bigint[];
   v_runs uuid[];
-  v jsonb;
+  v jsonb := '[]'::jsonb;
+  v_round int := 0;
 BEGIN
   PERFORM private.require_service();
   UPDATE public.broadcast_deliveries SET status = 'pending', claimed_at = NULL
@@ -155,26 +156,32 @@ BEGIN
   UPDATE public.broadcast_deliveries d SET status = 'failed', error = 'expired'
    FROM public.broadcast_runs r
    WHERE r.id = d.run_id AND r.channel = 'push' AND d.status = 'pending' AND r.started_at < now() - interval '1 day';
-  SELECT array_agg(id) INTO v_ids FROM (
-    SELECT d.id FROM public.broadcast_deliveries d JOIN public.broadcast_runs r ON r.id = d.run_id
-     WHERE d.status = 'pending' AND r.channel = 'push' ORDER BY d.id
-     LIMIT GREATEST(1, LEAST(p_limit, 200)) FOR UPDATE OF d SKIP LOCKED) q;
-  IF v_ids IS NULL THEN RETURN '[]'::jsonb; END IF;
-  WITH nd AS (
-    UPDATE public.broadcast_deliveries d SET status = 'no_device', error = 'no_device'
-     WHERE d.id = ANY (v_ids) AND NOT EXISTS (SELECT 1 FROM public.push_tokens t WHERE t.customer_id = d.customer_id)
-     RETURNING d.run_id)
-  SELECT array_agg(DISTINCT run_id) INTO v_runs FROM nd;
-  PERFORM private.broadcast_refresh_runs(v_runs);
-  WITH c AS (
-    UPDATE public.broadcast_deliveries d SET status = 'sending', claimed_at = now()
-     WHERE d.id = ANY (v_ids) AND d.status = 'pending'
-     RETURNING d.id, d.customer_id, d.run_id)
-  SELECT COALESCE(jsonb_agg(jsonb_build_object(
-           'id', c.id, 'customerId', c.customer_id, 'title', COALESCE(r.title, 'BADAL EXCHANGE'), 'body', r.message,
-           'tokens', (SELECT COALESCE(jsonb_agg(t.token ORDER BY t.updated_at DESC), '[]'::jsonb) FROM public.push_tokens t WHERE t.customer_id = c.customer_id))),
-         '[]'::jsonb)
-    INTO v FROM c JOIN public.broadcast_runs r ON r.id = c.run_id;
+  -- Customers without a device are settled as they come; keep going until there is something to send
+  -- (or nothing is left), so a long run of customers without a device never looks like "done".
+  LOOP
+    v_round := v_round + 1;
+    SELECT array_agg(id) INTO v_ids FROM (
+      SELECT d.id FROM public.broadcast_deliveries d JOIN public.broadcast_runs r ON r.id = d.run_id
+       WHERE d.status = 'pending' AND r.channel = 'push' ORDER BY d.id
+       LIMIT GREATEST(1, LEAST(p_limit, 200)) FOR UPDATE OF d SKIP LOCKED) q;
+    EXIT WHEN v_ids IS NULL;
+    WITH nd AS (
+      UPDATE public.broadcast_deliveries d SET status = 'no_device', error = 'no_device'
+       WHERE d.id = ANY (v_ids) AND NOT EXISTS (SELECT 1 FROM public.push_tokens t WHERE t.customer_id = d.customer_id)
+       RETURNING d.run_id)
+    SELECT array_agg(DISTINCT run_id) INTO v_runs FROM nd;
+    PERFORM private.broadcast_refresh_runs(v_runs);
+    WITH c AS (
+      UPDATE public.broadcast_deliveries d SET status = 'sending', claimed_at = now()
+       WHERE d.id = ANY (v_ids) AND d.status = 'pending'
+       RETURNING d.id, d.customer_id, d.run_id)
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'id', c.id, 'customerId', c.customer_id, 'title', COALESCE(r.title, 'BADAL EXCHANGE'), 'body', r.message,
+             'tokens', (SELECT COALESCE(jsonb_agg(t.token ORDER BY t.updated_at DESC), '[]'::jsonb) FROM public.push_tokens t WHERE t.customer_id = c.customer_id))),
+           '[]'::jsonb)
+      INTO v FROM c JOIN public.broadcast_runs r ON r.id = c.run_id;
+    EXIT WHEN jsonb_array_length(v) > 0 OR v_round >= 100;
+  END LOOP;
   RETURN v;
 END $$;
 

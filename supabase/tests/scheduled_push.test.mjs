@@ -347,3 +347,22 @@ test('the worker: a due push schedule reaches every device, once; a customer wit
     await db.query(`DELETE FROM public.push_tokens WHERE customer_id = ANY($1)`, [made]);
   }
 });
+
+test('a long run of customers without a device does not hide the ones with one: a claim goes on until it has something to send', async () => {
+  await asService(async (tx) => {
+    await tx.query(`UPDATE public.broadcast_deliveries SET status = 'sent' WHERE status IN ('pending', 'sending')`);
+    // 250 customers without a device, then one with a device (the newest customer is the last delivery).
+    await tx.query(`INSERT INTO public.users (role, phone, name, password_hash, status)
+                      SELECT 'customer', '252990' || lpad((${seed % 1000} * 1000 + g)::text, 6, '0'), 'No Device', private.hash_password('ChangeMe123!'), 'active'
+                        FROM generate_series(1, 250) g`);
+    const last = (await tx.query(`INSERT INTO public.users (role, phone, name, password_hash) VALUES ('customer', $1, 'With Device', private.hash_password('ChangeMe123!')) RETURNING id`,
+      [`252991${String(seed % 1000 * 10 + n++).padStart(6, '0')}`])).rows[0].id;
+    await tx.query(`INSERT INTO public.push_tokens (token, customer_id) VALUES ($1, $2)`, [token(), last]);
+    await dueSchedule(tx, ['push']);
+    await tx.call('public.broadcast_tick()');
+    // The customer with a device is the newest, so after more than 100 customers without one.
+    const claimed = await tx.call('public.broadcast_push_claim($1)', [100]);
+    assert.ok(claimed.some((d) => d.customerId === last), 'the customer with a device is reached by one claim');
+    assert.ok(claimed.every((d) => d.tokens.length > 0), 'only deliveries with a device are returned');
+  });
+});
