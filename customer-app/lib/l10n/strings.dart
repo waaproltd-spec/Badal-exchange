@@ -78,9 +78,7 @@ class AppStrings {
   static String get passwordTooShort =>
       _t('Password must be at least 8 characters', 'Erayga sirtu waa inuu ahaadaa ugu yaraan 8 xaraf');
   // Customer verification (fingerprint / PIN / password)
-  static String get welcomeBack => _t('Welcome back', 'Soo dhawoow');
   static String get unlock => _t('Unlock', 'Fur');
-  static String get verifyTitle => _t('Verify it\'s you', 'Xaqiiji inaad adigu tahay');
   static String get verifySubtitle =>
       _t('Enter your PIN or use your fingerprint', 'Geli PIN-kaaga ama isticmaal faraha');
   static String get verifyPasswordSubtitle =>
