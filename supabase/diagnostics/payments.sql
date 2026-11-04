@@ -320,5 +320,5 @@ SELECT left(s.message, 24) AS message, s.kind, to_char(s.send_time, 'HH24:MI') A
        to_char(s.last_run_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS last_somalia
 FROM public.broadcast_schedules s WHERE s.deleted_at IS NULL ORDER BY s.updated_at DESC LIMIT 6;
 SELECT r.channel, r.status, r.total, r.sent, r.failed, r.skipped,
-       to_char(r.created_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS created_somalia
-FROM public.broadcast_runs r ORDER BY r.created_at DESC LIMIT 8;
+       r.is_test, to_char(r.started_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS started_somalia, to_char(r.finished_at AT TIME ZONE 'Africa/Mogadishu', 'HH24:MI:SS') AS finished_somalia
+FROM public.broadcast_runs r ORDER BY r.started_at DESC LIMIT 8;
