@@ -4,6 +4,7 @@ import 'package:badal_agent_app/l10n/language.dart';
 import 'package:badal_agent_app/widgets/home_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 double _roboto(String word) => word.length * 5.9;
 
@@ -82,14 +83,73 @@ void main() {
   });
 
   testWidgets(
-      'the bar draws all six tabs without overflow on a 393 dp phone and on a narrow one',
+      'the curved bar: six tabs, the selected one is a raised purple circle above the bar',
       (tester) async {
-    await _pump(tester, width: 393, scale: 1.15);
+    await _pump(tester, width: 393);
     expect(find.byKey(const Key('home-nav')), findsOneWidget);
+    for (var i = 0; i < 6; i++) {
+      expect(find.byKey(Key('nav-tab-$i')), findsOneWidget);
+    }
+    final circle = find.byKey(const Key('nav-selected-circle'));
+    expect(circle, findsOneWidget);
+    final bar = tester.getRect(find.byKey(const Key('nav-tab-0')));
+    expect(tester.getRect(circle).top, lessThan(bar.top),
+        reason: 'the circle sits above the bar');
+    // Under Dashboard (the first of six equal tabs).
+    expect(tester.getCenter(circle).dx, closeTo(393 / 6 / 2, 1));
     expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('tapping a tab selects it and the circle slides there',
+      (tester) async {
+    int selected = 0;
+    late StateSetter set;
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(393, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: StatefulBuilder(builder: (context, setState) {
+        set = setState;
+        return Scaffold(
+            bottomNavigationBar: HomeNavBar(
+                selectedIndex: selected,
+                onSelected: (i) => set(() => selected = i)));
+      }),
+    ));
+    await tester.pumpAndSettle();
+    final circle = find.byKey(const Key('nav-selected-circle'));
+    final x0 = tester.getCenter(circle).dx;
+    await tester.tap(find.byKey(const Key('nav-tab-3')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+    final mid = tester.getCenter(circle).dx;
+    expect(mid, greaterThan(x0), reason: 'on its way');
+    await tester.pumpAndSettle();
+    expect(selected, 3);
+    expect(tester.getCenter(circle).dx, closeTo(393 / 6 * 3.5, 1),
+        reason: 'under Commission');
+    expect(mid, lessThan(tester.getCenter(circle).dx),
+        reason: 'it slid, it did not jump');
+    expect(find.text('Commission'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a narrow phone with very large text: only the selected label shows, nothing overflows',
+      (tester) async {
     await _pump(tester, width: 320, scale: 2.0);
     expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.text('Commission'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Somali labels', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    // (A wide screen: the test font is much wider than the phone's, so on 360 dp it would hide the labels.)
+    await _pump(tester, width: 760);
+    expect(find.text('Bogga Hore'), findsOneWidget);
+    expect(find.text('Warbixinno'), findsOneWidget);
+    expect(find.text('Guddiga (Commission)'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

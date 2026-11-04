@@ -96,17 +96,17 @@ void main() {
     expect(find.byType(AppBar), findsNothing, reason: 'the header carries the title');
     expect(find.text('Manage your customers'), findsOneWidget);
 
-    await tester.tap(find.text('Reports').last);
+    await tester.tap(find.byKey(const Key('nav-tab-2')));
     await tester.pumpAndSettle();
     expect(find.byType(AppBar), findsNothing);
     expect(find.text('Analytics & Insights'), findsOneWidget);
 
-    await tester.tap(find.text('Commission').last);
+    await tester.tap(find.byKey(const Key('nav-tab-3')));
     await tester.pumpAndSettle();
     expect(find.byType(AppBar), findsNothing, reason: 'Commission has its purple header too');
     expect(find.text('Agent Commission & Earnings'), findsOneWidget);
 
-    await tester.tap(find.text('History').last);
+    await tester.tap(find.byKey(const Key('nav-tab-4')));
     await tester.pumpAndSettle();
     expect(find.byType(AppBar), findsOneWidget, reason: 'the other tabs keep their app bar');
   });
