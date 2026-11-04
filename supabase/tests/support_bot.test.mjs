@@ -108,6 +108,7 @@ before(async () => {
   served = res?.status === 403;
 });
 after(async () => {
+  if (verificationWas !== undefined && verificationWas !== null) await db.query(`UPDATE app_settings SET value = $1 WHERE key = 'withdrawal_verification'`, [verificationWas]);
   telegram.close();
   aiServer.close();
   await db.end();
@@ -415,4 +416,106 @@ test('withdrawal approval from the Customer App: /start fasax_<Customer ID> reac
   for (let i = 0; i < 5; i++) await send(message(spam, { text: `/start fasax_${code}` }));
   const limited = await send(message(spam, { text: `/start fasax_${code}` }));
   assert.match(texts(limited).join('\n'), /Codsiyo badan/);
+});
+
+let verificationWas; // restored when the file is done
+
+/** An administrator's chat linked to the bot, and a customer's request waiting with its two buttons. */
+async function waitingRequest() {
+  const adminChat = nextChat();
+  await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: adminChat, type: 'private' }, from: { id: adminChat, username: 'Badalexchangeadmin' }, text: '/start' } });
+  const c = await customer();
+  const code = `BX${c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const chat = nextChat();
+  if (verificationWas === undefined) verificationWas = (await db.query(`SELECT value FROM app_settings WHERE key = 'withdrawal_verification'`)).rows[0]?.value ?? null;
+  await db.query(`INSERT INTO app_settings (key, value) VALUES ('withdrawal_verification', 'on') ON CONFLICT (key) DO UPDATE SET value = 'on'`);
+  await db.query(`DELETE FROM withdrawal_approvals WHERE customer_id = $1`, [c.id]);
+  const r = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: chat, type: 'private' }, from: { id: chat, username: 'macaamiil2' }, text: `/start fasax_${code}` } });
+  const toAdmin = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === adminChat);
+  assert.ok(toAdmin, 'the administrator got the request');
+  const buttons = toAdmin.body.reply_markup.inline_keyboard.flat();
+  assert.equal(buttons.length, 2, 'two buttons: Approve and Reject');
+  return { c, chat, adminChat, approve: buttons[0].callback_data, reject: buttons[1].callback_data };
+}
+const press = (who, data) => send({ update_id: updateId++, callback_query: { id: `cb${updateId}`, data, from: { id: who }, message: { message_id: 1, text: 'Codsi fasax bixin', chat: { id: who, type: 'private' } } } });
+const dbRequest = async (customerId) => (await db.query(`SELECT * FROM support_approval_requests WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1`, [customerId])).rows[0];
+const approvalStatus = async (customerId) => (await db.query(`SELECT status FROM withdrawal_approvals WHERE customer_id = $1`, [customerId])).rows[0]?.status;
+
+test('Approve in Telegram: the account is approved, the customer is told, the admin\'s Telegram ID and the time are kept', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const w = await waitingRequest();
+  assert.equal((await dbRequest(w.c.id)).status, 'pending');
+  const r = await press(w.adminChat, w.approve);
+  assert.equal(await approvalStatus(w.c.id), 'approved');
+  const row = await dbRequest(w.c.id);
+  assert.equal(row.status, 'approved');
+  assert.equal(Number(row.decided_by_tg), w.adminChat);
+  assert.ok(row.decided_at, 'the time is recorded');
+  const told = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === w.chat);
+  assert.match(told.body.text, /Akoonkaaga waa la fasaxay/);
+  assert.ok(r.calls.find((x) => x.method === 'editMessageText'), 'the admin message shows the outcome');
+  assert.deepEqual(r.calls.find((x) => x.method === 'editMessageText').body.reply_markup.inline_keyboard, [], 'the buttons are gone');
+  // The customer can withdraw now (as the Agent App's approval does).
+  const cu = await login(w.c.phone);
+  const { data } = await cu.rpc('customer_withdrawal_access');
+  assert.equal(data.allowed, true);
+});
+
+test('Reject in Telegram: the account stays blocked from withdrawing, the customer is told', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const w = await waitingRequest();
+  const r = await press(w.adminChat, w.reject);
+  assert.equal(await approvalStatus(w.c.id), 'rejected');
+  assert.equal((await dbRequest(w.c.id)).status, 'rejected');
+  const told = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === w.chat);
+  assert.match(told.body.text, /lama aqbalin/);
+  const cu = await login(w.c.phone);
+  const { data } = await cu.rpc('customer_withdrawal_access');
+  assert.equal(data.allowed, false);
+});
+
+test('a request is decided once: a second press (either button) changes nothing and tells nobody', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const w = await waitingRequest();
+  await press(w.adminChat, w.approve);
+  const before = await dbRequest(w.c.id);
+  for (const data of [w.approve, w.reject]) {
+    const again = await press(w.adminChat, data);
+    assert.equal(again.calls.filter((x) => x.method === 'sendMessage').length, 0, 'the customer is not told again');
+    assert.ok(again.calls.find((x) => x.method === 'answerCallbackQuery' && /horey/.test(x.body.text ?? '')));
+  }
+  const after = await dbRequest(w.c.id);
+  assert.equal(after.status, 'approved');
+  assert.equal(String(after.decided_at), String(before.decided_at));
+  assert.equal(await approvalStatus(w.c.id), 'approved');
+});
+
+test('only the linked administrator can decide: anybody else is refused and nothing changes', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const w = await waitingRequest();
+  const stranger = nextChat();
+  for (const data of [w.approve, w.reject]) {
+    const r = await press(stranger, data);
+    assert.equal(r.calls.filter((x) => x.method === 'sendMessage').length, 0);
+    assert.ok(r.calls.find((x) => x.method === 'answerCallbackQuery' && /ogol/.test(x.body.text ?? '')));
+  }
+  assert.equal((await dbRequest(w.c.id)).status, 'pending');
+  assert.notEqual(await approvalStatus(w.c.id), 'approved');
+  // The customer pressing the button under their own request is a stranger too.
+  await press(w.chat, w.approve);
+  assert.equal((await dbRequest(w.c.id)).status, 'pending');
+  // Nor can anybody call the decision from the database.
+  const cu = await login(w.c.phone);
+  const { error } = await cu.rpc('support_approval_decide', { p_request: (await dbRequest(w.c.id)).id, p_admin_tg: w.adminChat, p_admin_name: 'x', p_decision: 'approve' });
+  assert.ok(error, 'refused to a customer');
+});
+
+test('asking twice sends the administrator one request, not two', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const w = await waitingRequest();
+  const code = `BX${w.c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const again = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: w.chat, type: 'private' }, from: { id: w.chat }, text: `/start fasax_${code}` } });
+  assert.equal(again.calls.filter((x) => x.body?.chat_id === w.adminChat).length, 0);
+  assert.match(texts(again).join('\n'), /sug jawaabtiisa/);
+  assert.equal(Number((await db.query(`SELECT count(*) AS n FROM support_approval_requests WHERE customer_id = $1`, [w.c.id])).rows[0].n), 1);
 });

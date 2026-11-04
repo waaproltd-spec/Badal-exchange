@@ -63,6 +63,17 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   approvalUnknown: '❌ Customer ID-gan lama helin. Fadlan ka fur App-ka Bixinta mar kale oo taabo Telegram.',
   approvalLimited: '⛔ Codsiyo badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
   approvalNoAdmin: '⚠️ Hadda codsiga si toos ah ugama gaarsiin karo maamulka. Fadlan taabo badhanka hoose oo ka dir Admin-ka.',
+  approvalWaiting: '⏳ Codsigaagii hore maamulka ayaa haya. Fadlan sug jawaabtiisa.',
+  approvalRestricted: '⛔ Akoonkaaga bixintiisa waa la hakiyay. Fadlan la xiriir Admin-ka.',
+  approvedToCustomer: '✅ <b>Akoonkaaga waa la fasaxay!</b>\nHadda waad bixin kartaa lacagtaada. Mahadsanid.',
+  rejectedToCustomer: '❌ <b>Codsigaaga lama aqbalin.</b>\nHaddii aad u malaynayso inay khalad tahay, fadlan la xiriir Admin-ka.',
+  decisionNotAdmin: '⛔ Maamule oo la ogol yahay ma ihid.',
+  decisionAlready: (status: string) => `ℹ️ Codsigan horey ayaa loo go'aamiyay (${status === 'approved' ? 'la fasaxay' : 'la diiday'}).`,
+  decisionRestricted: '⛔ Akoonkan bixintiisa waa la hakiyay; ka beddel Agent App-ka.',
+  decisionDone: (status: string, who: string, when: string) =>
+    `\n\n${status === 'approved' ? '✅ <b>La fasaxay</b>' : '❌ <b>La diiday</b>'}\nMaamule: ${who}\nWaqtiga: ${when}`,
+  btnApprove: '✅ Fasax',
+  btnReject: '❌ Diid',
   adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
   adminRequest: (name: string, id: string, phone: string, status: string, who: string) =>
     `🔔 <b>Codsi fasax bixin</b>\n\nMacaamiil: <b>${name || '—'}</b>\nCustomer ID: <b>${id}</b>\nTelefoon: ${phone ? '+' + phone : '—'}\nXaalad: ${status}${who}\n\nKa fasax Agent App-ka (Account > Withdrawal Verification).`,
@@ -192,6 +203,8 @@ async function showOrders(chat: number, kind: string) {
 async function onCallback(cb: any) {
   const chat: number = cb.message?.chat?.id;
   if (!chat) return;
+  const decision = /^ap:([0-9a-f-]{36}):(a|r)$/.exec(String(cb.data ?? ''));
+  if (decision) return onDecision(cb, decision[1], decision[2] === 'a' ? 'approve' : 'reject');
   await tg('answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {});
   const s = await rpc('support_session', { p_chat: chat });
   if (!s.linked) return void (await say(chat, T.needLink));
@@ -282,22 +295,65 @@ async function onMessage(m: any, from: any) {
   await say(chat, answer ? esc(answer) : T.aiFailed, { reply_markup: menu() });
 }
 
+const approvalButtons = (id: string) => ({
+  inline_keyboard: [[{ text: T.btnApprove, callback_data: `ap:${id}:a` }, { text: T.btnReject, callback_data: `ap:${id}:r` }]],
+});
+
 async function approvalRequest(chat: number, account: string, from: any) {
   const r = await rpc('support_approval_request', { p_chat: chat, p_account: account });
   if (r.limited) return void (await say(chat, T.approvalLimited));
   if (!r.ok) return void (await say(chat, T.approvalUnknown));
   if (r.allowed) return void (await say(chat, T.approvalAlready));
+  if (r.restricted) return void (await say(chat, T.approvalRestricted, { reply_markup: adminLink() }));
+  // Already with the administrator (and shown to them): nothing is sent twice.
+  if (!r.new && r.sent) return void (await say(chat, T.approvalWaiting));
   const adminChat = await rpc('support_admin_chat', {});
   if (adminChat) {
     const who = from?.username ? `\nTelegram: @${esc(String(from.username))}` : '';
     try {
-      await say(Number(adminChat), T.adminRequest(esc(r.name ?? ''), esc(r.accountId), esc(String(r.phone ?? '')), esc(String(r.status)), who));
+      const sent = await say(Number(adminChat), T.adminRequest(esc(r.name ?? ''), esc(r.accountId), esc(String(r.phone ?? '')), esc(String(r.status)), who),
+        { reply_markup: approvalButtons(r.requestId) });
+      await rpc('support_approval_sent', { p_request: r.requestId, p_admin_chat: Number(adminChat), p_message_id: sent?.message_id ?? 0 });
       return void (await say(chat, T.approvalSent));
     } catch (err) {
       console.error('support-bot approval', safe(err));
     }
   }
   await say(chat, T.approvalNoAdmin, { reply_markup: adminLink() });
+}
+
+/** The administrator pressed Approve / Reject under a request. */
+async function onDecision(cb: any, requestId: string, decision: 'approve' | 'reject') {
+  const name = cb.from?.username ? `@${cb.from.username}` : [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(' ') || String(cb.from?.id ?? '');
+  const r = await rpc('support_approval_decide', {
+    p_request: requestId, p_admin_tg: Number(cb.from?.id), p_admin_name: name, p_decision: decision,
+  });
+  const alert = (text: string) => tg('answerCallbackQuery', { callback_query_id: cb.id, text, show_alert: true }).catch(() => {});
+  if (!r.ok) {
+    if (r.error === 'not_admin') return void (await alert(T.decisionNotAdmin));
+    if (r.error === 'already') return void (await alert(T.decisionAlready(String(r.status))));
+    if (r.error === 'restricted') return void (await alert(T.decisionRestricted));
+    return void (await alert(T.approvalUnknown));
+  }
+  await tg('answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {});
+  const when = new Date(r.decidedAt).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+  // The administrator's message: the buttons go, the outcome stays.
+  try {
+    const original = String(cb.message?.text ?? '');
+    await tg('editMessageText', {
+      chat_id: cb.message?.chat?.id, message_id: cb.message?.message_id, parse_mode: 'HTML',
+      text: esc(original) + T.decisionDone(r.status, esc(name), when), reply_markup: { inline_keyboard: [] },
+    });
+  } catch (err) {
+    console.error('support-bot decision edit', safe(err));
+  }
+  // The customer is told. A Telegram failure does not undo the decision.
+  try {
+    await say(Number(r.customerChat), r.status === 'approved' ? T.approvedToCustomer : T.rejectedToCustomer,
+      r.status === 'approved' ? {} : { reply_markup: adminLink() });
+  } catch (err) {
+    console.error('support-bot decision notify', safe(err));
+  }
 }
 
 const shareKeyboard = () => ({
