@@ -165,14 +165,27 @@ test('FCM was down: the messages are released and offered again; one a day old i
     const t = await seedCustomers(tx);
     await dueSchedule(tx, ['push']);
     await tx.call('public.broadcast_tick()');
-    const first = await tx.call('public.broadcast_push_claim($1)', [200]);
-    const mine = first.find((d) => d.customerId === t.two.id);
-    await tx.call('public.broadcast_push_release($1)', [[mine.id]]);
-    const again = await tx.call('public.broadcast_push_claim($1)', [200]);
-    assert.ok(again.some((d) => d.id === mine.id), 'offered again');
+    // Claim in batches (at most 200 each) until this customer's message comes.
+    let mine;
+    const taken = [];
+    for (let i = 0; i < 100 && !mine; i++) {
+      const batch = await tx.call('public.broadcast_push_claim($1)', [200]);
+      if (!batch.length) break;
+      taken.push(...batch.map((d) => d.id));
+      mine = batch.find((d) => d.customerId === t.two.id);
+    }
+    assert.ok(mine, 'the customer\'s message is offered');
+    await tx.call('public.broadcast_push_release($1)', [taken]);
+    let again;
+    for (let i = 0; i < 100 && !again; i++) {
+      const batch = await tx.call('public.broadcast_push_claim($1)', [200]);
+      if (!batch.length) break;
+      again = batch.find((d) => d.id === mine.id);
+    }
+    assert.ok(again, 'offered again after it was released');
     await tx.call('public.broadcast_push_release($1)', [[mine.id]]);
     await tx.query(`UPDATE public.broadcast_runs SET started_at = now() - interval '2 days' WHERE channel = 'push'`);
-    await tx.call('public.broadcast_push_claim($1)', [200]);
+    await tx.call('public.broadcast_push_claim($1)', [1]);
     const row = (await tx.query(`SELECT status, error FROM public.broadcast_deliveries WHERE id = $1`, [mine.id])).rows[0];
     assert.deepEqual([row.status, row.error], ['failed', 'expired']);
   });
@@ -293,11 +306,18 @@ test('the worker: a due push schedule reaches every device, once; a customer wit
     fcm.sent.length = 0;
     const wake = () => fetch(`${URL}/functions/v1/push-notifications`, { method: 'POST', headers: { 'x-worker-secret': secret, 'Content-Type': 'application/json' }, body: '{}' });
     assert.equal((await fetch(`${URL}/functions/v1/push-notifications`, { method: 'POST', headers: { 'x-worker-secret': 'nope' }, body: '{}' })).status, 403);
-    assert.equal((await wake()).status, 200);
+    const woke = await wake();
+    assert.equal(woke.status, 200);
+    const reply = await woke.text();
+    const where = async () => JSON.stringify({
+      reply: reply.slice(0, 400),
+      deliveries: (await db.query(`SELECT d.status, count(*) AS n FROM public.broadcast_deliveries d JOIN public.broadcast_runs r ON r.id = d.run_id WHERE r.schedule_id = $1 GROUP BY 1`, [schedule])).rows,
+      sentSoFar: fcm.sent.length,
+    });
 
     const mine = fcm.sent.filter((m) => m.notification?.title === title);
     const to = (tok) => mine.filter((m) => m.token === tok);
-    for (const tok of A.devices) assert.equal(to(tok).length, 1, 'each device once');
+    for (const tok of A.devices) assert.equal(to(tok).length, 1, `each device once ${await where()}`);
     assert.equal(to(B.devices[0]).length, 1);
     assert.equal(to(D.devices[1]).length, 1);
     const sample = to(A.devices[0])[0];
