@@ -299,3 +299,7 @@ FROM public.merchant_transactions m ORDER BY m.first_seen_at DESC LIMIT 12;
 SELECT count(*) AS rows_total, to_char(max(first_seen_at) AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS newest_seen_somalia,
        count(*) FILTER (WHERE first_seen_at > now() - interval '24 hours') AS rows_24h
 FROM public.merchant_transactions;
+\echo '-- Sahal row ids: the end of each portal tranID (to compare with the Tix number of the SMS)'
+SELECT to_char(m.first_seen_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS seen_somalia, length(m.transaction_id) AS id_len,
+       right(m.raw ->> 'tranID', 6) AS tran_id_end6, length(m.raw ->> 'tranID') AS tran_id_len, m.raw ->> 'credit' AS credit
+FROM public.merchant_transactions m WHERE m.raw ->> 'credit' ~ '^[0-9.]+$' ORDER BY m.first_seen_at DESC LIMIT 6;
