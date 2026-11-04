@@ -767,13 +767,12 @@ void main() {
     expect(link.host, 'wa.me');
     expect(link.path, '/252612345678');
     final text = link.queryParameters['text']!;
-    expect(text, startsWith('Hello Admin,'));
-    expect(text, contains('Please approve my withdrawal account.'));
+    expect(text, startsWith('Asc Maamule, fadlan ii fasax akoonkayga Withdrawal-ka.'));
     expect(text, contains('Customer ID: BX12AB34CD'));
-    expect(text, contains('Phone Number: +252611234567'));
+    expect(text, contains('Phone: +252611234567'));
     expect(text, contains('Platform: 1XBET'));
     expect(text, contains('Account ID: 123456789'));
-    expect(text, contains('I would like to request approval for withdrawals.'));
+    expect(text, endsWith('Mahadsanid maamulka.'));
     for (final secret in ['pin', 'password', 'otp', 'code']) {
       expect(text.toLowerCase(), isNot(contains(secret)));
     }

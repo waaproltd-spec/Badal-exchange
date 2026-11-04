@@ -123,7 +123,14 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => WithdrawalApprovalSheet(whatsappLink: _whatsappLink, reason: _access?.reason),
+      builder: (_) => WithdrawalApprovalSheet(
+        whatsappLink: _whatsappLink,
+        telegramMessage: _access?.prefilled(
+          platform: _info.isPlatform ? _info.label : null,
+          platformAccountId: _info.isPlatform ? _identifierController.text.trim() : null,
+        ),
+        reason: _access?.reason,
+      ),
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/strings.dart';
@@ -11,10 +12,14 @@ const approvalTelegramBot = 'Badalaisupportbot';
 /// and Telegram (@Badalaisupportbot). Dark by design, in light and dark mode alike.
 class WithdrawalApprovalSheet extends StatelessWidget {
   const WithdrawalApprovalSheet(
-      {super.key, this.whatsappLink, this.reason, this.launch});
+      {super.key, this.whatsappLink, this.telegramMessage, this.reason, this.launch});
 
   /// The administration's WhatsApp link (with the message ready), or null when none is set.
   final Uri? whatsappLink;
+
+  /// The ready message for the administration. A Telegram bot chat cannot be opened with text in it, so it is
+  /// placed on the clipboard for the customer to paste.
+  final String? telegramMessage;
 
   /// The administrator's reason when the account was rejected or restricted.
   final String? reason;
@@ -47,10 +52,22 @@ class WithdrawalApprovalSheet extends StatelessWidget {
 
   /// The Telegram app first; without it, the t.me page in the browser.
   Future<void> _telegram(BuildContext context) async {
+    final text = telegramMessage;
+    var pasted = false;
+    if (text != null && text.isNotEmpty) {
+      try {
+        await Clipboard.setData(ClipboardData(text: text));
+        pasted = true;
+      } catch (_) {}
+    }
     var ok = await _open(Uri.parse('tg://resolve?domain=$approvalTelegramBot'));
     if (!ok) ok = await _open(Uri.parse('https://t.me/$approvalTelegramBot'));
-    if (!ok && context.mounted)
+    if (!context.mounted) return;
+    if (!ok) {
       _say(context, AppStrings.approvalAppMissing('Telegram'));
+    } else if (pasted) {
+      _say(context, AppStrings.approvalMessageCopied);
+    }
   }
 
   @override

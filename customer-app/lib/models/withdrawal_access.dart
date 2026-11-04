@@ -36,22 +36,17 @@ class WithdrawalAccess {
         phone: j['phone'] as String?,
       );
 
-  /// The WhatsApp message to the admin: customer ID, registered number and,
-  /// for a betting platform, its name and the account ID -- never a
-  /// password, PIN or code.
+  /// The message to the admin (WhatsApp, and Telegram once pasted): customer ID, registered number and,
+  /// for a betting platform, its name and the account ID -- never a password, PIN or code.
   String prefilled({String? platform, String? platformAccountId}) => [
-        'Hello Admin,',
-        '',
-        'Please approve my withdrawal account.',
+        'Asc Maamule, fadlan ii fasax akoonkayga Withdrawal-ka.',
         '',
         'Customer ID: ${accountId ?? '-'}',
-        'Phone Number: ${phone == null ? '-' : '+${phone!.replaceAll('+', '')}'}',
+        'Phone: ${phone == null ? '-' : '+${phone!.replaceAll('+', '')}'}',
         if (platform != null) 'Platform: $platform',
         if (platformAccountId != null && platformAccountId.isNotEmpty) 'Account ID: $platformAccountId',
         '',
-        'I would like to request approval for withdrawals.',
-        '',
-        'Thank you.',
+        'Mahadsanid maamulka.',
       ].join('\n');
 
   /// wa.me link with the message, or null without a usable number.
