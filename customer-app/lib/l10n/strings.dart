@@ -172,13 +172,13 @@ class AppStrings {
 
   // Home
   static String get home => _t('Home', 'Hoyga');
-  static String get availableBalance => _t('Available Balance', 'Haraaga la Isticmaali Karo');
+  static String get availableBalance => _t('Available Balance', 'Haraaga la isticmaali karo');
   static String get deposit => _t('Deposit', 'Dhigasho');
-  static String get withdraw => _t('Withdraw', 'Bixin');
+  static String get withdraw => _t('Withdraw', 'Bixinta');
   static String get bonus => _t('Bonus', 'Gunno');
   static String get promoCode => _t('Promo Code', 'Koodhka Dallacsiinta');
   static String get walletId => _t('Wallet ID', 'Aqoonsiga Boorsada');
-  static String get recentOrders => _t('Recent Orders', 'Dalabyadii u Dambeeyay');
+  static String get recentOrders => _t('Recent Orders', 'Dalabaadkii u dambeeyay');
   static String get viewAll => _t('View all', 'Dhammaan');
 
   // Method picker
@@ -364,7 +364,7 @@ class AppStrings {
   static String get verifyStepReceived => _t('Request received', 'Codsiga waa la helay');
   static String get verifyStepChecking => _t('Verifying your payment', 'Xaqiijinta lacag-bixintaada');
   static String get verifyStepCrediting => _t('Adding it to your balance', 'Lacagta waa lagu darayaa haraagaaga');
-  static String get statusCompleted => _t('Completed', 'Waa dhammaaday');
+  static String get statusCompleted => _t('Completed', 'Waa la dhammeeyay');
   static String get confirmingOrder => _t('Confirming Order...', 'Dalabka waa la xaqiijinayaa...');
   static String get confirmingWithdrawal => _t('Confirming Withdrawal...', 'Bixinta waa la xaqiijinayaa...');
   static String get hangTightDeposit =>
@@ -415,7 +415,7 @@ class AppStrings {
       );
 
   // Orders
-  static String get orders => _t('Orders', 'Dalabyada');
+  static String get orders => _t('Orders', 'Dalabaadka');
   static String get noOrders => _t('No transactions yet', 'Weli dhaqdhaqaaq ma jiro');
   static String get noOrdersHint => _t(
         'Your deposits and withdrawals will show up here.',
@@ -425,7 +425,7 @@ class AppStrings {
   static String get method => _t('Method', 'Habka');
   static String get transactionRef => _t('Transaction Reference', 'Tixraaca Dhaqdhaqaaqa');
   static String get createdAt => _t('Created', 'La sameeyay');
-  static String get completedAt => _t('Completed', 'La dhammeeyay');
+  static String get completedAt => _t('Completed', 'Waa la dhammeeyay');
 
   // Profile
   static String get profile => _t('Profile', 'Xogtayda');
@@ -454,8 +454,8 @@ class AppStrings {
   static String get bonusMovedTitle => _t('Moved to main wallet', 'Loo wareejiyay boorsada weyn');
   static String get couldNotLoadBonus => _t('Could not load the bonus', 'Gunnada lama soo rarin');
 
-  // ---- Tips (Shaxaha)
-  static String get tips => _t('TIPS', 'Shaxaha');
+  // ---- TIPS
+  static String get tips => _t('TIPS', 'TIPS');
   static String get tipsSubtitle => _t('Betting tips and odds codes', 'Talooyin iyo koodhadh ciyaareed');
   static String get tipsAll => _t('All', 'Dhammaan');
   static String get tipsFree => _t('Free', 'Bilaash');

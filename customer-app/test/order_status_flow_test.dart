@@ -154,7 +154,7 @@ void main() {
       await tester.pumpWidget(_host(const OrdersListScreen(), api));
       await tester.pumpAndSettle();
       expect(find.text('Lacag-bixintaada waa la hubinayaa…'), findsOneWidget);
-      expect(find.text('Waa dhammaaday'), findsOneWidget);
+      expect(find.text('Waa la dhammeeyay'), findsOneWidget);
       expect(find.text('Wuu fashilmay'), findsOneWidget);
       expect(find.text('Pending'), findsNothing);
     });

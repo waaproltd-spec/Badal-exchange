@@ -251,7 +251,7 @@ void main() {
   testWidgets('Somali on a small phone, no overflow', (tester) async {
     AppLanguage.current.value = AppLanguage.somali;
     await _pump(tester, const TipsManagementScreen(), size: const Size(320, 800));
-    expect(find.text('Maamulka Shaxaha'), findsOneWidget);
+    expect(find.text('Maamulka TIPS'), findsOneWidget);
     expect(find.text('2 iib • \$6.00 dakhli'), findsOneWidget);
     expect(find.text('Bilaash'), findsWidgets);
     expect(tester.takeException(), isNull);

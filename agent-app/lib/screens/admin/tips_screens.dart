@@ -230,10 +230,16 @@ class _Pill extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-        decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(20)),
-        child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
+  Widget build(BuildContext context) => ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 118),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+          decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(20)),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(text, maxLines: 1, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
+          ),
+        ),
       );
 }
 

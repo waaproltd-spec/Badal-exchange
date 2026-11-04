@@ -35,17 +35,25 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _color;
-    return Container(
-      padding: compact
-          ? const EdgeInsets.symmetric(horizontal: 10, vertical: 3)
-          : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        _label,
-        style: AppTextStyles.label.copyWith(color: color, letterSpacing: 0.2, fontSize: compact ? 11.5 : null),
+    // A longer Somali word ("Waa la dhammeeyay") shrinks a little on a narrow phone instead of overflowing.
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: compact ? 112 : 190),
+      child: Container(
+        padding: compact
+            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 3)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _label,
+            maxLines: 1,
+            style: AppTextStyles.label.copyWith(color: color, letterSpacing: 0.2, fontSize: compact ? 11.5 : null),
+          ),
+        ),
       ),
     );
   }

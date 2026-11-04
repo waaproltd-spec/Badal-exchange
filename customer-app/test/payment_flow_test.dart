@@ -315,7 +315,7 @@ void main() {
     await tester.pumpWidget(_app(FakeCustomerApi(), const _SheetHost(PaymentDirection.withdraw)));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Bixin'), findsOneWidget);
+    expect(find.text('Bixinta'), findsOneWidget);
     expect(find.text('Dooro habka bixinta'), findsOneWidget);
   });
 
