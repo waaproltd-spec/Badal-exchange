@@ -5,7 +5,6 @@ import 'package:badal_exchange_customer/models/app_content.dart';
 import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
 import 'package:badal_exchange_customer/screens/root/root_shell.dart';
-import 'package:badal_exchange_customer/widgets/floating_nav_bar.dart';
 import 'package:badal_exchange_customer/state/auth_provider.dart';
 import 'package:badal_exchange_customer/state/orders_provider.dart';
 import 'package:badal_exchange_customer/state/wallet_provider.dart';
