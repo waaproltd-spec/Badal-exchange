@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config.dart';
 import 'api_exception.dart';
 import '../l10n/strings.dart';
+import '../utils/network_error.dart';
 import '../l10n/server_text.dart';
 
 /// Storage keys for what the app remembers about the signed-in customer.
@@ -204,6 +205,8 @@ class ApiClient {
       final code = e.hint ?? e.code ?? 'ERROR';
       throw ApiException(status: _statusFor(e.code), code: code, message: serverText(e.message, code: code), details: e.details);
     } on AuthException catch (e) {
+      // No connection while signing in or refreshing: the internet message, never the technical text.
+      if (isNetworkError(e)) throw _network;
       final code = e.code ?? '';
       if (code == 'user_banned') {
         throw ApiException(status: 403, code: 'ACCOUNT_BLOCKED', message: AppStrings.accountBlockedMessage);
@@ -222,10 +225,7 @@ class ApiClient {
     } on TimeoutException {
       throw _network;
     } catch (e) {
-      final text = e.toString();
-      if (text.contains('SocketException') || text.contains('ClientException') || text.contains('Failed host lookup')) {
-        throw _network;
-      }
+      if (isNetworkError(e)) throw _network;
       rethrow;
     }
   }

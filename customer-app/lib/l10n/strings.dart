@@ -264,8 +264,11 @@ class AppStrings {
   static String get done => _t('Done', 'Dhammee');
   static String get tryAgain => _t('Try Again', 'Isku day mar kale');
   static String get back => _t('Back', 'Dib u noqo');
-  static String get networkError => _t('Could not reach the server. Check your internet connection and try again.',
-      'Server-ka lama gaarin. Hubi internet-kaaga, kadibna mar kale isku day.');
+  static String get networkTitle => _t('Your internet is not good', 'Internet-kaagu ma fiicna');
+  static String get networkBody => _t('Please check your internet connection and try again.',
+      'Fadlan hubi xiriirka internet-kaaga oo isku day mar kale.');
+  static String get networkRetry => _t('Try again', 'Mar kale isku day');
+  static String get networkError => networkBody;
   static String get couldNotLoadOrders => _t('Could not load your orders. Check your connection and try again.',
       'Dalabaadkaaga lama soo gelin. Hubi internet-kaaga, kadibna mar kale isku day.');
   static String get couldNotLoadWallet => _t('Could not load your wallet. Check your connection and try again.',

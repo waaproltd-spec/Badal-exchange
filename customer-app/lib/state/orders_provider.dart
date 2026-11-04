@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../api/api_exception.dart';
+import '../utils/network_error.dart';
 import '../api/customer_api.dart';
 import '../models/order.dart';
 import '../l10n/strings.dart';
@@ -36,6 +37,19 @@ class OrdersProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  /// The last load failed because of the internet connection (not the server): the screens show the
+  /// friendly internet message, and the load is repeated by itself until the connection is back.
+  bool get networkProblem => _networkProblem;
+  bool _networkProblem = false;
+  Timer? _networkRetry;
+  static const networkRetryEvery = Duration(seconds: 6);
+
+  void _afterFailure(Object e) {
+    _networkProblem = isNetworkError(e);
+    _networkRetry?.cancel();
+    _networkRetry = _networkProblem ? Timer(networkRetryEvery, () => load(silent: true)) : null;
+  }
+
   Future<void> load({bool silent = false}) async {
     _loaded = true;
     if (!silent) {
@@ -48,11 +62,15 @@ class OrdersProvider extends ChangeNotifier {
       // A deposit or withdrawal the server now reports completed: cha-ching.
       SuccessSound.instance.observe(_orders);
       _error = null;
+      _networkProblem = false;
+      _networkRetry?.cancel();
     } on ApiException catch (e) {
+      _afterFailure(e);
       if (!silent) _error = e.message;
-    } catch (_) {
+    } catch (e) {
+      _afterFailure(e);
       if (silent) return;
-      _error = AppStrings.couldNotLoadOrders;
+      _error = _networkProblem ? AppStrings.networkBody : AppStrings.couldNotLoadOrders;
     } finally {
       if (!_disposed) {
         _loading = false;
@@ -67,6 +85,7 @@ class OrdersProvider extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _recheck?.cancel();
+    _networkRetry?.cancel();
     _liveSub?.cancel();
     super.dispose();
   }

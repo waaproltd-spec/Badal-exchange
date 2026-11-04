@@ -1,3 +1,4 @@
+import '../../widgets/network_problem_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -60,6 +61,12 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
           const SizedBox(height: 160),
           Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
+      );
+    }
+    if (state.networkProblem && state.orders.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 20),
+        children: [NetworkProblemView(onRetry: () => context.read<OrdersProvider>().load())],
       );
     }
     if (state.error != null && state.orders.isEmpty) {

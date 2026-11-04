@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/app_content.dart';
+import '../../widgets/network_problem_view.dart';
 import '../../models/order.dart';
 import '../../state/auth_provider.dart';
 import '../../state/orders_provider.dart';
@@ -262,7 +263,7 @@ class _WalletHeader extends StatelessWidget {
               WalletCard(
                 wallet: walletState.wallet,
                 loading: walletState.loading,
-                error: walletState.error,
+                error: walletState.networkProblem ? AppStrings.networkTitle : walletState.error,
                 onBonusTap: onBonus,
               ),
               const SizedBox(height: 12),
@@ -381,6 +382,10 @@ class _RecentOrders extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 40),
         child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
+    }
+    // Not loaded because of the internet: say so (never "No transactions yet") and offer a retry.
+    if (orders.isEmpty && state.networkProblem) {
+      return NetworkProblemView(compact: true, onRetry: () => context.read<OrdersProvider>().load());
     }
     if (orders.isEmpty) {
       return _EmptyOrders(message: state.error);

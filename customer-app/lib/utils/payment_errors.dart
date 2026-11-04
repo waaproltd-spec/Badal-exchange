@@ -3,6 +3,7 @@ import '../api/customer_api.dart';
 import '../l10n/server_text.dart';
 import '../l10n/strings.dart';
 import '../models/order.dart';
+import 'network_error.dart';
 
 /// What the customer reads when a deposit or a withdrawal goes wrong: always
 /// Somali, whatever language the app is set to. Technical details go to the
@@ -16,6 +17,7 @@ class PaymentErrors {
       '❌ Waxaad gaadhay xadka maanta ee lacag-bixinta. Wuxuu dib u bilaabmayaa 00:00 (waqtiga Soomaaliya).';
   static const limitMonthlyReached = '❌ Waxaad gaadhay xadka bishan ee lacag-bixinta. Wuxuu dib u bilaabmayaa 1da bisha.';
   static String limitExceeds(String left) => '❌ Tani way ka badan tahay inta aad hadda bixin karto (\$$left).';
+  static const networkMessage = '📶 Internet-kaagu ma fiicna. Fadlan hubi xiriirka internet-kaaga oo isku day mar kale.';
   static const deposit = '❌ Dhigasho hadda cilad ayaa ka jirta. Fadlan mar kale isku day.';
   static const withdraw = '❌ Lacag-bixinta hadda cilad ayaa ka jirta. Fadlan mar kale isku day.';
 
@@ -53,6 +55,8 @@ class PaymentErrors {
 
   static String message(Object error, {required bool isDeposit}) {
     final generic = isDeposit ? deposit : withdraw;
+    // No connection: the internet message, in Somali whatever the app language; never a technical text.
+    if (isNetworkError(error)) return networkMessage;
     if (error is! ApiException) return generic;
     final number = _numberMessages[error.code];
     if (number != null) return number;
@@ -88,7 +92,7 @@ class PaymentErrors {
     String? amount,
   }) {
     final code = error is ApiException ? error.code : 'ERROR';
-    if (!_isInput(code)) {
+    if (!_isInput(code) && !isNetworkError(error)) {
       api
           .reportPaymentError(
             direction: isDeposit ? 'deposit' : 'withdraw',
