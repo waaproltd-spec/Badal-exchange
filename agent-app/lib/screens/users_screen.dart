@@ -260,9 +260,13 @@ class _UsersScreenState extends State<UsersScreen> {
             for (final c in _customers) ...[
               _CustomerTile(
                 customer: c,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => CustomerInfoScreen(customerId: c.id, name: c.name)),
-                ),
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => CustomerInfoScreen(customerId: c.id, name: c.name)),
+                  );
+                  // Blocked or unblocked there: the list and the counters follow.
+                  if (mounted) _refresh();
+                },
               ),
               const SizedBox(height: 8),
             ],

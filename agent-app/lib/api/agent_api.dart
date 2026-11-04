@@ -17,6 +17,7 @@ import '../models/match_result.dart';
 import '../models/console.dart';
 import '../models/management.dart';
 import '../models/tips.dart';
+import '../models/customer_block.dart';
 import '../models/payment_methods.dart';
 import '../models/order.dart';
 import '../models/company_balance.dart';
@@ -498,6 +499,16 @@ class AgentApi {
 
   Future<CustomerDetail> getCustomer(String id) async =>
       CustomerDetail.fromJson(await _map('agent_customer', {'p_id': id}));
+
+  /// Managers: whether the customer is blocked, why, and the history of blocks and unblocks.
+  Future<CustomerBlockInfo> getCustomerBlockInfo(String id) async =>
+      CustomerBlockInfo.fromJson(await _map('manage_customer_block_info', {'p_customer_id': id}));
+
+  /// Managers: blocks (a reason is required) or unblocks (optional reason). A blocked customer is signed
+  /// out everywhere and can not log in or use any service until unblocked.
+  Future<CustomerBlockInfo> setCustomerBlocked(String id, {required bool blocked, String? reason}) async =>
+      CustomerBlockInfo.fromJson(
+          await _map('manage_set_customer_blocked', {'p_customer_id': id, 'p_blocked': blocked, 'p_reason': reason}));
 
   /// Managers: the Bonus screen -- on/off, the rate, eligible types, balances, history.
   Future<BonusSettings> getBonusSettings() async => BonusSettings.fromJson(await _map('manage_bonus_settings'));
