@@ -224,7 +224,7 @@ BEGIN
   PERFORM private.complete_deposit_order(o.id, 'Sahal merchant ' || t.transaction_id, NULL, NULL);
 END $$;
 
--- As before, plus the upload of a Sahal SMS goes to its own matcher.
+-- As before (the deposit duty check included), plus the upload of a Sahal SMS goes to its own matcher.
 CREATE OR REPLACE FUNCTION public.agent_ingest_payment_sms(
   p_sender text, p_body text, p_received_at text,
   p_parsed_provider text DEFAULT NULL, p_parsed_amount text DEFAULT NULL, p_parsed_phone text DEFAULT NULL,
@@ -232,7 +232,7 @@ CREATE OR REPLACE FUNCTION public.agent_ingest_payment_sms(
 )
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
-  v_agent uuid := private.require_role('agent');
+  v_agent uuid := private.require_agent_duty('evc_deposit');
   v_received timestamptz := private.parse_ts(p_received_at, 'receivedAt');
   v_ref text := NULLIF(btrim(COALESCE(p_transaction_ref, '')), '');
   v_amount numeric;
