@@ -133,8 +133,9 @@ test('a platform name can start with a digit (888starz admin, 1Win); it still ne
     assert.equal(made.method, `888starzadmin${seed}`);
     assert.equal(made.status, 'not_configured');
     assert.equal(made.active, false, 'a new platform starts switched off');
-    const p = await listed(tx, `888starzadmin${seed}`);
-    assert.ok(p, 'it is in the Agent App list');
+    // (Not listed through the Agent App function here: a new enum value can not be used in the transaction that added it.)
+    const { rows } = await tx.query(`SELECT kind, adapter, status FROM payment_integrations WHERE method_key = $1`, [`888starzadmin${seed}`]);
+    assert.deepEqual(rows.map((r) => [r.kind, r.adapter, r.status]), [['betting', 'cashdeskbot', 'inactive']]);
   });
   for (const bad of ['X', '12345', '--', '']) {
     await asUser(managerId, async (tx) => {
