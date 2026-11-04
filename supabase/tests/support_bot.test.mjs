@@ -521,7 +521,7 @@ test('asking twice sends the administrator one request, not two', async (t) => {
   assert.equal(Number((await db.query(`SELECT count(*) AS n FROM support_approval_requests WHERE customer_id = $1`, [w.c.id])).rows[0].n), 1);
 });
 
-test('a group of administrators: /linkgroup by the administrator; requests go to the group; the team group's members decide', async (t) => {
+test('a group of administrators: /linkgroup by the administrator; requests go to the group; the members of the team group decide', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const group = -(1000000000 + seed);
   const inGroup = (from, text) => send({ update_id: updateId++, message: { message_id: updateId, chat: { id: group, type: 'supergroup' }, from, text } });
