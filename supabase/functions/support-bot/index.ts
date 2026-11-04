@@ -338,16 +338,17 @@ async function approvalRequest(chat: number, account: string, from: any) {
   await say(chat, T.approvalNoAdmin, { reply_markup: adminLink() });
 }
 
-/** The administrator pressed Approve / Reject under a request. */
+/** Someone in the linked chat pressed Approve / Reject under a request. */
 async function onDecision(cb: any, requestId: string, decision: 'approve' | 'reject') {
   const name = cb.from?.username ? `@${cb.from.username}` : [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(' ') || String(cb.from?.id ?? '');
-  // In a group, Telegram says whether the person who pressed is the group's creator or an administrator.
+  // In a group, Telegram says whether the person who pressed is in the group.
   const chatId = Number(cb.message?.chat?.id);
   let verified = false;
   if (chatId < 0) {
     try {
       const member = await tg('getChatMember', { chat_id: chatId, user_id: Number(cb.from?.id) });
-      verified = member?.status === 'creator' || member?.status === 'administrator';
+      // Everybody in the team group may decide (the group is private): its creator, administrators and members; not someone who left or was removed.
+      verified = ['creator', 'administrator', 'member'].includes(member?.status) || (member?.status === 'restricted' && member?.is_member === true);
     } catch (err) {
       console.error('support-bot member check', safe(err));
     }

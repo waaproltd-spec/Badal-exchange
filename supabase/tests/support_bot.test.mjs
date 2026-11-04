@@ -521,7 +521,7 @@ test('asking twice sends the administrator one request, not two', async (t) => {
   assert.equal(Number((await db.query(`SELECT count(*) AS n FROM support_approval_requests WHERE customer_id = $1`, [w.c.id])).rows[0].n), 1);
 });
 
-test('a group of administrators: /linkgroup by the administrator; requests go to the group; only group administrators decide', async (t) => {
+test('a group of administrators: /linkgroup by the administrator; requests go to the group; the team group's members decide', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const group = -(1000000000 + seed);
   const inGroup = (from, text) => send({ update_id: updateId++, message: { message_id: updateId, chat: { id: group, type: 'supergroup' }, from, text } });
@@ -557,15 +557,15 @@ test('a group of administrators: /linkgroup by the administrator; requests go to
   const [approve] = toGroup.body.reply_markup.inline_keyboard.flat().map((b) => b.callback_data);
 
   const pressInGroup = (userId) => send({ update_id: updateId++, callback_query: { id: `cb${updateId}`, data: approve, from: { id: userId, username: `u${userId}` }, message: { message_id: 7, text: 'Codsi fasax bixin', chat: { id: group, type: 'supergroup' } } } });
-  // An ordinary member of the group can not decide.
-  const member = nextChat();
-  tg.members.set(member, 'member');
-  const no = await pressInGroup(member);
+  // Somebody who is not in the group (left or removed) can not decide.
+  const gone = nextChat();
+  tg.members.set(gone, 'left');
+  const no = await pressInGroup(gone);
   assert.ok(no.calls.find((x) => x.method === 'answerCallbackQuery' && /ogol/.test(x.body.text ?? '')));
   assert.equal((await dbRequest(c.id)).status, 'pending');
-  // A group administrator can.
+  // Any member of the team group can (not only administrators).
   const boss = nextChat();
-  tg.members.set(boss, 'administrator');
+  tg.members.set(boss, 'member');
   const yes = await pressInGroup(boss);
   assert.equal((await dbRequest(c.id)).status, 'approved');
   assert.equal(Number((await dbRequest(c.id)).decided_by_tg), boss);
