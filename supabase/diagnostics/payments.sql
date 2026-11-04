@@ -288,3 +288,14 @@ SELECT to_char(m.first_seen_at AT TIME ZONE 'Africa/Mogadishu', 'HH24:MI:SS') AS
 FROM public.merchant_transactions m
 WHERE m.first_seen_at > now() - make_interval(hours => :hours) AND m.match_status IN ('ignored', 'unmatched')
 ORDER BY m.first_seen_at DESC LIMIT 15;
+
+\echo
+\echo '== 24. The newest Sahal merchant rows stored, whatever their age (digit runs masked) =='
+SELECT to_char(m.first_seen_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS seen_somalia, m.match_status,
+       m.raw ->> 'tranDate' AS tran_date, m.raw ->> 'credit' AS credit, m.raw ->> 'debit' AS debit,
+       left(regexp_replace(COALESCE(m.raw ->> 'description', ''), '[0-9]{5,}', '#', 'g'), 80) AS description,
+       (SELECT string_agg(k, ',') FROM jsonb_object_keys(m.raw) k) AS keys
+FROM public.merchant_transactions m ORDER BY m.first_seen_at DESC LIMIT 12;
+SELECT count(*) AS rows_total, to_char(max(first_seen_at) AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS newest_seen_somalia,
+       count(*) FILTER (WHERE first_seen_at > now() - interval '24 hours') AS rows_24h
+FROM public.merchant_transactions;
