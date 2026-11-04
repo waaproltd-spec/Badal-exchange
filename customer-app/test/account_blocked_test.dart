@@ -180,14 +180,15 @@ void main() {
   });
 
   testWidgets(
-      'Contact Support: with no contact set it says so; with two it offers them',
+      'Contact Support: Telegram is always the support bot; with WhatsApp set too it offers both',
       (tester) async {
     await _phone(tester);
     await tester.pumpWidget(_app(home: const LoginScreen(blocked: true)));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('blocked-contact')));
     await tester.pumpAndSettle();
-    expect(find.text('The support contact is not set yet.'), findsOneWidget);
+    // Nothing set by the administrators: Telegram is still there (the support bot), so there is no "not set" message.
+    expect(find.text('The support contact is not set yet.'), findsNothing);
 
     _api.contacts = {
       'whatsapp': '252610000000',

@@ -52,7 +52,11 @@ class _AccountBlockedDialogState extends State<AccountBlockedDialog> {
         ('telegram', 'Telegram'),
         ('facebook', 'Facebook')
       ])
-        if (supportLink(kind, contacts[kind]) case final uri?) (label, uri),
+        // Telegram is always the support bot; WhatsApp and Facebook are the contacts the administrators set.
+        if (kind == 'telegram')
+          (label, Uri.parse('https://t.me/Badalaisupportbot'))
+        else if (supportLink(kind, contacts[kind]) case final uri?)
+          (label, uri),
     ];
     if (options.isEmpty) {
       ScaffoldMessenger.of(context)
