@@ -469,7 +469,7 @@ test('Reject in Telegram: the account stays blocked from withdrawing, the custom
   assert.equal(await approvalStatus(w.c.id), 'rejected');
   assert.equal((await dbRequest(w.c.id)).status, 'rejected');
   const told = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === w.chat);
-  assert.match(told.body.text, /lama aqbalin/);
+  assert.match(told.body.text, /Codsigaaga waa la diiday/);
   const cu = await login(w.c.phone);
   const { data } = await cu.rpc('customer_withdrawal_access');
   assert.equal(data.allowed, false);

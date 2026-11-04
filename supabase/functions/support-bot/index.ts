@@ -66,7 +66,7 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   approvalWaiting: '⏳ Codsigaagii hore maamulka ayaa haya. Fadlan sug jawaabtiisa.',
   approvalRestricted: '⛔ Akoonkaaga bixintiisa waa la hakiyay. Fadlan la xiriir Admin-ka.',
   approvedToCustomer: '✅ <b>Akoonkaaga waa la fasaxay!</b>\n\nHadda waxaad lacagta kala bixi kartaa akoonkaaga. Mahadsanid.',
-  rejectedToCustomer: '❌ <b>Codsigaaga lama aqbalin.</b>\nHaddii aad u malaynayso inay khalad tahay, fadlan la xiriir Admin-ka.',
+  rejectedToCustomer: '⛔ <b>Codsigaaga waa la diiday.</b>\n\nMaamulka ayaa diiday codsigaaga. Fadlan la xiriir taageerada macaamiisha si aad faahfaahin dheeraad ah uga hesho. Mahadsanid',
   decisionNotAdmin: '⛔ Maamule oo la ogol yahay ma ihid.',
   decisionAlready: (status: string) => `ℹ️ Codsigan horey ayaa loo go'aamiyay (${status === 'approved' ? 'la fasaxay' : 'la diiday'}).`,
   decisionRestricted: '⛔ Akoonkan bixintiisa waa la hakiyay; ka beddel Agent App-ka.',
