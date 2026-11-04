@@ -143,8 +143,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: TextFormField(
                                 key: const Key('phone-field'),
                                 controller: _phoneController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Phone number',
+                                decoration: InputDecoration(
+                                  hintText: tr('Phone number'),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
@@ -173,8 +173,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: TextFormField(
                                 key: const Key('password-field'),
                                 controller: _passwordController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Password',
+                                decoration: InputDecoration(
+                                  hintText: tr('Password'),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,

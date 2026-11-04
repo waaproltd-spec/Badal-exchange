@@ -118,7 +118,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                   ),
                 ),
                 if (s.needsCode) ...[
-                  const GroupLabel('Access code'),
+                  GroupLabel(tr('Access code')),
                   ConsoleCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -132,7 +132,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                           key: const Key('feed-code'),
                           controller: _code,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Access code', prefixIcon: Icon(Icons.key_rounded)),
+                          decoration: InputDecoration(labelText: tr('Access code'), prefixIcon: Icon(Icons.key_rounded)),
                           onSubmitted: (_) => _sendCode(),
                         ),
                         const SizedBox(height: 12),
@@ -158,7 +158,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     label: Tx(s.working ? 'Sign in again (new code)' : 'Sign in to Sahal'),
                   ),
                 ],
-                const GroupLabel('Deposits'),
+                GroupLabel(tr('Deposits')),
                 ConsoleCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: SwitchListTile(
@@ -169,7 +169,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedCredit(v)),
                   ),
                 ),
-                const GroupLabel('Withdrawals'),
+                GroupLabel(tr('Withdrawals')),
                 ConsoleCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: SwitchListTile(

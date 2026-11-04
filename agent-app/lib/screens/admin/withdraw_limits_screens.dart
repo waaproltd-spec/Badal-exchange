@@ -71,7 +71,7 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _err(e, 'Could not load the withdrawal limits.');
+        _error = _err(e, tr('Could not load the withdrawal limits.'));
         _loading = false;
       });
     }
@@ -129,12 +129,12 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                         },
                       ),
                       const SizedBox(height: 10),
-                      SearchField(hint: 'Search by name, phone or account ID…', controller: _search, onSubmitted: (_) => _load()),
+                      SearchField(hint: tr('Search by name, phone or account ID…'), controller: _search, onSubmitted: (_) => _load()),
                       const SizedBox(height: 10),
                       if (_customers!.isEmpty)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 40),
-                          child: EmptyStateView(icon: Icons.speed_rounded, title: 'No customers', message: 'Nobody matches this filter.'),
+                          child: EmptyStateView(icon: Icons.speed_rounded, title: tr('No customers'), message: tr('Nobody matches this filter.')),
                         )
                       else
                         for (final c in _customers!)
@@ -229,7 +229,7 @@ class _DefaultsSheetState extends State<_DefaultsSheet> {
           );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) setState(() => _error = _err(e, 'Could not save the limits.'));
+      if (mounted) setState(() => _error = _err(e, tr('Could not save the limits.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -256,11 +256,11 @@ class _DefaultsSheetState extends State<_DefaultsSheet> {
           const SizedBox(height: 14),
           const Tx('Not verified (no approved KYC)', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Row(children: [_field('Daily', _ud, const Key('unverified-daily')), const SizedBox(width: 10), _field('Monthly', _um, const Key('unverified-monthly'))]),
+          Row(children: [_field(tr('Daily'), _ud, const Key('unverified-daily')), const SizedBox(width: 10), _field(tr('Monthly'), _um, const Key('unverified-monthly'))]),
           const SizedBox(height: 14),
           const Tx('KYC approved', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Row(children: [_field('Daily', _vd, const Key('verified-daily')), const SizedBox(width: 10), _field('Monthly', _vm, const Key('verified-monthly'))]),
+          Row(children: [_field(tr('Daily'), _vd, const Key('verified-daily')), const SizedBox(width: 10), _field(tr('Monthly'), _vm, const Key('verified-monthly'))]),
           if (_error != null) ...[
             const SizedBox(height: 10),
             Text(_error!, key: const Key('limits-error'), style: const TextStyle(color: AppColors.statusFailed)),
@@ -322,7 +322,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _err(e, 'Could not load this customer.');
+        _error = _err(e, tr('Could not load this customer.'));
         _loading = false;
       });
     }
@@ -344,7 +344,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
           );
       await _load();
     } catch (e) {
-      if (mounted) setState(() => _saveError = _err(e, 'Could not save.'));
+      if (mounted) setState(() => _saveError = _err(e, tr('Could not save.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -411,7 +411,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                               key: const Key('custom-daily'),
                               controller: _daily,
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(labelText: 'Daily', prefixText: '\$'),
+                              decoration: InputDecoration(labelText: tr('Daily'), prefixText: '\$'),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -420,12 +420,12 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                               key: const Key('custom-monthly'),
                               controller: _monthly,
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(labelText: 'Monthly', prefixText: '\$'),
+                              decoration: InputDecoration(labelText: tr('Monthly'), prefixText: '\$'),
                             ),
                           ),
                         ]),
                         const SizedBox(height: 10),
-                        TextField(key: const Key('custom-note'), controller: _note, decoration: const InputDecoration(labelText: 'Note (optional)')),
+                        TextField(key: const Key('custom-note'), controller: _note, decoration: InputDecoration(labelText: tr('Note (optional)'))),
                         if (_saveError != null) ...[
                           const SizedBox(height: 8),
                           Text(_saveError!, key: const Key('limits-error'), style: const TextStyle(color: AppColors.statusFailed)),

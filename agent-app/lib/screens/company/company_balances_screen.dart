@@ -76,7 +76,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
         actions: [
           IconButton(
             key: const Key('refresh-balances'),
-            tooltip: 'Refresh balances',
+            tooltip: tr('Refresh balances'),
             onPressed: _refreshing ? null : () => _load(refresh: true),
             icon: _refreshing
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
@@ -98,7 +98,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                       icon: Icons.north_east_rounded,
                       color: AppColors.statusProcessing,
                       value: '\$${data.openWithdrawalAmount}',
-                      label: 'Open withdrawals',
+                      label: tr('Open withdrawals'),
                     ),
                     StatCard(
                       icon: Icons.warning_amber_rounded,
@@ -110,13 +110,13 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                       icon: Icons.wifi_off_rounded,
                       color: AppColors.statusPending,
                       value: '${data.unavailableCount}',
-                      label: 'Offline / not updated',
+                      label: tr('Offline / not updated'),
                     ),
                     StatCard(
                       icon: Icons.link_off_rounded,
                       color: AppColors.statusDuplicate,
                       value: '${data.notConnectedCount}',
-                      label: 'No balance connection',
+                      label: tr('No balance connection'),
                     ),
                   ]),
                   const SizedBox(height: 12),
@@ -127,7 +127,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                         key: const Key('balances-error'), style: const TextStyle(color: AppColors.statusFailed)),
                   ],
                   const SizedBox(height: 8),
-                  SectionHeader(title: 'Companies', actionLabel: 'Refresh', onAction: () => _load(refresh: true)),
+                  SectionHeader(title: tr('Companies'), actionLabel: tr('Refresh'), onAction: () => _load(refresh: true)),
                   for (final c in data.companies) ...[
                     CompanyCard(company: c, onTap: () => _open(c)),
                     const SizedBox(height: 8),

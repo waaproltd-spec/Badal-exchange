@@ -62,9 +62,8 @@ Future<bool> _confirm(BuildContext context, String title, String message, String
 Future<bool> confirmNotPaid(BuildContext context, {required String amount, required String phone, required String action}) =>
     _confirm(
       context,
-      'Was the money sent?',
-      'An automatic payout may have reached the carrier. Check the payout wallet\'s history for '
-          '\$$amount to $phone. Continue only if it was NOT sent.',
+      tr('Was the money sent?'),
+      trp('An automatic payout may have reached the carrier. Check the payout wallet\'s history for \${0} to {1}. Continue only if it was NOT sent.', [amount, phone]),
       action,
     );
 
@@ -204,19 +203,19 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
   Future<void> _retry() => _guarded(
         () => _session.api.retryPayout(widget.orderId),
         () => _session.api.retryPayout(widget.orderId, confirmedNotPaid: true),
-        'Queued for another automatic payout.',
-        'It was not sent — retry',
+        tr('Queued for another automatic payout.'),
+        tr('It was not sent — retry'),
       );
 
   Future<void> _fail() async {
-    if (!await _confirm(context, 'Fail and refund?', 'The reserved amount goes back to the customer\'s Badal Exchange wallet.', 'Fail & refund')) {
+    if (!await _confirm(context, tr('Fail and refund?'), tr('The reserved amount goes back to the customer\'s Badal Exchange wallet.'), tr('Fail & refund'))) {
       return;
     }
     await _guarded(
       () => _session.api.failWithdrawal(widget.orderId, reason: 'Payout not sent (checked by agent)'),
       () => _session.api.failWithdrawal(widget.orderId, reason: 'Payout not sent (checked by agent)', confirmedNotPaid: true),
-      'Withdrawal failed; the customer was refunded.',
-      'It was not sent — refund',
+      tr('Withdrawal failed; the customer was refunded.'),
+      tr('It was not sent — refund'),
     );
   }
 
@@ -228,7 +227,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
         title: const Tx('Mark as paid'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(trp('Only if the payout wallet\'s history shows \${0} sent to {1}.', [_order!.payoutAmount, _order!.phoneNumber])),
-          TextField(controller: ref, decoration: const InputDecoration(labelText: 'Carrier reference')),
+          TextField(controller: ref, decoration: InputDecoration(labelText: tr('Carrier reference'))),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
@@ -238,15 +237,15 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
     );
     if (ok != true || ref.text.trim().length < 3) return;
     await _guarded(() => _session.api.completeWithdrawal(widget.orderId, transactionRef: ref.text.trim()), () async {},
-        'Withdrawal completed.', '');
+        tr('Withdrawal completed.'), '');
   }
 
   Future<void> _payNow() async {
     final deviceId = _session.deviceId;
     final o = _order!;
     if (deviceId == null) return;
-    if (!await _confirm(context, 'Send payout now?',
-        'This phone dials \$${o.payoutAmount} ${o.methodLabel} to ${o.phoneNumber} and enters the wallet PIN.', 'Send')) {
+    if (!await _confirm(context, tr('Send payout now?'),
+        trp('This phone dials \${0} {1} to {2} and enters the wallet PIN.', [o.payoutAmount, o.methodLabel, o.phoneNumber]), tr('Send'))) {
       return;
     }
     setState(() => _busy = true);
@@ -279,14 +278,14 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                         _Pill(_payoutState(o).$1, _payoutState(o).$2),
                       ]),
                       const SizedBox(height: 8),
-                      InfoRow('Customer', '${o.customerName ?? '—'} ${o.customerPhone ?? ''}'),
-                      InfoRow('Amount', '\$${o.amount}'),
-                      InfoRow('Payout', '\$${o.payoutAmount} to ${o.phoneNumber}'),
-                      InfoRow('Paid from', o.payoutWalletPhone ?? 'No payout wallet set'),
-                      InfoRow('Reference', o.transactionRef ?? '—'),
-                      if (o.failureReason != null) InfoRow('Problem', o.failureReason!),
-                      InfoRow('Created', formatDateTime(o.createdAt)),
-                      if (o.completedAt != null) InfoRow('Completed', formatDateTime(o.completedAt!)),
+                      InfoRow(tr('Customer'), '${o.customerName ?? '—'} ${o.customerPhone ?? ''}'),
+                      InfoRow(tr('Amount'), '\$${o.amount}'),
+                      InfoRow(tr('Payout'), trp('\${0} to {1}', [o.payoutAmount, o.phoneNumber])),
+                      InfoRow(tr('Paid from'), o.payoutWalletPhone ?? 'No payout wallet set'),
+                      InfoRow(tr('Reference'), o.transactionRef ?? '—'),
+                      if (o.failureReason != null) InfoRow(tr('Problem'), o.failureReason!),
+                      InfoRow(tr('Created'), formatDateTime(o.createdAt)),
+                      if (o.completedAt != null) InfoRow(tr('Completed'), formatDateTime(o.completedAt!)),
                     ]),
                   ),
                   const SizedBox(height: 12),
@@ -307,7 +306,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                           label: const Tx('Send payout from this phone')),
                   ]),
                   if (o.dialAttempts.isNotEmpty) ...[
-                    const GroupLabel('Payout attempts'),
+                    GroupLabel(tr('Payout attempts')),
                     for (final a in o.dialAttempts)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -326,7 +325,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                       ),
                   ],
                   if (o.history.isNotEmpty) ...[
-                    const GroupLabel('History'),
+                    GroupLabel(tr('History')),
                     for (final h in o.history)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
@@ -369,7 +368,7 @@ class _PaymentSmsReviewScreenState extends ListScreenState<PaymentSmsReviewScree
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(trp('Only when you are sure which pending deposit this \${0} payment belongs to. That customer\'s wallet is credited.', [s.amount])),
           const SizedBox(height: 12),
-          TextField(controller: code, decoration: const InputDecoration(labelText: 'Deposit order code')),
+          TextField(controller: code, decoration: InputDecoration(labelText: tr('Deposit order code'))),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
@@ -407,7 +406,7 @@ class _PaymentSmsReviewScreenState extends ListScreenState<PaymentSmsReviewScree
         Expanded(
           child: body(
             builder: (list) => list.isEmpty
-                ? ListView(children: const [SizedBox(height: 80), EmptyStateView(icon: Icons.sms_outlined, title: 'Nothing here')])
+                ? ListView(children: [SizedBox(height: 80), EmptyStateView(icon: Icons.sms_outlined, title: tr('Nothing here'))])
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                     itemCount: list.length,
@@ -528,7 +527,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               DropdownButtonFormField<String>(
                 value: method,
-                decoration: const InputDecoration(labelText: 'Wallet'),
+                decoration: InputDecoration(labelText: tr('Wallet')),
                 items: const [
                   DropdownMenuItem(value: 'evc_plus', child: Tx('EVC Plus')),
                   DropdownMenuItem(value: 'edahab', child: Tx('eDahab')),
@@ -538,7 +537,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
               TextField(
                 controller: phone,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Wallet number (9 digits)'),
+                decoration: InputDecoration(labelText: tr('Wallet number (9 digits)')),
               ),
               const SizedBox(height: 8),
               SwitchListTile(
@@ -551,7 +550,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
               if (onThisPhone)
                 DropdownButtonFormField<int?>(
                   value: slot,
-                  decoration: const InputDecoration(labelText: 'SIM slot'),
+                  decoration: InputDecoration(labelText: tr('SIM slot')),
                   items: const [
                     DropdownMenuItem(value: 1, child: Tx('SIM 1')),
                     DropdownMenuItem(value: 2, child: Tx('SIM 2')),
@@ -576,13 +575,13 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
         deviceId: onThisPhone ? _session.deviceId : null,
         simSlot: onThisPhone ? slot : null,
       ),
-      'Wallet saved.',
+      tr('Wallet saved.'),
     );
   }
 
   Future<void> _delete(PayoutWallet w) async {
-    if (!await _confirm(context, 'Remove wallet?', '${w.methodLabel} ${w.phoneNumber} and its PIN are removed.', 'Remove')) return;
-    await _run(() => _session.api.deletePayoutWallet(w.id), 'Wallet removed.');
+    if (!await _confirm(context, tr('Remove wallet?'), trp('{0} {1} and its PIN are removed.', [w.methodLabel, w.phoneNumber]), tr('Remove'))) return;
+    await _run(() => _session.api.deletePayoutWallet(w.id), tr('Wallet removed.'));
   }
 
   Future<void> _setPin(PayoutWallet w) async {
@@ -595,7 +594,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           controller: pin,
           obscureText: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Wallet PIN', helperText: 'Stored encrypted; it is never shown again.'),
+          decoration: InputDecoration(labelText: tr('Wallet PIN'), helperText: tr('Stored encrypted; it is never shown again.')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
@@ -603,7 +602,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
         ],
       ),
     );
-    if (ok == true) await _run(() => _session.api.setPayoutWalletPin(w.id, pin.text.trim()), 'PIN saved.');
+    if (ok == true) await _run(() => _session.api.setPayoutWalletPin(w.id, pin.text.trim()), tr('PIN saved.'));
   }
 
   Future<void> _setCode(PayoutWallet w) async {
@@ -616,9 +615,9 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           controller: code,
           obscureText: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: '*736 code',
-            helperText: 'The last number in *736*number*amount*CODE#. The PIN is typed after it.\nStored encrypted; it is never shown again.',
+          decoration: InputDecoration(
+            labelText: tr('*736 code'),
+            helperText: tr('The last number in *736*number*amount*CODE#. The PIN is typed after it.\nStored encrypted; it is never shown again.'),
             helperMaxLines: 3,
           ),
         ),
@@ -628,7 +627,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
         ],
       ),
     );
-    if (ok == true) await _run(() => _session.api.setPayoutWalletUssdCode(w.id, code.text.trim()), '*736 code saved.');
+    if (ok == true) await _run(() => _session.api.setPayoutWalletUssdCode(w.id, code.text.trim()), tr('*736 code saved.'));
   }
 
   Future<void> _setMode(AutoPayoutSettings g, String mode) async {
@@ -636,24 +635,18 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     if (mode == 'test' &&
         !await _confirm(
           context,
-          'Test ${g.methodLabel} payouts',
-          'Only a \$${g.testAmount} withdrawal is paid automatically in Test mode.\n\n'
-              '1. Set the ${g.methodLabel} minimum withdrawal to \$${g.testAmount} (Payment methods).\n'
-              '2. From a customer account, withdraw \$${g.testAmount} to your own ${g.methodLabel} number.\n'
-              '3. Keep this phone on with automatic payouts on. It sends the payout; the withdrawal completes '
-              'when ${g.methodLabel} confirms it, and the test passes when its "you transferred" SMS arrives.\n\n'
-              'Then switch to Live.',
-          'Start test',
+          trp('Test {0} payouts', [g.methodLabel]),
+          trp('Only a \${0} withdrawal is paid automatically in Test mode.\n\n1. Set the {1} minimum withdrawal to \${2} (Payment methods).\n2. From a customer account, withdraw \${3} to your own {4} number.\n3. Keep this phone on with automatic payouts on. It sends the payout; the withdrawal completes when {5} confirms it, and the test passes when its "you transferred" SMS arrives.\n\nThen switch to Live.', [g.testAmount, g.methodLabel, g.testAmount, g.testAmount, g.methodLabel, g.methodLabel]),
+          tr('Start test'),
         )) {
       return;
     }
     if (mode == 'live' &&
         !await _confirm(
           context,
-          'Go live?',
-          'Every ${g.methodLabel} withdrawal will be sent automatically from ${g.walletPhone ?? 'the payout wallet'}, '
-              'up to \$${g.dailyLimit} a day, keeping at least \$${g.minBalance} in the wallet.',
-          'Go live',
+          tr('Go live?'),
+          trp('Every {0} withdrawal will be sent automatically from {1}, up to \${2} a day, keeping at least \${3} in the wallet.', [g.methodLabel, g.walletPhone ?? 'the payout wallet', g.dailyLimit, g.minBalance]),
+          tr('Go live'),
         )) {
       return;
     }
@@ -673,13 +666,13 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
             key: const Key('auto-daily'),
             controller: daily,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Daily limit (\$)', helperText: 'Paid automatically per day'),
+            decoration: InputDecoration(labelText: tr('Daily limit (\$)'), helperText: tr('Paid automatically per day')),
           ),
           TextField(
             key: const Key('auto-min'),
             controller: min,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Minimum balance (\$)', helperText: 'Always left in the wallet'),
+            decoration: InputDecoration(labelText: tr('Minimum balance (\$)'), helperText: tr('Always left in the wallet')),
           ),
         ]),
         actions: [
@@ -695,7 +688,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       if (mounted) showSnack(context, 'Enter amounts in dollars.');
       return;
     }
-    await _run(() => _session.api.setAutoPayout(g.method, dailyLimit: d, minBalance: m), 'Limits saved.');
+    await _run(() => _session.api.setAutoPayout(g.method, dailyLimit: d, minBalance: m), tr('Limits saved.'));
   }
 
   Future<void> _enterBalance(AutoPayoutSettings g) async {
@@ -708,9 +701,9 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           key: const Key('auto-balance'),
           controller: bal,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Balance now (\$)',
-            helperText: 'As the wallet shows it. Its SMS update it after that.',
+          decoration: InputDecoration(
+            labelText: tr('Balance now (\$)'),
+            helperText: tr('As the wallet shows it. Its SMS update it after that.'),
           ),
         ),
         actions: [
@@ -725,7 +718,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       if (mounted) showSnack(context, 'Enter the balance in dollars.');
       return;
     }
-    await _run(() => _session.api.setPayoutBalance(g.method, b), 'Balance saved.');
+    await _run(() => _session.api.setPayoutBalance(g.method, b), tr('Balance saved.'));
   }
 
   Widget _safeguardCard(AutoPayoutSettings g) {
@@ -754,15 +747,15 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           const SizedBox(height: 6),
           Tx(g.hasWallet ? help : 'Add a wallet with a phone and PIN first.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
-          InfoRow('Paid today', '\$${g.paidToday} of \$${g.dailyLimit}'),
-          InfoRow('Minimum balance', '\$${g.minBalance}'),
+          InfoRow(tr('Paid today'), trp('\${0} of \${1}', [g.paidToday, g.dailyLimit])),
+          InfoRow(tr('Minimum balance'), '\$${g.minBalance}'),
           InfoRow(
-            'Wallet balance',
+            tr('Wallet balance'),
             g.balance == null
                 ? 'Not known yet'
                 : '\$${g.balance}${g.balanceSeenAt != null ? ' (${formatDateTime(g.balanceSeenAt!)})' : ''}',
           ),
-          InfoRow('\$${g.testAmount} test', g.testPassed ? 'Passed${g.testOrderCode != null ? ' (${g.testOrderCode})' : ''}' : 'Not passed yet'),
+          InfoRow(trp('\${0} test', [g.testAmount]), g.testPassed ? 'Passed${g.testOrderCode != null ? ' (${g.testOrderCode})' : ''}' : 'Not passed yet'),
           if (g.liveNeedsRetest)
             const Tx('The payout wallet or phone changed: switch to Test and send a new test.',
                 style: TextStyle(color: AppColors.statusFailed)),
@@ -783,24 +776,18 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     if (mode == 'test' &&
         !await _confirm(
           context,
-          'Test Sahal payouts',
-          'Only a \$${g.testAmount} Golis, ZAAD or EVC Plus withdrawal is sent automatically from Sahal in Test mode. '
-              'While Sahal is on, the phone does not pay EVC Plus withdrawals.\n\n'
-              '1. Set that method\'s minimum withdrawal to \$${g.testAmount} (Payment methods).\n'
-              '2. From a customer account, withdraw \$${g.testAmount} by Golis, ZAAD or EVC Plus.\n'
-              '3. The server sends it from Sahal within a minute and completes the withdrawal.\n\n'
-              'Then switch to Live. Stop paying these withdrawals by hand from then on.',
-          'Start test',
+          tr('Test Sahal payouts'),
+          trp('Only a \${0} Golis, ZAAD or EVC Plus withdrawal is sent automatically from Sahal in Test mode. While Sahal is on, the phone does not pay EVC Plus withdrawals.\n\n1. Set that method\'s minimum withdrawal to \${1} (Payment methods).\n2. From a customer account, withdraw \${2} by Golis, ZAAD or EVC Plus.\n3. The server sends it from Sahal within a minute and completes the withdrawal.\n\nThen switch to Live. Stop paying these withdrawals by hand from then on.', [g.testAmount, g.testAmount, g.testAmount]),
+          tr('Start test'),
         )) {
       return;
     }
     if (mode == 'live' &&
         !await _confirm(
           context,
-          'Go live?',
-          'Every Golis, ZAAD and EVC Plus withdrawal will be sent automatically from Sahal, up to \$${g.dailyLimit} a day. '
-              'Do not also pay them by hand.',
-          'Go live',
+          tr('Go live?'),
+          trp('Every Golis, ZAAD and EVC Plus withdrawal will be sent automatically from Sahal, up to \${0} a day. Do not also pay them by hand.', [g.dailyLimit]),
+          tr('Go live'),
         )) {
       return;
     }
@@ -818,7 +805,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           key: const Key('sahal-daily'),
           controller: daily,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Daily limit (\$)', helperText: 'Sent from Sahal per day'),
+          decoration: InputDecoration(labelText: tr('Daily limit (\$)'), helperText: tr('Sent from Sahal per day')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
@@ -832,7 +819,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       if (mounted) showSnack(context, 'Enter the amount in dollars.');
       return;
     }
-    await _run(() => _session.api.setSahalPayouts(dailyLimit: d), 'Limit saved.');
+    await _run(() => _session.api.setSahalPayouts(dailyLimit: d), tr('Limit saved.'));
   }
 
   Widget _sahalCard(SahalPayoutSettings g) {
@@ -866,9 +853,9 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           ),
           const SizedBox(height: 6),
           Tx(help, style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
-          InfoRow('Sent today', '\$${g.paidToday} of \$${g.dailyLimit}'),
+          InfoRow(tr('Sent today'), trp('\${0} of \${1}', [g.paidToday, g.dailyLimit])),
           InfoRow(
-            'Sahal balance',
+            tr('Sahal balance'),
             g.balance == null
                 ? 'Not read yet'
                 : '\$${g.balance}${g.balanceSeenAt != null ? ' (${formatDateTime(g.balanceSeenAt!)})' : ''}',
@@ -876,8 +863,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           if (g.needsBalance > 0)
             Text(trp('{0} waiting for more Sahal balance: top up Sahal and they go out.', [g.needsBalance]),
                 key: const Key('sahal-needs-balance'), style: const TextStyle(color: AppColors.statusPending)),
-          InfoRow('\$${g.testAmount} test', g.testPassed ? 'Passed' : 'Not passed yet'),
-          if (g.waiting > 0) InfoRow('Waiting', '${g.waiting}'),
+          InfoRow(trp('\${0} test', [g.testAmount]), g.testPassed ? 'Passed' : 'Not passed yet'),
+          if (g.waiting > 0) InfoRow(tr('Waiting'), '${g.waiting}'),
           if (g.unclear > 0)
             Text(trp('{0} transfer(s) without a clear answer: check them in Sahal before paying again.', [g.unclear]),
                 style: const TextStyle(color: AppColors.statusFailed)),
@@ -893,7 +880,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                 alignment: Alignment.centerLeft,
                 child: TextButton(
                   key: Key('sahal-retry-${a.orderCode}'),
-                  onPressed: () => _run(() => _session.api.retrySahalPayout(a.orderId!), '${a.orderCode} will be sent again.'),
+                  onPressed: () => _run(() => _session.api.retrySahalPayout(a.orderId!), trp('{0} will be sent again.', [a.orderCode])),
                   child: const Tx('Try again'),
                 ),
               ),
@@ -926,7 +913,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
-                  const GroupLabel('This phone'),
+                  GroupLabel(tr('This phone')),
                   ConsoleCard(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       SwitchListTile(
@@ -936,8 +923,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                         value: _auto,
                         onChanged: _setAuto,
                       ),
-                      InfoRow('Accessibility ("Badal Exchange payouts")', d?.accessibilityEnabled == true ? 'On' : 'Off'),
-                      InfoRow('Phone & call permission', d?.permissionsGranted == true ? 'Granted' : 'Not granted'),
+                      InfoRow(tr('Accessibility ("Badal Exchange payouts")'), d?.accessibilityEnabled == true ? 'On' : 'Off'),
+                      InfoRow(tr('Phone & call permission'), d?.permissionsGranted == true ? 'Granted' : 'Not granted'),
                       Wrap(spacing: 8, children: [
                         if (d?.accessibilityEnabled != true)
                           OutlinedButton(
@@ -955,11 +942,11 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                       ]),
                     ]),
                   ),
-                  const GroupLabel('Automatic payout safeguards'),
+                  GroupLabel(tr('Automatic payout safeguards')),
                   for (final g in _safeguards) _safeguardCard(g),
                   if (_sahal != null) _sahalCard(_sahal!),
                   Row(children: [
-                    const Expanded(child: GroupLabel('Badal Exchange wallets')),
+                    Expanded(child: GroupLabel(tr('Badal Exchange wallets'))),
                     TextButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Tx('Add')),
                   ]),
                   Tx(
@@ -991,7 +978,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                                   TextButton(
                                       onPressed: () => _setCode(w), child: Tx(w.hasCode ? 'Change *736 code' : 'Set *736 code')),
                                 IconButton(
-                                    tooltip: 'Remove',
+                                    tooltip: tr('Remove'),
                                     onPressed: () => _delete(w),
                                     icon: const Icon(Icons.delete_outline_rounded)),
                               ]),

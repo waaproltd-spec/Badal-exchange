@@ -187,7 +187,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: Tx(_error!, style: const TextStyle(color: AppColors.statusFailed)),
           ),
         const SizedBox(height: 10),
-        const _Heading('Total Overview'),
+        _Heading(tr('Total Overview')),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
             child: _OverviewCard(
@@ -197,8 +197,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               iconColor: _R.green,
               value: usd(r.revenue),
               valueColor: _R.green,
-              label: 'Revenue',
-              caption: 'Completed only · fees ${usd(r.fees)}',
+              label: tr('Revenue'),
+              caption: trp('Completed only · fees {0}', [usd(r.fees)]),
             ),
           ),
           const SizedBox(width: 12),
@@ -210,31 +210,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
               iconColor: const Color(0xFFF2B600),
               value: '${r.transactions}',
               valueColor: _R.text,
-              label: 'Transactions',
-              caption: '${r.deposits.count} deposits · ${r.withdrawals.count} withdrawals',
+              label: tr('Transactions'),
+              caption: trp('{0} deposits · {1} withdrawals', [r.deposits.count, r.withdrawals.count]),
             ),
           ),
         ]),
         const SizedBox(height: 8),
         _ListCard(children: [
-          _SplitRow(label: 'Deposits', figure: r.deposits, onTap: () => _open(type: 'deposit', status: 'completed')),
-          _SplitRow(label: 'Withdrawals', figure: r.withdrawals, onTap: () => _open(type: 'withdraw', status: 'completed')),
+          _SplitRow(label: tr('Deposits'), figure: r.deposits, onTap: () => _open(type: 'deposit', status: 'completed')),
+          _SplitRow(label: tr('Withdrawals'), figure: r.withdrawals, onTap: () => _open(type: 'withdraw', status: 'completed')),
         ]),
-        const _Heading('Top Platforms'),
+        _Heading(tr('Top Platforms')),
         if (r.platforms.isEmpty)
-          const _Empty('No completed platform transactions in this period.')
+          _Empty(tr('No completed platform transactions in this period.'))
         else
           for (var i = 0; i < r.platforms.length; i++)
             _RankCard(key: Key('platform-${r.platforms[i].key}'), rank: i + 1, row: r.platforms[i], method: r.platforms[i].key),
-        const _Heading('Payment Methods'),
+        _Heading(tr('Payment Methods')),
         if (r.methods.isEmpty)
-          const _Empty('No completed mobile money transactions in this period.')
+          _Empty(tr('No completed mobile money transactions in this period.'))
         else
           for (var i = 0; i < r.methods.length; i++)
             _RankCard(key: Key('method-${r.methods[i].key}'), rank: i + 1, row: r.methods[i], method: r.methods[i].key),
-        const _Heading('Top Users'),
+        _Heading(tr('Top Users')),
         if (r.users.isEmpty)
-          const _Empty('No customer transactions in this period.')
+          _Empty(tr('No customer transactions in this period.'))
         else ...[
           for (var i = 0; i < r.users.length; i++)
             _RankCard(key: Key('user-${r.users[i].key}'), rank: i + 1, row: r.users[i], trophy: i == 0),
@@ -245,33 +245,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   style: TextStyle(color: _R.muted, fontSize: 12.5)),
             ),
         ],
-        const _Heading('Largest Transactions'),
+        _Heading(tr('Largest Transactions')),
         if (r.topTransactions.isEmpty)
-          const _Empty('No completed transactions in this period.')
+          _Empty(tr('No completed transactions in this period.'))
         else
           _ListCard(children: [for (final t in r.topTransactions) _TransactionRow(t: t)]),
         if (r.series != null && r.series!.isNotEmpty) ...[
-          const _Heading('Transactions per Day'),
+          _Heading(tr('Transactions per Day')),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: _R.card, borderRadius: BorderRadius.circular(18)),
             child: Column(children: [
               SizedBox(height: 170, child: _BarChart(series: r.series!)),
               const SizedBox(height: 10),
-              const Wrap(alignment: WrapAlignment.center, spacing: 14, runSpacing: 4, children: [
-                _Legend(color: AppColors.statusCompleted, label: 'Deposits paid'),
-                _Legend(color: AppColors.accentOrange, label: 'Withdrawals paid'),
-                _Legend(color: AppColors.purple, label: 'All orders'),
+              Wrap(alignment: WrapAlignment.center, spacing: 14, runSpacing: 4, children: [
+                _Legend(color: AppColors.statusCompleted, label: tr('Deposits paid')),
+                _Legend(color: AppColors.accentOrange, label: tr('Withdrawals paid')),
+                _Legend(color: AppColors.purple, label: tr('All orders')),
               ]),
             ]),
           ),
         ],
-        const _Heading('Not in the revenue'),
+        _Heading(tr('Not in the revenue')),
         _ListCard(children: [
-          _SplitRow(label: 'Waiting (pending / processing)', figure: open, countOnly: true, onTap: () => _open(type: 'order', status: 'pending')),
-          _SplitRow(label: 'Failed', figure: failed, onTap: () => _open(type: 'order', status: 'failed')),
-          _SplitRow(label: 'Cancelled / rejected', figure: cancelled, onTap: () => _open(type: 'order', status: 'cancelled')),
-          _SplitRow(label: 'Expired unpaid', figure: expired, onTap: () => _open(type: 'order', status: 'expired')),
+          _SplitRow(label: tr('Waiting (pending / processing)'), figure: open, countOnly: true, onTap: () => _open(type: 'order', status: 'pending')),
+          _SplitRow(label: tr('Failed'), figure: failed, onTap: () => _open(type: 'order', status: 'failed')),
+          _SplitRow(label: tr('Cancelled / rejected'), figure: cancelled, onTap: () => _open(type: 'order', status: 'cancelled')),
+          _SplitRow(label: tr('Expired unpaid'), figure: expired, onTap: () => _open(type: 'order', status: 'expired')),
         ]),
       ],
     );

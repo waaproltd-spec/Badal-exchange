@@ -83,8 +83,8 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     children: [
                       Expanded(
                         child: _Figure(
-                          label: 'Balance',
-                          hint: 'Bought by customers',
+                          label: tr('Balance'),
+                          hint: tr('Bought by customers'),
                           value: companyAmount(c),
                           valueKey: const Key('detail-balance'),
                         ),
@@ -93,8 +93,8 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _Figure(
-                            label: 'Limit',
-                            hint: 'Still available to sell',
+                            label: tr('Limit'),
+                            hint: tr('Still available to sell'),
                             value: companyLimit(c),
                             valueKey: const Key('detail-limit'),
                           ),
@@ -112,18 +112,18 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   ],
                   const Divider(height: 24),
                   if (c.liveBalance != null)
-                    InfoRow('Live check',
-                        'Balance \$${c.liveBalance} · Limit ${c.liveLimit == null ? 'not reported' : '\$${c.liveLimit}'}'),
+                    InfoRow(tr('Live check'),
+                        trp('Balance \${0} · Limit {1}', [c.liveBalance, c.liveLimit == null ? 'not reported' : '\$${c.liveLimit}'])),
                   if (c.liveBalance != null)
                     InfoRow(
-                      'Since the check',
+                      tr('Since the check'),
                       c.changesSinceCheck == 0
                           ? 'No changes'
                           : '${c.changesSinceCheck} · sold \$${c.salesSinceCheck} · paid out \$${c.payoutsSinceCheck}',
                     ),
-                  InfoRow('Last successful check', c.lastSuccessAt == null ? 'Never' : formatDateTime(c.lastSuccessAt!)),
-                  InfoRow('Open withdrawals', '${c.openWithdrawals} · \$${c.openWithdrawalAmount}'),
-                  if (c.connected) InfoRow('Low-balance level', '\$${c.lowThreshold}'),
+                  InfoRow(tr('Last successful check'), c.lastSuccessAt == null ? 'Never' : formatDateTime(c.lastSuccessAt!)),
+                  InfoRow(tr('Open withdrawals'), '${c.openWithdrawals} · \$${c.openWithdrawalAmount}'),
+                  if (c.connected) InfoRow(tr('Low-balance level'), '\$${c.lowThreshold}'),
                 ],
               ),
             ),
@@ -147,29 +147,29 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   icon: Icons.south_rounded,
                   color: AppColors.statusCompleted,
                   value: '\$${d.company.period.received}',
-                  label: 'Received · ${d.company.period.receivedCount} deposits',
+                  label: trp('Received · {0} deposits', [d.company.period.receivedCount]),
                 ),
                 StatCard(
                   icon: Icons.north_rounded,
                   color: AppColors.statusProcessing,
                   value: '\$${d.company.period.sent}',
-                  label: 'Sent · ${d.company.period.sentCount} withdrawals',
+                  label: trp('Sent · {0} withdrawals', [d.company.period.sentCount]),
                 ),
                 StatCard(
                   icon: Icons.hourglass_top_rounded,
                   color: AppColors.statusPending,
                   value: '${d.company.period.open}',
-                  label: 'Pending',
+                  label: tr('Pending'),
                 ),
                 StatCard(
                   icon: Icons.close_rounded,
                   color: AppColors.statusFailed,
                   value: '${d.company.period.failed}',
-                  label: 'Failed',
+                  label: tr('Failed'),
                 ),
               ]),
               const SizedBox(height: 8),
-              const SectionHeader(title: 'Transactions'),
+              SectionHeader(title: tr('Transactions')),
               ChoiceChipsRow<String?>(
                 options: const [(null, 'All'), ('open', 'Pending'), ('completed', 'Completed'), ('failed', 'Failed')],
                 selected: _status,
@@ -189,7 +189,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   const SizedBox(height: 8),
                 ],
               if (c.connected) ...[
-                const SectionHeader(title: 'Register history'),
+                SectionHeader(title: tr('Register history')),
                 if (d.movements.isEmpty)
                   ConsoleCard(
                     child: Tx('No sales or payouts recorded yet.', style: TextStyle(color: AppColors.textSecondary)),
@@ -199,7 +199,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     child: Column(children: [for (final m in d.movements) _MovementRow(movement: m)]),
                   ),
-                const SectionHeader(title: 'Balance checks'),
+                SectionHeader(title: tr('Balance checks')),
                 if (d.checks.isEmpty)
                   ConsoleCard(child: Tx('Not read yet.', style: TextStyle(color: AppColors.textSecondary)))
                 else

@@ -73,7 +73,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             key: const Key('verify-reason'),
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Reason (shown to the customer)'),
+            decoration: InputDecoration(labelText: tr('Reason (shown to the customer)')),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Tx('Cancel')),
@@ -154,12 +154,12 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
                       ),
                       const SizedBox(height: 8),
                       if (_requests!.isEmpty)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 40),
                           child: EmptyStateView(
                             icon: Icons.verified_user_outlined,
-                            title: 'Nothing here',
-                            message: 'No accounts with this status.',
+                            title: tr('Nothing here'),
+                            message: tr('No accounts with this status.'),
                           ),
                         )
                       else
@@ -187,14 +187,14 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             StatusPill(v.status == 'approved' ? 'completed' : (v.status == 'pending' ? 'pending' : 'failed')),
           ]),
           const SizedBox(height: 8),
-          InfoRow('Status', const {'pending': 'Not approved', 'approved': 'Approved for withdrawals', 'rejected': 'Rejected', 'restricted': 'Restricted'}[v.status] ?? v.status),
-          InfoRow('Balance', '\$${v.balance}'),
-          InfoRow('Deposits completed', '${v.depositCount} · \$${v.depositTotal}'),
-          InfoRow('Withdrawals completed', '${v.withdrawalCount} · \$${v.withdrawalTotal}'),
-          if (v.requestedAt != null) InfoRow('Requested', _when.format(v.requestedAt!.toLocal())),
+          InfoRow(tr('Status'), const {'pending': 'Not approved', 'approved': 'Approved for withdrawals', 'rejected': 'Rejected', 'restricted': 'Restricted'}[v.status] ?? v.status),
+          InfoRow(tr('Balance'), '\$${v.balance}'),
+          InfoRow(tr('Deposits completed'), '${v.depositCount} · \$${v.depositTotal}'),
+          InfoRow(tr('Withdrawals completed'), '${v.withdrawalCount} · \$${v.withdrawalTotal}'),
+          if (v.requestedAt != null) InfoRow(tr('Requested'), _when.format(v.requestedAt!.toLocal())),
           if (v.decidedAt != null)
-            InfoRow('Decided', '${_when.format(v.decidedAt!.toLocal())}${v.decidedBy != null ? ' · ${v.decidedBy}' : ''}'),
-          if (v.reason != null && v.reason!.isNotEmpty) InfoRow('Reason', v.reason!),
+            InfoRow(tr('Decided'), '${_when.format(v.decidedAt!.toLocal())}${v.decidedBy != null ? ' · ${v.decidedBy}' : ''}'),
+          if (v.reason != null && v.reason!.isNotEmpty) InfoRow(tr('Reason'), v.reason!),
           if (v.recent.isNotEmpty) ...[
             const SizedBox(height: 6),
             const Tx('Recent transactions', style: TextStyle(fontWeight: FontWeight.w700)),

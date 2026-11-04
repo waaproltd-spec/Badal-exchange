@@ -145,7 +145,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
               key: const Key('agent-filter'),
               value: _agent,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Agent', isDense: true),
+              decoration: InputDecoration(labelText: tr('Agent'), isDense: true),
               items: [
                 const DropdownMenuItem<String?>(value: null, child: Tx('All agents (consolidated)')),
                 const DropdownMenuItem<String?>(value: 'automatic', child: Tx('Automatic (no agent)')),
@@ -172,7 +172,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
               icon: Icons.south_rounded,
               color: AppColors.statusCompleted,
               value: commissionMoney(t.depositTotal),
-              label: 'Total Deposit',
+              label: tr('Total Deposit'),
               caption: '${t.depositCount} · ${percent(r.depositBp)} = ${commissionMoney(t.depositCommission)}',
             ),
             StatCard(
@@ -180,7 +180,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
               icon: Icons.north_rounded,
               color: AppColors.accentOrange,
               value: commissionMoney(t.withdrawalTotal),
-              label: 'Total Withdrawal',
+              label: tr('Total Withdrawal'),
               caption: '${t.withdrawalCount} · ${percent(r.withdrawBp)} = ${commissionMoney(t.withdrawalGross)}',
             ),
             StatCard(
@@ -188,37 +188,37 @@ class _CommissionScreenState extends State<CommissionScreen> {
               icon: Icons.payments_rounded,
               color: AppColors.purple,
               value: commissionMoney(t.commission),
-              label: 'Total Commission',
-              caption: 'Net, after the bonus',
+              label: tr('Total Commission'),
+              caption: tr('Net, after the bonus'),
             ),
             StatCard(
               key: const Key('total-bonus'),
               icon: Icons.card_giftcard_rounded,
               color: AppColors.statusProcessing,
               value: commissionMoney(t.bonus),
-              label: 'Total Bonus',
-              caption: '${percent(r.bonusBp)} of withdrawals, off the commission',
+              label: tr('Total Bonus'),
+              caption: trp('{0} of withdrawals, off the commission', [percent(r.bonusBp)]),
             ),
           ]),
           const SizedBox(height: 8),
           ConsoleCard(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              _Line('Deposit commission (${percent(r.depositBp)})', commissionMoney(t.depositCommission)),
-              _Line('Withdrawal commission (${percent(r.withdrawBp)})', commissionMoney(t.withdrawalGross)),
-              _Line('Bonus (${percent(r.bonusBp)} of withdrawals)', '- ${commissionMoney(t.bonus)}'),
+              _Line(trp('Deposit commission ({0})', [percent(r.depositBp)]), commissionMoney(t.depositCommission)),
+              _Line(trp('Withdrawal commission ({0})', [percent(r.withdrawBp)]), commissionMoney(t.withdrawalGross)),
+              _Line(trp('Bonus ({0} of withdrawals)', [percent(r.bonusBp)]), '- ${commissionMoney(t.bonus)}'),
               const Divider(height: 14),
-              _Line('Net commission', commissionMoney(t.commission), strong: true),
+              _Line(tr('Net commission'), commissionMoney(t.commission), strong: true),
             ]),
           ),
-          const SectionHeader(title: 'Transactions'),
+          SectionHeader(title: tr('Transactions')),
           if (r.transactions.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 24),
               child: EmptyStateView(
                 icon: Icons.receipt_long_rounded,
-                title: 'No betting transactions',
-                message: 'Nothing for these dates and this company.',
+                title: tr('No betting transactions'),
+                message: tr('Nothing for these dates and this company.'),
               ),
             )
           else
@@ -283,10 +283,10 @@ class _TransactionCard extends StatelessWidget {
           ]),
           const SizedBox(height: 10),
           Wrap(spacing: 16, runSpacing: 6, children: [
-            _Figure('Amount', row.amount == null ? '—' : commissionMoney(row.amount!)),
-            _Figure('Commission', row.commission == null ? '—' : commissionMoney(row.commission!)),
-            _Figure('Bonus', row.bonus == null ? '—' : '- ${commissionMoney(row.bonus!)}'),
-            _Figure('Net', row.netCommission == null ? 'Not earned' : commissionMoney(row.netCommission!),
+            _Figure(tr('Amount'), row.amount == null ? '—' : commissionMoney(row.amount!)),
+            _Figure(tr('Commission'), row.commission == null ? '—' : commissionMoney(row.commission!)),
+            _Figure(tr('Bonus'), row.bonus == null ? '—' : '- ${commissionMoney(row.bonus!)}'),
+            _Figure(tr('Net'), row.netCommission == null ? 'Not earned' : commissionMoney(row.netCommission!),
                 color: row.earns ? AppColors.statusCompleted : AppColors.textFaint),
           ]),
         ]),

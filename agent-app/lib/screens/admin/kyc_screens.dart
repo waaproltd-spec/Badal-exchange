@@ -105,12 +105,12 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
                         },
                       ),
                       const SizedBox(height: 10),
-                      SearchField(hint: 'Search by name, phone or document number…', controller: _search, onSubmitted: (_) => _load()),
+                      SearchField(hint: tr('Search by name, phone or document number…'), controller: _search, onSubmitted: (_) => _load()),
                       const SizedBox(height: 10),
                       if (_items!.isEmpty)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 40),
-                          child: EmptyStateView(icon: Icons.badge_outlined, title: 'Nothing here', message: 'No applications with this status.'),
+                          child: EmptyStateView(icon: Icons.badge_outlined, title: tr('Nothing here'), message: tr('No applications with this status.')),
                         )
                       else
                         for (final x in _items!)
@@ -240,7 +240,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                     key: const Key('kyc-review-status'), style: const TextStyle(fontWeight: FontWeight.w700)),
                 if (a.item.submittedAt != null)
                   Text(trp('Submitted {0}', [_when.format(a.item.submittedAt!.toLocal())]), style: TextStyle(color: AppColors.textFaint)),
-                const SectionHeader(title: 'Documents'),
+                SectionHeader(title: tr('Documents')),
                 Wrap(spacing: 10, runSpacing: 10, children: [
                   for (final kind in ['front', 'back', 'selfie'])
                     if (a.documents[kind] != null)
@@ -267,14 +267,14 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                         ]),
                       ),
                 ]),
-                const SectionHeader(title: 'Information'),
-                InfoRow('Document', a.item.documentType == 'passport' ? 'Passport' : 'National ID'),
-                InfoRow('Full name', a.item.fullName),
-                InfoRow('Document number', a.item.documentNumber),
-                InfoRow('Country of issue', a.item.country),
-                InfoRow('Date of birth', a.dateOfBirth ?? '—'),
-                InfoRow('Expiry date', a.expiryDate ?? '—'),
-                const SectionHeader(title: 'Verification Result'),
+                SectionHeader(title: tr('Information')),
+                InfoRow(tr('Document'), a.item.documentType == 'passport' ? 'Passport' : 'National ID'),
+                InfoRow(tr('Full name'), a.item.fullName),
+                InfoRow(tr('Document number'), a.item.documentNumber),
+                InfoRow(tr('Country of issue'), a.item.country),
+                InfoRow(tr('Date of birth'), a.dateOfBirth ?? '—'),
+                InfoRow(tr('Expiry date'), a.expiryDate ?? '—'),
+                SectionHeader(title: tr('Verification Result')),
                 if (a.reviewReason != null) Text(a.reviewReason!, key: const Key('kyc-review-reason')),
                 for (final c in a.checks)
                   ListTile(
@@ -285,15 +285,15 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                     title: Tx(c.key.replaceAll('_', ' ')),
                     subtitle: c.detail == null ? null : Tx(c.detail!),
                   ),
-                InfoRow('Identity service', a.provider ?? 'none'),
+                InfoRow(tr('Identity service'), a.provider ?? 'none'),
                 if (a.decided) ...[
-                  const SectionHeader(title: 'Decision'),
-                  InfoRow('Decided', a.decidedAt == null ? '—' : _when.format(a.decidedAt!.toLocal())),
-                  InfoRow('By', a.decidedBy ?? 'Automatic (identity service)'),
-                  InfoRow('Reason', a.decisionReason ?? '—'),
+                  SectionHeader(title: tr('Decision')),
+                  InfoRow(tr('Decided'), a.decidedAt == null ? '—' : _when.format(a.decidedAt!.toLocal())),
+                  InfoRow(tr('By'), a.decidedBy ?? 'Automatic (identity service)'),
+                  InfoRow(tr('Reason'), a.decisionReason ?? '—'),
                 ],
                 if (a.history.isNotEmpty) ...[
-                  const SectionHeader(title: 'History'),
+                  SectionHeader(title: tr('History')),
                   for (final h in a.history)
                     Text('${kycStatusLabels[h['status']] ?? h['status']} · ${h['reason'] ?? ''}',
                         style: TextStyle(color: AppColors.textSecondary)),

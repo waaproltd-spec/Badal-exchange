@@ -6,6 +6,7 @@ import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'state/session.dart';
 import 'theme/app_theme.dart';
+import 'l10n/tr.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +22,7 @@ class BadalAgentApp extends StatelessWidget {
     return ChangeNotifierProvider<Session>(
       create: (_) => Session()..bootstrap(),
       child: MaterialApp(
-        title: 'Badal Exchange Agent',
+        title: tr('Badal Exchange Agent'),
         debugShowCheckedModeBanner: false,
         theme: AppTheme.current,
         home: const _RootRouter(),

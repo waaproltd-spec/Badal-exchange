@@ -61,12 +61,12 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
       onRefresh: _load,
       child: _entries.isEmpty
           ? ListView(
-              children: const [
+              children: [
                 SizedBox(height: 120),
                 EmptyStateView(
                   icon: Icons.sms_rounded,
-                  title: 'No SMS submissions yet',
-                  message: 'Matched, unmatched, and duplicate submissions from this device will appear here.',
+                  title: tr('No SMS submissions yet'),
+                  message: tr('Matched, unmatched, and duplicate submissions from this device will appear here.'),
                 ),
               ],
             )

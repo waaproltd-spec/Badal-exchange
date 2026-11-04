@@ -82,7 +82,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
   Future<void> _startProcessing(Order order) async {
     await _runAction(order.id, () async {
       await context.read<Session>().api.startWithdrawal(order.id);
-      _showSnack('Marked as processing.', color: AppColors.statusProcessing);
+      _showSnack(tr('Marked as processing.'), color: AppColors.statusProcessing);
     });
   }
 
@@ -91,7 +91,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
     if (ref == null || ref.isEmpty || !mounted) return;
     await _runAction(order.id, () async {
       await context.read<Session>().api.completeWithdrawal(order.id, transactionRef: ref);
-      _showSnack('Withdrawal completed.', color: AppColors.statusCompleted);
+      _showSnack(tr('Withdrawal completed.'), color: AppColors.statusCompleted);
     });
   }
 
@@ -111,7 +111,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
         if (!sure) return;
         await api.failWithdrawal(order.id, reason: reason, confirmedNotPaid: true);
       }
-      _showSnack('Withdrawal marked failed. Balance released to customer.', color: AppColors.statusFailed);
+      _showSnack(tr('Withdrawal marked failed. Balance released to customer.'), color: AppColors.statusFailed);
     });
   }
 
@@ -157,11 +157,11 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
               ? ErrorStateView(message: _error!, onRetry: _load)
               : (_orders!.isEmpty
                   ? ListView(
-                      children: const [
+                      children: [
                         SizedBox(height: 120),
                         EmptyStateView(
                           icon: Icons.arrow_circle_up_rounded,
-                          title: 'No pending withdrawals',
+                          title: tr('No pending withdrawals'),
                         ),
                       ],
                     )

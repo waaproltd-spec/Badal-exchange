@@ -186,7 +186,7 @@ class _AddPlatformDialogState extends State<_AddPlatformDialog> {
         TextField(
           key: const Key('platform-name'),
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Platform name'),
+          decoration: InputDecoration(labelText: tr('Platform name')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 12),
@@ -194,7 +194,7 @@ class _AddPlatformDialogState extends State<_AddPlatformDialog> {
           key: const Key('platform-adapter'),
           value: _adapter,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'API'),
+          decoration: InputDecoration(labelText: tr('API')),
           items: [
             for (final a in widget.adapters) DropdownMenuItem(value: a.adapter, child: Tx(a.label, overflow: TextOverflow.ellipsis)),
           ],
@@ -302,13 +302,13 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
         apiSecret: _text('apiSecret'),
         apiKey: _text('apiKey'),
       ),
-      'Saved. Test the connection before switching it on.',
+      tr('Saved. Test the connection before switching it on.'),
     );
   }
 
   Future<void> _test() async {
     final api = context.read<Session>().api;
-    await _run(() => api.testBettingPlatform(widget.method), 'Test finished.');
+    await _run(() => api.testBettingPlatform(widget.method), tr('Test finished.'));
   }
 
   /// A logo for this platform: picked, shrunk, sent. Nothing else changes.
@@ -325,12 +325,12 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
       if (mounted) showSnack(context, 'No picture was chosen, or it could not be read.');
       return;
     }
-    await _run(() => api.setBettingPlatformLogo(widget.method, logo), 'Logo saved. The Customer App shows it now.');
+    await _run(() => api.setBettingPlatformLogo(widget.method, logo), tr('Logo saved. The Customer App shows it now.'));
   }
 
   Future<void> _removeLogo() async {
     final api = context.read<Session>().api;
-    await _run(() => api.setBettingPlatformLogo(widget.method, null), 'Logo removed.');
+    await _run(() => api.setBettingPlatformLogo(widget.method, null), tr('Logo removed.'));
   }
 
   Future<void> _remove() async {
@@ -375,13 +375,13 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                   Text(_p.lastMessage!, key: const Key('platform-message'), style: TextStyle(color: AppColors.textSecondary)),
                 ],
                 const SizedBox(height: 6),
-                InfoRow('Last test', _p.lastTestAt != null ? formatDateTime(_p.lastTestAt!) : '—'),
-                InfoRow('Last connected', _p.lastOkAt != null ? formatDateTime(_p.lastOkAt!) : '—'),
-                if (_p.updatedBy != null) InfoRow('Changed by', _p.updatedBy!),
+                InfoRow(tr('Last test'), _p.lastTestAt != null ? formatDateTime(_p.lastTestAt!) : '—'),
+                InfoRow(tr('Last connected'), _p.lastOkAt != null ? formatDateTime(_p.lastOkAt!) : '—'),
+                if (_p.updatedBy != null) InfoRow(tr('Changed by'), _p.updatedBy!),
               ]),
             ),
             ...[
-              const GroupLabel('Logo'),
+              GroupLabel(tr('Logo')),
               ConsoleCard(
                 key: const Key('platform-logo-card'),
                 child: Row(children: [
@@ -520,7 +520,7 @@ class _RemoveDialogState extends State<_RemoveDialog> {
         TextField(
           key: const Key('remove-reason'),
           controller: _reason,
-          decoration: const InputDecoration(labelText: 'Reason'),
+          decoration: InputDecoration(labelText: tr('Reason')),
           onChanged: (_) => setState(() {}),
         ),
       ]),

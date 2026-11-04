@@ -104,12 +104,12 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
       ),
       body: body(
         builder: (ads) => ads.isEmpty
-            ? ListView(children: const [
+            ? ListView(children: [
                 SizedBox(height: 100),
                 EmptyStateView(
                   icon: Icons.campaign_outlined,
-                  title: 'No home ads yet',
-                  message: 'Ads you add appear on the Customer App home screen.',
+                  title: tr('No home ads yet'),
+                  message: tr('Ads you add appear on the Customer App home screen.'),
                 ),
               ])
             : ListView(
@@ -350,13 +350,13 @@ class _HomeAdFormState extends State<HomeAdForm> {
           children: [
             TextFormField(
               controller: _title,
-              decoration: const InputDecoration(labelText: 'Title'),
+              decoration: InputDecoration(labelText: tr('Title')),
               maxLength: 120,
               validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
             ),
             TextFormField(
               controller: _body,
-              decoration: const InputDecoration(labelText: 'Text (optional)'),
+              decoration: InputDecoration(labelText: tr('Text (optional)')),
               maxLength: 500,
               maxLines: 3,
             ),
@@ -364,14 +364,14 @@ class _HomeAdFormState extends State<HomeAdForm> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _link,
-              decoration: const InputDecoration(labelText: 'Opens link when tapped (optional)', hintText: 'https://...'),
+              decoration: InputDecoration(labelText: tr('Opens link when tapped (optional)'), hintText: tr('https://...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _order,
-              decoration: const InputDecoration(labelText: 'Position (0 shows first)'),
+              decoration: InputDecoration(labelText: tr('Position (0 shows first)')),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 8),
@@ -426,12 +426,12 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
       ),
       body: body(
         builder: (numbers) => numbers.isEmpty
-            ? ListView(children: const [
+            ? ListView(children: [
                 SizedBox(height: 100),
                 EmptyStateView(
                   icon: Icons.phone_in_talk_outlined,
-                  title: 'No deposit numbers yet',
-                  message: 'Customers see these numbers/accounts when they deposit with that method.',
+                  title: tr('No deposit numbers yet'),
+                  message: tr('Customers see these numbers/accounts when they deposit with that method.'),
                 ),
               ])
             : ListView(
@@ -537,7 +537,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
             children: [
               DropdownButtonFormField<String>(
                 value: _method,
-                decoration: const InputDecoration(labelText: 'Payment method'),
+                decoration: InputDecoration(labelText: tr('Payment method')),
                 items: [for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Tx(m.label))],
                 onChanged: (v) => setState(() => _method = v ?? _method),
               ),
@@ -551,7 +551,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _label,
-                decoration: const InputDecoration(labelText: 'Label (optional)', hintText: 'e.g. Main number'),
+                decoration: InputDecoration(labelText: tr('Label (optional)'), hintText: tr('e.g. Main number')),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -625,13 +625,13 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
                 children: [
                   TextFormField(
                     controller: _title,
-                    decoration: const InputDecoration(labelText: 'Title'),
+                    decoration: InputDecoration(labelText: tr('Title')),
                     maxLength: 120,
                     validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
                   ),
                   TextFormField(
                     controller: _body,
-                    decoration: const InputDecoration(labelText: 'Message'),
+                    decoration: InputDecoration(labelText: tr('Message')),
                     maxLength: 1000,
                     maxLines: 4,
                     validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
@@ -646,7 +646,7 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
               ),
             ),
           ),
-          const SectionHeader(title: 'Sent notifications'),
+          SectionHeader(title: tr('Sent notifications')),
           if (items == null)
             (error != null ? ErrorStateView(message: error!, onRetry: load) : const LoadingView())
           else if (items!.isEmpty)
@@ -738,21 +738,21 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             TextFormField(
               controller: _current,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Current password'),
+              decoration: InputDecoration(labelText: tr('Current password')),
               validator: (v) => (v ?? '').isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _next,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'New password (at least 8 characters)'),
+              decoration: InputDecoration(labelText: tr('New password (at least 8 characters)')),
               validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _confirmNext,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm new password'),
+              decoration: InputDecoration(labelText: tr('Confirm new password')),
               validator: (v) => v != _next.text ? 'Passwords do not match' : null,
             ),
             const SizedBox(height: 20),

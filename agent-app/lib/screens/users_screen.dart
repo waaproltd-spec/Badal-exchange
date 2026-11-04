@@ -182,24 +182,24 @@ class _UsersScreenState extends State<UsersScreen> {
                 icon: Icons.groups_rounded,
                 color: AppColors.purple,
                 value: '${o.total}',
-                label: 'Total Customers',
-                caption: 'Wadarta Macaamiisha',
+                label: tr('Total Customers'),
+                caption: tr('Wadarta Macaamiisha'),
                 onTap: () => _setStatus('all'),
               ),
               StatCard(
                 icon: Icons.person_rounded,
                 color: AppColors.statusCompleted,
                 value: '${o.active}',
-                label: 'Active Customers',
-                caption: 'Macaamiisha Firfircoon',
+                label: tr('Active Customers'),
+                caption: tr('Macaamiisha Firfircoon'),
                 onTap: () => _setStatus('active'),
               ),
               StatCard(
                 icon: Icons.block_rounded,
                 color: AppColors.statusFailed,
                 value: '${o.blocked}',
-                label: 'Blocked Customers',
-                caption: 'Macaamiisha La Xannibay',
+                label: tr('Blocked Customers'),
+                caption: tr('Macaamiisha La Xannibay'),
                 onTap: () => _setStatus('blocked'),
               ),
               StatCard(
@@ -207,14 +207,14 @@ class _UsersScreenState extends State<UsersScreen> {
                 icon: Icons.person_add_alt_1_rounded,
                 color: AppColors.statusProcessing,
                 value: '${o.joined}',
-                label: 'New Customers',
+                label: tr('New Customers'),
                 caption: _periods.firstWhere((p) => p.$1 == _period).$2,
               ),
             ]),
             const SizedBox(height: 12),
           ],
           SearchField(
-            hint: 'Search by name or phone number',
+            hint: tr('Search by name or phone number'),
             controller: _search,
             onSubmitted: (_) => _load(),
           ),
@@ -255,9 +255,9 @@ class _UsersScreenState extends State<UsersScreen> {
           else if (_error != null && _customers.isEmpty)
             ErrorStateView(message: _error!, onRetry: _load)
           else if (_customers.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 60),
-              child: EmptyStateView(icon: Icons.people_outline_rounded, title: 'No customers found'),
+              child: EmptyStateView(icon: Icons.people_outline_rounded, title: tr('No customers found')),
             )
           else ...[
             for (final c in _customers) ...[
@@ -317,10 +317,10 @@ class _CustomerTile extends StatelessWidget {
                   ),
                 const SizedBox(height: 6),
                 Wrap(spacing: 12, runSpacing: 2, children: [
-                  _Count(Icons.receipt_long_outlined, '${customer.orders} orders'),
-                  _Count(Icons.south_rounded, '${customer.deposits} deposits'),
-                  _Count(Icons.north_rounded, '${customer.withdrawals} withdrawals'),
-                  _Count(Icons.history_rounded, '${customer.transactions} transactions'),
+                  _Count(Icons.receipt_long_outlined, trp('{0} orders', [customer.orders])),
+                  _Count(Icons.south_rounded, trp('{0} deposits', [customer.deposits])),
+                  _Count(Icons.north_rounded, trp('{0} withdrawals', [customer.withdrawals])),
+                  _Count(Icons.history_rounded, trp('{0} transactions', [customer.transactions])),
                 ]),
               ],
             ),

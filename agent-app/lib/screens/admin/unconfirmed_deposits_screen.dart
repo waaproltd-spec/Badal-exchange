@@ -122,18 +122,18 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
         ),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: _Count(key: const Key('count-not-confirmed'), label: 'Not confirmed by customer',
+          Expanded(child: _Count(key: const Key('count-not-confirmed'), label: tr('Not confirmed by customer'),
               value: data.notConfirmed, color: AppColors.statusUnmatched)),
           const SizedBox(width: 8),
-          Expanded(child: _Count(key: const Key('count-pending'), label: 'Pending admin verification',
+          Expanded(child: _Count(key: const Key('count-pending'), label: tr('Pending admin verification'),
               value: data.pendingVerification, color: AppColors.statusPending)),
         ]),
         const SizedBox(height: 8),
         Row(children: [
-          Expanded(child: _Count(key: const Key('count-overdue'), label: 'Overdue (over 48 hours)',
+          Expanded(child: _Count(key: const Key('count-overdue'), label: tr('Overdue (over 48 hours)'),
               value: data.overdue, color: AppColors.statusFailed)),
           const SizedBox(width: 8),
-          Expanded(child: _Count(key: const Key('count-closed'), label: 'Expired / rejected (not credited)',
+          Expanded(child: _Count(key: const Key('count-closed'), label: tr('Expired / rejected (not credited)'),
               value: data.expired, color: AppColors.statusDuplicate)),
         ]),
         const SizedBox(height: 12),
@@ -146,7 +146,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(tooltip: 'Refresh', onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+          IconButton(tooltip: tr('Refresh'), onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
         ]),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 4, children: [
@@ -161,12 +161,12 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
         ]),
         const SizedBox(height: 8),
         if (shown.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 40),
             child: EmptyStateView(
               icon: Icons.hourglass_empty_rounded,
-              title: 'Nothing here',
-              message: 'No deposits in this period match.',
+              title: tr('Nothing here'),
+              message: tr('No deposits in this period match.'),
             ),
           )
         else

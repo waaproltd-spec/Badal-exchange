@@ -106,10 +106,10 @@ class TransactionsOverviewCard extends StatelessWidget {
         Tx('Transactions Overview',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         const SizedBox(height: 6),
-        const Wrap(spacing: 12, runSpacing: 4, children: [
-          _Legend(_depositColor, 'Deposits'),
-          _Legend(_withdrawColor, 'Withdrawals'),
-          _Legend(_orderColor, 'Orders'),
+        Wrap(spacing: 12, runSpacing: 4, children: [
+          _Legend(_depositColor, tr('Deposits')),
+          _Legend(_withdrawColor, tr('Withdrawals')),
+          _Legend(_orderColor, tr('Orders')),
         ]),
         const SizedBox(height: 12),
         SizedBox(

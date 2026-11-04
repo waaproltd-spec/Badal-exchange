@@ -97,7 +97,7 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
     final configured = _status?['configured'] == true;
     final last = _status?['lastUsedAt'] as String?;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const GroupLabel('SMS forwarder (optional)'),
+      GroupLabel(tr('SMS forwarder (optional)')),
       ConsoleCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(
@@ -112,8 +112,8 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
                 'This token is shown once: copy it now.',
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
             const SizedBox(height: 8),
-            _Copyable(label: 'URL', value: SahalForwarderCard.url, onCopy: () => _copy(SahalForwarderCard.url, 'URL')),
-            _Copyable(label: 'Header  Authorization', value: 'Bearer $_token', onCopy: () => _copy('Bearer $_token', 'Header')),
+            _Copyable(label: tr('URL'), value: SahalForwarderCard.url, onCopy: () => _copy(SahalForwarderCard.url, tr('URL'))),
+            _Copyable(label: tr('Header  Authorization'), value: 'Bearer $_token', onCopy: () => _copy(trp('Bearer {0}', [_token]), tr('Header'))),
             const SizedBox(height: 6),
             Tx('Method POST, JSON body {"from": "<sender>", "text": "<message>"} using the forwarding app\'s '
                 'own placeholders for the sender and the message. Filter on messages containing "Sahal".',
@@ -160,7 +160,7 @@ class _Copyable extends StatelessWidget {
           SelectableText(value, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
         ]),
       ),
-      IconButton(tooltip: 'Copy', onPressed: onCopy, icon: const Icon(Icons.copy_rounded, size: 20)),
+      IconButton(tooltip: tr('Copy'), onPressed: onCopy, icon: const Icon(Icons.copy_rounded, size: 20)),
     ]);
   }
 }

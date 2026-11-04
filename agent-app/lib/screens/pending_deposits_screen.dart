@@ -110,7 +110,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
               key: const Key('reject-reason'),
               controller: reason,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Sababta', hintText: 'Tusaale: lacag lama helin'),
+              decoration: InputDecoration(labelText: tr('Sababta'), hintText: tr('Tusaale: lacag lama helin')),
             ),
           ],
         ),
@@ -193,13 +193,13 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
         _filters(wide),
         const SizedBox(height: 12),
         if (shown.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 40),
             child: EmptyStateView(
               icon: Icons.arrow_circle_down_rounded,
-              title: 'Lacag sugaysa ma jirto',
-              message: 'EVC Plus si toos ah ayuu u xaqiijismaa marka SMS-ka lacagta yimaado. '
-                  'Lacagaha kale ku xaqiiji badhanka hoose.',
+              title: tr('Lacag sugaysa ma jirto'),
+              message: tr('EVC Plus si toos ah ayuu u xaqiijismaa marka SMS-ka lacagta yimaado. '
+                  'Lacagaha kale ku xaqiiji badhanka hoose.'),
             ),
           )
         else if (wide)
@@ -219,13 +219,13 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
   Widget _summary(DepositBoard b, bool wide) {
     final cards = [
       _SummaryCard(key: const Key('sum-customers'), icon: Icons.schedule_rounded, color: AppColors.statusPending,
-          title: 'Tirada Macmiisha', value: '${b.pendingCustomers}', note: 'Sugaya Xaqiijin'),
+          title: tr('Tirada Macmiisha'), value: '${b.pendingCustomers}', note: tr('Sugaya Xaqiijin')),
       _SummaryCard(key: const Key('sum-total'), icon: Icons.payments_rounded, color: AppColors.statusProcessing,
-          title: 'Wadarta Lacagaha', value: '\$${b.pendingTotal}', note: 'Sugaya Xaqiijin'),
+          title: tr('Wadarta Lacagaha'), value: '\$${b.pendingTotal}', note: tr('Sugaya Xaqiijin')),
       _SummaryCard(key: const Key('sum-expired'), icon: Icons.error_outline_rounded, color: AppColors.statusFailed,
-          title: 'Waqtiga Dhammaaday', value: '${b.expiredCount}', note: 'Muddada la doortay'),
+          title: tr('Waqtiga Dhammaaday'), value: '${b.expiredCount}', note: tr('Muddada la doortay')),
       _SummaryCard(key: const Key('sum-new'), icon: Icons.check_circle_rounded, color: AppColors.statusCompleted,
-          title: 'Maanta Cusub', value: '${b.newCount}', note: '24 saac gudahood'),
+          title: tr('Maanta Cusub'), value: '${b.newCount}', note: tr('24 saac gudahood')),
     ];
     if (wide) {
       return Row(children: [for (final c in cards) Expanded(child: Padding(padding: const EdgeInsets.all(4), child: c))]);
@@ -252,11 +252,11 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     );
     final search = TextField(
       key: const Key('deposit-search'),
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         isDense: true,
         border: OutlineInputBorder(),
         prefixIcon: Icon(Icons.search_rounded),
-        hintText: 'Raadi lambarka macmiilka, magaca ama ID...',
+        hintText: tr('Raadi lambarka macmiilka, magaca ama ID...'),
       ),
       onChanged: (v) => setState(() => _query = v),
     );
@@ -323,7 +323,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
         ],
         IconButton(
           key: Key('view-${d.order.id}'),
-          tooltip: 'Macmiilka',
+          tooltip: tr('Macmiilka'),
           onPressed: () => _view(d),
           icon: const Icon(Icons.visibility_rounded),
         ),

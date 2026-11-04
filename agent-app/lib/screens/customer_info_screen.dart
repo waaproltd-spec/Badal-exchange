@@ -90,7 +90,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ),
           IconButton(
             key: const Key('reset-customer-password'),
-            tooltip: 'Reset password',
+            tooltip: tr('Reset password'),
             icon: const Icon(Icons.lock_reset_rounded),
             onPressed: _detail == null ? null : _resetPassword,
           ),
@@ -183,22 +183,22 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         const SizedBox(height: 12),
         CustomerBonusCard(api: context.read<Session>().api, customerId: c.id),
         TwoColumnGrid(children: [
-          StatCard(icon: Icons.shopping_bag_rounded, color: AppColors.purple, value: '${d.totalOrders}', label: 'Total Orders'),
-          StatCard(icon: Icons.south_rounded, color: AppColors.statusCompleted, value: '\$${d.totalDeposits}', label: 'Total Deposits'),
-          StatCard(icon: Icons.north_rounded, color: AppColors.accentOrange, value: '\$${d.totalWithdrawals}', label: 'Total Withdrawals'),
-          StatCard(icon: Icons.list_alt_rounded, color: AppColors.statusProcessing, value: '${d.totalTransactions}', label: 'Total Transactions'),
+          StatCard(icon: Icons.shopping_bag_rounded, color: AppColors.purple, value: '${d.totalOrders}', label: tr('Total Orders')),
+          StatCard(icon: Icons.south_rounded, color: AppColors.statusCompleted, value: '\$${d.totalDeposits}', label: tr('Total Deposits')),
+          StatCard(icon: Icons.north_rounded, color: AppColors.accentOrange, value: '\$${d.totalWithdrawals}', label: tr('Total Withdrawals')),
+          StatCard(icon: Icons.list_alt_rounded, color: AppColors.statusProcessing, value: '${d.totalTransactions}', label: tr('Total Transactions')),
         ]),
         const SizedBox(height: 12),
         ConsoleCard(
           child: Column(
             children: [
-              InfoRow('Registration date', c.registeredAt != null ? formatDate(c.registeredAt!) : '—'),
-              InfoRow('Account status', c.isActive ? 'Active' : 'Blocked'),
+              InfoRow(tr('Registration date'), c.registeredAt != null ? formatDate(c.registeredAt!) : '—'),
+              InfoRow(tr('Account status'), c.isActive ? 'Active' : 'Blocked'),
             ],
           ),
         ),
         const SizedBox(height: 8),
-        const SectionHeader(title: 'Recent Orders'),
+        SectionHeader(title: tr('Recent Orders')),
         if (d.recentOrders.isEmpty)
           ConsoleCard(child: Tx('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
@@ -208,8 +208,8 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ],
         const SizedBox(height: 8),
         SectionHeader(
-          title: 'Recent Transactions',
-          actionLabel: 'View all',
+          title: tr('Recent Transactions'),
+          actionLabel: tr('View all'),
           onAction: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => CustomerLedgerScreen(customerId: c.id, name: c.name)),
           ),
@@ -312,14 +312,14 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
               key: const Key('new-password'),
               controller: _password,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'New password'),
+              decoration: InputDecoration(labelText: tr('New password')),
               validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
             ),
             TextFormField(
               key: const Key('confirm-new-password'),
               controller: _confirm,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm new password'),
+              decoration: InputDecoration(labelText: tr('Confirm new password')),
               validator: (v) => v != _password.text ? 'Passwords do not match' : null,
             ),
           ],

@@ -68,8 +68,8 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
                 style: TextStyle(color: AppColors.textSecondary),
               ),
             ),
-            _group('Mobile money', methods.where((m) => !m.isPlatform).toList()),
-            _group('Betting platforms', methods.where((m) => m.isPlatform).toList()),
+            _group(tr('Mobile money'), methods.where((m) => !m.isPlatform).toList()),
+            _group(tr('Betting platforms'), methods.where((m) => m.isPlatform).toList()),
           ],
         ),
       ),
@@ -257,14 +257,14 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                 onChanged: (v) => setState(() => _enabled = v),
               ),
             ),
-            const GroupLabel('Withdrawal limits'),
+            GroupLabel(tr('Withdrawal limits')),
             ConsoleCard(
               child: Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _min,
-                      decoration: const InputDecoration(labelText: 'Minimum (\$)'),
+                      decoration: InputDecoration(labelText: tr('Minimum (\$)')),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: _nonNegative,
                     ),
@@ -273,7 +273,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _max,
-                      decoration: const InputDecoration(labelText: 'Maximum (\$)'),
+                      decoration: InputDecoration(labelText: tr('Maximum (\$)')),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: _positive,
                     ),
@@ -282,16 +282,16 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               ),
             ),
             if (!s.isPlatform) ...[
-              const GroupLabel('Merchant code'),
+              GroupLabel(tr('Merchant code')),
               ConsoleCard(
                 child: Column(
                   children: [
                     TextFormField(
                       key: const Key('merchant-ussd'),
                       controller: _merchant,
-                      decoration: const InputDecoration(
-                        labelText: 'Code to dial',
-                        hintText: '*789*090353102*{amount}#',
+                      decoration: InputDecoration(
+                        labelText: tr('Code to dial'),
+                        hintText: tr('*789*090353102*{amount}#'),
                         prefixIcon: Icon(Icons.dialpad_rounded),
                       ),
                       validator: (v) {
@@ -317,14 +317,14 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               ),
             ],
             if (s.hasPaymentLocation) ...[
-              const GroupLabel('Payment Location'),
+              GroupLabel(tr('Payment Location')),
               ConsoleCard(
                 child: Column(
                   children: [
                     TextFormField(
                       key: const Key('payment-city'),
                       controller: _city,
-                      decoration: const InputDecoration(labelText: 'City', prefixIcon: Icon(Icons.location_city_rounded)),
+                      decoration: InputDecoration(labelText: tr('City'), prefixIcon: Icon(Icons.location_city_rounded)),
                       textCapitalization: TextCapitalization.words,
                       validator: (v) => (v ?? '').trim().length > 60 ? 'At most 60 characters' : null,
                     ),
@@ -332,7 +332,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                     TextFormField(
                       key: const Key('payment-street'),
                       controller: _street,
-                      decoration: const InputDecoration(labelText: 'Street', prefixIcon: Icon(Icons.add_road_rounded)),
+                      decoration: InputDecoration(labelText: tr('Street'), prefixIcon: Icon(Icons.add_road_rounded)),
                       textCapitalization: TextCapitalization.characters,
                       validator: (v) => (v ?? '').trim().length > 80 ? 'At most 80 characters' : null,
                     ),

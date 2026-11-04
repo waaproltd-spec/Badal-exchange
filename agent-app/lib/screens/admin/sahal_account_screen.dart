@@ -186,15 +186,15 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _connection(s),
-                const GroupLabel('Session'),
+                GroupLabel(tr('Session')),
                 _session(s),
-                const GroupLabel('Account'),
+                GroupLabel(tr('Account')),
                 _account(s),
                 if (s.pending != null) ...[
-                  const GroupLabel('New account'),
+                  GroupLabel(tr('New account')),
                   _pending(s),
                 ],
-                const GroupLabel('Change or connect an account'),
+                GroupLabel(tr('Change or connect an account')),
                 _form(s),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
@@ -356,7 +356,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
               key: const Key('pending-code'),
               controller: _code,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'SMS code sent to the new account\'s phone', prefixIcon: Icon(Icons.key_rounded)),
+              decoration: InputDecoration(labelText: tr('SMS code sent to the new account\'s phone'), prefixIcon: Icon(Icons.key_rounded)),
               onSubmitted: (_) => _sendCode(),
             ),
             const SizedBox(height: 8),
@@ -406,7 +406,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
             controller: _username,
             autocorrect: false,
             enableSuggestions: false,
-            decoration: const InputDecoration(labelText: 'Sahal merchant login (username or account)', prefixIcon: Icon(Icons.person_rounded)),
+            decoration: InputDecoration(labelText: tr('Sahal merchant login (username or account)'), prefixIcon: Icon(Icons.person_rounded)),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -416,7 +416,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
             autocorrect: false,
             enableSuggestions: false,
             autofillHints: const [],
-            decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_rounded)),
+            decoration: InputDecoration(labelText: tr('Password'), prefixIcon: Icon(Icons.lock_rounded)),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -426,7 +426,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
             keyboardType: TextInputType.number,
             autocorrect: false,
             enableSuggestions: false,
-            decoration: const InputDecoration(labelText: 'Merchant PIN (needed to send withdrawals)', prefixIcon: Icon(Icons.pin_rounded)),
+            decoration: InputDecoration(labelText: tr('Merchant PIN (needed to send withdrawals)'), prefixIcon: Icon(Icons.pin_rounded)),
           ),
           const SizedBox(height: 12),
           ElevatedButton(

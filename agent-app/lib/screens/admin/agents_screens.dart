@@ -53,13 +53,13 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
       appBar: AppBar(title: const Tx('Agents'), actions: [
         IconButton(
           key: const Key('agents-performance'),
-          tooltip: 'Performance',
+          tooltip: tr('Performance'),
           icon: const Icon(Icons.bar_chart_rounded),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AgentPerformanceScreen())),
         ),
         IconButton(
           key: const Key('agents-login-history'),
-          tooltip: 'Login history',
+          tooltip: tr('Login history'),
           icon: const Icon(Icons.manage_history_rounded),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginHistoryScreen())),
         ),
@@ -189,7 +189,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
     );
     if (result == null || !mounted) return;
     final api = context.read<Session>().api;
-    await _act(() => api.updateAgent(_agent.id, name: result.$1, phone: result.$2), 'Details saved.');
+    await _act(() => api.updateAgent(_agent.id, name: result.$1, phone: result.$2), tr('Details saved.'));
   }
 
   Future<void> _resetPassword() async {
@@ -197,7 +197,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
     if (password == null || !mounted) return;
     final api = context.read<Session>().api;
     await _act(() => api.resetAgentPassword(_agent.id, password),
-        'Password reset. ${_agent.name} is signed out and logs in with the new password.');
+        trp('Password reset. {0} is signed out and logs in with the new password.', [_agent.name]));
     _loadExtras();
   }
 
@@ -224,7 +224,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
     );
     if (selected == null || !mounted) return;
     final api = context.read<Session>().api;
-    await _act(() => api.setAgentResponsibilities(_agent.id, selected), 'Responsibilities updated.');
+    await _act(() => api.setAgentResponsibilities(_agent.id, selected), tr('Responsibilities updated.'));
   }
 
   @override
@@ -239,12 +239,12 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InfoRow('Phone', a.phone ?? '—'),
-                InfoRow('Status', a.isActive ? 'Active' : 'Disabled'),
-                InfoRow('Created', a.createdAt != null ? formatDate(a.createdAt!) : '—'),
-                InfoRow('Last seen', a.lastSeenAt != null ? formatDateTime(a.lastSeenAt!) : '—'),
-                InfoRow('Last login', a.lastLoginAt != null ? formatDateTime(a.lastLoginAt!) : '—'),
-                InfoRow('Access', a.fullAdmin ? 'Full administrator' : 'Agent'),
+                InfoRow(tr('Phone'), a.phone ?? '—'),
+                InfoRow(tr('Status'), a.isActive ? 'Active' : 'Disabled'),
+                InfoRow(tr('Created'), a.createdAt != null ? formatDate(a.createdAt!) : '—'),
+                InfoRow(tr('Last seen'), a.lastSeenAt != null ? formatDateTime(a.lastSeenAt!) : '—'),
+                InfoRow(tr('Last login'), a.lastLoginAt != null ? formatDateTime(a.lastLoginAt!) : '—'),
+                InfoRow(tr('Access'), a.fullAdmin ? 'Full administrator' : 'Agent'),
               ],
             ),
           ),
@@ -297,7 +297,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
               ),
             ],
           ),
-          const GroupLabel('Responsibilities'),
+          GroupLabel(tr('Responsibilities')),
           ConsoleCard(
             child: a.responsibilities.isEmpty
                 ? Tx('None', style: TextStyle(color: AppColors.textSecondary))
@@ -314,7 +314,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                     ],
                   ),
           ),
-          const GroupLabel('Devices'),
+          GroupLabel(tr('Devices')),
           if (_devices == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_devices!.isEmpty)
@@ -344,7 +344,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
               ),
               const SizedBox(height: 8),
             ],
-          const GroupLabel('Logins and security'),
+          GroupLabel(tr('Logins and security')),
           if (_logins == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_logins!.isEmpty)
@@ -362,7 +362,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                   ),
               ]),
             ),
-          const GroupLabel('Orders processed'),
+          GroupLabel(tr('Orders processed')),
           if (_orders == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_orders!.isEmpty)
@@ -470,24 +470,24 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
           children: [
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Full name'),
+              decoration: InputDecoration(labelText: tr('Full name')),
               validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _phone,
-              decoration: const InputDecoration(labelText: 'Phone number', hintText: '2526XXXXXXXX'),
+              decoration: InputDecoration(labelText: tr('Phone number'), hintText: tr('2526XXXXXXXX')),
               keyboardType: TextInputType.phone,
               validator: (v) => (v ?? '').trim().length < 6 ? 'Enter a phone number' : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _password,
-              decoration: const InputDecoration(labelText: 'Temporary password (at least 8 characters)'),
+              decoration: InputDecoration(labelText: tr('Temporary password (at least 8 characters)')),
               obscureText: true,
               validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
             ),
-            const GroupLabel('Responsibilities'),
+            GroupLabel(tr('Responsibilities')),
             for (final (key, label) in knownResponsibilities)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -536,13 +536,13 @@ class _EditAgentDialogState extends State<_EditAgentDialog> {
           TextFormField(
             key: const Key('edit-name'),
             controller: _name,
-            decoration: const InputDecoration(labelText: 'Full name'),
+            decoration: InputDecoration(labelText: tr('Full name')),
             validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
           ),
           TextFormField(
             key: const Key('edit-phone'),
             controller: _phone,
-            decoration: const InputDecoration(labelText: 'Phone number (their login)'),
+            decoration: InputDecoration(labelText: tr('Phone number (their login)')),
             keyboardType: TextInputType.phone,
             validator: (v) => (v ?? '').trim().length < 6 ? 'Enter a phone number' : null,
           ),
@@ -595,14 +595,14 @@ class _NewPasswordDialogState extends State<_NewPasswordDialog> {
             key: const Key('new-agent-password'),
             controller: _password,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'New password'),
+            decoration: InputDecoration(labelText: tr('New password')),
             validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
           ),
           TextFormField(
             key: const Key('confirm-agent-password'),
             controller: _confirm,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Confirm new password'),
+            decoration: InputDecoration(labelText: tr('Confirm new password')),
             validator: (v) => v != _password.text ? 'Passwords do not match' : null,
           ),
         ]),
@@ -650,7 +650,7 @@ class _DeleteAgentDialogState extends State<_DeleteAgentDialog> {
         TextField(
           key: const Key('delete-reason'),
           controller: _reason,
-          decoration: const InputDecoration(labelText: 'Reason'),
+          decoration: InputDecoration(labelText: tr('Reason')),
           onChanged: (_) => setState(() {}),
         ),
       ]),

@@ -157,7 +157,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _method,
-                decoration: const InputDecoration(labelText: 'Payment method'),
+                decoration: InputDecoration(labelText: tr('Payment method')),
                 items: [
                   for (final m in paymentMethods)
                     DropdownMenuItem(
@@ -179,14 +179,14 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _depositCode,
-                  decoration: const InputDecoration(labelText: 'Deposit code (optional)'),
+                  decoration: InputDecoration(labelText: tr('Deposit code (optional)')),
                   textInputAction: TextInputAction.next,
                 ),
               ],
               const SizedBox(height: 14),
               TextFormField(
                 controller: _amount,
-                decoration: const InputDecoration(labelText: 'Amount'),
+                decoration: InputDecoration(labelText: tr('Amount')),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 textInputAction: TextInputAction.next,
                 validator: (v) {

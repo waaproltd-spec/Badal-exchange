@@ -61,7 +61,7 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _err(e, 'Could not load the customers.');
+        _error = _err(e, tr('Could not load the customers.'));
         _loading = false;
       });
     }
@@ -98,12 +98,12 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
                         },
                       ),
                       const SizedBox(height: 10),
-                      SearchField(hint: 'Search by name, phone or account ID…', controller: _search, onSubmitted: (_) => _load()),
+                      SearchField(hint: tr('Search by name, phone or account ID…'), controller: _search, onSubmitted: (_) => _load()),
                       const SizedBox(height: 10),
                       if (_customers!.isEmpty)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 40),
-                          child: EmptyStateView(icon: Icons.phone_in_talk_rounded, title: 'No customers', message: 'Nobody matches this filter.'),
+                          child: EmptyStateView(icon: Icons.phone_in_talk_rounded, title: tr('No customers'), message: tr('Nobody matches this filter.')),
                         )
                       else
                         for (final c in _customers!)
@@ -197,7 +197,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _err(e, 'Could not load this customer.');
+        _error = _err(e, tr('Could not load this customer.'));
         _loading = false;
       });
     }
@@ -290,7 +290,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                               ? null
                               : () => _run(
                                   () => api.setPaymentNumberAccess(d.id, enabled: true, methods: _networksPicked.toList()),
-                                  'Could not save.'),
+                                  tr('Could not save.')),
                           child: Tx(d.access.enabled ? 'Save networks' : 'Authorize this customer'),
                         ),
                         if (d.access.enabled)
@@ -299,8 +299,8 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                             onPressed: _busy
                                 ? null
                                 : () async {
-                                    if (await _confirm('Revoke permission?', 'From now on this customer must use their registered number again. Their numbers stay on file.', 'Revoke')) {
-                                      await _run(() => api.setPaymentNumberAccess(d.id, enabled: false), 'Could not revoke.');
+                                    if (await _confirm(tr('Revoke permission?'), tr('From now on this customer must use their registered number again. Their numbers stay on file.'), tr('Revoke'))) {
+                                      await _run(() => api.setPaymentNumberAccess(d.id, enabled: false), tr('Could not revoke.'));
                                     }
                                   },
                             child: const Tx('Revoke permission', style: TextStyle(color: AppColors.statusFailed)),
@@ -338,18 +338,18 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                               ),
                               TextButton(
                                 key: Key('block-${n.id}'),
-                                onPressed: _busy ? null : () => _run(() => api.setPaymentNumberBlocked(n.id, !n.blocked), 'Could not change the number.'),
+                                onPressed: _busy ? null : () => _run(() => api.setPaymentNumberBlocked(n.id, !n.blocked), tr('Could not change the number.')),
                                 child: Tx(n.blocked ? 'Unblock' : 'Block'),
                               ),
                               IconButton(
                                 key: Key('remove-${n.id}'),
-                                tooltip: 'Remove',
+                                tooltip: tr('Remove'),
                                 icon: const Icon(Icons.delete_outline_rounded, color: AppColors.statusFailed),
                                 onPressed: _busy
                                     ? null
                                     : () async {
-                                        if (await _confirm('Remove number?', '+${n.phone} is taken off this customer\'s list.', 'Remove')) {
-                                          await _run(() => api.removePaymentNumber(n.id), 'Could not remove the number.');
+                                        if (await _confirm(tr('Remove number?'), trp('+{0} is taken off this customer\'s list.', [n.phone]), tr('Remove'))) {
+                                          await _run(() => api.removePaymentNumber(n.id), tr('Could not remove the number.'));
                                         }
                                       },
                               ),
@@ -364,7 +364,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                         DropdownButtonFormField<String>(
                           key: const Key('new-number-network'),
                           value: _newMethod,
-                          decoration: const InputDecoration(labelText: 'Network'),
+                          decoration: InputDecoration(labelText: tr('Network')),
                           items: [for (final n in paymentNumberNetworks) DropdownMenuItem(value: n.$1, child: Tx(n.$2))],
                           onChanged: (v) => setState(() => _newMethod = v ?? _newMethod),
                         ),
@@ -373,10 +373,10 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                           key: const Key('new-number-phone'),
                           controller: _phone,
                           keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(labelText: 'Phone number', hintText: '61xxxxxxx or 252…'),
+                          decoration: InputDecoration(labelText: tr('Phone number'), hintText: tr('61xxxxxxx or 252…')),
                         ),
                         const SizedBox(height: 8),
-                        TextField(key: const Key('new-number-label'), controller: _label, decoration: const InputDecoration(labelText: 'Label (optional)')),
+                        TextField(key: const Key('new-number-label'), controller: _label, decoration: InputDecoration(labelText: tr('Label (optional)'))),
                         const SizedBox(height: 12),
                         ElevatedButton(
                           key: const Key('add-number'),
@@ -387,7 +387,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                                         method: _newMethod, phone: _phone.text.trim(), label: _label.text.trim().isEmpty ? null : _label.text.trim());
                                     _phone.clear();
                                     _label.clear();
-                                  }, 'Could not add the number.'),
+                                  }, tr('Could not add the number.')),
                           child: const Tx('Add number'),
                         ),
                       ]),

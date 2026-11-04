@@ -156,7 +156,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
             children: [
               Expanded(
                 child: SearchField(
-                  hint: 'Search customer, phone, account or order',
+                  hint: tr('Search customer, phone, account or order'),
                   controller: _search,
                   onSubmitted: (q) => _apply(_filter.copyWith(query: q)),
                 ),
@@ -169,7 +169,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
                   smallSize: 8,
                   child: const Icon(Icons.tune_rounded),
                 ),
-                tooltip: 'Filters',
+                tooltip: tr('Filters'),
               ),
             ],
           ),
@@ -195,9 +195,9 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
           else if (_error != null && _items.isEmpty)
             ErrorStateView(message: _error!, onRetry: _load)
           else if (_items.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 60),
-              child: EmptyStateView(icon: Icons.history_rounded, title: 'No transactions found'),
+              child: EmptyStateView(icon: Icons.history_rounded, title: tr('No transactions found')),
             )
           else ...[
             for (final item in _items) ...[
@@ -268,7 +268,7 @@ class _FilterSheetState extends State<_FilterSheet> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String?>(
             value: _status,
-            decoration: const InputDecoration(labelText: 'Status'),
+            decoration: InputDecoration(labelText: tr('Status')),
             items: [
               const DropdownMenuItem(value: null, child: Tx('Any status')),
               for (final s in statuses) DropdownMenuItem(value: s, child: Tx(s[0].toUpperCase() + s.substring(1))),
@@ -278,7 +278,7 @@ class _FilterSheetState extends State<_FilterSheet> {
           const SizedBox(height: 14),
           DropdownButtonFormField<String?>(
             value: _method,
-            decoration: const InputDecoration(labelText: 'Payment method'),
+            decoration: InputDecoration(labelText: tr('Payment method')),
             items: [
               const DropdownMenuItem(value: null, child: Tx('Any method')),
               for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Tx(m.label)),

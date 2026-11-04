@@ -164,8 +164,8 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
                 child: const Tx('Change'),
               ),
             ]),
-            InfoRow('Per day', s.dailyLimit == null ? 'No limit' : '\$${s.dailyLimit}'),
-            InfoRow('Per month', s.monthlyLimit == null ? 'No limit' : '\$${s.monthlyLimit}'),
+            InfoRow(tr('Per day'), s.dailyLimit == null ? 'No limit' : '\$${s.dailyLimit}'),
+            InfoRow(tr('Per month'), s.monthlyLimit == null ? 'No limit' : '\$${s.monthlyLimit}'),
             Tx('Over a limit, the rest of a bonus is not credited; the history says so.',
                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
           ]),
@@ -176,20 +176,20 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               icon: Icons.account_balance_wallet_rounded,
               color: AppColors.purple,
               value: '\$${s.totalBalance}',
-              label: 'In bonus wallets'),
+              label: tr('In bonus wallets')),
           StatCard(
               icon: Icons.trending_up_rounded,
               color: AppColors.statusCompleted,
               value: '\$${s.totalEarned}',
-              label: 'Earned in total'),
+              label: tr('Earned in total')),
           StatCard(
               icon: Icons.account_balance_wallet_outlined,
               color: AppColors.accentOrange,
               value: '\$${s.totalMoved}',
-              label: 'Moved to main wallets'),
+              label: tr('Moved to main wallets')),
         ]),
         const SizedBox(height: 8),
-        const SectionHeader(title: 'Transactions that earn a bonus'),
+        SectionHeader(title: tr('Transactions that earn a bonus')),
         for (final (direction, kind, title) in _groups) ...[
           GroupLabel(title),
           ConsoleCard(
@@ -208,7 +208,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
           const SizedBox(height: 8),
         ],
         const SizedBox(height: 4),
-        const SectionHeader(title: 'Customers'),
+        SectionHeader(title: tr('Customers')),
         if (s.customers.isEmpty)
           ConsoleCard(child: Tx('No customer has a bonus yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
@@ -235,7 +235,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
             const SizedBox(height: 8),
           ],
         const SizedBox(height: 4),
-        const SectionHeader(title: 'History'),
+        SectionHeader(title: tr('History')),
         if (s.history.isEmpty)
           ConsoleCard(child: Tx('Nothing yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
@@ -319,14 +319,14 @@ class _LimitsDialogState extends State<_LimitsDialog> {
             key: const Key('bonus-daily-limit'),
             controller: _daily,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Per customer per day (\$)', helperText: 'Empty: no limit'),
+            decoration: InputDecoration(labelText: tr('Per customer per day (\$)'), helperText: tr('Empty: no limit')),
             validator: _check,
           ),
           TextFormField(
             key: const Key('bonus-monthly-limit'),
             controller: _monthly,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Per customer per month (\$)', helperText: 'Empty: no limit'),
+            decoration: InputDecoration(labelText: tr('Per customer per month (\$)'), helperText: tr('Empty: no limit')),
             validator: _check,
           ),
         ]),

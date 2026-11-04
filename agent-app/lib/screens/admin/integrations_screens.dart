@@ -158,7 +158,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
     );
     if (!ok || !mounted) return;
     final api = context.read<Session>().api;
-    await _act(() => api.setAutomationMode(widget.provider, mode: 'automatic', dryRun: false), 'Automation is live.');
+    await _act(() => api.setAutomationMode(widget.provider, mode: 'automatic', dryRun: false), tr('Automation is live.'));
   }
 
   @override
@@ -188,20 +188,20 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                 : (v) => _act(() => api.setIntegrationActive(d.provider, v), v ? 'Activated.' : 'Deactivated.'),
           ),
         ),
-        const GroupLabel('Account'),
+        GroupLabel(tr('Account')),
         ConsoleCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              InfoRow('Username', d.hasCredentials ? (d.username ?? 'Saved') : 'Not set'),
-              InfoRow('Password', d.hasCredentials ? 'Saved (hidden)' : 'Not set'),
-              InfoRow('Last test', d.lastTestAt != null ? '${d.lastTestResult ?? '—'} • ${formatDateTime(d.lastTestAt!)}' : '—'),
-              if ((d.lastTestMessage ?? '').isNotEmpty) InfoRow('Test message', d.lastTestMessage!),
+              InfoRow(tr('Username'), d.hasCredentials ? (d.username ?? 'Saved') : 'Not set'),
+              InfoRow(tr('Password'), d.hasCredentials ? 'Saved (hidden)' : 'Not set'),
+              InfoRow(tr('Last test'), d.lastTestAt != null ? '${d.lastTestResult ?? '—'} • ${formatDateTime(d.lastTestAt!)}' : '—'),
+              if ((d.lastTestMessage ?? '').isNotEmpty) InfoRow(tr('Test message'), d.lastTestMessage!),
               InfoRow(
-                'Last connected',
+                tr('Last connected'),
                 d.lastSuccessfulConnectionAt != null ? formatDateTime(d.lastSuccessfulConnectionAt!) : '—',
               ),
-              InfoRow('Last transaction', d.lastTransactionAt != null ? formatDateTime(d.lastTransactionAt!) : '—'),
+              InfoRow(tr('Last transaction'), d.lastTransactionAt != null ? formatDateTime(d.lastTransactionAt!) : '—'),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -216,7 +216,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                     child: ElevatedButton(
                       onPressed: _busy || !d.hasCredentials
                           ? null
-                          : () => _act(() => api.testIntegration(d.provider), 'Connection test finished.'),
+                          : () => _act(() => api.testIntegration(d.provider), tr('Connection test finished.')),
                       child: const Tx('Test connection'),
                     ),
                   ),
@@ -226,7 +226,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
           ),
         ),
         if (d.isMobCash) ...[
-          const GroupLabel('Automation (MobCash browser automation)'),
+          GroupLabel(tr('Automation (MobCash browser automation)')),
           ConsoleCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -237,11 +237,11 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                   style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
-                InfoRow('Mode', d.automationMode == 'automatic' ? 'Automatic' : 'Manual'),
-                InfoRow('Dry run', d.dryRun ? 'On (no real money moves)' : 'Off (live)'),
-                InfoRow('Failures in a row', '${d.consecutiveFailures}'),
+                InfoRow(tr('Mode'), d.automationMode == 'automatic' ? 'Automatic' : 'Manual'),
+                InfoRow(tr('Dry run'), d.dryRun ? 'On (no real money moves)' : 'Off (live)'),
+                InfoRow(tr('Failures in a row'), '${d.consecutiveFailures}'),
                 InfoRow(
-                  'Circuit breaker',
+                  tr('Circuit breaker'),
                   d.circuitBreakerTrippedAt != null
                       ? 'Tripped ${formatDateTime(d.circuitBreakerTrippedAt!)}${d.circuitBreakerReason != null ? ' — ${d.circuitBreakerReason}' : ''}'
                       : 'OK',
@@ -253,7 +253,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                         ? null
                         : () => _act(
                               () => api.setAutomationMode(d.provider, mode: 'automatic', dryRun: true),
-                              'Automatic mode on (dry run).',
+                              tr('Automatic mode on (dry run).'),
                             ),
                     child: const Tx('Enable automatic (dry run)'),
                   ),
@@ -268,7 +268,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                         ? null
                         : () => _act(
                               () => api.setAutomationMode(d.provider, mode: 'automatic', dryRun: true),
-                              'Back to dry run.',
+                              tr('Back to dry run.'),
                             ),
                     child: const Tx('Back to dry run'),
                   ),
@@ -278,7 +278,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                         ? null
                         : () => _act(
                               () => api.setAutomationMode(d.provider, mode: 'manual', dryRun: true),
-                              'Back to manual mode.',
+                              tr('Back to manual mode.'),
                             ),
                     child: const Tx('Switch to manual'),
                   ),
@@ -286,13 +286,13 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                   OutlinedButton(
                     onPressed: _busy
                         ? null
-                        : () => _act(() => api.resetCircuitBreaker(d.provider), 'Circuit breaker reset.'),
+                        : () => _act(() => api.resetCircuitBreaker(d.provider), tr('Circuit breaker reset.')),
                     child: const Tx('Reset circuit breaker'),
                   ),
               ],
             ),
           ),
-          const GroupLabel('Automation runs'),
+          GroupLabel(tr('Automation runs')),
           if (_runs == null || _runs!.isEmpty)
             ConsoleCard(child: Tx('No runs yet.', style: TextStyle(color: AppColors.textSecondary)))
           else
@@ -404,13 +404,13 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _username,
-              decoration: const InputDecoration(labelText: 'Username'),
+              decoration: InputDecoration(labelText: tr('Username')),
               validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _password,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: InputDecoration(labelText: tr('Password')),
               obscureText: true,
               validator: (v) => (v ?? '').isEmpty ? 'Required' : null,
             ),

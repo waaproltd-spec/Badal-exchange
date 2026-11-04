@@ -14,11 +14,11 @@ Future<String?> showCompleteWithdrawalSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (context) => const _SingleFieldSheet(
-      title: 'Complete withdrawal',
-      subtitle: 'Enter the transaction reference from the payout you just sent.',
-      label: 'Transaction reference',
-      submitLabel: 'Mark completed',
+    builder: (context) => _SingleFieldSheet(
+      title: tr('Complete withdrawal'),
+      subtitle: tr('Enter the transaction reference from the payout you just sent.'),
+      label: tr('Transaction reference'),
+      submitLabel: tr('Mark completed'),
       minLength: 3,
     ),
   );
@@ -36,11 +36,11 @@ Future<String?> showFailWithdrawalSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (context) => const _SingleFieldSheet(
-      title: 'Mark withdrawal failed',
-      subtitle: 'This releases the customer\'s reserved balance back to available. Explain why.',
-      label: 'Reason',
-      submitLabel: 'Mark failed',
+    builder: (context) => _SingleFieldSheet(
+      title: tr('Mark withdrawal failed'),
+      subtitle: tr('This releases the customer\'s reserved balance back to available. Explain why.'),
+      label: tr('Reason'),
+      submitLabel: tr('Mark failed'),
       minLength: 3,
       maxLines: 3,
       isDestructive: true,

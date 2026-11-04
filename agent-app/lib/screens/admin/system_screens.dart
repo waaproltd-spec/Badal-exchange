@@ -49,12 +49,12 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
           children: [
             Tx(l.action, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            InfoRow('When', formatDateTime(l.createdAt)),
-            InfoRow('By', '${l.actorRole ?? 'system'} ${l.actorId ?? ''}'.trim()),
-            InfoRow('Entity', '${l.entityType} ${l.entityId ?? ''}'.trim()),
-            const GroupLabel('Before'),
+            InfoRow(tr('When'), formatDateTime(l.createdAt)),
+            InfoRow(tr('By'), '${l.actorRole ?? 'system'} ${l.actorId ?? ''}'.trim()),
+            InfoRow(tr('Entity'), '${l.entityType} ${l.entityId ?? ''}'.trim()),
+            GroupLabel(tr('Before')),
             SelectableText(pretty(l.before), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
-            const GroupLabel('After'),
+            GroupLabel(tr('After')),
             SelectableText(pretty(l.after), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
           ],
         ),
@@ -77,7 +77,7 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              SearchField(hint: 'Filter by action or entity', controller: _search, onSubmitted: (_) => setState(() {})),
+              SearchField(hint: tr('Filter by action or entity'), controller: _search, onSubmitted: (_) => setState(() {})),
               const SizedBox(height: 12),
               Text(trp('Latest {0} entries', [logs.length]), style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
               const SizedBox(height: 8),
@@ -177,7 +177,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const GroupLabel('Support contact links'),
+            GroupLabel(tr('Support contact links')),
             Tx(
               'Shown on the Account tab here and available to the Customer App. Leave empty to hide.',
               style: TextStyle(color: AppColors.textSecondary),
@@ -185,21 +185,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _whatsapp,
-              decoration: const InputDecoration(labelText: 'WhatsApp', hintText: 'https://wa.me/2526...'),
+              decoration: InputDecoration(labelText: tr('WhatsApp'), hintText: tr('https://wa.me/2526...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _facebook,
-              decoration: const InputDecoration(labelText: 'Facebook', hintText: 'https://facebook.com/...'),
+              decoration: InputDecoration(labelText: tr('Facebook'), hintText: tr('https://facebook.com/...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _telegram,
-              decoration: const InputDecoration(labelText: 'Telegram', hintText: 'https://t.me/...'),
+              decoration: InputDecoration(labelText: tr('Telegram'), hintText: tr('https://t.me/...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
@@ -388,7 +388,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
   Future<void> _newCode() => _run(() async {
         final code = await context.read<Session>().api.createTelegramLinkCode();
         if (mounted) setState(() => _code = code);
-      }, 'Could not create a link code.');
+      }, tr('Could not create a link code.'));
 
   // The bot reads `/start CODE` from this link as `/link CODE`.
   Future<void> _openBot(String bot, String code) async {
@@ -400,7 +400,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
   Future<void> _unlink() => _run(() async {
         final link = await context.read<Session>().api.unlinkTelegram();
         if (mounted) setState(() => _link = link);
-      }, 'Could not unlink.');
+      }, tr('Could not unlink.'));
 
   @override
   Widget build(BuildContext context) {
@@ -423,11 +423,11 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                         'access to Admin features. Linking once works with every bot.',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
-                      const GroupLabel('Status'),
-                      InfoRow('Linked', link.linked ? 'Yes' : 'No'),
-                      if (link.telegramUsername != null) InfoRow('Telegram', '@${link.telegramUsername}'),
-                      if (link.linkedAt != null) InfoRow('Since', formatDateTime(link.linkedAt!)),
-                      const GroupLabel('Link your Telegram account'),
+                      GroupLabel(tr('Status')),
+                      InfoRow(tr('Linked'), link.linked ? 'Yes' : 'No'),
+                      if (link.telegramUsername != null) InfoRow(tr('Telegram'), '@${link.telegramUsername}'),
+                      if (link.linkedAt != null) InfoRow(tr('Since'), formatDateTime(link.linkedAt!)),
+                      GroupLabel(tr('Link your Telegram account')),
                       if (code != null) ...[
                         for (final (brand, bot) in telegramBots) ...[
                           ElevatedButton.icon(
@@ -548,7 +548,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                       controller: _code,
                       textCapitalization: TextCapitalization.characters,
                       maxLength: 32,
-                      decoration: const InputDecoration(labelText: 'Promo code', hintText: 'e.g. RAMADAN26'),
+                      decoration: InputDecoration(labelText: tr('Promo code'), hintText: tr('e.g. RAMADAN26')),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),

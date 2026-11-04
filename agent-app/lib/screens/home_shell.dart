@@ -61,36 +61,36 @@ class _HomeShellState extends State<HomeShell> {
             ? NavigationDestinationLabelBehavior.onlyShowSelected
             : NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.grid_view_outlined),
             selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'Dashboard',
+            label: tr('Dashboard'),
           ),
           NavigationDestination(
             icon: Icon(Icons.people_outline_rounded),
             selectedIcon: Icon(Icons.people_rounded),
-            label: 'Users',
+            label: tr('Users'),
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart_rounded),
-            label: 'Reports',
+            label: tr('Reports'),
           ),
           NavigationDestination(
             icon: Icon(Icons.payments_outlined),
             selectedIcon: Icon(Icons.payments_rounded),
-            label: 'Commission',
+            label: tr('Commission'),
           ),
           NavigationDestination(
             icon: Icon(Icons.history_rounded),
             selectedIcon: Icon(Icons.history_toggle_off_rounded),
-            label: 'History',
+            label: tr('History'),
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
-            label: 'Account',
+            label: tr('Account'),
           ),
         ],
       ),
