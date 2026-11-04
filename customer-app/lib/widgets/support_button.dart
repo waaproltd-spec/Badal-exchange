@@ -64,8 +64,9 @@ class _SupportButtonState extends State<SupportButton> {
   Widget build(BuildContext context) {
     final contacts = _contacts;
     final options = [
-      for (final (kind, label) in const [('whatsapp', 'WhatsApp'), ('telegram', 'Telegram')])
-        if (supportLink(kind, contacts?[kind]) case final uri?) (kind, label, uri),
+      // WhatsApp is the contact the administrators set; Telegram is always the support bot.
+      if (supportLink('whatsapp', contacts?['whatsapp']) case final uri?) ('whatsapp', 'WhatsApp', uri),
+      if (contacts != null) ('telegram', 'Telegram', Uri.parse('https://t.me/Badalaisupportbot')),
     ];
     return Stack(
       children: [
