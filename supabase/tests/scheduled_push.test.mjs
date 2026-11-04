@@ -361,8 +361,15 @@ test('a long run of customers without a device does not hide the ones with one: 
     await dueSchedule(tx, ['push']);
     await tx.call('public.broadcast_tick()');
     // The customer with a device is the newest, so after more than 100 customers without one.
-    const claimed = await tx.call('public.broadcast_push_claim($1)', [100]);
-    assert.ok(claimed.some((d) => d.customerId === last), 'the customer with a device is reached by one claim');
-    assert.ok(claimed.every((d) => d.tokens.length > 0), 'only deliveries with a device are returned');
+    // Other customers with a device may already be in the database, so claim until ours is reached
+    // (a claim never returns a delivery without a device, however many of them sit in front).
+    let found = false;
+    for (let i = 0; i < 50 && !found; i++) {
+      const claimed = await tx.call('public.broadcast_push_claim($1)', [100]);
+      if (!claimed.length) break;
+      assert.ok(claimed.every((d) => d.tokens.length > 0), 'only deliveries with a device are returned');
+      found = claimed.some((d) => d.customerId === last);
+    }
+    assert.ok(found, 'the customer with a device is reached');
   });
 });
