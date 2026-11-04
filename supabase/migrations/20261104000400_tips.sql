@@ -467,3 +467,9 @@ GRANT EXECUTE ON FUNCTION
   public.manage_tip_purchases(uuid, int, int), public.manage_tips_stats(),
   public.manage_refund_tip_purchase(uuid, text), public.agent_tip_purchases(int, text)
 TO authenticated, service_role;
+
+-- The private helpers are for the functions above only: nobody calls them directly.
+REVOKE ALL ON FUNCTION
+  private.tip_customer_json(public.tips, boolean, boolean), private.tip_manage_json(public.tips),
+  private.tip_purchase_json(public.tip_purchases), private.tip_stats_json()
+FROM PUBLIC, anon, authenticated;
