@@ -42,10 +42,9 @@ class _UsersScreenState extends State<UsersScreen> {
     ('today', tr('Today')),
     ('yesterday', tr('Yesterday')),
     ('month', tr('This Month')),
-    ('3m', tr('3 Months')),
-    ('6m', tr('6 Months')),
-    ('1y', tr('1 Year')),
-    ('custom', tr('Custom')),
+    ('last_month', tr('Last Month')),
+    ('last_3m', tr('Last 3 Months')),
+    ('custom', tr('Custom Date Range')),
   ];
 
   @override
@@ -61,10 +60,10 @@ class _UsersScreenState extends State<UsersScreen> {
     final yesterday = today.subtract(const Duration(days: 1));
     return switch (_period) {
       'yesterday' => DateTimeRange(start: yesterday, end: yesterday),
-      'month' => DateTimeRange(start: DateTime(today.year, today.month, 1), end: today),
-      '3m' => DateTimeRange(start: DateTime(today.year, today.month - 3, today.day), end: today),
-      '6m' => DateTimeRange(start: DateTime(today.year, today.month - 6, today.day), end: today),
-      '1y' => DateTimeRange(start: DateTime(today.year - 1, today.month, today.day), end: today),
+      // Whole calendar months (day 0 of the next month is the last day of this one); they roll over by themselves.
+      'month' => DateTimeRange(start: DateTime(today.year, today.month, 1), end: DateTime(today.year, today.month + 1, 0)),
+      'last_month' => DateTimeRange(start: DateTime(today.year, today.month - 1, 1), end: DateTime(today.year, today.month, 0)),
+      'last_3m' => DateTimeRange(start: DateTime(today.year, today.month - 3, 1), end: DateTime(today.year, today.month, 0)),
       'custom' => _custom ?? DateTimeRange(start: today, end: today),
       _ => DateTimeRange(start: today, end: today),
     };

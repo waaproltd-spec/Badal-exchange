@@ -103,6 +103,11 @@ void main() {
 
     await tester.tap(find.text('Commission').last);
     await tester.pumpAndSettle();
+    expect(find.byType(AppBar), findsNothing, reason: 'Commission has its purple header too');
+    expect(find.text('Agent Commission & Earnings'), findsOneWidget);
+
+    await tester.tap(find.text('History').last);
+    await tester.pumpAndSettle();
     expect(find.byType(AppBar), findsOneWidget, reason: 'the other tabs keep their app bar');
   });
 

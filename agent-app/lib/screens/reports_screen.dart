@@ -11,6 +11,7 @@ import '../state/history_filter.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_mode.dart';
+import '../widgets/filter_pill.dart';
 import '../widgets/page_banner.dart';
 import '../widgets/state_views.dart';
 import '../l10n/tr.dart';
@@ -165,7 +166,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ])
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: _FilterPill(key: Key('range-$id'), label: label, selected: _range == id, onTap: () => _select(id)),
+                child: FilterPill(key: Key('range-$id'), label: label, selected: _range == id, onTap: () => _select(id)),
               ),
           ]),
         ),
@@ -311,33 +312,6 @@ class _Empty extends StatelessWidget {
       );
 }
 
-class _FilterPill extends StatelessWidget {
-  const _FilterPill({super.key, required this.label, required this.selected, required this.onTap});
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = selected ? AppColors.onPrimary : AppColors.primaryDark;
-    return Material(
-      color: selected ? AppColors.selected : Colors.transparent,
-      shape: StadiumBorder(side: BorderSide(color: selected ? AppColors.selected : AppColors.primary.withOpacity(0.55), width: 1.4)),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.calendar_month_rounded, size: 20, color: fg),
-            const SizedBox(width: 8),
-            Tx(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: fg)),
-          ]),
-        ),
-      ),
-    );
-  }
-}
 
 class _OverviewCard extends StatelessWidget {
   const _OverviewCard({

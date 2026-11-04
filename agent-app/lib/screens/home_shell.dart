@@ -52,8 +52,8 @@ class _HomeShellState extends State<HomeShell> {
     Icons.person_rounded,
   ];
 
-  /// Users and Reports draw their own purple header (with the title in it); the others use the app bar.
-  bool get _ownHeader => _index == 1 || _index == 2;
+  /// Users, Reports and Commission draw their own purple header (with the title in it); the others use the app bar.
+  bool get _ownHeader => _index == 1 || _index == 2 || _index == 3;
 
   Future<void> _openPending(String title, Widget body) async {
     await Navigator.of(context).push(MaterialPageRoute(
