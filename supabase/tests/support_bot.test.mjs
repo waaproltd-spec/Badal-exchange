@@ -533,7 +533,7 @@ test('a group of administrators: /linkgroup by the administrator; requests go to
   // A stranger can not make a group the place the requests go to.
   const stranger = nextChat();
   const refused = await inGroup({ id: stranger, username: 'someone' }, '/linkgroup');
-  assert.match(texts(refused).join('\n'), /Kaliya maamulaha/);
+  assert.match(texts(refused).join('\n'), /Kaliya maamulaha/, JSON.stringify({ status: refused.status, calls: refused.calls.map((c) => c.method), current: (await db.query(`SELECT chat_id FROM support_admin`)).rows }));
   assert.notEqual(Number((await db.query(`SELECT chat_id FROM support_admin`)).rows[0]?.chat_id ?? 0), group);
 
   // Sent as the group itself (anonymous administrator): told to turn that off, nothing is linked.
