@@ -8,6 +8,7 @@ import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
 import '../../services/push_notifications.dart';
 import '../../services/success_sound.dart';
+import '../../widgets/floating_nav_bar.dart';
 import '../../widgets/transaction_views.dart';
 import '../home/home_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -121,37 +122,20 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
           child: IndexedStack(index: _index, children: _tabs),
         ),
       ),
-      // Compact bar; NavigationBar adds the device's bottom safe area itself.
-      bottomNavigationBar: NavigationBar(
-        height: 62,
+      // The floating bar adds its own margins and the device's bottom safe area.
+      bottomNavigationBar: FloatingNavBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) {
+        onSelected: (i) {
           setState(() => _index = i);
           // The limits show what was withdrawn up to now.
           if (i == 2) TipsScreen.refresh.value++;
           if (i == 3) ProfileScreen.refresh.value++;
         },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home_rounded),
-            label: AppStrings.home,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.receipt_long_outlined),
-            selectedIcon: const Icon(Icons.receipt_long_rounded),
-            label: AppStrings.orders,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.tips_and_updates_outlined),
-            selectedIcon: const Icon(Icons.tips_and_updates_rounded),
-            label: AppStrings.tips,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline_rounded),
-            selectedIcon: const Icon(Icons.person_rounded),
-            label: AppStrings.profile,
-          ),
+        tabs: [
+          NavTab(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: AppStrings.home),
+          NavTab(icon: Icons.receipt_long_outlined, selectedIcon: Icons.receipt_long_rounded, label: AppStrings.orders),
+          NavTab(icon: Icons.tips_and_updates_outlined, selectedIcon: Icons.tips_and_updates_rounded, label: AppStrings.tips),
+          NavTab(icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: AppStrings.profile),
         ],
       ),
     );

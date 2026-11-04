@@ -6,6 +6,7 @@ import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/tip.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
 import 'package:badal_exchange_customer/screens/root/root_shell.dart';
+import 'package:badal_exchange_customer/widgets/floating_nav_bar.dart';
 import 'package:badal_exchange_customer/state/auth_provider.dart';
 import 'package:badal_exchange_customer/state/orders_provider.dart';
 import 'package:badal_exchange_customer/state/wallet_provider.dart';
@@ -99,11 +100,11 @@ void main() {
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('home-tips')), findsNothing, reason: 'TIPS is a tab, not a Home card');
-    final bar = find.byType(NavigationBar);
+    final bar = find.byType(FloatingNavBar);
     for (final label in [AppStrings.home, AppStrings.orders, AppStrings.tips, AppStrings.profile]) {
       expect(find.descendant(of: bar, matching: find.text(label)), findsOneWidget, reason: label);
     }
-    expect(tester.widget<NavigationBar>(bar).destinations.length, 4);
+    expect(tester.widget<FloatingNavBar>(bar).tabs.length, 4);
     await tester.tap(find.descendant(of: bar, matching: find.text(AppStrings.tips)));
     await tester.pumpAndSettle();
     expect(find.text('FREE-123'), findsOneWidget);
@@ -120,7 +121,7 @@ void main() {
       await tester.pumpWidget(_app());
       await tester.pumpAndSettle();
 
-      final navTop = tester.getRect(find.byType(NavigationBar)).top;
+      final navTop = tester.getRect(find.byKey(const Key('floating-nav'))).top;
       for (final id in ['o1', 'o2']) {
         final tile = tester.getRect(find.byKey(Key('recent-order-$id')));
         expect(tile.bottom <= navTop, isTrue, reason: 'order $id ends at ${tile.bottom}, bar starts at $navTop');
@@ -151,7 +152,7 @@ void main() {
     await _phone(tester, const Size(320, 640));
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
-    final navTop = tester.getRect(find.byType(NavigationBar)).top;
+    final navTop = tester.getRect(find.byKey(const Key('floating-nav'))).top;
     expect(tester.getRect(find.byKey(const Key('recent-order-o2'))).bottom <= navTop, isTrue);
   });
 
@@ -161,6 +162,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('view-all-orders')));
     await tester.pumpAndSettle();
-    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 1);
+    expect(tester.widget<FloatingNavBar>(find.byType(FloatingNavBar)).selectedIndex, 1);
   });
 }

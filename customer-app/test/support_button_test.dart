@@ -5,6 +5,7 @@ import 'package:badal_exchange_customer/models/app_content.dart';
 import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
 import 'package:badal_exchange_customer/screens/root/root_shell.dart';
+import 'package:badal_exchange_customer/widgets/floating_nav_bar.dart';
 import 'package:badal_exchange_customer/state/auth_provider.dart';
 import 'package:badal_exchange_customer/state/orders_provider.dart';
 import 'package:badal_exchange_customer/state/wallet_provider.dart';
@@ -205,7 +206,7 @@ void main() {
         AppLanguage.current.value = somali ? AppLanguage.somali : AppLanguage.english;
         await _open(tester, size: size);
         final button = tester.getRect(find.byKey(const Key('support-button')));
-        final nav = tester.getRect(find.byType(NavigationBar));
+        final nav = tester.getRect(find.byKey(const Key('floating-nav')));
         expect(button.bottom, lessThanOrEqualTo(nav.top));
         expect(button.right, lessThanOrEqualTo(size.width - 16));
         // Scrolled to the end, the last order ends above the button.
