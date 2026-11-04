@@ -601,6 +601,90 @@ class BettingAdapter {
       );
 }
 
+/// One account (cash desk) of a betting platform: its own credentials, test
+/// and ON / OFF. Secrets never come back: the login masked, and only whether
+/// the others are saved.
+class BettingAccount {
+  /// Null for the one account of a built-in platform that has not been saved yet
+  /// (it uses the server's secrets).
+  final String? id;
+  final String label;
+
+  /// The account customers' deposits and withdrawals go through.
+  final bool selected;
+  final bool enabled;
+
+  /// 'connected', 'error', 'not_tested', 'not_configured', or 'server'.
+  final String status;
+  final String? apiUrl;
+  final String? accountId;
+  final String? login;
+  final bool hasPassword;
+  final bool hasApiSecret;
+  final bool hasApiKey;
+  final DateTime? lastTestAt;
+  final DateTime? lastOkAt;
+  final String? lastMessage;
+  final String? updatedBy;
+
+  /// Orders this account handled.
+  final int orders;
+  final DateTime? lastOrderAt;
+  final bool virtual;
+
+  const BettingAccount({
+    this.id,
+    required this.label,
+    this.selected = false,
+    this.enabled = false,
+    required this.status,
+    this.apiUrl,
+    this.accountId,
+    this.login,
+    this.hasPassword = false,
+    this.hasApiSecret = false,
+    this.hasApiKey = false,
+    this.lastTestAt,
+    this.lastOkAt,
+    this.lastMessage,
+    this.updatedBy,
+    this.orders = 0,
+    this.lastOrderAt,
+    this.virtual = false,
+  });
+
+  bool get connected => status == 'connected';
+
+  String get statusLabel => switch (status) {
+        'connected' => tr('Connected'),
+        'error' => tr('Error'),
+        'not_tested' => tr('Not tested'),
+        'server' => tr('Server secrets'),
+        _ => tr('Not set up'),
+      };
+
+  factory BettingAccount.fromJson(Map<String, dynamic> j) => BettingAccount(
+        id: j['id'] as String?,
+        label: j['label'] as String? ?? 'Account',
+        selected: j['selected'] as bool? ?? false,
+        enabled: j['enabled'] as bool? ?? false,
+        status: j['status'] as String? ?? 'not_configured',
+        apiUrl: j['apiUrl'] as String?,
+        accountId: j['accountId'] as String?,
+        login: j['login'] as String?,
+        hasPassword: j['hasPassword'] as bool? ?? false,
+        hasApiSecret: j['hasApiSecret'] as bool? ?? false,
+        hasApiKey: j['hasApiKey'] as bool? ?? false,
+        lastTestAt: _date(j['lastTestAt']),
+        lastOkAt: _date(j['lastOkAt']),
+        lastMessage: j['lastMessage'] as String?,
+        updatedBy: j['updatedBy'] as String?,
+        orders: (j['orders'] as num?)?.toInt() ?? 0,
+        lastOrderAt: _date(j['lastOrderAt']),
+        virtual: j['virtual'] as bool? ?? false,
+      );
+}
+
 /// A betting platform and its connection. Secrets never come back: only
 /// whether one is saved, and the login masked.
 class BettingPlatform {
@@ -633,6 +717,11 @@ class BettingPlatform {
   /// Customer App; null when it has none (initials show there).
   final Uint8List? logo;
 
+  /// Every account of the platform (an older server sends none). The fields
+  /// above are those of the selected account.
+  final List<BettingAccount> accounts;
+  final String? selectedAccountId;
+
   const BettingPlatform({
     required this.method,
     required this.name,
@@ -652,9 +741,19 @@ class BettingPlatform {
     this.lastMessage,
     this.updatedBy,
     this.logo,
+    this.accounts = const [],
+    this.selectedAccountId,
   });
 
   bool get connected => status == 'connected';
+
+  /// The account in use, or null.
+  BettingAccount? get selectedAccount {
+    for (final a in accounts) {
+      if (a.selected) return a;
+    }
+    return null;
+  }
 
   /// How customers deposit with this platform right now.
   String? get modeLabel => switch (mode) {
@@ -690,6 +789,8 @@ class BettingPlatform {
         lastMessage: j['lastMessage'] as String?,
         updatedBy: j['updatedBy'] as String?,
         logo: _logoBytes(j['logo']),
+        accounts: [for (final a in (j['accounts'] as List? ?? const [])) BettingAccount.fromJson(a as Map<String, dynamic>)],
+        selectedAccountId: j['selectedAccountId'] as String?,
       );
 }
 

@@ -138,8 +138,10 @@ async function handle(req: Request): Promise<unknown> {
   // Only a version that passed is ever used for real orders.
   if (req.method === 'GET' && route === 'platform-test' && param) {
     const me = await rpc(db, 'session_profile', {});
-    const c = await savedCredentials(param, true);
-    if (!c) throw new ApiError(400, 'NOT_CONFIGURED', 'Save the platform\'s credentials first');
+    // One account of the platform ("?account=<id>"), or the one in use.
+    const account = url.searchParams.get('account');
+    const c = await savedCredentials(param, true, account);
+    if (!c) throw new ApiError(400, 'NOT_CONFIGURED', 'Save the account\'s credentials first');
     let ok = false;
     let message: string;
     try {
@@ -150,7 +152,7 @@ async function handle(req: Request): Promise<unknown> {
       // The provider's answer only (never the credentials).
       message = (err as Error).message.slice(0, 300);
     }
-    return recordPlatformTest(param, c.version, ok, message, me?.id ?? null);
+    return recordPlatformTest(param, c.version, ok, message, me?.id ?? null, account);
   }
 
   if (req.method === 'GET' && route === 'users' && param) {

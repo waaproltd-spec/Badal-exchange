@@ -28,6 +28,7 @@ import {
   findPlayer,
   credentialsFor,
   payoutToPlayer,
+  recordOrderAccount,
 } from '../_shared/cashdeskbot.ts';
 import { refreshCompanyBalances } from '../_shared/company_balances.ts';
 
@@ -86,6 +87,9 @@ async function run(job: Job): Promise<Outcome> {
   } catch (err) {
     return { outcome: 'not_sent', message: (err as Error).message };
   }
+  // Which account handles this order, noted before any money moves (the
+  // selected account when the server's secrets are used).
+  await recordOrderAccount(job.orderId, c.accountRowId ?? null).catch((err) => console.error('order account', (err as Error).message));
 
   if (!/^\d{1,15}$/.test(job.accountId)) {
     return { outcome: 'refused', message: `"${job.accountId}" is not a ${brand.label} account ID` };

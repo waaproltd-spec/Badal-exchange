@@ -794,6 +794,50 @@ class AgentApi {
   Future<BettingPlatform> testBettingPlatform(String method) async => BettingPlatform.fromJson(
       await _client.getFunction('cashdeskbot/platform-test/${Uri.encodeComponent(method)}') as Map<String, dynamic>);
 
+  // Accounts of a betting platform: each has its own credentials, test and ON / OFF;
+  // one is selected (the one in use). Each call answers with the platform.
+
+  Future<BettingPlatform> addBettingAccount(String method, {String? label}) async =>
+      BettingPlatform.fromJson(await _map('manage_add_betting_account', {'p_method': method, 'p_label': label}));
+
+  /// Empty secrets keep the saved ones. Any change needs a new Test connection.
+  Future<BettingPlatform> saveBettingAccount(
+    String accountId, {
+    String? apiUrl,
+    String? login,
+    String? password,
+    String? cashdeskId,
+    String? apiSecret,
+    String? apiKey,
+  }) async =>
+      BettingPlatform.fromJson(await _map('manage_save_betting_account', {
+        'p_account': accountId,
+        'p_api_url': apiUrl,
+        'p_login': login,
+        'p_password': password,
+        'p_account_id': cashdeskId,
+        'p_api_secret': apiSecret,
+        'p_api_key': apiKey,
+      }));
+
+  /// Tries one account's saved credentials against the provider (no money moves).
+  Future<BettingPlatform> testBettingAccount(String method, String accountId) async => BettingPlatform.fromJson(
+      await _client.getFunction('cashdeskbot/platform-test/${Uri.encodeComponent(method)}', {'account': accountId})
+          as Map<String, dynamic>);
+
+  Future<BettingPlatform> setBettingAccountEnabled(String accountId, bool enabled) async =>
+      BettingPlatform.fromJson(await _map('manage_set_betting_account_enabled', {'p_account': accountId, 'p_enabled': enabled}));
+
+  /// The account customers' deposits and withdrawals go through (it must be ON).
+  Future<BettingPlatform> selectBettingAccount(String accountId) async =>
+      BettingPlatform.fromJson(await _map('manage_select_betting_account', {'p_account': accountId}));
+
+  Future<BettingPlatform> renameBettingAccount(String accountId, String label) async =>
+      BettingPlatform.fromJson(await _map('manage_rename_betting_account', {'p_account': accountId, 'p_label': label}));
+
+  Future<BettingPlatform> removeBettingAccount(String accountId, String reason) async =>
+      BettingPlatform.fromJson(await _map('manage_remove_betting_account', {'p_account': accountId, 'p_reason': reason}));
+
   Future<BettingPlatform> setBettingPlatformActive(String method, bool active) async =>
       BettingPlatform.fromJson(await _map('manage_set_betting_platform_active', {'p_method': method, 'p_active': active}));
 

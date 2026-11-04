@@ -34,6 +34,8 @@ export interface Creds {
   cashierpass: string;
   hash: string;
   cashdeskid: string;
+  /** Which saved account these are (betting_accounts.id); none for the server's secrets. */
+  accountRowId?: string;
 }
 
 export interface Brand {
@@ -70,10 +72,14 @@ async function serviceRpc(fn: string, args: Record<string, unknown>) {
   return data;
 }
 
-/** Credentials saved in the Agent App (Betting Platforms), or null. Only the
- *  version that passed its Test connection, unless [forTest]. */
-export async function savedCredentials(method: string, forTest = false): Promise<(Creds & { version: string; name: string }) | null> {
-  const c = await serviceRpc('betting_platform_config', { p_method: method, p_for_test: forTest });
+/** Credentials saved in the Agent App (Betting Platforms), or null: those of the
+ *  platform's selected account, or of [account] (a given account, for its own
+ *  Test connection). Only the version that passed its Test connection and
+ *  whose account is ON, unless [forTest]. */
+export async function savedCredentials(
+  method: string, forTest = false, account: string | null = null,
+): Promise<(Creds & { version: string; name: string }) | null> {
+  const c = await serviceRpc('betting_platform_config', { p_method: method, p_for_test: forTest, p_account: account });
   if (!c || c.adapter !== 'cashdeskbot') return null;
   return {
     baseUrl: String(c.baseUrl ?? '').trim().replace(/\/$/, ''),
@@ -83,14 +89,21 @@ export async function savedCredentials(method: string, forTest = false): Promise
     cashdeskid: String(c.cashdeskid ?? '').trim(),
     version: String(c.version),
     name: String(c.name ?? method),
+    accountRowId: c.accountRowId ? String(c.accountRowId) : undefined,
   };
 }
 
 /** Records a Test connection for the version it tested (betting_platform_record_test). */
-export const recordPlatformTest = (method: string, version: string, ok: boolean, message: string, testedBy: string | null) =>
+export const recordPlatformTest = (
+  method: string, version: string, ok: boolean, message: string, testedBy: string | null, account: string | null = null,
+) =>
   serviceRpc('betting_platform_record_test', {
-    p_method: method, p_version: version, p_ok: ok, p_message: message, p_tested_by: testedBy,
+    p_method: method, p_version: version, p_ok: ok, p_message: message, p_tested_by: testedBy, p_account: account,
   });
+
+/** Notes which account handled an order (the selected one when [account] is null). */
+export const recordOrderAccount = (orderId: string, account: string | null) =>
+  serviceRpc('platform_record_account', { p_order_id: orderId, p_account: account });
 
 /** A platform added in the Agent App has no Edge Function secrets of its own. */
 export async function brandFor(method: string): Promise<Brand | undefined> {

@@ -100,7 +100,7 @@ test('its credentials are saved on their own without switching it off; its own s
     assert.equal(methods[key].cashdesk, false, 'not connected: the manual deposit');
 
     // Connected (its credentials passed their test): a cash desk for customers, from the data alone.
-    await tx.query(`UPDATE payment_integrations SET tested_version = config_version, last_test_result = 'ok' WHERE method_key = $1 AND kind = 'betting'`, [key]);
+    await tx.query(`UPDATE betting_accounts SET tested_version = config_version, last_test_result = 'ok' WHERE method_key = $1 AND removed_at IS NULL`, [key]);
     const p = await listed(tx, key);
     assert.deepEqual([p.status, p.mode, p.active], ['connected', 'cashdesk', true]);
     assert.equal((await catalogRow(tx, key)).cashdesk, true);
