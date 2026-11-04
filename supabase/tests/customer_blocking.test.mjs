@@ -166,6 +166,11 @@ test('blocking closes the door to new activity and touches nothing else: balance
     assert.deepEqual(await snapshot(), before, 'the refused attempts changed nothing');
     await unblock(tx);
     assert.deepEqual(await snapshot(), before, 'unblocking restores the access and changes nothing else');
+    // The services work again, by their normal rules: nothing is refused because of the account any more.
+    await tx.as(customerId);
+    assert.notEqual(await tx.refused(`public.customer_create_deposit('evc_plus', '5.00', 'unb-dep-1', '252611111111')`), 'FORBIDDEN');
+    assert.notEqual(await tx.refused(`public.customer_create_withdrawal('evc_plus', '5.00', 'unb-wd-1', '252611111111')`), 'FORBIDDEN');
+    assert.ok(Array.isArray((await tx.call('public.customer_tips()')).tips));
   });
 });
 

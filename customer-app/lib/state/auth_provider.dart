@@ -7,6 +7,7 @@ import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../api/customer_api.dart';
 import '../services/app_lock.dart';
+import '../services/blocked_memory.dart';
 import '../services/push_notifications.dart';
 import '../models/auth_user.dart';
 import '../l10n/strings.dart';
@@ -190,6 +191,7 @@ class AuthProvider extends ChangeNotifier {
     if (_user == null) return;
     unawaited(() async {
       _accountCheck?.cancel();
+      await BlockedMemory.mark(); // the next accepted login means it was unblocked
       try {
         await customerApi.logout();
       } catch (_) {}

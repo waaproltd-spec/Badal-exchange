@@ -8,6 +8,7 @@ import 'package:badal_exchange_customer/models/app_content.dart';
 import 'package:badal_exchange_customer/models/auth_user.dart';
 import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
+import 'package:badal_exchange_customer/screens/auth/account_unblocked_screen.dart';
 import 'package:badal_exchange_customer/screens/auth/login_screen.dart';
 import 'package:badal_exchange_customer/screens/root/root_shell.dart';
 import 'package:badal_exchange_customer/state/auth_provider.dart';
@@ -230,8 +231,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(_auth.attempts, 2);
     expect(find.byKey(const Key('account-blocked')), findsNothing);
-    expect(find.byType(RootShell), findsOneWidget,
-        reason: 'unblocked: the customer is in again');
+    expect(find.byKey(const Key('account-unblocked')), findsOneWidget, reason: 'it was blocked, now the server accepts the login: unblocked');
+    expect(find.byType(RootShell), findsNothing, reason: 'the success screen comes first');
+    await tester.tap(find.byKey(const Key('unblocked-login')));
+    await tester.pumpAndSettle();
+    expect(find.byType(RootShell), findsOneWidget, reason: 'then the customer is in again, normally');
+    expect((await SharedPreferences.getInstance()).getBool('account_was_blocked'), isNull, reason: 'shown once');
   });
 
   testWidgets(
@@ -284,5 +289,108 @@ void main() {
     final problem = tester.takeException()?.toString() ?? '';
     expect(problem.contains('account_blocked_dialog.dart'), isFalse,
         reason: problem);
+  });
+
+  testWidgets('Account Unblocked in English: title, message, a Login button',
+      (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(_app(home: AccountUnblockedScreen(onLogin: () {})));
+    await tester.pumpAndSettle();
+    expect(find.text('Account Unblocked'), findsOneWidget);
+    expect(
+        find.text(
+            'Your account has been restored. You can now log in and access your account normally.'),
+        findsOneWidget);
+    expect(find.text('Login'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+  });
+
+  testWidgets('and in Somali, on a small phone', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    await _phone(tester, width: 320);
+    tester.view.physicalSize = const Size(320, 560);
+    await tester.pumpWidget(_app(home: AccountUnblockedScreen(onLogin: () {})));
+    await tester.pumpAndSettle();
+    expect(find.text('Akoonka Waa La Fasaxay'), findsOneWidget);
+    expect(
+        find.text(
+            'Akoonkaaga dib ayaa loo furay. Hadda waxaad si caadi ah u geli kartaa akoonkaaga.'),
+        findsOneWidget);
+    expect(find.text('Gali (Login)'), findsOneWidget);
+    final problem = tester.takeException()?.toString() ?? '';
+    expect(problem.contains('account_unblocked_screen.dart'), isFalse,
+        reason: problem);
+  });
+
+  testWidgets('the Login button continues into the app', (tester) async {
+    await _phone(tester);
+    var pressed = 0;
+    await tester.pumpWidget(
+        _app(home: AccountUnblockedScreen(onLogin: () => pressed++)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('unblocked-login')));
+    expect(pressed, 1);
+  });
+
+  testWidgets(
+      'blocked before, unblocked now: the next accepted login shows Account Unblocked once, then home; a normal login goes straight home',
+      (tester) async {
+    await _phone(tester);
+    SharedPreferences.setMockInitialValues(
+        {'account_was_blocked': true}); // remembered from when it was blocked
+    await tester.pumpWidget(_app());
+    Future<void> logIn() async {
+      await tester.enterText(find.byKey(const Key('login-phone')), '612345678');
+      await tester.enterText(
+          find.byKey(const Key('login-password')), 'secret-123');
+      await tester.tap(find.byKey(const Key('login-submit')));
+      await tester.pumpAndSettle();
+    }
+
+    await logIn();
+    expect(find.byKey(const Key('account-unblocked')), findsOneWidget);
+    expect(_auth.attempts, 1,
+        reason: 'the same existing account: no sign-up, nothing is created');
+    await tester.tap(find.byKey(const Key('unblocked-login')));
+    await tester.pumpAndSettle();
+    expect(find.byType(RootShell), findsOneWidget);
+
+    // Later: a plain login, no unblocked screen any more.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app());
+    await logIn();
+    expect(find.byKey(const Key('account-unblocked')), findsNothing);
+    expect(find.byType(RootShell), findsOneWidget);
+  });
+
+  testWidgets(
+      'still blocked: the Account Blocked card again, no success screen, and it is remembered',
+      (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(_app());
+    _auth.blockedAccount = true;
+    await tester.enterText(find.byKey(const Key('login-phone')), '612345678');
+    await tester.enterText(
+        find.byKey(const Key('login-password')), 'secret-123');
+    await tester.tap(find.byKey(const Key('login-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('account-blocked')), findsOneWidget);
+    expect(find.byKey(const Key('account-unblocked')), findsNothing);
+    expect(
+        (await SharedPreferences.getInstance()).getBool('account_was_blocked'),
+        isTrue,
+        reason: 'so the next accepted login is known to be an unblock');
+  });
+
+  testWidgets('signed out because of a block: it is remembered on the phone',
+      (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(_app(home: const Scaffold(body: Text('HOME'))));
+    _auth.debugSignIn(const AuthUser(phone: '252612345678', name: 'Asha'));
+    _client.onAccountBlocked!.call();
+    await tester.pumpAndSettle();
+    expect(
+        (await SharedPreferences.getInstance()).getBool('account_was_blocked'),
+        isTrue);
   });
 }

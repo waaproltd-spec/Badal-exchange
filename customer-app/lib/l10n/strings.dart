@@ -170,6 +170,11 @@ class AppStrings {
       'Akoonkaaga waxaa xiray maamulka. Hadda ma geli kartid akoonkaaga.');
   static String get accountBlockedHint => _t('Please contact customer support for more information.',
       'Fadlan la xiriir adeegga macaamiisha haddii aad u baahan tahay faahfaahin dheeraad ah.');
+  static String get accountUnblockedTitle => _t('Account Unblocked', 'Akoonka Waa La Fasaxay');
+  static String get accountUnblockedMessage => _t(
+      'Your account has been restored. You can now log in and access your account normally.',
+      'Akoonkaaga dib ayaa loo furay. Hadda waxaad si caadi ah u geli kartaa akoonkaaga.');
+  static String get unblockedLogin => _t('Login', 'Gali (Login)');
   static String get contactSupport => _t('Contact Support', 'La Xiriir Taageerada');
   static String get supportNotSet => _t('The support contact is not set yet.', 'Xiriirka taageerada weli lama dejin.');
   static String get openedOnAnotherPhone => _t('This account was opened on another phone. Log in again to use it here.',
