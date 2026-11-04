@@ -265,3 +265,26 @@ SELECT o.order_code, right(u.phone, 4) AS phone_end, o.amount_cents / 100.0 AS a
 FROM public.orders o JOIN public.users u ON u.id = o.customer_id
 WHERE o.direction = 'withdraw' AND o.created_at >= private.withdraw_day_start()
 ORDER BY o.created_at DESC LIMIT 20;
+
+\echo
+\echo '== 23. Sahal merchant payments of the window: parsed, matched or not, and the deposits they could pay (read-only; numbers: last 4 digits) =='
+SELECT to_char(m.paid_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS paid_somalia,
+       right(m.payer_phone, 4) AS payer_end, private.money(m.amount_cents) AS amount, m.match_status,
+       (SELECT o.order_code FROM public.orders o WHERE o.id = m.matched_order_id) AS matched_order,
+       to_char(m.first_seen_at AT TIME ZONE 'Africa/Mogadishu', 'HH24:MI:SS') AS seen_somalia
+FROM public.merchant_transactions m
+WHERE m.first_seen_at > now() - make_interval(hours => :hours)
+ORDER BY m.first_seen_at DESC LIMIT 25;
+\echo '-- deposits of the window from one number, newest first (when each was made, how it ended)'
+SELECT o.order_code, right(o.phone_number, 4) AS phone_end, private.money(o.amount_cents) AS amount, o.status,
+       to_char(o.created_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS created_somalia,
+       left(o.failure_reason, 80) AS reason
+FROM public.orders o
+WHERE o.direction = 'deposit' AND o.method = 'evc_plus' AND o.created_at > now() - make_interval(hours => :hours)
+ORDER BY o.created_at DESC LIMIT 15;
+\echo '-- Sahal rows the parser ignored in the window (description with digits masked)'
+SELECT to_char(m.first_seen_at AT TIME ZONE 'Africa/Mogadishu', 'HH24:MI:SS') AS seen_somalia,
+       left(regexp_replace(COALESCE(m.raw ->> 'description', ''), '[0-9]{5,}', '#', 'g'), 90) AS description, m.raw ->> 'credit' AS credit, m.match_status
+FROM public.merchant_transactions m
+WHERE m.first_seen_at > now() - make_interval(hours => :hours) AND m.match_status IN ('ignored', 'unmatched')
+ORDER BY m.first_seen_at DESC LIMIT 15;
