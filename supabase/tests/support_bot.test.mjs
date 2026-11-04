@@ -401,7 +401,7 @@ test('withdrawal approval from the Customer App: /start fasax_<Customer ID> reac
   assert.match(texts(r).find((x) => /loo gudbiyey maamulka/.test(x)) ?? '', /loo gudbiyey maamulka/);
   const toAdmin = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === adminChat);
   assert.ok(toAdmin, 'the administrator got the request');
-  assert.match(toAdmin.body.text, /Codsi fasax bixin/);
+  assert.match(toAdmin.body.text, /CODSI CUSUB OO LOO BAAHAN YAHAY FASAXA BIXINTA/);
   assert.ok(toAdmin.body.text.includes(code));
   assert.ok(toAdmin.body.text.includes(`+${c.phone}`));
   assert.ok(toAdmin.body.text.includes('@macaamiil1'));

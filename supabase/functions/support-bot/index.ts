@@ -78,8 +78,8 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   btnApprove: '✅ Fasax',
   btnReject: '❌ Diid',
   adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
-  adminRequest: (name: string, id: string, phone: string, status: string, who: string) =>
-    `🔔 <b>Codsi fasax bixin</b>\n\nMacaamiil: <b>${name || '—'}</b>\nCustomer ID: <b>${id}</b>\nTelefoon: ${phone ? '+' + phone : '—'}\nXaalad: ${status}${who}\n\nKa fasax Agent App-ka (Account > Withdrawal Verification).`,
+  adminRequest: (name: string, id: string, phone: string, username: string) =>
+    `🔔 <b>CODSI CUSUB OO LOO BAAHAN YAHAY FASAXA BIXINTA</b>\n\n👤 Macmiil: <b>${name || '—'}</b>\n🆔 Customer ID: <b>${id}</b>\n📱 Telefoon: ${phone ? '+' + phone : '—'}${username ? `\n💬 Telegram: @${username}` : ''}\n\n🟡 <b>PENDING – WELI SUGAYA</b>\n\n⚠️ Fadlan dib u eeg codsiga oo ka go'aan gaar.`,
   unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
   voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor su’aashaada qoraal ahaan.',
   otherRefused: '🚫 Bot-kan wuxuu aqbalaa <b>qoraal</b> kaliya. Sawirada (screenshots), codka iyo faylasha kale lama aqbalo. Fadlan qor su’aashaada.',
@@ -325,9 +325,8 @@ async function approvalRequest(chat: number, account: string, from: any) {
   if (!r.new && r.sent) return void (await say(chat, T.approvalWaiting));
   const adminChat = await rpc('support_admin_chat', {});
   if (adminChat) {
-    const who = from?.username ? `\nTelegram: @${esc(String(from.username))}` : '';
     try {
-      const sent = await say(Number(adminChat), T.adminRequest(esc(r.name ?? ''), esc(r.accountId), esc(String(r.phone ?? '')), esc(String(r.status)), who),
+      const sent = await say(Number(adminChat), T.adminRequest(esc(r.name ?? ''), esc(r.accountId), esc(String(r.phone ?? '')), from?.username ? esc(String(from.username)) : ''),
         { reply_markup: approvalButtons(r.requestId) });
       await rpc('support_approval_sent', { p_request: r.requestId, p_admin_chat: Number(adminChat), p_message_id: sent?.message_id ?? 0 });
       return void (await say(chat, T.approvalSent));
