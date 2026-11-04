@@ -23,9 +23,11 @@ class LocalAuthBiometrics implements DeviceBiometrics {
   @override
   Future<bool> isAvailable() async {
     try {
+      // canCheckBiometrics is true only when the phone has the sensor and a
+      // fingerprint is enrolled. (The list of biometric types is not used: some
+      // phones report it empty although the fingerprint works.)
       if (!await _auth.isDeviceSupported()) return false;
-      if (!await _auth.canCheckBiometrics) return false;
-      return (await _auth.getAvailableBiometrics()).isNotEmpty;
+      return await _auth.canCheckBiometrics;
     } catch (_) {
       return false;
     }

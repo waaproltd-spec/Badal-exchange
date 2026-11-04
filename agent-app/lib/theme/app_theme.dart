@@ -190,6 +190,11 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.surface,
+        indicatorColor: AppColors.primaryTint,
+        labelTextStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+      ),
       navigationDrawerTheme: NavigationDrawerThemeData(
         backgroundColor: AppColors.surface,
       ),
