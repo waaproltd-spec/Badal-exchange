@@ -418,6 +418,9 @@ class AppStrings {
   static String get verifyBody => _t(
       'To withdraw your funds, please contact Admin on WhatsApp to have your account approved for withdrawals.',
       'Haddii aad rabto inaad lacag la baxdo markii ugu horreysay, fadlan la xiriir maamulka si akoonkaaga loo xaqiijiyo loona fasaxo.');
+  static String get insufficientBalance => _t(
+      'Your balance is not enough. You cannot withdraw now. Please deposit into your account first.',
+      'Haraagaaga ma ku filna. Lacag lagama bixi karo hadda. Fadlan marka hore ku shubo akoonkaaga.');
   static String get approvalTitleLead => _t('Account Must Be ', 'Akoonka Waa In ');
   static String get approvalTitleHighlight => _t('Approved', 'La Fasaxo');
   static String get contactAdminWhatsappLabel => _t('Contact Admin (WhatsApp)', 'La Xiriir Maamulka (WhatsApp)');

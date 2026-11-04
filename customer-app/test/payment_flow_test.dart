@@ -760,6 +760,27 @@ void main() {
     expect(find.byKey(const Key('withdraw-verify')), findsNothing);
   });
 
+  for (final (balance, shows) in [('0.00', false), ('0', false), ('25.00', true)]) {
+    testWidgets('approval popup with an available balance of \$$balance: ${shows ? 'shown' : 'not shown, a balance message instead'}', (tester) async {
+      await _phone(tester);
+      final api = FakeCustomerApi()
+        ..access = const WithdrawalAccess(
+          allowed: false, status: 'pending', whatsapp: '+252 61 234 5678', accountId: 'BX12AB34CD', phone: '252610338686');
+      await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'evc_plus', ownPhone: '252610338686', availableBalance: balance)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).last, '1');
+      await tester.tap(find.byKey(const Key('withdraw-continue')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('withdraw-verify')), shows ? findsOneWidget : findsNothing);
+      expect(find.byKey(const Key('contact-admin-whatsapp')), shows ? findsOneWidget : findsNothing);
+      if (!shows) {
+        expect(find.text(AppStrings.insufficientBalance), findsOneWidget);
+        expect(api.submitted, isEmpty);
+        expect(api.quotes, 0);
+      }
+    });
+  }
+
   test('the WhatsApp message: customer ID, number, platform and its account ID; nothing secret', () {
     const access = WithdrawalAccess(allowed: false, status: 'pending', whatsapp: '+252 61 234 5678',
         accountId: 'BX12AB34CD', phone: '252611234567');

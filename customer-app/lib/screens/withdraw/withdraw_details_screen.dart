@@ -61,6 +61,13 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
 
   bool get _blocked => _access != null && !_access!.allowed;
 
+  /// The available balance is known and is not above $0.00: nothing to withdraw, so the approval popup (which
+  /// sends the customer to the administration) is not shown; the balance message is.
+  bool get _noBalance {
+    final b = double.tryParse(widget.availableBalance ?? '');
+    return b != null && b <= 0;
+  }
+
   /// Another number an admin lets this customer use (loaded once), and the
   /// 9 digits chosen: the registered number unless the customer changes it.
   PaymentNumbers _numbers = PaymentNumbers.none;
@@ -166,6 +173,10 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
   Future<void> _continue() async {
     if (!_formKey.currentState!.validate()) return;
     if (_blocked) {
+      if (_noBalance) {
+        setState(() => _error = AppStrings.insufficientBalance);
+        return;
+      }
       await _askForApproval();
       return;
     }
@@ -201,7 +212,13 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     } on ApiException catch (e) {
       if (e.code == 'WITHDRAWAL_VERIFICATION_REQUIRED') {
         await _checkAccess();
-        if (mounted && _blocked) await _askForApproval();
+        if (mounted && _blocked) {
+          if (_noBalance) {
+            setState(() => _error = AppStrings.insufficientBalance);
+          } else {
+            await _askForApproval();
+          }
+        }
         return;
       }
       if ((e.code.startsWith('WITHDRAWAL_') && e.code.endsWith('_LIMIT')) || e.code == 'WITHDRAWAL_KYC_REQUIRED') _loadLimits();
