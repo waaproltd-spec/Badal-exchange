@@ -13,7 +13,7 @@ import '../../l10n/tr.dart';
 
 String _err(Object e, String fallback) => e is ApiException ? e.message : fallback;
 
-String _kyc(String status) => kycStatusLabels[status] ?? (status == 'not_submitted' ? 'No KYC' : status);
+String _kyc(String status) => kycStatusLabels[status] ?? (status == 'not_submitted' ? tr('No KYC') : status);
 
 /// Customer Withdrawal Limits: the four default limits (verified / unverified,
 /// daily / monthly), and every customer with KYC status, what they withdrew
@@ -149,7 +149,7 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
                                   Expanded(child: Tx(c.name.isEmpty ? '+${c.phone}' : c.name, style: const TextStyle(fontWeight: FontWeight.w700))),
-                                  _Pill(c.verified ? 'KYC approved' : _kyc(c.kycStatus), c.verified ? AppColors.statusCompleted : AppColors.textSecondary),
+                                  _Pill(c.verified ? tr('KYC approved') : _kyc(c.kycStatus), c.verified ? AppColors.statusCompleted : AppColors.textSecondary),
                                 ]),
                                 Text('+${c.phone}${c.custom ? ' · custom limits' : ''}',
                                     style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
@@ -160,7 +160,7 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Tx(
-                                      c.warning!.endsWith('reached') ? 'Limit reached' : tr('Close to the limit'),
+                                      c.warning!.endsWith('reached') ? tr('Limit reached') : tr('Close to the limit'),
                                       style: TextStyle(
                                           fontSize: 12.5,
                                           fontWeight: FontWeight.w700,
@@ -266,7 +266,7 @@ class _DefaultsSheetState extends State<_DefaultsSheet> {
             Text(_error!, key: const Key('limits-error'), style: const TextStyle(color: AppColors.statusFailed)),
           ],
           const SizedBox(height: 16),
-          ElevatedButton(key: const Key('save-defaults'), onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
+          ElevatedButton(key: const Key('save-defaults'), onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
         ]),
       ),
     );
@@ -370,7 +370,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                         const SizedBox(height: 10),
                         Row(children: [
                           const Tx('KYC: ', style: TextStyle(fontWeight: FontWeight.w700)),
-                          _Pill(d.verified ? 'Approved' : _kyc(d.kycStatus), d.verified ? AppColors.statusCompleted : AppColors.statusProcessing),
+                          _Pill(d.verified ? tr('Approved') : _kyc(d.kycStatus), d.verified ? AppColors.statusCompleted : AppColors.statusProcessing),
                         ]),
                         if (d.kycApplicationId != null)
                           Align(
@@ -393,8 +393,8 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         const Tx('Withdrawn and remaining', style: TextStyle(fontWeight: FontWeight.w800)),
                         const SizedBox(height: 6),
-                        Text(trp('Today: \${0} of \${1} · left \${2}{3}', [d.dailyUsed, d.dailyLimit, d.dailyRemaining, d.customDaily ? ' (custom)' : ''])),
-                        Text(trp('This month: \${0} of \${1} · left \${2}{3}', [d.monthlyUsed, d.monthlyLimit, d.monthlyRemaining, d.customMonthly ? ' (custom)' : ''])),
+                        Text(trp('Today: \${0} of \${1} · left \${2}{3}', [d.dailyUsed, d.dailyLimit, d.dailyRemaining, d.customDaily ? tr(' (custom)') : ''])),
+                        Text(trp('This month: \${0} of \${1} · left \${2}{3}', [d.monthlyUsed, d.monthlyLimit, d.monthlyRemaining, d.customMonthly ? tr(' (custom)') : ''])),
                       ]),
                     ),
                     const SizedBox(height: 10),

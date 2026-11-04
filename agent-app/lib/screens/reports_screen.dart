@@ -117,7 +117,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   String _rangeLabel(ReportOverview r) {
     final to = DateTime.tryParse(r.to);
-    if (r.from == null) return to == null ? 'All time' : trp('All time, up to {0}', [_pretty.format(to)]);
+    if (r.from == null) return to == null ? tr('All time') : trp('All time, up to {0}', [_pretty.format(to)]);
     final from = DateTime.tryParse(r.from!);
     if (from == null || to == null) return '';
     return r.from == r.to ? _pretty.format(from) : '${_pretty.format(from)} – ${_pretty.format(to)}';

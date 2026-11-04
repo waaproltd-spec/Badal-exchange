@@ -285,7 +285,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.sessionActive ? 'Session open' : tr('No session open'),
+          Text(s.sessionActive ? tr('Session open') : tr('No session open'),
               key: const Key('account-session'), style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
           Text(trp('Last successful login: {0}', [_time(s.lastLoginAt ?? s.sessionStartedAt)]), key: const Key('account-login-time')),
@@ -319,7 +319,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.source == 'database' ? 'Account: ${s.activeUsername}' : tr('Account: set on the server'),
+          Text(s.source == 'database' ? trp('Account: {0}', [s.activeUsername]) : tr('Account: set on the server'),
               key: const Key('account-active'), style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Tx(s.source == 'database'
@@ -348,7 +348,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
           const SizedBox(height: 4),
           Text(label, key: const Key('pending-status'), style: TextStyle(color: color, fontWeight: FontWeight.w700)),
           if ((p.message ?? '').isNotEmpty) Tx(p.message!, style: TextStyle(color: AppColors.textSecondary)),
-          Text(trp('Password: saved (hidden){0}', [p.hasPin ? ' · PIN: saved (hidden)' : ' · no PIN (transfers stay off for this account)']),
+          Text(trp('Password: saved (hidden){0}', [p.hasPin ? tr(' · PIN: saved (hidden)') : tr(' · no PIN (transfers stay off for this account)')]),
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
           if (p.needsCode) ...[
             const SizedBox(height: 10),
@@ -373,7 +373,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
                 child: OutlinedButton(
                   key: const Key('pending-test'),
                   onPressed: _busy || p.busy ? null : () => _do(() => context.read<Session>().api.testSahalAccount()),
-                  child: Tx(p.verified ? 'Test again' : tr('Test new account')),
+                  child: Tx(p.verified ? tr('Test again') : tr('Test new account')),
                 ),
               ),
               const SizedBox(width: 10),

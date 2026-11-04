@@ -102,7 +102,7 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(
             configured
-                ? trp('Set up{0}.', [last != null ? ' · last SMS received ${SahalForwarderCard.somaliTime(last)}' : ' · no SMS received yet'])
+                ? trp('Set up{0}.', [last != null ? trp(' · last SMS received {0}', [SahalForwarderCard.somaliTime(last)]) : tr(' · no SMS received yet')])
                 : tr('Not set up. Use it when the merchant phone runs an SMS-forwarding app instead of this one.'),
             key: const Key('forwarder-status'),
           ),
@@ -129,7 +129,7 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
               key: const Key('forwarder-make'),
               onPressed: _busy ? null : _make,
               icon: const Icon(Icons.key_rounded),
-              label: Tx(configured ? 'New token (replaces the old)' : tr('Create token')),
+              label: Tx(configured ? tr('New token (replaces the old)') : tr('Create token')),
             ),
             if (configured)
               TextButton(

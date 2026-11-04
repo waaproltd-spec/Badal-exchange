@@ -46,14 +46,14 @@ class CompanyStatusPill extends StatelessWidget {
 String companyAmount(CompanyBalance c) => switch (c.status) {
       'not_connected' => '—',
       'offline' when c.balance == null => tr('Unavailable'),
-      _ => c.balance == null ? 'Unavailable' : '\$${c.balance}',
+      _ => c.balance == null ? tr('Unavailable') : '\$${c.balance}',
     };
 
 /// The Limit to show: what the register can still sell, or why it's unknown.
 String companyLimit(CompanyBalance c) => switch (c.status) {
       'not_connected' => '—',
       _ when c.balance == null => '—',
-      _ => c.limit == null ? 'Not reported' : '\$${c.limit}',
+      _ => c.limit == null ? tr('Not reported') : '\$${c.limit}',
     };
 
 /// Where the balance comes from and how old it is.
@@ -61,7 +61,7 @@ String companySource(CompanyBalance c) {
   if (!c.connected) return tr('No balance connection · orders handled by agents');
   final at = c.lastSuccessAt;
   return switch (c.status) {
-    'offline' => at == null ? 'Cash register · not read yet' : trp('Last known · {0}', [formatDateTime(at)]),
+    'offline' => at == null ? tr('Cash register · not read yet') : trp('Last known · {0}', [formatDateTime(at)]),
     'stale' => trp('Last read {0} · not updated since', [formatDateTime(at!)]),
     _ => trp('Cash register · {0} · {1}', [c.source ?? 'live', formatDateTime(at!)]),
   };

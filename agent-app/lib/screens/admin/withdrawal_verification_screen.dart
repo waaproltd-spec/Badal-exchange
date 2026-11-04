@@ -68,7 +68,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Tx(decision == 'reject' ? 'Reject ${v.accountId}?' : trp('Restrict {0} again?', [v.accountId])),
+          title: Tx(decision == 'reject' ? trp('Reject {0}?', [v.accountId]) : trp('Restrict {0} again?', [v.accountId])),
           content: TextField(
             key: const Key('verify-reason'),
             controller: controller,
@@ -80,7 +80,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
               onPressed: () => Navigator.pop(context, true),
-              child: Tx(decision == 'reject' ? 'Reject' : tr('Restrict')),
+              child: Tx(decision == 'reject' ? tr('Reject') : tr('Restrict')),
             ),
           ],
         ),
@@ -143,7 +143,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
                       ChoiceChipsRow<String>(
                         options: [
                           for (final s in const ['pending', 'approved', 'rejected', 'restricted'])
-                            (s, '${s[0].toUpperCase()}${s.substring(1)} (${_counts[s] ?? 0})'),
+                            (s, '${tr(s[0].toUpperCase() + s.substring(1))} (${_counts[s] ?? 0})'),
                           ('all', tr('All')),
                         ],
                         selected: _status,

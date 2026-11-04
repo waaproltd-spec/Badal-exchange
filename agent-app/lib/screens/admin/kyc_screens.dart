@@ -130,7 +130,7 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                     Tx(x.customerName?.isNotEmpty == true ? x.customerName! : x.fullName,
                                         style: const TextStyle(fontWeight: FontWeight.w700)),
-                                    Text('+${x.phone} · ${x.documentType == 'passport' ? 'Passport' : 'National ID'} ${x.documentNumber}',
+                                    Text('+${x.phone} · ${x.documentType == 'passport' ? tr('Passport') : tr('National ID')} ${x.documentNumber}',
                                         maxLines: 1, overflow: TextOverflow.ellipsis,
                                         style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                                     if (x.submittedAt != null)
@@ -187,7 +187,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
   }
 
   Future<void> _decide(String decision) async {
-    final reason = TextEditingController(text: decision == 'approve' ? 'Documents checked' : '');
+    final reason = TextEditingController(text: decision == 'approve' ? tr('Documents checked') : '');
     final title = {'approve': tr('Approve'), 'reject': tr('Reject'), 'resubmit': tr('Request Resubmission')}[decision]!;
     final ok = await showDialog<bool>(
       context: context,
@@ -198,7 +198,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
           controller: reason,
           autofocus: true,
           decoration: InputDecoration(
-            labelText: decision == 'approve' ? 'Reason (kept with the decision)' : tr('Reason (shown to the customer)')),
+            labelText: decision == 'approve' ? tr('Reason (kept with the decision)') : tr('Reason (shown to the customer)')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Tx('Cancel')),
@@ -251,7 +251,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                           builder: (_) => Dialog(child: InteractiveViewer(child: Image.memory(a.documents[kind]!))),
                         ),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Tx({'front': a.item.documentType == 'passport' ? 'Passport photo' : tr('ID front'), 'back': tr('ID back'),
+                          Tx({'front': a.item.documentType == 'passport' ? tr('Passport photo') : tr('ID front'), 'back': tr('ID back'),
                             'selfie': tr('Selfie')}[kind]!, style: const TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           ClipRRect(
@@ -268,7 +268,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                       ),
                 ]),
                 SectionHeader(title: tr('Information')),
-                InfoRow(tr('Document'), a.item.documentType == 'passport' ? 'Passport' : tr('National ID')),
+                InfoRow(tr('Document'), a.item.documentType == 'passport' ? tr('Passport') : tr('National ID')),
                 InfoRow(tr('Full name'), a.item.fullName),
                 InfoRow(tr('Document number'), a.item.documentNumber),
                 InfoRow(tr('Country of issue'), a.item.country),
@@ -285,7 +285,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                     title: Tx(c.key.replaceAll('_', ' ')),
                     subtitle: c.detail == null ? null : Tx(c.detail!),
                   ),
-                InfoRow(tr('Identity service'), a.provider ?? 'none'),
+                InfoRow(tr('Identity service'), a.provider ?? tr('none')),
                 if (a.decided) ...[
                   SectionHeader(title: tr('Decision')),
                   InfoRow(tr('Decided'), a.decidedAt == null ? '—' : _when.format(a.decidedAt!.toLocal())),

@@ -104,7 +104,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                       icon: Icons.warning_amber_rounded,
                       color: AppColors.statusFailed,
                       value: '${data.lowCount}',
-                      label: data.lowCount == 1 ? 'Low balance company' : tr('Low balance companies'),
+                      label: data.lowCount == 1 ? tr('Low balance company') : tr('Low balance companies'),
                     ),
                     StatCard(
                       icon: Icons.wifi_off_rounded,
@@ -181,7 +181,7 @@ class _LimitCard extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(data.totalLimit == null ? 'Not reported' : '\$${data.totalLimit}',
+            child: Text(data.totalLimit == null ? tr('Not reported') : '\$${data.totalLimit}',
                 key: const Key('total-limit'),
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 48, height: 1.1)),
           ),
@@ -190,7 +190,7 @@ class _LimitCard extends StatelessWidget {
             data.totalLimit == null
                 ? tr('No company has reported a limit')
                 : unknown > 0
-                    ? '$unknown ${unknown == 1 ? 'company' : 'companies'} not reported (not included)'
+                    ? trp('{0} {1} not reported (not included)', [unknown, unknown == 1 ? tr('company') : tr('companies')])
                     : tr('What the registers can still sell'),
             key: const Key('total-limit-note'),
             style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
@@ -240,7 +240,7 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            trp('Verified balances of {0} {1}{2}', [data.totalCompanies, data.totalCompanies == 1 ? 'company' : 'companies', left > 0 ? ' · $left not included (offline or not updated)' : '']),
+            trp('Verified balances of {0} {1}{2}', [data.totalCompanies, data.totalCompanies == 1 ? tr('company') : tr('companies'), left > 0 ? ' · $left not included (offline or not updated)' : '']),
             key: const Key('total-note'),
             style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12.5),
           ),

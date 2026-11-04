@@ -206,7 +206,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
     final t = (v ?? '').trim();
     if (t.isEmpty) return null;
     final uri = Uri.tryParse(t);
-    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? 'Enter a full link starting with https://' : null;
+    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? tr('Enter a full link starting with https://') : null;
   }
 
   Future<void> _choose() async {
@@ -304,7 +304,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
               key: const Key('ad-image-choose'),
               onPressed: _saving ? null : _choose,
               icon: const Icon(Icons.photo_library_outlined),
-              label: Tx(preview == null ? 'Choose Image' : tr('Change Image')),
+              label: Tx(preview == null ? tr('Choose Image') : tr('Change Image')),
             ),
             if (preview != null)
               TextButton(
@@ -342,7 +342,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Tx(widget.ad == null ? 'Add Home Ad' : tr('Edit Home Ad'))),
+      appBar: AppBar(title: Tx(widget.ad == null ? tr('Add Home Ad') : tr('Edit Home Ad'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -352,7 +352,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
               controller: _title,
               decoration: InputDecoration(labelText: tr('Title')),
               maxLength: 120,
-              validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+              validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
             ),
             TextFormField(
               controller: _body,
@@ -382,7 +382,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
               onChanged: (v) => setState(() => _enabled = v),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
           ],
         ),
       ),
@@ -528,7 +528,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
   Widget build(BuildContext context) {
     final isPlatform = methodInfo(_method).isPlatform;
     return AlertDialog(
-      title: Tx(widget.number == null ? 'Add deposit number' : tr('Edit deposit number')),
+      title: Tx(widget.number == null ? tr('Add deposit number') : tr('Edit deposit number')),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -544,9 +544,9 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _number,
-                decoration: InputDecoration(labelText: isPlatform ? 'Cashier / account ID' : tr('Phone number')),
+                decoration: InputDecoration(labelText: isPlatform ? tr('Cashier / account ID') : tr('Phone number')),
                 keyboardType: isPlatform ? TextInputType.text : TextInputType.phone,
-                validator: (v) => (v ?? '').trim().length < 3 ? 'Required' : null,
+                validator: (v) => (v ?? '').trim().length < 3 ? tr('Required') : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -565,7 +565,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
-        TextButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
+        TextButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
       ],
     );
   }
@@ -627,20 +627,20 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
                     controller: _title,
                     decoration: InputDecoration(labelText: tr('Title')),
                     maxLength: 120,
-                    validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
                   ),
                   TextFormField(
                     controller: _body,
                     decoration: InputDecoration(labelText: tr('Message')),
                     maxLength: 1000,
                     maxLines: 4,
-                    validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(
                     onPressed: _sending ? null : _send,
                     icon: const Icon(Icons.send_rounded),
-                    label: Tx(_sending ? 'Sending…' : tr('Send to all customers')),
+                    label: Tx(_sending ? tr('Sending…') : tr('Send to all customers')),
                   ),
                 ],
               ),
@@ -739,26 +739,26 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               controller: _current,
               obscureText: true,
               decoration: InputDecoration(labelText: tr('Current password')),
-              validator: (v) => (v ?? '').isEmpty ? 'Required' : null,
+              validator: (v) => (v ?? '').isEmpty ? tr('Required') : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _next,
               obscureText: true,
               decoration: InputDecoration(labelText: tr('New password (at least 8 characters)')),
-              validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+              validator: (v) => (v ?? '').length < 8 ? tr('At least 8 characters') : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _confirmNext,
               obscureText: true,
               decoration: InputDecoration(labelText: tr('Confirm new password')),
-              validator: (v) => v != _next.text ? 'Passwords do not match' : null,
+              validator: (v) => v != _next.text ? tr('Passwords do not match') : null,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _saving ? null : _save,
-              child: Tx(_saving ? 'Saving…' : tr('Change password')),
+              child: Tx(_saving ? tr('Saving…') : tr('Change password')),
             ),
           ],
         ),

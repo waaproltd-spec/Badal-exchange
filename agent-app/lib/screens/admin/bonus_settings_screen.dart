@@ -164,8 +164,8 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
                 child: const Tx('Change'),
               ),
             ]),
-            InfoRow(tr('Per day'), s.dailyLimit == null ? 'No limit' : '\$${s.dailyLimit}'),
-            InfoRow(tr('Per month'), s.monthlyLimit == null ? 'No limit' : '\$${s.monthlyLimit}'),
+            InfoRow(tr('Per day'), s.dailyLimit == null ? tr('No limit') : '\$${s.dailyLimit}'),
+            InfoRow(tr('Per month'), s.monthlyLimit == null ? tr('No limit') : '\$${s.monthlyLimit}'),
             Tx('Over a limit, the rest of a bonus is not credited; the history says so.',
                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
           ]),
@@ -305,7 +305,7 @@ class _LimitsDialogState extends State<_LimitsDialog> {
     final t = (v ?? '').trim();
     if (t.isEmpty) return null;
     final n = double.tryParse(t);
-    return n == null || n <= 0 ? 'Enter an amount, or leave empty' : null;
+    return n == null || n <= 0 ? tr('Enter an amount, or leave empty') : null;
   }
 
   @override

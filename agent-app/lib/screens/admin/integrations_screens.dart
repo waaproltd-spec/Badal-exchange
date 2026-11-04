@@ -55,12 +55,12 @@ class _IntegrationsScreenState extends ListScreenState<IntegrationsScreen, Payme
                         children: [
                           Tx(i.label, style: const TextStyle(fontWeight: FontWeight.w800)),
                           Tx(
-                            i.hasCredentials ? 'Account: ${i.username ?? 'set'}' : tr('No credentials saved'),
+                            i.hasCredentials ? trp('Account: {0}', [i.username ?? tr('set')]) : tr('No credentials saved'),
                             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                           ),
                           if (i.isMobCash)
                             Text(
-                              trp('Automation: {0}{1}', [i.automationMode, i.automationMode == 'automatic' && i.dryRun ? ' (dry run)' : '']),
+                              trp('Automation: {0}{1}', [i.automationMode, i.automationMode == 'automatic' && i.dryRun ? tr(' (dry run)') : '']),
                               style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                             ),
                         ],
@@ -181,11 +181,11 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: SwitchListTile(
             title: const Tx('Integration active', style: TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Tx(d.isActive ? 'Active' : tr('Inactive')),
+            subtitle: Tx(d.isActive ? tr('Active') : tr('Inactive')),
             value: d.isActive,
             onChanged: _busy
                 ? null
-                : (v) => _act(() => api.setIntegrationActive(d.provider, v), v ? 'Activated.' : tr('Deactivated.')),
+                : (v) => _act(() => api.setIntegrationActive(d.provider, v), v ? tr('Activated.') : tr('Deactivated.')),
           ),
         ),
         GroupLabel(tr('Account')),
@@ -194,7 +194,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               InfoRow(tr('Username'), d.hasCredentials ? (d.username ?? tr('Saved')) : tr('Not set')),
-              InfoRow(tr('Password'), d.hasCredentials ? 'Saved (hidden)' : tr('Not set')),
+              InfoRow(tr('Password'), d.hasCredentials ? tr('Saved (hidden)') : tr('Not set')),
               InfoRow(tr('Last test'), d.lastTestAt != null ? '${d.lastTestResult ?? '—'} • ${formatDateTime(d.lastTestAt!)}' : '—'),
               if ((d.lastTestMessage ?? '').isNotEmpty) InfoRow(tr('Test message'), d.lastTestMessage!),
               InfoRow(
@@ -208,7 +208,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _busy ? null : () => _editCredentials(d),
-                      child: Tx(d.hasCredentials ? 'Change credentials' : tr('Set credentials')),
+                      child: Tx(d.hasCredentials ? tr('Change credentials') : tr('Set credentials')),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -237,8 +237,8 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                   style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
-                InfoRow(tr('Mode'), d.automationMode == 'automatic' ? 'Automatic' : tr('Manual')),
-                InfoRow(tr('Dry run'), d.dryRun ? 'On (no real money moves)' : tr('Off (live)')),
+                InfoRow(tr('Mode'), d.automationMode == 'automatic' ? tr('Automatic') : tr('Manual')),
+                InfoRow(tr('Dry run'), d.dryRun ? tr('On (no real money moves)') : tr('Off (live)')),
                 InfoRow(tr('Failures in a row'), '${d.consecutiveFailures}'),
                 InfoRow(
                   tr('Circuit breaker'),
@@ -405,14 +405,14 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
             TextFormField(
               controller: _username,
               decoration: InputDecoration(labelText: tr('Username')),
-              validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+              validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _password,
               decoration: InputDecoration(labelText: tr('Password')),
               obscureText: true,
-              validator: (v) => (v ?? '').isEmpty ? 'Required' : null,
+              validator: (v) => (v ?? '').isEmpty ? tr('Required') : null,
             ),
             if (i.isMobCash) ...[
               const SizedBox(height: 14),
@@ -429,7 +429,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Tx(
-                        _check!.success ? 'Login worked' : tr('Login failed'),
+                        _check!.success ? tr('Login worked') : tr('Login failed'),
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Tx(_check!.message, style: TextStyle(color: AppColors.textSecondary)),
@@ -443,7 +443,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
               ],
             ],
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _busy ? null : _save, child: Tx(_busy ? 'Working…' : tr('Save credentials'))),
+            ElevatedButton(onPressed: _busy ? null : _save, child: Tx(_busy ? tr('Working…') : tr('Save credentials'))),
           ],
         ),
       ),

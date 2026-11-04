@@ -38,7 +38,7 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
                 SwitchListTile(
                   secondary: MethodLogo(method: m.method, width: 84),
                   title: Tx(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Tx(m.enabled ? 'ON — customers can use it' : tr('OFF — hidden from customers')),
+                  subtitle: Tx(m.enabled ? tr('ON — customers can use it') : tr('OFF — hidden from customers')),
                   value: m.enabled,
                   onChanged: (v) => run(
                     () => api.setMethodEnabled(m.method, v),
@@ -190,12 +190,12 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
 
   String? _positive(String? v) {
     final n = double.tryParse((v ?? '').trim());
-    return (n == null || n <= 0) ? 'Enter a number above 0' : null;
+    return (n == null || n <= 0) ? tr('Enter a number above 0') : null;
   }
 
   String? _nonNegative(String? v) {
     final n = double.tryParse((v ?? '').trim());
-    return (n == null || n < 0) ? 'Enter 0 or more' : null;
+    return (n == null || n < 0) ? tr('Enter 0 or more') : null;
   }
 
   Future<void> _save() async {
@@ -296,7 +296,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                       ),
                       validator: (v) {
                         final t = (v ?? '').replaceAll(RegExp(r'\s'), '');
-                        if (t.isEmpty) return _merchantOn ? 'Enter the code before switching it on' : null;
+                        if (t.isEmpty) return _merchantOn ? tr('Enter the code before switching it on') : null;
                         return _merchantPattern.hasMatch(t) ? null : tr('Write it like *789*090353102*{amount}#');
                       },
                     ),
@@ -312,7 +312,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                trp('Off: customers send money to the deposit number as before{0}. On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms each deposit from the merchant account; they wait up to 24 hours.', [s.method == 'evc_plus' ? ' (*712*, confirmed automatically from the SMS)' : '']),
+                trp('Off: customers send money to the deposit number as before{0}. On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms each deposit from the merchant account; they wait up to 24 hours.', [s.method == 'evc_plus' ? tr(' (*712*, confirmed automatically from the SMS)') : '']),
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
             ],
@@ -326,7 +326,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                       controller: _city,
                       decoration: InputDecoration(labelText: tr('City'), prefixIcon: Icon(Icons.location_city_rounded)),
                       textCapitalization: TextCapitalization.words,
-                      validator: (v) => (v ?? '').trim().length > 60 ? 'At most 60 characters' : null,
+                      validator: (v) => (v ?? '').trim().length > 60 ? tr('At most 60 characters') : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -334,7 +334,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                       controller: _street,
                       decoration: InputDecoration(labelText: tr('Street'), prefixIcon: Icon(Icons.add_road_rounded)),
                       textCapitalization: TextCapitalization.characters,
-                      validator: (v) => (v ?? '').trim().length > 80 ? 'At most 80 characters' : null,
+                      validator: (v) => (v ?? '').trim().length > 80 ? tr('At most 80 characters') : null,
                     ),
                   ],
                 ),
@@ -351,7 +351,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
           ],
         ),
       ),

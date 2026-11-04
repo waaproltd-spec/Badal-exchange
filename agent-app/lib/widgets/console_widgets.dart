@@ -155,7 +155,7 @@ class StatCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Tx(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          if (caption != null) ...[
+          if (caption != null && tr(caption!) != tr(label)) ...[
             const SizedBox(height: 2),
             Tx(caption!, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
           ],
@@ -430,7 +430,7 @@ Future<void> showActivityDetails(BuildContext context, HistoryItem item) {
           InfoRow(tr('Amount'), '\$${item.amount}'),
           if (item.orderCode != null) InfoRow(tr('Order code'), item.orderCode!),
           InfoRow(tr('Payment method'), item.methodLabel),
-          InfoRow(item.isConfirmation ? 'Sender / account' : tr('Phone / account'), item.counterparty ?? '—'),
+          InfoRow(item.isConfirmation ? tr('Sender / account') : tr('Phone / account'), item.counterparty ?? '—'),
           InfoRow(tr('Customer'), [item.customerName, item.customerPhone].whereType<String>().join(' • ').ifEmpty('—')),
           InfoRow(tr('Reference'), item.reference ?? '—'),
           InfoRow(tr('Date'), formatDateTime(item.createdAt)),

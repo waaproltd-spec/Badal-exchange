@@ -327,7 +327,7 @@ class _CompanyBalancesCard extends StatelessWidget {
               children: [
                 Tx('Company Balances',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
-                Tx(d == null ? 'Cash register balances' : trp('Total \${0}', [d.total]),
+                Tx(d == null ? tr('Cash register balances') : trp('Total \${0}', [d.total]),
                     style: TextStyle(color: AppColors.textSecondary)),
                 if (notes.isNotEmpty)
                   Tx(notes.join(' · '),

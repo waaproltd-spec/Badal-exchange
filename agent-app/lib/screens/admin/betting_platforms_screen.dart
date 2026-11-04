@@ -396,7 +396,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(
                           _p.logo != null
-                              ? (_p.builtIn ? 'Logo replaced (the Customer App shows this one)' : tr('Logo set'))
+                              ? (_p.builtIn ? tr('Logo replaced (the Customer App shows this one)') : tr('Logo set'))
                               : (_p.builtIn
                                   ? tr('The logo built into the Customer App')
                                   : tr('No logo yet (the Customer App shows its initials)')),
@@ -407,13 +407,13 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                           key: const Key('platform-logo-choose'),
                           onPressed: _busy ? null : _chooseLogo,
                           icon: const Icon(Icons.photo_library_rounded),
-                          label: Tx(_p.logo != null ? 'Change logo' : (_p.builtIn ? 'Replace logo' : tr('Choose logo'))),
+                          label: Tx(_p.logo != null ? tr('Change logo') : (_p.builtIn ? tr('Replace logo') : tr('Choose logo'))),
                         ),
                         if (_p.logo != null)
                           TextButton(
                             key: const Key('platform-logo-remove'),
                             onPressed: _busy ? null : _removeLogo,
-                            child: Tx(_p.builtIn ? 'Back to the built-in logo' : tr('Remove')),
+                            child: Tx(_p.builtIn ? tr('Back to the built-in logo') : tr('Remove')),
                           ),
                       ]),
                     ]),

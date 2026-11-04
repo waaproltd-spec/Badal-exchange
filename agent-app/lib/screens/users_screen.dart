@@ -270,7 +270,7 @@ class _UsersScreenState extends State<UsersScreen> {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Tx(_loadingMore ? 'Loading…' : tr('Load more')),
+                  child: Tx(_loadingMore ? tr('Loading…') : tr('Load more')),
                 ),
               ),
           ],

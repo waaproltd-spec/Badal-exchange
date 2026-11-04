@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/tr.dart';
 import 'theme_mode.dart';
 
 /// Theme for the Badal Exchange agent app, using the BAARI palette shared
@@ -228,7 +229,8 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = AppColors.statusColor(status);
-    final text = (label ?? status).toUpperCase();
+    final shown = label ?? status;
+    final text = tr(shown.isEmpty ? shown : shown[0].toUpperCase() + shown.substring(1)).toUpperCase();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(

@@ -208,7 +208,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Tx(_loadingMore ? 'Loading…' : tr('Load more')),
+                  child: Tx(_loadingMore ? tr('Loading…') : tr('Load more')),
                 ),
               ),
           ],
@@ -290,7 +290,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             onPressed: _pickRange,
             icon: const Icon(Icons.date_range_rounded),
             label: Tx(
-              _range == null ? 'Any date' : '${_pretty.format(_range!.start)} – ${_pretty.format(_range!.end)}',
+              _range == null ? tr('Any date') : '${_pretty.format(_range!.start)} – ${_pretty.format(_range!.end)}',
             ),
           ),
           const SizedBox(height: 20),

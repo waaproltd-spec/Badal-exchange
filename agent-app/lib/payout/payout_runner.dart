@@ -209,7 +209,7 @@ class PayoutRunner {
         await _report(start.attemptId, 2, result.step2Status!, result.step2Text);
       }
       final ok = result.step2Status == 'success';
-      return PayoutOutcome(ok, ok ? 'Payout sent.' : (result.step2Text ?? result.step1Text ?? result.outcome));
+      return PayoutOutcome(ok, ok ? tr('Payout sent.') : (result.step2Text ?? result.step1Text ?? result.outcome));
     } finally {
       _inFlight.remove(order.id);
     }

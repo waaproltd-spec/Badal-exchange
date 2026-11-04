@@ -155,7 +155,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     key: const Key('feed-sign-in'),
                     onPressed: _busy || s.state == 'ready' ? null : _signIn,
                     icon: const Icon(Icons.login_rounded),
-                    label: Tx(s.working ? 'Sign in again (new code)' : tr('Sign in to Sahal')),
+                    label: Tx(s.working ? tr('Sign in again (new code)') : tr('Sign in to Sahal')),
                   ),
                 ],
                 GroupLabel(tr('Deposits')),

@@ -91,7 +91,7 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
                           Tx(a.name, style: const TextStyle(fontWeight: FontWeight.w800)),
                           Tx(a.phone ?? '—', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                           Tx(
-                            a.lastSeenAt != null ? 'Last seen ${formatDateTime(a.lastSeenAt!)}' : tr('Never seen'),
+                            a.lastSeenAt != null ? trp('Last seen {0}', [formatDateTime(a.lastSeenAt!)]) : tr('Never seen'),
                             style: TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                           ),
                         ],
@@ -179,7 +179,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
     }
     if (!mounted) return;
     final api = context.read<Session>().api;
-    await _act(() => api.setAgentEnabled(_agent.id, enable), enable ? 'Agent enabled.' : tr('Agent disabled.'));
+    await _act(() => api.setAgentEnabled(_agent.id, enable), enable ? tr('Agent enabled.') : tr('Agent disabled.'));
   }
 
   Future<void> _edit() async {
@@ -240,11 +240,11 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InfoRow(tr('Phone'), a.phone ?? '—'),
-                InfoRow(tr('Status'), a.isActive ? 'Active' : tr('Disabled')),
+                InfoRow(tr('Status'), a.isActive ? tr('Active') : tr('Disabled')),
                 InfoRow(tr('Created'), a.createdAt != null ? formatDate(a.createdAt!) : '—'),
                 InfoRow(tr('Last seen'), a.lastSeenAt != null ? formatDateTime(a.lastSeenAt!) : '—'),
                 InfoRow(tr('Last login'), a.lastLoginAt != null ? formatDateTime(a.lastLoginAt!) : '—'),
-                InfoRow(tr('Access'), a.fullAdmin ? 'Full administrator' : tr('Agent')),
+                InfoRow(tr('Access'), a.fullAdmin ? tr('Full administrator') : tr('Agent')),
               ],
             ),
           ),
@@ -292,7 +292,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                       ? ElevatedButton.styleFrom(backgroundColor: AppColors.statusFailed, foregroundColor: Colors.white)
                       : null,
                   icon: Icon(a.isActive ? Icons.block_rounded : Icons.check_circle_rounded),
-                  label: Tx(a.isActive ? 'Disable' : tr('Enable')),
+                  label: Tx(a.isActive ? tr('Disable') : tr('Enable')),
                 ),
               ),
             ],
@@ -332,7 +332,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                         children: [
                           Tx(d.label ?? d.deviceId, style: const TextStyle(fontWeight: FontWeight.w700)),
                           Tx(
-                            d.lastSeenAt != null ? 'Last seen ${formatDateTime(d.lastSeenAt!)}' : tr('Registered'),
+                            d.lastSeenAt != null ? trp('Last seen {0}', [formatDateTime(d.lastSeenAt!)]) : tr('Registered'),
                             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
@@ -471,21 +471,21 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
             TextFormField(
               controller: _name,
               decoration: InputDecoration(labelText: tr('Full name')),
-              validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+              validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _phone,
               decoration: InputDecoration(labelText: tr('Phone number'), hintText: tr('2526XXXXXXXX')),
               keyboardType: TextInputType.phone,
-              validator: (v) => (v ?? '').trim().length < 6 ? 'Enter a phone number' : null,
+              validator: (v) => (v ?? '').trim().length < 6 ? tr('Enter a phone number') : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _password,
               decoration: InputDecoration(labelText: tr('Temporary password (at least 8 characters)')),
               obscureText: true,
-              validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+              validator: (v) => (v ?? '').length < 8 ? tr('At least 8 characters') : null,
             ),
             GroupLabel(tr('Responsibilities')),
             for (final (key, label) in knownResponsibilities)
@@ -496,7 +496,7 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
                 onChanged: (v) => setState(() => v == true ? _responsibilities.add(key) : _responsibilities.remove(key)),
               ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Creating…' : tr('Create agent'))),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Creating…') : tr('Create agent'))),
           ],
         ),
       ),
@@ -537,14 +537,14 @@ class _EditAgentDialogState extends State<_EditAgentDialog> {
             key: const Key('edit-name'),
             controller: _name,
             decoration: InputDecoration(labelText: tr('Full name')),
-            validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+            validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
           ),
           TextFormField(
             key: const Key('edit-phone'),
             controller: _phone,
             decoration: InputDecoration(labelText: tr('Phone number (their login)')),
             keyboardType: TextInputType.phone,
-            validator: (v) => (v ?? '').trim().length < 6 ? 'Enter a phone number' : null,
+            validator: (v) => (v ?? '').trim().length < 6 ? tr('Enter a phone number') : null,
           ),
         ]),
       ),
@@ -596,14 +596,14 @@ class _NewPasswordDialogState extends State<_NewPasswordDialog> {
             controller: _password,
             obscureText: true,
             decoration: InputDecoration(labelText: tr('New password')),
-            validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+            validator: (v) => (v ?? '').length < 8 ? tr('At least 8 characters') : null,
           ),
           TextFormField(
             key: const Key('confirm-agent-password'),
             controller: _confirm,
             obscureText: true,
             decoration: InputDecoration(labelText: tr('Confirm new password')),
-            validator: (v) => v != _password.text ? 'Passwords do not match' : null,
+            validator: (v) => v != _password.text ? tr('Passwords do not match') : null,
           ),
         ]),
       ),

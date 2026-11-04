@@ -146,7 +146,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     final t = (v ?? '').trim();
     if (t.isEmpty) return null;
     final uri = Uri.tryParse(t);
-    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? 'Enter a full link starting with https://' : null;
+    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? tr('Enter a full link starting with https://') : null;
   }
 
   Future<void> _save() async {
@@ -204,7 +204,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
               validator: _url,
             ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
           ],
         ),
       ),
@@ -424,7 +424,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       GroupLabel(tr('Status')),
-                      InfoRow(tr('Linked'), link.linked ? 'Yes' : tr('No')),
+                      InfoRow(tr('Linked'), link.linked ? tr('Yes') : tr('No')),
                       if (link.telegramUsername != null) InfoRow(tr('Telegram'), '@${link.telegramUsername}'),
                       if (link.linkedAt != null) InfoRow(tr('Since'), formatDateTime(link.linkedAt!)),
                       GroupLabel(tr('Link your Telegram account')),
@@ -451,7 +451,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                       ],
                       ElevatedButton(
                         onPressed: _busy ? null : _newCode,
-                        child: Tx(code == null ? 'Get link code' : tr('Get a new code')),
+                        child: Tx(code == null ? tr('Get link code') : tr('Get a new code')),
                       ),
                       if (link.linked) ...[
                         const SizedBox(height: 12),
@@ -519,7 +519,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
       final saved = await context.read<Session>().api.setPromoCode(_code.text);
       if (!mounted) return;
       _code.text = saved ?? '';
-      showSnack(context, saved == null ? 'Promo code removed.' : trp('Promo code saved: {0}', [saved]));
+      showSnack(context, saved == null ? tr('Promo code removed.') : trp('Promo code saved: {0}', [saved]));
     } catch (e) {
       if (mounted) showSnack(context, errorText(e, tr('Could not save the promo code.')));
     } finally {
@@ -551,7 +551,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                       decoration: InputDecoration(labelText: tr('Promo code'), hintText: tr('e.g. RAMADAN26')),
                     ),
                     const SizedBox(height: 12),
-                    ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
+                    ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
                   ],
                 ),
     );

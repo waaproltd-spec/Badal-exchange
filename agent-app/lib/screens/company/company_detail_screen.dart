@@ -121,7 +121,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                           ? tr('No changes')
                           : '${c.changesSinceCheck} · sold \$${c.salesSinceCheck} · paid out \$${c.payoutsSinceCheck}',
                     ),
-                  InfoRow(tr('Last successful check'), c.lastSuccessAt == null ? 'Never' : formatDateTime(c.lastSuccessAt!)),
+                  InfoRow(tr('Last successful check'), c.lastSuccessAt == null ? tr('Never') : formatDateTime(c.lastSuccessAt!)),
                   InfoRow(tr('Open withdrawals'), '${c.openWithdrawals} · \$${c.openWithdrawalAmount}'),
                   if (c.connected) InfoRow(tr('Low-balance level'), '\$${c.lowThreshold}'),
                 ],
@@ -342,7 +342,7 @@ class _OrderTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Tx(o.amount == null ? 'Amount pending' : '${deposit ? '+' : '-'}\$${o.amount}',
+              Tx(o.amount == null ? tr('Amount pending') : '${deposit ? '+' : '-'}\$${o.amount}',
                   style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               const SizedBox(height: 6),
               StatusPill(o.status),

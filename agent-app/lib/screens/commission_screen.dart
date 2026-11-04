@@ -103,7 +103,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
 
   String _rangeLabel(CommissionReport r) {
     final to = DateTime.tryParse(r.to);
-    if (r.from == null) return to == null ? 'All time' : trp('All time, up to {0}', [_pretty.format(to)]);
+    if (r.from == null) return to == null ? tr('All time') : trp('All time, up to {0}', [_pretty.format(to)]);
     final from = DateTime.tryParse(r.from!);
     if (from == null || to == null) return '';
     return r.from == r.to ? _pretty.format(from) : '${_pretty.format(from)} – ${_pretty.format(to)}';
@@ -258,7 +258,7 @@ class _TransactionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = row.direction == 'deposit' ? 'Deposit' : tr('Withdrawal');
+    final type = row.direction == 'deposit' ? tr('Deposit') : tr('Withdrawal');
     return Padding(
       key: Key('tx-${row.orderCode}'),
       padding: const EdgeInsets.only(bottom: 8),
@@ -286,7 +286,7 @@ class _TransactionCard extends StatelessWidget {
             _Figure(tr('Amount'), row.amount == null ? '—' : commissionMoney(row.amount!)),
             _Figure(tr('Commission'), row.commission == null ? '—' : commissionMoney(row.commission!)),
             _Figure(tr('Bonus'), row.bonus == null ? '—' : '- ${commissionMoney(row.bonus!)}'),
-            _Figure(tr('Net'), row.netCommission == null ? 'Not earned' : commissionMoney(row.netCommission!),
+            _Figure(tr('Net'), row.netCommission == null ? tr('Not earned') : commissionMoney(row.netCommission!),
                 color: row.earns ? AppColors.statusCompleted : AppColors.textFaint),
           ]),
         ]),

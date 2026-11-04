@@ -107,7 +107,7 @@ class _PayoutsScreenState extends ListScreenState<PayoutsScreen, PayoutOrder> {
                     const SizedBox(height: 80),
                     EmptyStateView(
                         icon: Icons.check_circle_outline_rounded,
-                        title: _reviewOnly ? 'Nothing needs review' : tr('No automatic payouts yet')),
+                        title: _reviewOnly ? tr('Nothing needs review') : tr('No automatic payouts yet')),
                   ])
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -522,7 +522,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, set) => AlertDialog(
-          title: Tx(w == null ? 'Add wallet' : tr('Edit wallet')),
+          title: Tx(w == null ? tr('Add wallet') : tr('Edit wallet')),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               DropdownButtonFormField<String>(
@@ -651,7 +651,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       return;
     }
     await _run(() => _session.api.setAutoPayout(g.method, mode: mode),
-        mode == 'off' ? 'Automatic ${g.methodLabel} payouts off.' : (mode == 'test' ? 'Test mode on.' : tr('Live.')));
+        mode == 'off' ? trp('Automatic {0} payouts off.', [g.methodLabel]) : (mode == 'test' ? tr('Test mode on.') : tr('Live.')));
   }
 
   Future<void> _editLimits(AutoPayoutSettings g) async {
@@ -755,7 +755,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                 ? tr('Not known yet')
                 : '\$${g.balance}${g.balanceSeenAt != null ? ' (${formatDateTime(g.balanceSeenAt!)})' : ''}',
           ),
-          InfoRow(trp('\${0} test', [g.testAmount]), g.testPassed ? 'Passed${g.testOrderCode != null ? ' (${g.testOrderCode})' : ''}' : tr('Not passed yet')),
+          InfoRow(trp('\${0} test', [g.testAmount]), g.testPassed ? trp('Passed{0}', [g.testOrderCode != null ? ' (${g.testOrderCode})' : '']) : tr('Not passed yet')),
           if (g.liveNeedsRetest)
             const Tx('The payout wallet or phone changed: switch to Test and send a new test.',
                 style: TextStyle(color: AppColors.statusFailed)),
@@ -792,7 +792,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       return;
     }
     await _run(() => _session.api.setSahalPayouts(mode: mode),
-        mode == 'off' ? 'Sahal payouts off.' : (mode == 'test' ? 'Test mode on.' : tr('Live.')));
+        mode == 'off' ? tr('Sahal payouts off.') : (mode == 'test' ? tr('Test mode on.') : tr('Live.')));
   }
 
   Future<void> _editSahalLimit(SahalPayoutSettings g) async {
@@ -863,7 +863,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           if (g.needsBalance > 0)
             Text(trp('{0} waiting for more Sahal balance: top up Sahal and they go out.', [g.needsBalance]),
                 key: const Key('sahal-needs-balance'), style: const TextStyle(color: AppColors.statusPending)),
-          InfoRow(trp('\${0} test', [g.testAmount]), g.testPassed ? 'Passed' : tr('Not passed yet')),
+          InfoRow(trp('\${0} test', [g.testAmount]), g.testPassed ? tr('Passed') : tr('Not passed yet')),
           if (g.waiting > 0) InfoRow(tr('Waiting'), '${g.waiting}'),
           if (g.unclear > 0)
             Text(trp('{0} transfer(s) without a clear answer: check them in Sahal before paying again.', [g.unclear]),
@@ -923,8 +923,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                         value: _auto,
                         onChanged: _setAuto,
                       ),
-                      InfoRow(tr('Accessibility ("Badal Exchange payouts")'), d?.accessibilityEnabled == true ? 'On' : tr('Off')),
-                      InfoRow(tr('Phone & call permission'), d?.permissionsGranted == true ? 'Granted' : tr('Not granted')),
+                      InfoRow(tr('Accessibility ("Badal Exchange payouts")'), d?.accessibilityEnabled == true ? tr('On') : tr('Off')),
+                      InfoRow(tr('Phone & call permission'), d?.permissionsGranted == true ? tr('Granted') : tr('Not granted')),
                       Wrap(spacing: 8, children: [
                         if (d?.accessibilityEnabled != true)
                           OutlinedButton(
@@ -968,15 +968,15 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                                       ? tr('No phone set')
                                       : '${w.deviceId == _session.deviceId ? 'This phone' : 'Another phone'}'
                                           '${w.simSlot != null ? ', SIM ${w.simSlot}' : ''}',
-                                  if (w.paysWithdrawals) 'pays withdrawals',
+                                  if (w.paysWithdrawals) tr('pays withdrawals'),
                                 ].join(' • '),
                                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                               ),
                               Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-                                TextButton(onPressed: () => _setPin(w), child: Tx(w.hasPin ? 'Change PIN' : tr('Set PIN'))),
+                                TextButton(onPressed: () => _setPin(w), child: Tx(w.hasPin ? tr('Change PIN') : tr('Set PIN'))),
                                 if (w.method == 'evc_plus')
                                   TextButton(
-                                      onPressed: () => _setCode(w), child: Tx(w.hasCode ? 'Change *736 code' : tr('Set *736 code'))),
+                                      onPressed: () => _setCode(w), child: Tx(w.hasCode ? tr('Change *736 code') : tr('Set *736 code'))),
                                 IconButton(
                                     tooltip: tr('Remove'),
                                     onPressed: () => _delete(w),

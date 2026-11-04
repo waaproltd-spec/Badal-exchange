@@ -118,7 +118,7 @@ class _SingleFieldSheetState extends State<_SingleFieldSheet> {
               autofocus: true,
               textInputAction: TextInputAction.done,
               validator: (v) =>
-                  (v == null || v.trim().length < widget.minLength) ? 'Required' : null,
+                  (v == null || v.trim().length < widget.minLength) ? tr('Required') : null,
               onFieldSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 20),

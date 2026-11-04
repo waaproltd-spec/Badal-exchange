@@ -117,7 +117,7 @@ class _SmsLogTile extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Tx(
-                    entry.isManualWinwin ? 'Manual WinWin confirmation' : trp('EVC Plus SMS ({0})', [entry.provider]),
+                    entry.isManualWinwin ? tr('Manual WinWin confirmation') : trp('EVC Plus SMS ({0})', [entry.provider]),
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                   ),
                 ),

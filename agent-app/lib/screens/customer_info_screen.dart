@@ -193,7 +193,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           child: Column(
             children: [
               InfoRow(tr('Registration date'), c.registeredAt != null ? formatDate(c.registeredAt!) : '—'),
-              InfoRow(tr('Account status'), c.isActive ? 'Active' : tr('Blocked')),
+              InfoRow(tr('Account status'), c.isActive ? tr('Active') : tr('Blocked')),
             ],
           ),
         ),
@@ -313,14 +313,14 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
               controller: _password,
               obscureText: true,
               decoration: InputDecoration(labelText: tr('New password')),
-              validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+              validator: (v) => (v ?? '').length < 8 ? tr('At least 8 characters') : null,
             ),
             TextFormField(
               key: const Key('confirm-new-password'),
               controller: _confirm,
               obscureText: true,
               decoration: InputDecoration(labelText: tr('Confirm new password')),
-              validator: (v) => v != _password.text ? 'Passwords do not match' : null,
+              validator: (v) => v != _password.text ? tr('Passwords do not match') : null,
             ),
           ],
         ),

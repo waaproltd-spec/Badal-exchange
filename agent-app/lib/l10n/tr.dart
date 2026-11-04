@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'english.dart';
 import 'language.dart';
 import 'somali.dart';
 
 /// Translates a screen text: the English text is the key, and in Somali the
-/// matching entry of [somaliTexts] is shown. A text that is not in the table
+/// matching entry of [somaliTexts] is shown (and in English, a text first
+/// written in Somali is shown from [englishTexts]). A text that is not in the table
 /// (a name, a number, a message from the server) is shown as it is.
-String tr(String english) {
-  if (!AppLanguage.isSomali) return english;
-  return somaliTexts[english] ?? english;
+String tr(String text) {
+  if (AppLanguage.isSomali) return somaliTexts[text] ?? text;
+  // A few screens were first written in Somali: their English comes from the other table.
+  return englishTexts[text] ?? text;
 }
 
 /// [tr] for a text with values in it: `trp('Welcome, {0}', [name])`. The

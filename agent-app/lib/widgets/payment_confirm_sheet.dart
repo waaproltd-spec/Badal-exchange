@@ -173,7 +173,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
                 decoration: InputDecoration(labelText: isPlatform ? '${_info.label} account ID' : tr('Sender phone number')),
                 keyboardType: isPlatform ? TextInputType.text : TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                validator: (v) => (v == null || v.trim().length < (isPlatform ? 3 : 4)) ? 'Required' : null,
+                validator: (v) => (v == null || v.trim().length < (isPlatform ? 3 : 4)) ? tr('Required') : null,
               ),
               if (isPlatform) ...[
                 const SizedBox(height: 14),
@@ -191,7 +191,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
                 textInputAction: TextInputAction.next,
                 validator: (v) {
                   final n = double.tryParse((v ?? '').trim());
-                  return (n == null || n <= 0) ? 'Enter a valid amount' : null;
+                  return (n == null || n <= 0) ? tr('Enter a valid amount') : null;
                 },
               ),
               const SizedBox(height: 14),
@@ -199,7 +199,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
                 controller: _reference,
                 decoration: InputDecoration(labelText: isPlatform ? '${_info.label} reference' : tr('Transaction ID')),
                 textInputAction: TextInputAction.done,
-                validator: (v) => (v == null || v.trim().length < 3) ? 'At least 3 characters' : null,
+                validator: (v) => (v == null || v.trim().length < 3) ? tr('At least 3 characters') : null,
                 onFieldSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 20),
