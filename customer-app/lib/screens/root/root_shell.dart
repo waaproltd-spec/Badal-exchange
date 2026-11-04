@@ -13,8 +13,9 @@ import '../home/home_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../orders/orders_list_screen.dart';
 import '../profile/profile_screen.dart';
+import '../tips/tips_screen.dart';
 
-/// Bottom navigation shell with exactly three tabs: Home, Orders, Profile.
+/// Bottom navigation shell with four tabs: Home, Orders, TIPS (Shaxaha), Profile.
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
 
@@ -28,6 +29,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   late final List<Widget> _tabs = [
     HomeScreen(onViewAllOrders: () => setState(() => _index = 1)),
     const OrdersListScreen(),
+    const TipsScreen(),
     const ProfileScreen(),
   ];
 
@@ -126,7 +128,8 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
         onDestinationSelected: (i) {
           setState(() => _index = i);
           // The limits show what was withdrawn up to now.
-          if (i == 2) ProfileScreen.refresh.value++;
+          if (i == 2) TipsScreen.refresh.value++;
+          if (i == 3) ProfileScreen.refresh.value++;
         },
         destinations: [
           NavigationDestination(
@@ -138,6 +141,11 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
             icon: const Icon(Icons.receipt_long_outlined),
             selectedIcon: const Icon(Icons.receipt_long_rounded),
             label: AppStrings.orders,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.tips_and_updates_outlined),
+            selectedIcon: const Icon(Icons.tips_and_updates_rounded),
+            label: AppStrings.tips,
           ),
           NavigationDestination(
             icon: const Icon(Icons.person_outline_rounded),

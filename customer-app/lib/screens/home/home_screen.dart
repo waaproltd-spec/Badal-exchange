@@ -21,7 +21,6 @@ import '../../widgets/status_badge.dart';
 import '../../widgets/transaction_views.dart';
 import '../../widgets/wallet_card.dart';
 import '../bonus/bonus_screen.dart';
-import '../tips/tips_screen.dart';
 
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -69,11 +68,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final ads = await context.read<CustomerApi>().getHomeAds();
       if (mounted) setState(() => _ads = ads);
     } catch (_) {}
-  }
-
-  Future<void> _openTips() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TipsScreen()));
-    if (mounted) _refresh();
   }
 
   void _openNotifications() {
@@ -137,10 +131,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   onWithdraw: _goWithdraw,
                   onNotifications: _openNotifications,
                   onBonus: _openBonus,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                  child: _TipsServiceCard(onTap: _openTips),
                 ),
                 if (_ads.isNotEmpty)
                   Padding(
@@ -306,54 +296,6 @@ class _WalletHeader extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// The TIPS (Shaxaha) service card.
-class _TipsServiceCard extends StatelessWidget {
-  const _TipsServiceCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: const Key('home-tips'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Ink(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: AppColors.cardGradient,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(color: AppColors.lightGold, borderRadius: BorderRadius.circular(10)),
-                child: Icon(Icons.tips_and_updates_rounded, color: AppColors.primaryDeep, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Text(AppStrings.tips,
-                  style: AppTextStyles.body.copyWith(color: AppColors.textOnPrimary, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 1)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(AppStrings.tipsSubtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.body.copyWith(color: AppColors.textOnPrimary.withOpacity(0.8), fontSize: 12)),
-              ),
-              Icon(Icons.chevron_right_rounded, color: AppColors.lightGold, size: 20),
-            ],
-          ),
-        ),
       ),
     );
   }

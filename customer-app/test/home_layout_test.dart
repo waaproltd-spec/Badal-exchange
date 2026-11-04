@@ -3,6 +3,7 @@ import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/models/app_content.dart';
 import 'package:badal_exchange_customer/models/order.dart';
+import 'package:badal_exchange_customer/models/tip.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
 import 'package:badal_exchange_customer/screens/root/root_shell.dart';
 import 'package:badal_exchange_customer/state/auth_provider.dart';
@@ -40,6 +41,11 @@ class _FakeApi extends CustomerApi {
 
   @override
   Future<List<HomeAd>> getHomeAds() async => const [];
+
+  @override
+  Future<List<Tip>> getTips([String filter = 'all']) async => [
+        Tip.fromJson({'id': 'f1', 'title': 'Free pick', 'sport': 'football', 'teamCount': 3, 'isPaid': false, 'oddsCode': 'FREE-123'}),
+      ];
 
   static Order _order(String id, String direction, String method, String amount, DateTime at) => Order(
         id: id,
@@ -87,6 +93,26 @@ const _phones = {
 
 void main() {
   setUp(() => AppLanguage.current.value = AppLanguage.english);
+
+  testWidgets('the bottom bar is Home, Orders, TIPS, Profile; Home has no TIPS card; the TIPS tab opens the tips', (tester) async {
+    await _phone(tester, _phones.values.first);
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('home-tips')), findsNothing, reason: 'TIPS is a tab, not a Home card');
+    final bar = find.byType(NavigationBar);
+    for (final label in [AppStrings.home, AppStrings.orders, AppStrings.tips, AppStrings.profile]) {
+      expect(find.descendant(of: bar, matching: find.text(label)), findsOneWidget, reason: label);
+    }
+    expect(tester.widget<NavigationBar>(bar).destinations.length, 4);
+    await tester.tap(find.descendant(of: bar, matching: find.text(AppStrings.tips)));
+    await tester.pumpAndSettle();
+    expect(find.text('FREE-123'), findsOneWidget);
+    expect(find.text(AppStrings.tipsAll), findsOneWidget);
+    // Profile is still the last tab.
+    await tester.tap(find.descendant(of: bar, matching: find.text(AppStrings.profile)));
+    await tester.pumpAndSettle();
+    expect(find.text('FREE-123'), findsNothing);
+  });
 
   for (final MapEntry(key: name, value: size) in _phones.entries) {
     testWidgets('$name: two recent orders show above the bottom bar, nothing overflows', (tester) async {

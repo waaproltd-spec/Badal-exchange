@@ -38,6 +38,9 @@ Future<void> copyTipCode(BuildContext context, String code) async {
 class TipsScreen extends StatefulWidget {
   const TipsScreen({super.key});
 
+  /// Bumped when the TIPS tab is opened: the list is read again.
+  static final ValueNotifier<int> refresh = ValueNotifier(0);
+
   @override
   State<TipsScreen> createState() => _TipsScreenState();
 }
@@ -51,9 +54,17 @@ class _TipsScreenState extends State<TipsScreen> {
   void initState() {
     super.initState();
     _load();
+    TipsScreen.refresh.addListener(_load);
+  }
+
+  @override
+  void dispose() {
+    TipsScreen.refresh.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     try {
       final tips = await context.read<CustomerApi>().getTips('all');
       if (mounted) {
