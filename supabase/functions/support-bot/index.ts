@@ -73,6 +73,7 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   decisionDone: (status: string, who: string, when: string) =>
     `\n\n${status === 'approved' ? '✅ <b>La fasaxay</b>' : '❌ <b>La diiday</b>'}\nMaamule: ${who}\nWaqtiga: ${when}`,
   groupLinked: '✅ Kooxdan waa la xaqiijiyay. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaa lagu soo diri doonaa; maamulayaasha kooxdu waxay fasaxi/diidi karaan.',
+  groupAnonymous: '⚠️ Fariintan waxaa loo diray sidii <b>maamule qarsoon</b> (anonymous), sidaas darteed ma garan karo yaad tahay. Fadlan ka damiso <b>Remain anonymous</b> (Group → Administrators → magacaaga), kadibna mar kale qor /linkgroup.',
   groupNotAllowed: '⛔ Kaliya maamulaha la ogol yahay ayaa kooxda xiri kara.',
   btnApprove: '✅ Fasax',
   btnReject: '❌ Diid',
@@ -231,6 +232,8 @@ async function onMessage(m: any, from: any) {
   // A group: only /linkgroup, said by the administrator, makes it the place the approval requests go to.
   if (chat && (m.chat?.type === 'group' || m.chat?.type === 'supergroup')) {
     if (typeof m.text === 'string' && /^\/linkgroup(@\w+)?$/.test(m.text.trim())) {
+      // Sent as the group itself (an anonymous administrator): Telegram does not say who it is.
+      if (from?.username === 'GroupAnonymousBot' || m.sender_chat?.id === chat) return void (await say(chat, T.groupAnonymous));
       const current = await rpc('support_admin_chat', {});
       const isAdmin = String(from?.username ?? '').toLowerCase() === ADMIN_TG.toLowerCase() || (current && Number(current) === Number(from?.id));
       if (!isAdmin) return void (await say(chat, T.groupNotAllowed));

@@ -532,6 +532,11 @@ test('a group of administrators: /linkgroup by the administrator; requests go to
   assert.match(texts(refused).join('\n'), /Kaliya maamulaha/);
   assert.notEqual(Number((await db.query(`SELECT chat_id FROM support_admin`)).rows[0]?.chat_id ?? 0), group);
 
+  // Sent as the group itself (anonymous administrator): told to turn that off, nothing is linked.
+  const anon = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: group, type: 'supergroup' }, from: { id: 1087968824, username: 'GroupAnonymousBot', is_bot: true }, sender_chat: { id: group, type: 'supergroup' }, text: '/linkgroup@Badalaisupportbot' } });
+  assert.match(texts(anon).join('\n'), /Remain anonymous/);
+  assert.notEqual(Number((await db.query(`SELECT chat_id FROM support_admin`)).rows[0]?.chat_id ?? 0), group);
+
   // The administrator's own account can.
   const adminUser = nextChat();
   const ok = await inGroup({ id: adminUser, username: 'Badalexchangeadmin' }, '/linkgroup@Badalaisupportbot');
