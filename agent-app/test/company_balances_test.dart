@@ -132,7 +132,15 @@ void main() {
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     expect(_text(tester, 'total-amount'), '\$955.00');
-    expect(_text(tester, 'total-limit'), 'Limit \$10.29 · 1 not reported');
+    expect(_text(tester, 'total-limit'), '\$10.29');
+    expect(_text(tester, 'total-limit-note'), '1 company not reported (not included)');
+    // Total Limit first, the summary cards, then Total Balance below them.
+    final limitY = tester.getTopLeft(find.byKey(const Key('total-limit-card'))).dy;
+    final balanceY = tester.getTopLeft(find.byKey(const Key('total-balance'))).dy;
+    final cardsY = tester.getTopLeft(find.text('Open withdrawals')).dy;
+    expect(limitY < cardsY && cardsY < balanceY, isTrue, reason: 'limit, summary cards, balance');
+    expect(tester.getSize(find.byKey(const Key('total-limit'))).height, greaterThan(tester.getSize(find.byKey(const Key('total-amount'))).height),
+        reason: 'the limit is the largest figure');
     expect(_text(tester, 'total-note'), 'Verified balances of 2 companies');
     expect(_text(tester, 'company-amount-onexbet'), '\$850.00');
     expect(_text(tester, 'company-limit-onexbet'), 'Limit Not reported', reason: 'never invented');

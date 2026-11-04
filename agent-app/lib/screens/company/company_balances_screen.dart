@@ -90,7 +90,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
-                  _TotalCard(data: data),
+                  _LimitCard(data: data),
                   const SizedBox(height: 12),
                   TwoColumnGrid(children: [
                     StatCard(
@@ -118,6 +118,8 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                       label: 'No balance connection',
                     ),
                   ]),
+                  const SizedBox(height: 12),
+                  _BalanceCard(data: data),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text('Could not refresh: $_error',
@@ -143,63 +145,99 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
   }
 }
 
-class _TotalCard extends StatelessWidget {
+/// Total Limit, first and large: what the registers can still sell, added up
+/// from the companies' own limits (a company that reports none is counted in
+/// the note, never as zero).
+class _LimitCard extends StatelessWidget {
   final CompanyBalancesOverview data;
-  const _TotalCard({required this.data});
+  const _LimitCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final unknown = data.limitUnknownCount;
+    return Container(
+      key: const Key('total-limit-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [AppColors.purpleDark, AppColors.purple]),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.speed_rounded, color: Colors.white.withOpacity(0.9), size: 22),
+            const SizedBox(width: 8),
+            const Text('Total Limit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
+          ]),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(data.totalLimit == null ? 'Not reported' : '\$${data.totalLimit}',
+                key: const Key('total-limit'),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 48, height: 1.1)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            data.totalLimit == null
+                ? 'No company has reported a limit'
+                : unknown > 0
+                    ? '$unknown ${unknown == 1 ? 'company' : 'companies'} not reported (not included)'
+                    : 'What the registers can still sell',
+            key: const Key('total-limit-note'),
+            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Total Balance, below the summary cards: the verified balances added up.
+class _BalanceCard extends StatelessWidget {
+  final CompanyBalancesOverview data;
+  const _BalanceCard({required this.data});
 
   @override
   Widget build(BuildContext context) {
     final left = data.unavailableCount;
     return Container(
       key: const Key('total-balance'),
-      padding: const EdgeInsets.all(18),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.purpleDark, AppColors.purple]),
+        gradient: const LinearGradient(colors: [AppColors.purple, AppColors.purpleDark]),
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle),
-            child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 26),
+          Row(children: [
+            Icon(Icons.account_balance_wallet_rounded, color: Colors.white.withOpacity(0.9), size: 22),
+            const SizedBox(width: 8),
+            const Text('Total Balance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
+          ]),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text('\$${data.total}',
+                key: const Key('total-amount'),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 40, height: 1.1)),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Total Company Balance',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text('\$${data.total}',
-                      key: const Key('total-amount'),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 32)),
-                ),
-                Text(
-                  data.totalLimit == null
-                      ? 'Limit: not reported'
-                      : 'Limit \$${data.totalLimit}'
-                          '${data.limitUnknownCount > 0 ? ' · ${data.limitUnknownCount} not reported' : ''}',
-                  key: const Key('total-limit'),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
-                ),
-                Text(
-                  'Verified balances of ${data.totalCompanies} '
-                  '${data.totalCompanies == 1 ? 'company' : 'companies'}'
-                  '${left > 0 ? ' · $left not included (offline or not updated)' : ''}',
-                  key: const Key('total-note'),
-                  style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12.5),
-                ),
-                const SizedBox(height: 4),
-                Text('Updated ${formatDateTime(data.generatedAt)}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11.5)),
-              ],
-            ),
+          const SizedBox(height: 4),
+          Text(
+            'Verified balances of ${data.totalCompanies} '
+            '${data.totalCompanies == 1 ? 'company' : 'companies'}'
+            '${left > 0 ? ' · $left not included (offline or not updated)' : ''}',
+            key: const Key('total-note'),
+            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12.5),
           ),
+          const SizedBox(height: 4),
+          Text('Updated ${formatDateTime(data.generatedAt)}',
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11.5)),
         ],
       ),
     );
