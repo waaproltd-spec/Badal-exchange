@@ -7,6 +7,7 @@ import '../l10n/wallet_strings.dart';
 import '../models/console.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_settings_panel.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
@@ -111,6 +112,9 @@ class _AccountScreenState extends State<AccountScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           _ProfileCard(account: account),
+
+          GroupLabel(tr('Settings')),
+          const AppSettingsPanel(),
 
           GroupLabel(tr('Admin features')),
           if (!canManage)

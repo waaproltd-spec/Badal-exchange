@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'api/api_client.dart';
+import 'l10n/language.dart';
+import 'screens/app_lock_gate.dart';
+import 'services/app_lock.dart';
+import 'theme/theme_scope.dart';
+import 'theme/theme_mode.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'state/session.dart';
 import 'theme/app_theme.dart';
-import 'l10n/tr.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient.initialize();
+  await AppLanguage.load();
+  await AppThemeMode.load();
+  // Fingerprint unlock: the app starts locked when the agent turned it on.
+  await AppLock.instance.load();
   runApp(const BadalAgentApp());
 }
 
@@ -21,11 +29,16 @@ class BadalAgentApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<Session>(
       create: (_) => Session()..bootstrap(),
-      child: MaterialApp(
-        title: tr('Badal Exchange Agent'),
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.current,
-        home: const _RootRouter(),
+      // Light <-> dark and English <-> Somali repaint every screen in place: open
+      // screens, typed text and scroll positions stay.
+      child: ThemeModeScope(
+        builder: (context) => MaterialApp(
+          title: 'Badal Exchange Agent',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.current,
+          builder: (context, child) => AppLockGate(lock: AppLock.instance, child: child ?? const SizedBox.shrink()),
+          home: const _RootRouter(),
+        ),
       ),
     );
   }

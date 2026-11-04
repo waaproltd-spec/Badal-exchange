@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/language.dart';
+import '../l10n/tr.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_mode.dart';
 import 'home_shell.dart';
-import '../l10n/tr.dart';
 
 /// The nine digits typed after the +252 country code. Whatever the agent
 /// types or pastes is cleaned up: only digits are kept, a country code that
@@ -84,11 +86,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final session = context.watch<Session>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9FF),
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           const Positioned(top: 0, left: 0, right: 0, height: 210, child: _Wave(top: true)),
           const Positioned(bottom: 0, left: 0, right: 0, height: 130, child: _Wave(top: false)),
+          SafeArea(
+            child: Align(alignment: Alignment.topRight, child: const _LanguagePill()),
+          ),
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -116,18 +121,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        const Tx(
+                        Tx(
                           'BADAL EXCHANGE',
-                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.purpleDark, letterSpacing: 0.4),
+                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: 0.4),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 10),
                         Center(
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                            decoration: BoxDecoration(color: const Color(0xFFEBDDFB), borderRadius: BorderRadius.circular(30)),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: const [
-                              Icon(Icons.account_circle_rounded, color: AppColors.purpleDark, size: 22),
+                            decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(30)),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.account_circle_rounded, color: AppColors.primaryDark, size: 22),
                               SizedBox(width: 8),
                               Tx('Agent App', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
                             ]),
@@ -138,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Row(children: [
                             const SizedBox(width: 12),
                             const _CountryCode(),
-                            Container(width: 1.4, height: 28, margin: const EdgeInsets.symmetric(horizontal: 10), color: const Color(0xFFD9C3F2)),
+                            Container(width: 1.4, height: 28, margin: const EdgeInsets.symmetric(horizontal: 10), color: AppColors.border),
                             Expanded(
                               child: TextFormField(
                                 key: const Key('phone-field'),
@@ -157,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 keyboardType: TextInputType.phone,
                                 textInputAction: TextInputAction.next,
                                 inputFormatters: const [LocalPhoneFormatter()],
-                                validator: (v) => localPhoneDigits(v ?? '').length == 9 ? null : 'Enter the 9 digits after +252',
+                                validator: (v) => localPhoneDigits(v ?? '').length == 9 ? null : tr('Enter the 9 digits after +252'),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -188,13 +193,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 enableSuggestions: false,
                                 autocorrect: false,
                                 textInputAction: TextInputAction.done,
-                                validator: (v) => (v == null || v.isEmpty) ? 'Enter your password' : null,
+                                validator: (v) => (v == null || v.isEmpty) ? tr('Enter your password') : null,
                                 onFieldSubmitted: (_) => _submit(session),
                               ),
                             ),
                             IconButton(
                               key: const Key('toggle-password'),
-                              tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                              tooltip: _obscurePassword ? tr('Show password') : tr('Hide password'),
                               icon: Icon(_obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
                                   color: AppColors.purpleDark, size: 26),
                               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -232,13 +237,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.85),
+                            color: AppColors.surface.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFD9C3F2)),
+                            border: Border.all(color: AppColors.border),
                           ),
                           child: Row(children: [
                             const Icon(Icons.verified_user_outlined, color: AppColors.purpleDark, size: 40),
-                            Container(width: 1, height: 52, margin: const EdgeInsets.symmetric(horizontal: 14), color: const Color(0xFFD9C3F2)),
+                            Container(width: 1, height: 52, margin: const EdgeInsets.symmetric(horizontal: 14), color: AppColors.border),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Tx('Authorized agents only.',
@@ -272,9 +277,9 @@ class _Field extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFD9C3F2), width: 1.4),
+          border: Border.all(color: AppColors.border, width: 1.4),
           boxShadow: [BoxShadow(color: AppColors.purple.withOpacity(0.14), blurRadius: 14, offset: const Offset(0, 5))],
         ),
         child: child,
@@ -376,7 +381,7 @@ class _WavePainter extends CustomPainter {
       canvas.translate(w, h);
       canvas.rotate(3.14159265);
     }
-    canvas.drawPath(pale, Paint()..color = const Color(0xFFEBDDFB));
+    canvas.drawPath(pale, Paint()..color = AppThemeMode.isDark ? const Color(0xFF241A33) : const Color(0xFFEBDDFB));
     canvas.drawPath(
       deep,
       Paint()
@@ -388,4 +393,42 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WavePainter old) => old.top != top;
+}
+
+/// English / Somali, so an agent can choose the language before logging in.
+class _LanguagePill extends StatelessWidget {
+  const _LanguagePill();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 14, 0),
+        child: ListenableBuilder(
+          listenable: AppLanguage.current,
+          builder: (context, _) => Container(
+            key: const Key('login-language'),
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(20)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              for (final (code, label) in const [(AppLanguage.english, 'EN'), (AppLanguage.somali, 'SO')])
+                GestureDetector(
+                  key: Key('login-language-$code'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => AppLanguage.set(code),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppLanguage.current.value == code ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                    child: Text(label,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: AppLanguage.current.value == code ? AppColors.purpleDark : Colors.white)),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+      );
 }

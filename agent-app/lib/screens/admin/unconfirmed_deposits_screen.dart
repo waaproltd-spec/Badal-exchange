@@ -220,8 +220,10 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.timer_outlined, size: 16, color: d.overdue ? AppColors.statusFailed : AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text(trp('Waiting {0}', [waitedEnglish(d.waitingSeconds)]),
-                    style: TextStyle(fontWeight: FontWeight.w700, color: d.overdue ? AppColors.statusFailed : AppColors.textPrimary)),
+                Flexible(
+                  child: Text(trp('Waiting {0}', [waitedEnglish(d.waitingSeconds)]),
+                      style: TextStyle(fontWeight: FontWeight.w700, color: d.overdue ? AppColors.statusFailed : AppColors.textPrimary)),
+                ),
               ]),
               if (d.overdue)
                 Container(

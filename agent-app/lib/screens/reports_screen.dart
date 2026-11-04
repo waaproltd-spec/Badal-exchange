@@ -457,7 +457,11 @@ class _RankCard extends StatelessWidget {
           ]),
         ),
         const SizedBox(width: 8),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Flexible(
+          flex: 0,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 120),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 150),
             child: FittedBox(
@@ -467,8 +471,11 @@ class _RankCard extends StatelessWidget {
             ),
           ),
           if (row.phone != null)
-            Text(trp('{0} txns', [row.count]), style: TextStyle(fontSize: 12.5, color: _R.muted)),
+            Text(trp('{0} txns', [row.count]),
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: _R.muted)),
         ]),
+          ),
+        ),
       ]),
     );
   }
@@ -518,7 +525,7 @@ class _Legend extends StatelessWidget {
       children: [
         Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 6),
-        Tx(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Flexible(child: Tx(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: AppColors.textSecondary))),
       ],
     );
   }

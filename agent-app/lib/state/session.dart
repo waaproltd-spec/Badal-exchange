@@ -8,6 +8,7 @@ import '../api/api_exception.dart';
 import '../api/token_storage.dart';
 import '../models/agent_profile.dart';
 import '../payout/payout_runner.dart';
+import '../services/app_lock.dart';
 import '../services/device_identity.dart';
 import '../sms/sms_bridge.dart';
 import 'live_updates.dart';
@@ -210,6 +211,7 @@ class Session extends ChangeNotifier {
 
   void _handleSessionExpired() {
     unawaited(live.stop());
+    unawaited(AppLock.instance.disable());
     status = AuthStatus.loggedOut;
     profile = null;
     payouts.stop();
@@ -222,6 +224,8 @@ class Session extends ChangeNotifier {
     await smsBridge.stop();
     await live.stop();
     await _api.logout();
+    // The fingerprint choice belongs to this sign-in only.
+    await AppLock.instance.disable();
     status = AuthStatus.loggedOut;
     profile = null;
     deviceRegistrationError = null;
