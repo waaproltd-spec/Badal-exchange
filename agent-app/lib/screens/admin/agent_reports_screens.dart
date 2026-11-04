@@ -19,7 +19,7 @@ class AgentPerformanceScreen extends StatefulWidget {
 }
 
 class _AgentPerformanceScreenState extends State<AgentPerformanceScreen> {
-  static const _periods = [(0, 'Today'), (6, '7 days'), (29, '30 days'), (89, '3 months')];
+  static List<(int, String)> get _periods => [(0, tr('Today')), (6, tr('7 days')), (29, tr('30 days')), (89, tr('3 months'))];
   int _days = 0;
   List<AgentPerformance>? _rows;
   String? _error;
@@ -37,7 +37,7 @@ class _AgentPerformanceScreenState extends State<AgentPerformanceScreen> {
       final rows = await context.read<Session>().api.getAgentPerformance(from: to.subtract(Duration(days: _days)), to: to);
       if (mounted) setState(() => _rows = rows);
     } catch (e) {
-      if (mounted) setState(() => _error = errorText(e, 'Could not load the report.'));
+      if (mounted) setState(() => _error = errorText(e, tr('Could not load the report.')));
     }
   }
 
@@ -119,7 +119,7 @@ class _LoginHistoryScreenState extends State<LoginHistoryScreen> {
       final events = await context.read<Session>().api.getLoginHistory();
       if (mounted) setState(() => _events = events);
     } catch (e) {
-      if (mounted) setState(() => _error = errorText(e, 'Could not load the login history.'));
+      if (mounted) setState(() => _error = errorText(e, tr('Could not load the login history.')));
     }
   }
 

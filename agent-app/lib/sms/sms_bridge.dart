@@ -13,6 +13,7 @@ import '../models/sms_transaction_log.dart';
 import '../services/sms_log_store.dart';
 import 'payment_sms_parsers.dart';
 import 'sahal_sms.dart';
+import '../l10n/tr.dart';
 
 /// Android payment-SMS pipeline, ported from Dalab Internet's SmsReceiver +
 /// SmsUploadFlow + PendingActionQueue + SmsInboxScanner:
@@ -232,7 +233,7 @@ class SmsBridge {
                     : MatchStatus.unmatched,
             orderId: res['orderId'] as String?,
             message: match == 'ambiguous'
-                ? 'More than one order fits: left for manual review'
+                ? tr('More than one order fits: left for manual review')
                 : already
                     ? null
                     : res['reason'] as String?,
@@ -296,8 +297,8 @@ class SmsBridge {
         at: sms.receivedAt,
         status: result == 'submitted' ? MatchStatus.matched : MatchStatus.error,
         message: result == 'submitted'
-            ? 'Access code sent to Sahal automatically'
-            : 'Could not send the access code automatically: type it in Sahal Sign-in',
+            ? tr('Access code sent to Sahal automatically')
+            : tr('Could not send the access code automatically: type it in Sahal Sign-in'),
       );
     }
   }

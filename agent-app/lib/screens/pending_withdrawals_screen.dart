@@ -51,7 +51,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load pending withdrawals.';
+        _error = e is ApiException ? e.message : tr('Failed to load pending withdrawals.');
         _loading = false;
       });
     }
@@ -71,7 +71,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
       await _load();
     } catch (e) {
       _showSnack(
-        e is ApiException ? e.message : 'Action failed. Please try again.',
+        e is ApiException ? e.message : tr('Action failed. Please try again.'),
         color: AppColors.statusFailed,
       );
     } finally {
@@ -107,7 +107,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
         // the agent checked the payout wallet.
         if (e.code != 'CONFIRM_NOT_PAID' || !mounted) rethrow;
         final sure = await confirmNotPaid(context,
-            amount: order.netAmount, phone: order.phoneNumber ?? '', action: 'It was not sent — refund');
+            amount: order.netAmount, phone: order.phoneNumber ?? '', action: tr('It was not sent — refund'));
         if (!sure) return;
         await api.failWithdrawal(order.id, reason: reason, confirmedNotPaid: true);
       }

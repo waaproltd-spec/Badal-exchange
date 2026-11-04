@@ -71,7 +71,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Lacagaha lama soo rarin karin.';
+        _error = e is ApiException ? e.message : tr('Lacagaha lama soo rarin karin.');
         _loading = false;
       });
     }
@@ -133,7 +133,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Lama diidi karin.')));
+          .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : tr('Lama diidi karin.'))));
     }
   }
 
@@ -299,7 +299,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(color: color.withOpacity(0.18), borderRadius: BorderRadius.circular(8)),
-      child: Tx(d.isPending ? 'Sugaya Xaqiijin' : 'Waqtigii Dhammaaday',
+      child: Tx(d.isPending ? 'Sugaya Xaqiijin' : tr('Waqtigii Dhammaaday'),
           textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
     );
   }

@@ -14,11 +14,11 @@ import '../../l10n/tr.dart';
 
 /// Responsibilities an agent can hold. 'manage_settings' grants every
 /// management function (this Account → Admin features area).
-const knownResponsibilities = <(String, String)>[
-  ('evc_deposit', 'EVC Plus deposits'),
-  ('evc_withdraw', 'EVC Plus withdrawals'),
-  ('view_company_balances', 'Company balances'),
-  ('manage_settings', 'Manage settings (admin features)'),
+List<(String, String)> get knownResponsibilities => [
+  ('evc_deposit', tr('EVC Plus deposits')),
+  ('evc_withdraw', tr('EVC Plus withdrawals')),
+  ('view_company_balances', tr('Company balances')),
+  ('manage_settings', tr('Manage settings (admin features)')),
 ];
 
 String responsibilityLabel(String r) =>
@@ -91,7 +91,7 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
                           Tx(a.name, style: const TextStyle(fontWeight: FontWeight.w800)),
                           Tx(a.phone ?? '—', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                           Tx(
-                            a.lastSeenAt != null ? 'Last seen ${formatDateTime(a.lastSeenAt!)}' : 'Never seen',
+                            a.lastSeenAt != null ? 'Last seen ${formatDateTime(a.lastSeenAt!)}' : tr('Never seen'),
                             style: TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                           ),
                         ],
@@ -144,7 +144,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
         _logins = results[2] as List<LoginEvent>;
       });
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Could not load devices and orders.'));
+      if (mounted) showSnack(context, errorText(e, tr('Could not load devices and orders.')));
     }
   }
 
@@ -161,7 +161,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
       await _refreshAgent();
       if (mounted) showSnack(context, success);
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Something went wrong.'));
+      if (mounted) showSnack(context, errorText(e, tr('Something went wrong.')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -172,14 +172,14 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
     if (!enable) {
       final ok = await confirmDialog(
         context,
-        'Disable ${_agent.name}?',
-        'They will be signed out and unable to log in until enabled again.',
+        trp('Disable {0}?', [_agent.name]),
+        tr('They will be signed out and unable to log in until enabled again.'),
       );
       if (!ok) return;
     }
     if (!mounted) return;
     final api = context.read<Session>().api;
-    await _act(() => api.setAgentEnabled(_agent.id, enable), enable ? 'Agent enabled.' : 'Agent disabled.');
+    await _act(() => api.setAgentEnabled(_agent.id, enable), enable ? 'Agent enabled.' : tr('Agent disabled.'));
   }
 
   Future<void> _edit() async {
@@ -211,7 +211,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
       showSnack(context, '${_agent.name} deleted.');
       Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Could not delete the agent.'));
+      if (mounted) showSnack(context, errorText(e, tr('Could not delete the agent.')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -240,11 +240,11 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InfoRow(tr('Phone'), a.phone ?? '—'),
-                InfoRow(tr('Status'), a.isActive ? 'Active' : 'Disabled'),
+                InfoRow(tr('Status'), a.isActive ? 'Active' : tr('Disabled')),
                 InfoRow(tr('Created'), a.createdAt != null ? formatDate(a.createdAt!) : '—'),
                 InfoRow(tr('Last seen'), a.lastSeenAt != null ? formatDateTime(a.lastSeenAt!) : '—'),
                 InfoRow(tr('Last login'), a.lastLoginAt != null ? formatDateTime(a.lastLoginAt!) : '—'),
-                InfoRow(tr('Access'), a.fullAdmin ? 'Full administrator' : 'Agent'),
+                InfoRow(tr('Access'), a.fullAdmin ? 'Full administrator' : tr('Agent')),
               ],
             ),
           ),
@@ -292,7 +292,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                       ? ElevatedButton.styleFrom(backgroundColor: AppColors.statusFailed, foregroundColor: Colors.white)
                       : null,
                   icon: Icon(a.isActive ? Icons.block_rounded : Icons.check_circle_rounded),
-                  label: Tx(a.isActive ? 'Disable' : 'Enable'),
+                  label: Tx(a.isActive ? 'Disable' : tr('Enable')),
                 ),
               ),
             ],
@@ -332,7 +332,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                         children: [
                           Tx(d.label ?? d.deviceId, style: const TextStyle(fontWeight: FontWeight.w700)),
                           Tx(
-                            d.lastSeenAt != null ? 'Last seen ${formatDateTime(d.lastSeenAt!)}' : 'Registered',
+                            d.lastSeenAt != null ? 'Last seen ${formatDateTime(d.lastSeenAt!)}' : tr('Registered'),
                             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
@@ -455,7 +455,7 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not create the agent.'));
+      showSnack(context, errorText(e, tr('Could not create the agent.')));
     }
   }
 
@@ -496,7 +496,7 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
                 onChanged: (v) => setState(() => v == true ? _responsibilities.add(key) : _responsibilities.remove(key)),
               ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Creating…' : 'Create agent')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Creating…' : tr('Create agent'))),
           ],
         ),
       ),

@@ -20,7 +20,7 @@ class OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final methodLabel = order.methodLabel;
-    final directionLabel = order.isDeposit ? 'Deposit' : 'Withdrawal';
+    final directionLabel = order.isDeposit ? 'Deposit' : tr('Withdrawal');
     final directionIcon = order.isDeposit ? Icons.south_west_rounded : Icons.north_east_rounded;
     final directionColor = order.isDeposit ? AppColors.statusCompleted : AppColors.statusProcessing;
 

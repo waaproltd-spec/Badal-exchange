@@ -68,7 +68,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Could not load unconfirmed deposits.';
+        _error = e is ApiException ? e.message : tr('Could not load unconfirmed deposits.');
         _loading = false;
       });
     }
@@ -150,12 +150,12 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
         ]),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 4, children: [
-          for (final (s, label) in const [
-            (_Show.all, 'All'),
-            (_Show.notConfirmed, 'Not confirmed'),
-            (_Show.pendingVerification, 'Pending verification'),
-            (_Show.overdue, 'Overdue'),
-            (_Show.closed, 'Expired / rejected'),
+          for (final (s, label) in [
+            (_Show.all, tr('All')),
+            (_Show.notConfirmed, tr('Not confirmed')),
+            (_Show.pendingVerification, tr('Pending verification')),
+            (_Show.overdue, tr('Overdue')),
+            (_Show.closed, tr('Expired / rejected')),
           ])
             ChoiceChip(label: Tx(label), selected: _show == s, onSelected: (_) => setState(() => _show = s)),
         ]),
@@ -204,7 +204,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
                   ),
                 ]),
               ),
-              Tx(d.amount != null ? '\$${d.amount}' : 'No amount',
+              Tx(d.amount != null ? '\$${d.amount}' : tr('No amount'),
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             ]),
             const SizedBox(height: 10),

@@ -26,7 +26,7 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   final _historyRequest = ValueNotifier<HistoryFilter?>(null);
 
-  static const _titles = ['Dashboard', 'Users', 'Reports', 'Commission', 'History', 'Account'];
+  static List<String> get _titles => [tr('Dashboard'), tr('Users'), tr('Reports'), tr('Commission'), tr('History'), tr('Account')];
 
   void _openHistory(HistoryFilter filter) {
     _historyRequest.value = filter;

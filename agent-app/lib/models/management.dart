@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import '../l10n/tr.dart';
 
 /// Models for the management screens (Account → Admin features), mirroring
 /// the backend's /admin/* and /agent/manage/* responses.
@@ -139,15 +140,15 @@ class LoginEvent {
   const LoginEvent({required this.action, required this.createdAt, this.actorName, this.userName});
 
   String get label => switch (action) {
-        'user.login' => 'Logged in',
-        'user.change_password' => 'Changed own password',
-        'agent.reset_password' => 'Password reset',
-        'agent.create' => 'Account created',
-        'agent.update' => 'Details edited',
-        'agent.enable' => 'Enabled',
-        'agent.disable' => 'Disabled',
-        'agent.delete' => 'Deleted',
-        'agent.update_responsibilities' => 'Responsibilities changed',
+        'user.login' => tr('Logged in'),
+        'user.change_password' => tr('Changed own password'),
+        'agent.reset_password' => tr('Password reset'),
+        'agent.create' => tr('Account created'),
+        'agent.update' => tr('Details edited'),
+        'agent.enable' => tr('Enabled'),
+        'agent.disable' => tr('Disabled'),
+        'agent.delete' => tr('Deleted'),
+        'agent.update_responsibilities' => tr('Responsibilities changed'),
         _ => action,
       };
 
@@ -657,17 +658,17 @@ class BettingPlatform {
 
   /// How customers deposit with this platform right now.
   String? get modeLabel => switch (mode) {
-        'cashdesk' => 'Customers: account ID + code (cash desk)',
-        'manual' => 'Customers: account ID + amount (manual until connected)',
+        'cashdesk' => tr('Customers: account ID + code (cash desk)'),
+        'manual' => tr('Customers: account ID + amount (manual until connected)'),
         _ => null,
       };
 
   String get statusLabel => switch (status) {
-        'connected' => 'Connected',
-        'error' => 'Error',
-        'not_tested' => 'Not tested',
-        'server' => 'Server secrets',
-        _ => 'Not set up',
+        'connected' => tr('Connected'),
+        'error' => tr('Error'),
+        'not_tested' => tr('Not tested'),
+        'server' => tr('Server secrets'),
+        _ => tr('Not set up'),
       };
 
   factory BettingPlatform.fromJson(Map<String, dynamic> j) => BettingPlatform(

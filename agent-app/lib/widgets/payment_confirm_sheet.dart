@@ -35,10 +35,10 @@ Future<MatchResult?> showPaymentConfirmSheet(BuildContext context, {Order? order
 /// Shows the standard snack bar for a confirmation result.
 void showMatchResultSnackBar(BuildContext context, MatchResult result) {
   final (String text, Color color) = switch (result.status) {
-    MatchStatus.matched => ('Matched — the deposit order has been completed.', AppColors.statusCompleted),
-    MatchStatus.unmatched => ('No pending order matched these details. Double-check and try again.', AppColors.statusUnmatched),
-    MatchStatus.duplicate => ('This transaction was already submitted.', AppColors.statusDuplicate),
-    MatchStatus.error => (result.errorMessage ?? 'Something went wrong.', AppColors.statusFailed),
+    MatchStatus.matched => (tr('Matched — the deposit order has been completed.'), AppColors.statusCompleted),
+    MatchStatus.unmatched => (tr('No pending order matched these details. Double-check and try again.'), AppColors.statusUnmatched),
+    MatchStatus.duplicate => (tr('This transaction was already submitted.'), AppColors.statusDuplicate),
+    MatchStatus.error => (result.errorMessage ?? tr('Something went wrong.'), AppColors.statusFailed),
   };
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Tx(text), backgroundColor: color));
 }
@@ -109,7 +109,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
               occurredAt: occurredAt,
             );
     } catch (e) {
-      result = MatchResult.error(e is ApiException ? e.message : 'Failed to submit confirmation.');
+      result = MatchResult.error(e is ApiException ? e.message : tr('Failed to submit confirmation.'));
     }
 
     // Keep this device's local submission log (SMS Transactions screen).
@@ -150,8 +150,8 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
               const SizedBox(height: 6),
               Tx(
                 isPlatform
-                    ? 'Only enter a top-up you personally confirmed as completed in the ${_info.label} cashier tools.'
-                    : 'Only enter a ${_info.label} payment you personally saw arrive.',
+                    ? trp('Only enter a top-up you personally confirmed as completed in the {0} cashier tools.', [_info.label])
+                    : trp('Only enter a {0} payment you personally saw arrive.', [_info.label]),
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
@@ -170,7 +170,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
               const SizedBox(height: 14),
               TextFormField(
                 controller: _counterparty,
-                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} account ID' : 'Sender phone number'),
+                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} account ID' : tr('Sender phone number')),
                 keyboardType: isPlatform ? TextInputType.text : TextInputType.phone,
                 textInputAction: TextInputAction.next,
                 validator: (v) => (v == null || v.trim().length < (isPlatform ? 3 : 4)) ? 'Required' : null,
@@ -197,7 +197,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
               const SizedBox(height: 14),
               TextFormField(
                 controller: _reference,
-                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} reference' : 'Transaction ID'),
+                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} reference' : tr('Transaction ID')),
                 textInputAction: TextInputAction.done,
                 validator: (v) => (v == null || v.trim().length < 3) ? 'At least 3 characters' : null,
                 onFieldSubmitted: (_) => _submit(),

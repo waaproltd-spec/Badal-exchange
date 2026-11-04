@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:image_picker/image_picker.dart';
+import '../l10n/tr.dart';
 
 /// Opens the phone's gallery and returns the chosen picture (already shrunk),
 /// or null when nothing was chosen.
@@ -37,7 +38,7 @@ String? adImageProblem(Uint8List bytes) {
   final jpeg = starts(const [0xff, 0xd8, 0xff]);
   final png = starts(const [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   final webp = starts(const [0x52, 0x49, 0x46, 0x46]) && starts(const [0x57, 0x45, 0x42, 0x50], 8);
-  if (!jpeg && !png && !webp) return 'Choose a JPEG, PNG or WebP picture.';
-  if (bytes.length > adImageMaxBytes) return 'That picture is too large (over 600 KB). Choose a smaller one.';
+  if (!jpeg && !png && !webp) return tr('Choose a JPEG, PNG or WebP picture.');
+  if (bytes.length > adImageMaxBytes) return tr('That picture is too large (over 600 KB). Choose a smaller one.');
   return null;
 }

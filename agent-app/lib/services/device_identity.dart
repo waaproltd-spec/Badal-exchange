@@ -1,6 +1,7 @@
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import '../l10n/tr.dart';
 
 /// Resolves a stable identifier for this physical device, used when calling
 /// POST /agent/devices/register.
@@ -39,12 +40,12 @@ class DeviceIdentity {
       final manufacturer = info.manufacturer.trim();
       final model = info.model.trim();
       final label = [manufacturer, model].where((s) => s.isNotEmpty).join(' ');
-      return label.isNotEmpty ? label : 'Agent device';
+      return label.isNotEmpty ? label : tr('Agent device');
     } catch (_) {
       // device_info_plus can throw on unsupported platforms (e.g. during
       // development on desktop) — fall back to a generic label rather than
       // failing device registration over it.
-      return 'Agent device';
+      return tr('Agent device');
     }
   }
 }

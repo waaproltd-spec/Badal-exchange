@@ -2,6 +2,7 @@
 /// Money stays a decimal string, exactly as the backend formats it.
 import 'dart:convert';
 import 'dart:typed_data';
+import '../l10n/tr.dart';
 
 DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
 String _money(dynamic v) => (v ?? '0.00').toString();
@@ -45,7 +46,7 @@ class HistoryItem {
 
   /// Headline such as "Deposit · EVC Plus" or "Payment confirmation · Golis".
   String get title {
-    if (isConfirmation) return 'Payment confirmation · $methodLabel';
+    if (isConfirmation) return trp('Payment confirmation · {0}', [methodLabel]);
     return '${isDeposit ? 'Deposit' : 'Withdrawal'} · $methodLabel';
   }
 
@@ -308,7 +309,7 @@ class AgentAccount {
 
   factory AgentAccount.fromJson(Map<String, dynamic> j) => AgentAccount(
         id: j['id'] as String,
-        name: j['name'] as String? ?? 'Agent',
+        name: j['name'] as String? ?? tr('Agent'),
         phone: j['phone'] as String?,
         email: j['email'] as String?,
         status: j['status'] as String? ?? 'active',

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import '../l10n/tr.dart';
 
 /// One row of KYC Management (manage_kyc_applications).
 class KycListItem {
@@ -105,10 +106,10 @@ class KycApplication {
   }
 }
 
-const kycStatusLabels = {
-  'pending_auto': 'Pending Automatic Verification',
-  'pending_review': 'Pending Admin Review',
-  'approved': 'Approved',
-  'rejected': 'Rejected',
-  'resubmission_required': 'Resubmission Required',
+Map<String, String> get kycStatusLabels => {
+  'pending_auto': tr('Pending Automatic Verification'),
+  'pending_review': tr('Pending Admin Review'),
+  'approved': tr('Approved'),
+  'rejected': tr('Rejected'),
+  'resubmission_required': tr('Resubmission Required'),
 };

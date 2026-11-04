@@ -49,7 +49,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
       final b = await widget.api.setCustomerBonus(widget.customerId, rateBp: rateBp, enabled: enabled);
       if (mounted) setState(() => _bonus = b);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save the bonus.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : tr('Could not save the bonus.'))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -86,10 +86,10 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
           const SizedBox(height: 10),
           Tx(
             !b.programmeOn
-                ? 'The bonus is switched off for everyone.'
+                ? tr('The bonus is switched off for everyone.')
                 : b.enabled
-                    ? 'Earns ${b.rate} of every completed eligible transaction (set in Account > Bonus).'
-                    : 'Off for this customer: no bonus on their withdrawals.',
+                    ? trp('Earns {0} of every completed eligible transaction (set in Account > Bonus).', [b.rate])
+                    : tr('Off for this customer: no bonus on their withdrawals.'),
             style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 10),
@@ -120,7 +120,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
                     child: Tx(
                       e.earned
                           ? '${e.rate ?? ''} of \$${e.withdrawal ?? ''} ${e.direction == 'deposit' ? 'deposit' : 'withdrawal'} · ${e.orderCode ?? ''}'
-                          : 'Moved to main wallet',
+                          : tr('Moved to main wallet'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 13, color: AppColors.textPrimary),

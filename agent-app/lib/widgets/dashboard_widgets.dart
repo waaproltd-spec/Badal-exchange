@@ -12,8 +12,8 @@ const _depositColor = AppColors.statusCompleted;
 const _withdrawColor = AppColors.accentOrange;
 const _orderColor = Color(0xFF8B5CF6);
 
-const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+List<String> get _weekdays => [tr('Mon'), tr('Tue'), tr('Wed'), tr('Thu'), tr('Fri'), tr('Sat'), tr('Sun')];
+List<String> get _months => [tr('Jan'), tr('Feb'), tr('Mar'), tr('Apr'), tr('May'), tr('Jun'), tr('Jul'), tr('Aug'), tr('Sep'), tr('Oct'), tr('Nov'), tr('Dec')];
 
 /// "Oct 28" for a chart axis.
 String shortDay(DateTime d) => '${_months[d.month - 1]} ${d.day}';
@@ -156,10 +156,10 @@ class TransactionStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parts = [
-      (completed, AppColors.statusCompleted, 'Completed'),
-      (pending, AppColors.statusPending, 'Pending'),
-      (processing, AppColors.statusProcessing, 'Processing'),
-      (failed, AppColors.statusFailed, 'Failed'),
+      (completed, AppColors.statusCompleted, tr('Completed')),
+      (pending, AppColors.statusPending, tr('Pending')),
+      (processing, AppColors.statusProcessing, tr('Processing')),
+      (failed, AppColors.statusFailed, tr('Failed')),
     ];
     final total = completed + pending + processing + failed;
     return ConsoleCard(

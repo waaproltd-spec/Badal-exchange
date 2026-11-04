@@ -55,7 +55,7 @@ class _IntegrationsScreenState extends ListScreenState<IntegrationsScreen, Payme
                         children: [
                           Tx(i.label, style: const TextStyle(fontWeight: FontWeight.w800)),
                           Tx(
-                            i.hasCredentials ? 'Account: ${i.username ?? 'set'}' : 'No credentials saved',
+                            i.hasCredentials ? 'Account: ${i.username ?? 'set'}' : tr('No credentials saved'),
                             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                           ),
                           if (i.isMobCash)
@@ -111,7 +111,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
         _error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = errorText(e, 'Failed to load the integration.'));
+      if (mounted) setState(() => _error = errorText(e, tr('Failed to load the integration.')));
     }
   }
 
@@ -121,7 +121,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
       await action();
       if (mounted) showSnack(context, success);
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Something went wrong.'));
+      if (mounted) showSnack(context, errorText(e, tr('Something went wrong.')));
     }
     await _load();
     if (mounted) setState(() => _busy = false);
@@ -146,15 +146,15 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
         ),
       );
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Could not load the screenshot.'));
+      if (mounted) showSnack(context, errorText(e, tr('Could not load the screenshot.')));
     }
   }
 
   Future<void> _goLive() async {
     final ok = await confirmDialog(
       context,
-      'Turn dry run OFF?',
-      'Automation will start moving real money on MobCash. Only do this after reviewing the dry-run log below.',
+      tr('Turn dry run OFF?'),
+      tr('Automation will start moving real money on MobCash. Only do this after reviewing the dry-run log below.'),
     );
     if (!ok || !mounted) return;
     final api = context.read<Session>().api;
@@ -165,7 +165,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
   Widget build(BuildContext context) {
     final d = _data;
     return Scaffold(
-      appBar: AppBar(title: Tx(d?.label ?? 'Integration')),
+      appBar: AppBar(title: Tx(d?.label ?? tr('Integration'))),
       body: d == null
           ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
           : RefreshIndicator(onRefresh: _load, child: _body(d)),
@@ -181,11 +181,11 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: SwitchListTile(
             title: const Tx('Integration active', style: TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Tx(d.isActive ? 'Active' : 'Inactive'),
+            subtitle: Tx(d.isActive ? 'Active' : tr('Inactive')),
             value: d.isActive,
             onChanged: _busy
                 ? null
-                : (v) => _act(() => api.setIntegrationActive(d.provider, v), v ? 'Activated.' : 'Deactivated.'),
+                : (v) => _act(() => api.setIntegrationActive(d.provider, v), v ? 'Activated.' : tr('Deactivated.')),
           ),
         ),
         GroupLabel(tr('Account')),
@@ -193,8 +193,8 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              InfoRow(tr('Username'), d.hasCredentials ? (d.username ?? 'Saved') : 'Not set'),
-              InfoRow(tr('Password'), d.hasCredentials ? 'Saved (hidden)' : 'Not set'),
+              InfoRow(tr('Username'), d.hasCredentials ? (d.username ?? tr('Saved')) : tr('Not set')),
+              InfoRow(tr('Password'), d.hasCredentials ? 'Saved (hidden)' : tr('Not set')),
               InfoRow(tr('Last test'), d.lastTestAt != null ? '${d.lastTestResult ?? '—'} • ${formatDateTime(d.lastTestAt!)}' : '—'),
               if ((d.lastTestMessage ?? '').isNotEmpty) InfoRow(tr('Test message'), d.lastTestMessage!),
               InfoRow(
@@ -208,7 +208,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _busy ? null : () => _editCredentials(d),
-                      child: Tx(d.hasCredentials ? 'Change credentials' : 'Set credentials'),
+                      child: Tx(d.hasCredentials ? 'Change credentials' : tr('Set credentials')),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -237,13 +237,13 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                   style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
-                InfoRow(tr('Mode'), d.automationMode == 'automatic' ? 'Automatic' : 'Manual'),
-                InfoRow(tr('Dry run'), d.dryRun ? 'On (no real money moves)' : 'Off (live)'),
+                InfoRow(tr('Mode'), d.automationMode == 'automatic' ? 'Automatic' : tr('Manual')),
+                InfoRow(tr('Dry run'), d.dryRun ? 'On (no real money moves)' : tr('Off (live)')),
                 InfoRow(tr('Failures in a row'), '${d.consecutiveFailures}'),
                 InfoRow(
                   tr('Circuit breaker'),
                   d.circuitBreakerTrippedAt != null
-                      ? 'Tripped ${formatDateTime(d.circuitBreakerTrippedAt!)}${d.circuitBreakerReason != null ? ' — ${d.circuitBreakerReason}' : ''}'
+                      ? trp('Tripped {0}{1}', [formatDateTime(d.circuitBreakerTrippedAt!), d.circuitBreakerReason != null ? ' — ${d.circuitBreakerReason}' : ''])
                       : 'OK',
                 ),
                 const SizedBox(height: 8),
@@ -362,7 +362,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
           );
       if (mounted) setState(() => _check = result);
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Login check failed.'));
+      if (mounted) showSnack(context, errorText(e, tr('Login check failed.')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -378,12 +378,12 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
             password: _password.text,
           );
       if (!mounted) return;
-      showSnack(context, 'Credentials saved.');
+      showSnack(context, tr('Credentials saved.'));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      showSnack(context, errorText(e, 'Could not save credentials.'));
+      showSnack(context, errorText(e, tr('Could not save credentials.')));
     }
   }
 
@@ -429,7 +429,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Tx(
-                        _check!.success ? 'Login worked' : 'Login failed',
+                        _check!.success ? 'Login worked' : tr('Login failed'),
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Tx(_check!.message, style: TextStyle(color: AppColors.textSecondary)),
@@ -443,7 +443,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
               ],
             ],
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _busy ? null : _save, child: Tx(_busy ? 'Working…' : 'Save credentials')),
+            ElevatedButton(onPressed: _busy ? null : _save, child: Tx(_busy ? 'Working…' : tr('Save credentials'))),
           ],
         ),
       ),

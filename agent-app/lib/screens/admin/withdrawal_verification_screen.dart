@@ -55,7 +55,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Could not load the requests.';
+        _error = e is ApiException ? e.message : tr('Could not load the requests.');
         _loading = false;
       });
     }
@@ -68,7 +68,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Tx(decision == 'reject' ? 'Reject ${v.accountId}?' : 'Restrict ${v.accountId} again?'),
+          title: Tx(decision == 'reject' ? 'Reject ${v.accountId}?' : trp('Restrict {0} again?', [v.accountId])),
           content: TextField(
             key: const Key('verify-reason'),
             controller: controller,
@@ -80,7 +80,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
               onPressed: () => Navigator.pop(context, true),
-              child: Tx(decision == 'reject' ? 'Reject' : 'Restrict'),
+              child: Tx(decision == 'reject' ? 'Reject' : tr('Restrict')),
             ),
           ],
         ),
@@ -111,7 +111,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save the decision.')));
+          .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : tr('Could not save the decision.'))));
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -144,7 +144,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
                         options: [
                           for (final s in const ['pending', 'approved', 'rejected', 'restricted'])
                             (s, '${s[0].toUpperCase()}${s.substring(1)} (${_counts[s] ?? 0})'),
-                          ('all', 'All'),
+                          ('all', tr('All')),
                         ],
                         selected: _status,
                         onSelected: (s) {
@@ -187,7 +187,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             StatusPill(v.status == 'approved' ? 'completed' : (v.status == 'pending' ? 'pending' : 'failed')),
           ]),
           const SizedBox(height: 8),
-          InfoRow(tr('Status'), const {'pending': 'Not approved', 'approved': 'Approved for withdrawals', 'rejected': 'Rejected', 'restricted': 'Restricted'}[v.status] ?? v.status),
+          InfoRow(tr('Status'), {'pending': tr('Not approved'), 'approved': tr('Approved for withdrawals'), 'rejected': tr('Rejected'), 'restricted': tr('Restricted')}[v.status] ?? v.status),
           InfoRow(tr('Balance'), '\$${v.balance}'),
           InfoRow(tr('Deposits completed'), '${v.depositCount} · \$${v.depositTotal}'),
           InfoRow(tr('Withdrawals completed'), '${v.withdrawalCount} · \$${v.withdrawalTotal}'),

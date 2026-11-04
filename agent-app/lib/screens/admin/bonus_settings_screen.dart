@@ -13,11 +13,11 @@ import '../../l10n/tr.dart';
 const _rates = [(50, '0.5%'), (100, '1%'), (150, '1.5%'), (200, '2%')];
 
 /// The groups of transaction types, in the order they are listed.
-const _groups = [
-  ('withdraw', 'mobile_money', 'Mobile money withdrawals'),
-  ('deposit', 'mobile_money', 'Mobile money deposits'),
-  ('withdraw', 'platform', 'Betting withdrawals'),
-  ('deposit', 'platform', 'Betting deposits'),
+List<(String, String, String)> get _groups => [
+  ('withdraw', 'mobile_money', tr('Mobile money withdrawals')),
+  ('deposit', 'mobile_money', tr('Mobile money deposits')),
+  ('withdraw', 'platform', tr('Betting withdrawals')),
+  ('deposit', 'platform', tr('Betting deposits')),
 ];
 
 /// Managers: the Bonus system. On/off for everyone, the rate (0.5–2%), which
@@ -48,7 +48,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
       final s = await context.read<Session>().api.getBonusSettings();
       if (mounted) setState(() => _settings = s);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load the bonus settings.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load the bonus settings.'));
     }
   }
 
@@ -62,7 +62,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
           .setBonusSettings(enabled: enabled, defaultRateBp: defaultRateBp, eligible: eligible);
       if (mounted) setState(() => _settings = s);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : tr('Could not save.'))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -81,7 +81,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
       if (mounted) setState(() => _settings = updated);
       messenger.showSnackBar(const SnackBar(content: Tx('Bonus limits saved.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : tr('Could not save.'))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -126,8 +126,8 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
             const SizedBox(height: 6),
             Tx(
               s.enabled
-                  ? 'Customers earn the bonus on completed transactions of the types switched on below.'
-                  : 'Off: nobody earns a bonus. Bonuses already earned stay in the customers\' bonus wallets.',
+                  ? tr('Customers earn the bonus on completed transactions of the types switched on below.')
+                  : tr('Off: nobody earns a bonus. Bonuses already earned stay in the customers\' bonus wallets.'),
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
@@ -259,7 +259,7 @@ class _HistoryTile extends StatelessWidget {
     final what = e.earned
         ? '${e.rate ?? ''} of \$${e.withdrawal ?? ''} ${e.methodLabel ?? ''} ${e.direction == 'deposit' ? 'deposit' : 'withdrawal'}'
             ' · ${e.orderCode ?? ''}'
-        : 'Transferred to main wallet (\$${e.movedToMain ?? e.amount})';
+        : trp('Transferred to main wallet (\${0})', [e.movedToMain ?? e.amount]);
     return ConsoleCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(children: [

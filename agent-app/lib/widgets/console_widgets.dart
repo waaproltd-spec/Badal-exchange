@@ -430,7 +430,7 @@ Future<void> showActivityDetails(BuildContext context, HistoryItem item) {
           InfoRow(tr('Amount'), '\$${item.amount}'),
           if (item.orderCode != null) InfoRow(tr('Order code'), item.orderCode!),
           InfoRow(tr('Payment method'), item.methodLabel),
-          InfoRow(item.isConfirmation ? 'Sender / account' : 'Phone / account', item.counterparty ?? '—'),
+          InfoRow(item.isConfirmation ? 'Sender / account' : tr('Phone / account'), item.counterparty ?? '—'),
           InfoRow(tr('Customer'), [item.customerName, item.customerPhone].whereType<String>().join(' • ').ifEmpty('—')),
           InfoRow(tr('Reference'), item.reference ?? '—'),
           InfoRow(tr('Date'), formatDateTime(item.createdAt)),

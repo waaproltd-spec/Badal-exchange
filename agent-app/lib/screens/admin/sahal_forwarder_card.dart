@@ -63,7 +63,7 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
     try {
       await action();
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Something went wrong. Try again.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Something went wrong. Try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -102,8 +102,8 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(
             configured
-                ? 'Set up${last != null ? ' · last SMS received ${SahalForwarderCard.somaliTime(last)}' : ' · no SMS received yet'}.'
-                : 'Not set up. Use it when the merchant phone runs an SMS-forwarding app instead of this one.',
+                ? trp('Set up{0}.', [last != null ? ' · last SMS received ${SahalForwarderCard.somaliTime(last)}' : ' · no SMS received yet'])
+                : tr('Not set up. Use it when the merchant phone runs an SMS-forwarding app instead of this one.'),
             key: const Key('forwarder-status'),
           ),
           if (_token != null) ...[
@@ -129,7 +129,7 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
               key: const Key('forwarder-make'),
               onPressed: _busy ? null : _make,
               icon: const Icon(Icons.key_rounded),
-              label: Tx(configured ? 'New token (replaces the old)' : 'Create token'),
+              label: Tx(configured ? 'New token (replaces the old)' : tr('Create token')),
             ),
             if (configured)
               TextButton(

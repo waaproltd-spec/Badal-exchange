@@ -99,7 +99,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load history.';
+        _error = e is ApiException ? e.message : tr('Failed to load history.');
         _loading = false;
         _loadingMore = false;
       });
@@ -134,7 +134,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
       ));
     }
 
-    if (f.status != null) add('Status: ${f.status}', () => f.copyWith(status: () => null));
+    if (f.status != null) add(trp('Status: {0}', [f.status]), () => f.copyWith(status: () => null));
     if (f.method != null) add(methodInfo(f.method!).label, () => f.copyWith(method: () => null));
     if (f.from != null || f.to != null) {
       final from = f.from != null ? _pretty.format(DateTime.parse(f.from!)) : '…';
@@ -175,12 +175,12 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
           ),
           const SizedBox(height: 12),
           ChoiceChipsRow<String>(
-            options: const [
-              ('all', 'All'),
-              ('deposit', 'Deposits'),
-              ('withdraw', 'Withdrawals'),
-              ('order', 'Orders'),
-              ('confirmation', 'Confirmations'),
+            options: [
+              ('all', tr('All')),
+              ('deposit', tr('Deposits')),
+              ('withdraw', tr('Withdrawals')),
+              ('order', tr('Orders')),
+              ('confirmation', tr('Confirmations')),
             ],
             selected: _filter.type,
             onSelected: (t) => _apply(_filter.copyWith(type: t)),
@@ -208,7 +208,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Tx(_loadingMore ? 'Loading…' : 'Load more'),
+                  child: Tx(_loadingMore ? 'Loading…' : tr('Load more')),
                 ),
               ),
           ],

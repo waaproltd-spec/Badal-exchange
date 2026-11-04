@@ -59,7 +59,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
         _error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load the Sahal status.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load the Sahal status.'));
     }
   }
 
@@ -72,7 +72,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
         _error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Something went wrong. Try again.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Something went wrong. Try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -83,7 +83,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
   void _sendCode() {
     final code = _code.text.replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^[0-9]{4,8}$').hasMatch(code)) {
-      setState(() => _error = 'Enter the code from the SMS (numbers only).');
+      setState(() => _error = tr('Enter the code from the SMS (numbers only).'));
       return;
     }
     _code.clear();
@@ -155,7 +155,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     key: const Key('feed-sign-in'),
                     onPressed: _busy || s.state == 'ready' ? null : _signIn,
                     icon: const Icon(Icons.login_rounded),
-                    label: Tx(s.working ? 'Sign in again (new code)' : 'Sign in to Sahal'),
+                    label: Tx(s.working ? 'Sign in again (new code)' : tr('Sign in to Sahal')),
                   ),
                 ],
                 GroupLabel(tr('Deposits')),
@@ -202,12 +202,12 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color, icon) = switch (status.state) {
-      'ok' => ('Signed in · reading', AppColors.statusCompleted, Icons.check_circle_rounded),
-      'needs_code' => ('Code needed', AppColors.statusPending, Icons.sms_rounded),
-      'code_entered' => ('Checking the code…', AppColors.statusProcessing, Icons.hourglass_top_rounded),
-      'ready' => ('Signing in…', AppColors.statusProcessing, Icons.hourglass_top_rounded),
-      'not_configured' => ('Login not set up', AppColors.statusFailed, Icons.settings_rounded),
-      _ => ('Stopped', AppColors.statusFailed, Icons.pause_circle_rounded),
+      'ok' => (tr('Signed in · reading'), AppColors.statusCompleted, Icons.check_circle_rounded),
+      'needs_code' => (tr('Code needed'), AppColors.statusPending, Icons.sms_rounded),
+      'code_entered' => (tr('Checking the code…'), AppColors.statusProcessing, Icons.hourglass_top_rounded),
+      'ready' => (tr('Signing in…'), AppColors.statusProcessing, Icons.hourglass_top_rounded),
+      'not_configured' => (tr('Login not set up'), AppColors.statusFailed, Icons.settings_rounded),
+      _ => (tr('Stopped'), AppColors.statusFailed, Icons.pause_circle_rounded),
     };
     return ConsoleCard(
       child: Row(

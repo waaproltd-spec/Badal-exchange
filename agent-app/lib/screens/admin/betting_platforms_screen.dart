@@ -52,7 +52,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
         _platforms = r.platforms;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = errorText(e, 'Could not load the betting platforms.'));
+      if (mounted) setState(() => _error = errorText(e, tr('Could not load the betting platforms.')));
     }
   }
 
@@ -62,7 +62,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
       await context.read<Session>().api.setBettingPlatformActive(p.method, on);
       await _load();
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Could not change it.'));
+      if (mounted) showSnack(context, errorText(e, tr('Could not change it.')));
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -86,7 +86,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
       final p = _platforms?.where((x) => x.method == method).firstOrNull;
       if (p != null) await _open(p);
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Could not add the platform.'));
+      if (mounted) showSnack(context, errorText(e, tr('Could not add the platform.')));
     }
   }
 
@@ -283,7 +283,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
       }
       showSnack(context, done);
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Something went wrong.'));
+      if (mounted) showSnack(context, errorText(e, tr('Something went wrong.')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -318,11 +318,11 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
     try {
       logo = await widget.pickLogo();
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not open the gallery.');
+      if (mounted) showSnack(context, tr('Could not open the gallery.'));
       return;
     }
     if (logo == null) {
-      if (mounted) showSnack(context, 'No picture was chosen, or it could not be read.');
+      if (mounted) showSnack(context, tr('No picture was chosen, or it could not be read.'));
       return;
     }
     await _run(() => api.setBettingPlatformLogo(widget.method, logo), tr('Logo saved. The Customer App shows it now.'));
@@ -343,7 +343,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
       showSnack(context, '${_p.name} removed. Its orders are kept.');
       Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Could not remove it.'));
+      if (mounted) showSnack(context, errorText(e, tr('Could not remove it.')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -396,10 +396,10 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(
                           _p.logo != null
-                              ? (_p.builtIn ? 'Logo replaced (the Customer App shows this one)' : 'Logo set')
+                              ? (_p.builtIn ? 'Logo replaced (the Customer App shows this one)' : tr('Logo set'))
                               : (_p.builtIn
-                                  ? 'The logo built into the Customer App'
-                                  : 'No logo yet (the Customer App shows its initials)'),
+                                  ? tr('The logo built into the Customer App')
+                                  : tr('No logo yet (the Customer App shows its initials)')),
                           key: const Key('platform-logo-state'), style: const TextStyle(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
                       Wrap(spacing: 8, runSpacing: 4, children: [
@@ -407,13 +407,13 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                           key: const Key('platform-logo-choose'),
                           onPressed: _busy ? null : _chooseLogo,
                           icon: const Icon(Icons.photo_library_rounded),
-                          label: Tx(_p.logo != null ? 'Change logo' : (_p.builtIn ? 'Replace logo' : 'Choose logo')),
+                          label: Tx(_p.logo != null ? 'Change logo' : (_p.builtIn ? 'Replace logo' : tr('Choose logo'))),
                         ),
                         if (_p.logo != null)
                           TextButton(
                             key: const Key('platform-logo-remove'),
                             onPressed: _busy ? null : _removeLogo,
-                            child: Tx(_p.builtIn ? 'Back to the built-in logo' : 'Remove'),
+                            child: Tx(_p.builtIn ? 'Back to the built-in logo' : tr('Remove')),
                           ),
                       ]),
                     ]),
@@ -440,16 +440,16 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                     hintText: f.key == 'apiUrl'
                         ? adapter.defaultApiUrl
                         : f.key == 'login' && _p.login != null
-                            ? 'Saved (${_p.login}): leave empty to keep'
+                            ? trp('Saved ({0}): leave empty to keep', [_p.login])
                             : f.secret && _saved(f.key)
-                                ? 'Saved: leave empty to keep'
+                                ? tr('Saved: leave empty to keep')
                                 : null,
                   ),
                   validator: (v) {
                     final t = (v ?? '').trim();
-                    if (f.required && t.isEmpty && !_saved(f.key)) return 'Required';
-                    if (f.key == 'accountId' && t.isNotEmpty && !RegExp(r'^\d{1,20}$').hasMatch(t)) return 'Digits only';
-                    if (f.key == 'apiUrl' && t.isNotEmpty && !t.startsWith('https://')) return 'Must start with https://';
+                    if (f.required && t.isEmpty && !_saved(f.key)) return tr('Required');
+                    if (f.key == 'accountId' && t.isNotEmpty && !RegExp(r'^\d{1,20}$').hasMatch(t)) return tr('Digits only');
+                    if (f.key == 'apiUrl' && t.isNotEmpty && !t.startsWith('https://')) return tr('Must start with https://');
                     return null;
                   },
                 ),

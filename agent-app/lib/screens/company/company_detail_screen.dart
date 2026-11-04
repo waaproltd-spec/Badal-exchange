@@ -24,7 +24,7 @@ class CompanyDetailScreen extends StatefulWidget {
 }
 
 class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
-  static const _periods = [(1, 'Today'), (7, '7 days'), (30, '30 days')];
+  static List<(int, String)> get _periods => [(1, tr('Today')), (7, tr('7 days')), (30, tr('30 days'))];
   int _days = 1;
   String? _status; // null = all
   CompanyDetail? _detail;
@@ -50,7 +50,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
           .getCompanyDetail(widget.company.method, from: _from, status: _status);
       if (mounted) setState(() => _detail = d);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load this company.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load this company.'));
     }
   }
 
@@ -118,7 +118,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     InfoRow(
                       tr('Since the check'),
                       c.changesSinceCheck == 0
-                          ? 'No changes'
+                          ? tr('No changes')
                           : '${c.changesSinceCheck} · sold \$${c.salesSinceCheck} · paid out \$${c.payoutsSinceCheck}',
                     ),
                   InfoRow(tr('Last successful check'), c.lastSuccessAt == null ? 'Never' : formatDateTime(c.lastSuccessAt!)),
@@ -171,7 +171,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
               const SizedBox(height: 8),
               SectionHeader(title: tr('Transactions')),
               ChoiceChipsRow<String?>(
-                options: const [(null, 'All'), ('open', 'Pending'), ('completed', 'Completed'), ('failed', 'Failed')],
+                options: [(null, tr('All')), ('open', tr('Pending')), ('completed', tr('Completed')), ('failed', tr('Failed'))],
                 selected: _status,
                 onSelected: (v) {
                   setState(() => _status = v);
@@ -211,7 +211,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                               formatDateTime(b.checkedAt),
                               b.ok
                                   ? '\$${b.balance} · Limit ${b.limit == null ? 'not reported' : '\$${b.limit}'}'
-                                  : 'Failed: ${b.error ?? ''}'),
+                                  : trp('Failed: {0}', [b.error ?? ''])),
                       ],
                     ),
                   ),
@@ -262,8 +262,8 @@ class _MovementRow extends StatelessWidget {
     final color = m.isSale ? AppColors.statusProcessing : AppColors.statusCompleted;
     final what = '${m.isSale ? 'Sale' : 'Payout'} ${m.orderCode ?? (m.manual ? '(manual)' : '')}';
     final after = !m.sinceCheck
-        ? 'In the live check'
-        : 'Balance \$${m.balanceAfter}${m.limitAfter == null ? '' : ' · Limit \$${m.limitAfter}'}';
+        ? tr('In the live check')
+        : trp('Balance \${0}{1}', [m.balanceAfter, m.limitAfter == null ? '' : ' · Limit \$${m.limitAfter}']);
     return Padding(
       key: Key('movement-${m.orderCode ?? m.at.toIso8601String()}'),
       padding: const EdgeInsets.symmetric(vertical: 8),

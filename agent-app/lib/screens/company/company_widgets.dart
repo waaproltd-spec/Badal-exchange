@@ -8,11 +8,11 @@ import '../../l10n/tr.dart';
 
 /// How a company's balance status reads and looks.
 (String, Color, IconData) companyStatusLook(String status) => switch (status) {
-      'available' => ('Available', AppColors.statusCompleted, Icons.check_circle_rounded),
-      'low' => ('Low balance', AppColors.statusFailed, Icons.warning_amber_rounded),
-      'stale' => ('Not updated', AppColors.statusPending, Icons.schedule_rounded),
-      'offline' => ('Offline', AppColors.statusDuplicate, Icons.wifi_off_rounded),
-      _ => ('No balance connection', AppColors.statusDuplicate, Icons.link_off_rounded),
+      'available' => (tr('Available'), AppColors.statusCompleted, Icons.check_circle_rounded),
+      'low' => (tr('Low balance'), AppColors.statusFailed, Icons.warning_amber_rounded),
+      'stale' => (tr('Not updated'), AppColors.statusPending, Icons.schedule_rounded),
+      'offline' => (tr('Offline'), AppColors.statusDuplicate, Icons.wifi_off_rounded),
+      _ => (tr('No balance connection'), AppColors.statusDuplicate, Icons.link_off_rounded),
     };
 
 class CompanyStatusPill extends StatelessWidget {
@@ -45,7 +45,7 @@ class CompanyStatusPill extends StatelessWidget {
 /// The amount to show for a company: its read balance, or why there is none.
 String companyAmount(CompanyBalance c) => switch (c.status) {
       'not_connected' => '—',
-      'offline' when c.balance == null => 'Unavailable',
+      'offline' when c.balance == null => tr('Unavailable'),
       _ => c.balance == null ? 'Unavailable' : '\$${c.balance}',
     };
 
@@ -58,12 +58,12 @@ String companyLimit(CompanyBalance c) => switch (c.status) {
 
 /// Where the balance comes from and how old it is.
 String companySource(CompanyBalance c) {
-  if (!c.connected) return 'No balance connection · orders handled by agents';
+  if (!c.connected) return tr('No balance connection · orders handled by agents');
   final at = c.lastSuccessAt;
   return switch (c.status) {
-    'offline' => at == null ? 'Cash register · not read yet' : 'Last known · ${formatDateTime(at)}',
-    'stale' => 'Last read ${formatDateTime(at!)} · not updated since',
-    _ => 'Cash register · ${c.source ?? 'live'} · ${formatDateTime(at!)}',
+    'offline' => at == null ? 'Cash register · not read yet' : trp('Last known · {0}', [formatDateTime(at)]),
+    'stale' => trp('Last read {0} · not updated since', [formatDateTime(at!)]),
+    _ => trp('Cash register · {0} · {1}', [c.source ?? 'live', formatDateTime(at!)]),
   };
 }
 
@@ -72,11 +72,11 @@ String companySource(CompanyBalance c) {
 String? companyWarning(CompanyBalance c) {
   if (c.waitingWithdrawals > 0) {
     final n = c.waitingWithdrawals;
-    final need = c.topUpNeeded == null ? '' : ' Top up at least \$${c.topUpNeeded}.';
+    final need = c.topUpNeeded == null ? '' : trp(' Top up at least \${0}.', [c.topUpNeeded]);
     return '$n withdrawal${n == 1 ? '' : 's'} (\$${c.waitingAmount}) waiting for a top-up.$need';
   }
-  if (c.status == 'low') return 'Below the low-balance level of \$${c.lowThreshold}.';
-  if (c.status == 'offline' && c.connected) return 'Could not read the balance${c.lastError == null ? '' : ': ${c.lastError}'}';
+  if (c.status == 'low') return trp('Below the low-balance level of \${0}.', [c.lowThreshold]);
+  if (c.status == 'offline' && c.connected) return trp('Could not read the balance{0}', [c.lastError == null ? '' : ': ${c.lastError}']);
   return null;
 }
 

@@ -63,7 +63,7 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Could not load KYC applications.';
+        _error = e is ApiException ? e.message : tr('Could not load KYC applications.');
         _loading = false;
       });
     }
@@ -71,7 +71,7 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
 
   String _label(String s) {
     final total = _counts.values.fold<int>(0, (a, b) => a + b);
-    if (s == 'all') return 'All ($total)';
+    if (s == 'all') return trp('All ({0})', [total]);
     return '${kycStatusLabels[s] ?? s} (${_counts[s] ?? 0})';
   }
 
@@ -91,8 +91,8 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
                     children: [
                       Tx(
                         _provider == 'none'
-                            ? 'No identity-verification service is set up: every application is checked by the server, then by an admin here.'
-                            : 'Identity service: $_provider. Only what it verifies and every check passes is approved automatically.',
+                            ? tr('No identity-verification service is set up: every application is checked by the server, then by an admin here.')
+                            : trp('Identity service: {0}. Only what it verifies and every check passes is approved automatically.', [_provider]),
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 10),
@@ -182,13 +182,13 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
       final a = await context.read<Session>().api.getKycApplication(widget.id);
       if (mounted) setState(() => _app = a);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load the application.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load the application.'));
     }
   }
 
   Future<void> _decide(String decision) async {
     final reason = TextEditingController(text: decision == 'approve' ? 'Documents checked' : '');
-    final title = {'approve': 'Approve', 'reject': 'Reject', 'resubmit': 'Request Resubmission'}[decision]!;
+    final title = {'approve': tr('Approve'), 'reject': tr('Reject'), 'resubmit': tr('Request Resubmission')}[decision]!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -198,7 +198,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
           controller: reason,
           autofocus: true,
           decoration: InputDecoration(
-            labelText: decision == 'approve' ? 'Reason (kept with the decision)' : 'Reason (shown to the customer)'),
+            labelText: decision == 'approve' ? 'Reason (kept with the decision)' : tr('Reason (shown to the customer)')),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Tx('Cancel')),
@@ -214,7 +214,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save the decision.')));
+            .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : tr('Could not save the decision.'))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -251,8 +251,8 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                           builder: (_) => Dialog(child: InteractiveViewer(child: Image.memory(a.documents[kind]!))),
                         ),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Tx({'front': a.item.documentType == 'passport' ? 'Passport photo' : 'ID front', 'back': 'ID back',
-                            'selfie': 'Selfie'}[kind]!, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Tx({'front': a.item.documentType == 'passport' ? 'Passport photo' : tr('ID front'), 'back': tr('ID back'),
+                            'selfie': tr('Selfie')}[kind]!, style: const TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
@@ -268,7 +268,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                       ),
                 ]),
                 SectionHeader(title: tr('Information')),
-                InfoRow(tr('Document'), a.item.documentType == 'passport' ? 'Passport' : 'National ID'),
+                InfoRow(tr('Document'), a.item.documentType == 'passport' ? 'Passport' : tr('National ID')),
                 InfoRow(tr('Full name'), a.item.fullName),
                 InfoRow(tr('Document number'), a.item.documentNumber),
                 InfoRow(tr('Country of issue'), a.item.country),
@@ -289,7 +289,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                 if (a.decided) ...[
                   SectionHeader(title: tr('Decision')),
                   InfoRow(tr('Decided'), a.decidedAt == null ? '—' : _when.format(a.decidedAt!.toLocal())),
-                  InfoRow(tr('By'), a.decidedBy ?? 'Automatic (identity service)'),
+                  InfoRow(tr('By'), a.decidedBy ?? tr('Automatic (identity service)')),
                   InfoRow(tr('Reason'), a.decisionReason ?? '—'),
                 ],
                 if (a.history.isNotEmpty) ...[

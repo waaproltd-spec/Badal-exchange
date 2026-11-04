@@ -37,14 +37,14 @@ class _UsersScreenState extends State<UsersScreen> {
   String _period = 'today';
   DateTimeRange? _custom;
 
-  static const _periods = [
-    ('today', 'Today', 'Maanta'),
-    ('yesterday', 'Yesterday', 'Shalay'),
-    ('month', 'This Month', 'Bishan'),
-    ('3m', '3 Months', '3 Bilood'),
-    ('6m', '6 Months', '6 Bilood'),
-    ('1y', '1 Year', 'Sanad'),
-    ('custom', 'Custom', 'Taariikh Gaar ah'),
+  static List<(String, String)> get _periods => [
+    ('today', tr('Today')),
+    ('yesterday', tr('Yesterday')),
+    ('month', tr('This Month')),
+    ('3m', tr('3 Months')),
+    ('6m', tr('6 Months')),
+    ('1y', tr('1 Year')),
+    ('custom', tr('Custom')),
   ];
 
   @override
@@ -130,7 +130,7 @@ class _UsersScreenState extends State<UsersScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load customers.';
+        _error = e is ApiException ? e.message : tr('Failed to load customers.');
         _loading = false;
         _loadingMore = false;
       });
@@ -155,17 +155,14 @@ class _UsersScreenState extends State<UsersScreen> {
             key: const Key('users-periods'),
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              for (final (id, en, so) in _periods)
+              for (final (id, label) in _periods)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     key: Key('users-period-$id'),
                     avatar: Icon(Icons.calendar_month_rounded,
                         size: 18, color: _period == id ? AppColors.onPrimary : AppColors.textSecondary),
-                    label: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                      Tx(en, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      Tx(so, style: const TextStyle(fontSize: 11)),
-                    ]),
+                    label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
                     selected: _period == id,
                     showCheckmark: false,
                     selectedColor: AppColors.primaryDark,
@@ -224,16 +221,16 @@ class _UsersScreenState extends State<UsersScreen> {
               Expanded(
                 child: ChoiceChipsRow<String>(
                   options: [
-                    ('all', 'All${count(o?.total)}'),
-                    ('active', 'Active${count(o?.active)}'),
-                    ('blocked', 'Blocked${count(o?.blocked)}'),
+                    ('all', trp('All{0}', [count(o?.total)])),
+                    ('active', trp('Active{0}', [count(o?.active)])),
+                    ('blocked', trp('Blocked{0}', [count(o?.blocked)])),
                   ],
                   selected: _status,
                   onSelected: _setStatus,
                 ),
               ),
               PopupMenuButton<String>(
-                tooltip: 'Sort',
+                tooltip: tr('Sort'),
                 initialValue: _sort,
                 icon: const Icon(Icons.sort_rounded),
                 onSelected: (v) {
@@ -273,7 +270,7 @@ class _UsersScreenState extends State<UsersScreen> {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Tx(_loadingMore ? 'Loading…' : 'Load more'),
+                  child: Tx(_loadingMore ? 'Loading…' : tr('Load more')),
                 ),
               ),
           ],

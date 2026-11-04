@@ -43,7 +43,7 @@ abstract class ListScreenState<W extends StatefulWidget, T> extends State<W> {
       final result = await fetch();
       if (mounted) setState(() => items = result);
     } catch (e) {
-      if (mounted) setState(() => error = errorText(e, 'Failed to load.'));
+      if (mounted) setState(() => error = errorText(e, tr('Failed to load.')));
     }
   }
 
@@ -53,7 +53,7 @@ abstract class ListScreenState<W extends StatefulWidget, T> extends State<W> {
       await action();
       if (mounted && success != null) showSnack(context, success);
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Something went wrong.'));
+      if (mounted) showSnack(context, errorText(e, tr('Something went wrong.')));
     }
     if (mounted) load();
   }
@@ -89,8 +89,8 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
   }
 
   Future<void> _delete(HomeAd ad) async {
-    final ok = await confirmDialog(context, 'Delete "${ad.title}"?', 'Customers will no longer see this ad.');
-    if (ok) run(() => api.deleteHomeAd(ad.id), success: 'Ad deleted.');
+    final ok = await confirmDialog(context, trp('Delete "{0}"?', [ad.title]), tr('Customers will no longer see this ad.'));
+    if (ok) run(() => api.deleteHomeAd(ad.id), success: tr('Ad deleted.'));
   }
 
   @override
@@ -214,7 +214,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
     try {
       bytes = await widget.pickImage();
     } catch (_) {
-      if (mounted) setState(() => _problem = 'Could not open the gallery.');
+      if (mounted) setState(() => _problem = tr('Could not open the gallery.'));
       return;
     }
     if (bytes == null || !mounted) return;
@@ -263,7 +263,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
       setState(() {
         _saving = false;
         _upload = withImage ? _Upload.failed : _Upload.idle;
-        _problem = errorText(e, 'Could not save the ad.');
+        _problem = errorText(e, tr('Could not save the ad.'));
       });
       if (!withImage) showSnack(context, _problem!);
     }
@@ -280,9 +280,9 @@ class _HomeAdFormState extends State<HomeAdForm> {
           key: const Key('ad-image-preview'), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink());
     }
     final status = switch (_upload) {
-      _Upload.uploading => ('Uploading…', AppColors.textSecondary),
-      _Upload.done => ('Upload successful', AppColors.statusCompleted),
-      _Upload.failed => ('Upload failed${_problem == null ? '' : ': $_problem'}. The ad and its previous picture are unchanged.', AppColors.statusFailed),
+      _Upload.uploading => (tr('Uploading…'), AppColors.textSecondary),
+      _Upload.done => (tr('Upload successful'), AppColors.statusCompleted),
+      _Upload.failed => (trp('Upload failed{0}. The ad and its previous picture are unchanged.', [_problem == null ? '' : ': $_problem']), AppColors.statusFailed),
       _Upload.idle => null,
     };
     return Column(
@@ -304,7 +304,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
               key: const Key('ad-image-choose'),
               onPressed: _saving ? null : _choose,
               icon: const Icon(Icons.photo_library_outlined),
-              label: Tx(preview == null ? 'Choose Image' : 'Change Image'),
+              label: Tx(preview == null ? 'Choose Image' : tr('Change Image')),
             ),
             if (preview != null)
               TextButton(
@@ -342,7 +342,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Tx(widget.ad == null ? 'Add Home Ad' : 'Edit Home Ad')),
+      appBar: AppBar(title: Tx(widget.ad == null ? 'Add Home Ad' : tr('Edit Home Ad'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -382,7 +382,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
               onChanged: (v) => setState(() => _enabled = v),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
           ],
         ),
       ),
@@ -411,8 +411,8 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
   }
 
   Future<void> _delete(DepositNumber n) async {
-    final ok = await confirmDialog(context, 'Remove ${n.number}?', 'Customers will no longer see this number.');
-    if (ok) run(() => api.deleteDepositNumber(n.id), success: 'Number removed.');
+    final ok = await confirmDialog(context, trp('Remove {0}?', [n.number]), tr('Customers will no longer see this number.'));
+    if (ok) run(() => api.deleteDepositNumber(n.id), success: tr('Number removed.'));
   }
 
   @override
@@ -520,7 +520,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not save the number.'));
+      showSnack(context, errorText(e, tr('Could not save the number.')));
     }
   }
 
@@ -528,7 +528,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
   Widget build(BuildContext context) {
     final isPlatform = methodInfo(_method).isPlatform;
     return AlertDialog(
-      title: Tx(widget.number == null ? 'Add deposit number' : 'Edit deposit number'),
+      title: Tx(widget.number == null ? 'Add deposit number' : tr('Edit deposit number')),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -544,7 +544,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _number,
-                decoration: InputDecoration(labelText: isPlatform ? 'Cashier / account ID' : 'Phone number'),
+                decoration: InputDecoration(labelText: isPlatform ? 'Cashier / account ID' : tr('Phone number')),
                 keyboardType: isPlatform ? TextInputType.text : TextInputType.phone,
                 validator: (v) => (v ?? '').trim().length < 3 ? 'Required' : null,
               ),
@@ -565,7 +565,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
-        TextButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
+        TextButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
       ],
     );
   }
@@ -600,10 +600,10 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
 
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await confirmDialog(context, 'Send to all customers?', 'Every Customer App user will see this message.');
+    final ok = await confirmDialog(context, tr('Send to all customers?'), tr('Every Customer App user will see this message.'));
     if (!ok) return;
     setState(() => _sending = true);
-    await run(() => api.sendNotification(title: _title.text.trim(), body: _body.text.trim()), success: 'Notification sent.');
+    await run(() => api.sendNotification(title: _title.text.trim(), body: _body.text.trim()), success: tr('Notification sent.'));
     if (!mounted) return;
     _title.clear();
     _body.clear();
@@ -640,7 +640,7 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
                   ElevatedButton.icon(
                     onPressed: _sending ? null : _send,
                     icon: const Icon(Icons.send_rounded),
-                    label: Tx(_sending ? 'Sending…' : 'Send to all customers'),
+                    label: Tx(_sending ? 'Sending…' : tr('Send to all customers')),
                   ),
                 ],
               ),
@@ -708,7 +708,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not change the password.'));
+      showSnack(context, errorText(e, tr('Could not change the password.')));
       return;
     }
     // Every session was signed out on the server; log in with the new password.
@@ -758,7 +758,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _saving ? null : _save,
-              child: Tx(_saving ? 'Saving…' : 'Change password'),
+              child: Tx(_saving ? 'Saving…' : tr('Change password')),
             ),
           ],
         ),

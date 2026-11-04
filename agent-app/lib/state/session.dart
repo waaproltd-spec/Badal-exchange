@@ -11,6 +11,7 @@ import '../payout/payout_runner.dart';
 import '../services/device_identity.dart';
 import '../sms/sms_bridge.dart';
 import 'live_updates.dart';
+import '../l10n/tr.dart';
 
 enum AuthStatus { unknown, loggedOut, loggedIn }
 
@@ -59,7 +60,7 @@ class Session extends ChangeNotifier {
     return r.contains('manage_settings') || r.contains('view_company_balances');
   }
 
-  String get agentDisplayName => profile?.name ?? _agentName ?? 'Agent';
+  String get agentDisplayName => profile?.name ?? _agentName ?? tr('Agent');
 
   /// Restores a previously persisted session on app startup.
   Future<void> bootstrap() async {
@@ -120,7 +121,7 @@ class Session extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (e) {
-      loginError = 'Something went wrong. Please try again.';
+      loginError = tr('Something went wrong. Please try again.');
       isBusy = false;
       notifyListeners();
       return false;

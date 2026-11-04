@@ -38,7 +38,7 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
                 SwitchListTile(
                   secondary: MethodLogo(method: m.method, width: 84),
                   title: Tx(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Tx(m.enabled ? 'ON — customers can use it' : 'OFF — hidden from customers'),
+                  subtitle: Tx(m.enabled ? 'ON — customers can use it' : tr('OFF — hidden from customers')),
                   value: m.enabled,
                   onChanged: (v) => run(
                     () => api.setMethodEnabled(m.method, v),
@@ -101,7 +101,7 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
   }
 
   List<String> _summary(MethodSettings m) =>
-      ['Withdraw limits: \$${m.minWithdraw ?? '—'} – \$${m.maxWithdraw ?? '—'}'];
+      [trp('Withdraw limits: \${0} – \${1}', [m.minWithdraw ?? '—', m.maxWithdraw ?? '—'])];
 
   Future<void> _open(MethodSettings m) async {
     final changed = await Navigator.of(context).push<bool>(
@@ -207,7 +207,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
 
     final min = d(_min), max = d(_max);
     if (min > max) {
-      showSnack(context, 'Minimum must not be more than maximum.');
+      showSnack(context, tr('Minimum must not be more than maximum.'));
       return;
     }
 
@@ -231,7 +231,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not save all settings. Pull to refresh and check.'));
+      showSnack(context, errorText(e, tr('Could not save all settings. Pull to refresh and check.')));
     }
   }
 
@@ -297,7 +297,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                       validator: (v) {
                         final t = (v ?? '').replaceAll(RegExp(r'\s'), '');
                         if (t.isEmpty) return _merchantOn ? 'Enter the code before switching it on' : null;
-                        return _merchantPattern.hasMatch(t) ? null : 'Write it like *789*090353102*{amount}#';
+                        return _merchantPattern.hasMatch(t) ? null : tr('Write it like *789*090353102*{amount}#');
                       },
                     ),
                     SwitchListTile(
@@ -351,7 +351,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
           ],
         ),
       ),

@@ -44,7 +44,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       final detail = await context.read<Session>().api.getCustomer(widget.customerId);
       if (mounted) setState(() => _detail = detail);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Failed to load customer.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Failed to load customer.'));
     }
   }
 
@@ -59,7 +59,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       await context.read<Session>().api.resetCustomerPassword(widget.customerId, password);
       messenger.showSnackBar(const SnackBar(content: Tx('Password reset. Tell the customer their new password.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not reset the password.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : tr('Could not reset the password.'))));
     }
   }
 
@@ -193,7 +193,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           child: Column(
             children: [
               InfoRow(tr('Registration date'), c.registeredAt != null ? formatDate(c.registeredAt!) : '—'),
-              InfoRow(tr('Account status'), c.isActive ? 'Active' : 'Blocked'),
+              InfoRow(tr('Account status'), c.isActive ? 'Active' : tr('Blocked')),
             ],
           ),
         ),
@@ -235,11 +235,11 @@ class _LedgerTile extends StatelessWidget {
     // credit adds to the balance; debit/reserve take from it; release returns it.
     final (String label, IconData icon, Color color, String sign) = switch (entry.type) {
       'credit' when entry.description == 'Bonus moved to main wallet' =>
-        ('Bonus moved in', Icons.redeem_rounded, AppColors.statusCompleted, '+'),
-      'credit' => ('Deposit', Icons.south_rounded, AppColors.statusCompleted, '+'),
-      'release' => ('Released', Icons.undo_rounded, AppColors.statusCompleted, '+'),
-      'reserve' => ('Held for withdrawal', Icons.lock_clock_rounded, AppColors.statusPending, '-'),
-      _ => ('Withdrawal', Icons.north_rounded, AppColors.accentOrange, '-'),
+        (tr('Bonus moved in'), Icons.redeem_rounded, AppColors.statusCompleted, '+'),
+      'credit' => (tr('Deposit'), Icons.south_rounded, AppColors.statusCompleted, '+'),
+      'release' => (tr('Released'), Icons.undo_rounded, AppColors.statusCompleted, '+'),
+      'reserve' => (tr('Held for withdrawal'), Icons.lock_clock_rounded, AppColors.statusPending, '-'),
+      _ => (tr('Withdrawal'), Icons.north_rounded, AppColors.accentOrange, '-'),
     };
     return ConsoleCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

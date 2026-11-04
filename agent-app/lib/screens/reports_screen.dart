@@ -82,7 +82,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load the report.';
+        _error = e is ApiException ? e.message : tr('Failed to load the report.');
         _loading = false;
       });
     }
@@ -117,7 +117,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   String _rangeLabel(ReportOverview r) {
     final to = DateTime.tryParse(r.to);
-    if (r.from == null) return to == null ? 'All time' : 'All time, up to ${_pretty.format(to)}';
+    if (r.from == null) return to == null ? 'All time' : trp('All time, up to {0}', [_pretty.format(to)]);
     final from = DateTime.tryParse(r.from!);
     if (from == null || to == null) return '';
     return r.from == r.to ? _pretty.format(from) : '${_pretty.format(from)} – ${_pretty.format(to)}';
@@ -150,11 +150,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
-            for (final (id, label) in const [
-              ('today', 'Today'),
-              ('yesterday', 'Yesterday'),
-              ('last_month', 'Last Month'),
-              ('all_time', 'All Time'),
+            for (final (id, label) in [
+              ('today', tr('Today')),
+              ('yesterday', tr('Yesterday')),
+              ('last_month', tr('Last Month')),
+              ('all_time', tr('All Time')),
             ])
               Padding(
                 padding: const EdgeInsets.only(right: 8),

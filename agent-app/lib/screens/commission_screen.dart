@@ -33,15 +33,15 @@ class _CommissionScreenState extends State<CommissionScreen> {
   static final _pretty = DateFormat('MMM d, yyyy');
   static final _when = DateFormat('MMM d, yyyy · HH:mm');
 
-  static const _ranges = [
-    ('today', 'Today'),
-    ('yesterday', 'Yesterday'),
-    ('this_month', 'This Month'),
-    ('last_3_months', 'Last 3 Months'),
-    ('last_6_months', 'Last 6 Months'),
-    ('last_1_year', 'Last 1 Year'),
-    ('all_time', 'All Time'),
-    ('custom', 'Custom'),
+  static List<(String, String)> get _ranges => [
+    ('today', tr('Today')),
+    ('yesterday', tr('Yesterday')),
+    ('this_month', tr('This Month')),
+    ('last_3_months', tr('Last 3 Months')),
+    ('last_6_months', tr('Last 6 Months')),
+    ('last_1_year', tr('Last 1 Year')),
+    ('all_time', tr('All Time')),
+    ('custom', tr('Custom')),
   ];
 
   String _range = 'today';
@@ -79,7 +79,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load commission.';
+        _error = e is ApiException ? e.message : tr('Failed to load commission.');
         _loading = false;
       });
     }
@@ -103,7 +103,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
 
   String _rangeLabel(CommissionReport r) {
     final to = DateTime.tryParse(r.to);
-    if (r.from == null) return to == null ? 'All time' : 'All time, up to ${_pretty.format(to)}';
+    if (r.from == null) return to == null ? 'All time' : trp('All time, up to {0}', [_pretty.format(to)]);
     final from = DateTime.tryParse(r.from!);
     if (from == null || to == null) return '';
     return r.from == r.to ? _pretty.format(from) : '${_pretty.format(from)} – ${_pretty.format(to)}';
@@ -132,7 +132,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
           const SizedBox(height: 12),
           ChoiceChipsRow<String?>(
             key: const Key('company-filter'),
-            options: [(null, 'All Companies'), for (final c in r.companies) (c.method, c.label)],
+            options: [(null, tr('All Companies')), for (final c in r.companies) (c.method, c.label)],
             selected: _method,
             onSelected: (m) {
               setState(() => _method = m);
@@ -258,7 +258,7 @@ class _TransactionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = row.direction == 'deposit' ? 'Deposit' : 'Withdrawal';
+    final type = row.direction == 'deposit' ? 'Deposit' : tr('Withdrawal');
     return Padding(
       key: Key('tx-${row.orderCode}'),
       padding: const EdgeInsets.only(bottom: 8),

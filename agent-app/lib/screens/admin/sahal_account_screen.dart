@@ -68,7 +68,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load the Sahal account.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load the Sahal account.'));
     }
   }
 
@@ -83,7 +83,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Something went wrong. Try again.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Something went wrong. Try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -93,7 +93,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
     final user = _username.text.trim();
     final pass = _password.text;
     if (user.isEmpty || pass.isEmpty) {
-      setState(() => _error = 'Enter the Sahal merchant login and password.');
+      setState(() => _error = tr('Enter the Sahal merchant login and password.'));
       return;
     }
     final pin = _pin.text.trim();
@@ -107,7 +107,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
   void _sendCode() {
     final code = _code.text.replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^[0-9]{4,8}$').hasMatch(code)) {
-      setState(() => _error = 'Enter the code from the SMS (numbers only).');
+      setState(() => _error = tr('Enter the code from the SMS (numbers only).'));
       return;
     }
     _code.clear();
@@ -214,9 +214,9 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
 
   Widget _connection(SahalAccountStatus s) {
     final (label, color, icon) = switch (s.connection) {
-      'connected' => ('Connected', AppColors.statusCompleted, Icons.check_circle_rounded),
-      'authentication_required' => ('Authentication required', AppColors.statusPending, Icons.sms_rounded),
-      _ => ('Disconnected', AppColors.statusFailed, Icons.link_off_rounded),
+      'connected' => (tr('Connected'), AppColors.statusCompleted, Icons.check_circle_rounded),
+      'authentication_required' => (tr('Authentication required'), AppColors.statusPending, Icons.sms_rounded),
+      _ => (tr('Disconnected'), AppColors.statusFailed, Icons.link_off_rounded),
     };
     return ConsoleCard(
       child: Column(
@@ -285,7 +285,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.sessionActive ? 'Session open' : 'No session open',
+          Text(s.sessionActive ? 'Session open' : tr('No session open'),
               key: const Key('account-session'), style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
           Text(trp('Last successful login: {0}', [_time(s.lastLoginAt ?? s.sessionStartedAt)]), key: const Key('account-login-time')),
@@ -319,12 +319,12 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.source == 'database' ? 'Account: ${s.activeUsername}' : 'Account: set on the server',
+          Text(s.source == 'database' ? 'Account: ${s.activeUsername}' : tr('Account: set on the server'),
               key: const Key('account-active'), style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Tx(s.source == 'database'
-              ? 'Activated here${s.activatedAt != null ? ' ${_time(s.activatedAt)}' : ''}. Password: saved (hidden).'
-              : 'The login is in the server\'s settings. Connect a new account below to manage it from here.',
+              ? trp('Activated here{0}. Password: saved (hidden).', [s.activatedAt != null ? ' ${_time(s.activatedAt)}' : ''])
+              : tr('The login is in the server\'s settings. Connect a new account below to manage it from here.'),
               style: TextStyle(color: AppColors.textSecondary)),
         ],
       ),
@@ -334,11 +334,11 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
   Widget _pending(SahalAccountStatus s) {
     final p = s.pending!;
     final (label, color) = switch (p.status) {
-      'verified' => ('Verified: ready to switch to', AppColors.statusCompleted),
-      'failed' => ('Test failed', AppColors.statusFailed),
-      'needs_code' => ('Code needed', AppColors.statusPending),
-      'testing' || 'logging_in' || 'code_entered' => ('Testing…', AppColors.statusProcessing),
-      _ => ('Saved: not tested yet', AppColors.textSecondary),
+      'verified' => (tr('Verified: ready to switch to'), AppColors.statusCompleted),
+      'failed' => (tr('Test failed'), AppColors.statusFailed),
+      'needs_code' => (tr('Code needed'), AppColors.statusPending),
+      'testing' || 'logging_in' || 'code_entered' => (tr('Testing…'), AppColors.statusProcessing),
+      _ => (tr('Saved: not tested yet'), AppColors.textSecondary),
     };
     return ConsoleCard(
       child: Column(
@@ -373,7 +373,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
                 child: OutlinedButton(
                   key: const Key('pending-test'),
                   onPressed: _busy || p.busy ? null : () => _do(() => context.read<Session>().api.testSahalAccount()),
-                  child: Tx(p.verified ? 'Test again' : 'Test new account'),
+                  child: Tx(p.verified ? 'Test again' : tr('Test new account')),
                 ),
               ),
               const SizedBox(width: 10),

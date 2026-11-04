@@ -27,13 +27,13 @@ class WithdrawLimitsScreen extends StatefulWidget {
 }
 
 class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
-  static const _filters = [
-    ('all', 'All'),
-    ('unverified', 'Unverified'),
-    ('verified', 'Verified'),
-    ('near', 'Near limit'),
-    ('reached', 'Limit reached'),
-    ('custom', 'Custom limits'),
+  static List<(String, String)> get _filters => [
+    ('all', tr('All')),
+    ('unverified', tr('Unverified')),
+    ('verified', tr('Verified')),
+    ('near', tr('Near limit')),
+    ('reached', tr('Limit reached')),
+    ('custom', tr('Custom limits')),
   ];
 
   String _filter = 'all';
@@ -160,7 +160,7 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Tx(
-                                      c.warning!.endsWith('reached') ? 'Limit reached' : 'Close to the limit',
+                                      c.warning!.endsWith('reached') ? 'Limit reached' : tr('Close to the limit'),
                                       style: TextStyle(
                                           fontSize: 12.5,
                                           fontWeight: FontWeight.w700,
@@ -266,7 +266,7 @@ class _DefaultsSheetState extends State<_DefaultsSheet> {
             Text(_error!, key: const Key('limits-error'), style: const TextStyle(color: AppColors.statusFailed)),
           ],
           const SizedBox(height: 16),
-          ElevatedButton(key: const Key('save-defaults'), onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
+          ElevatedButton(key: const Key('save-defaults'), onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : tr('Save'))),
         ]),
       ),
     );
@@ -358,7 +358,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
       body: _loading
           ? const LoadingView()
           : (d == null
-              ? ErrorStateView(message: _error ?? 'Could not load this customer.', onRetry: _load)
+              ? ErrorStateView(message: _error ?? tr('Could not load this customer.'), onRetry: _load)
               : ListView(
                   key: const Key('customer-limits'),
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),

@@ -26,7 +26,7 @@ class PaymentNumbersScreen extends StatefulWidget {
 }
 
 class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
-  static const _filters = [('all', 'All'), ('authorized', 'Authorized'), ('revoked', 'Revoked')];
+  static List<(String, String)> get _filters => [('all', tr('All')), ('authorized', tr('Authorized')), ('revoked', tr('Revoked'))];
 
   String _filter = 'all';
   final _search = TextEditingController();
@@ -118,7 +118,7 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
                                   Expanded(child: Tx(c.name.isEmpty ? '+${c.phone}' : c.name, style: const TextStyle(fontWeight: FontWeight.w700))),
-                                  _Pill(c.enabled ? 'Authorized' : 'Not authorized', c.enabled ? AppColors.statusCompleted : AppColors.textSecondary),
+                                  _Pill(c.enabled ? 'Authorized' : tr('Not authorized'), c.enabled ? AppColors.statusCompleted : AppColors.textSecondary),
                                 ]),
                                 Text('+${c.phone} · ${c.accountId}', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                                 if (c.enabled) Tx(_networks(c.methods), style: const TextStyle(fontSize: 12.5)),
@@ -241,7 +241,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
       body: _loading
           ? const LoadingView()
           : (d == null
-              ? ErrorStateView(message: _error ?? 'Could not load this customer.', onRetry: _load)
+              ? ErrorStateView(message: _error ?? tr('Could not load this customer.'), onRetry: _load)
               : ListView(
                   key: const Key('customer-payment-numbers'),
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -258,13 +258,13 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                         Row(children: [
                           const Expanded(child: Tx('Can use another number', style: TextStyle(fontWeight: FontWeight.w800))),
-                          _Pill(d.access.enabled ? 'Authorized' : 'Not authorized', d.access.enabled ? AppColors.statusCompleted : AppColors.textSecondary),
+                          _Pill(d.access.enabled ? 'Authorized' : tr('Not authorized'), d.access.enabled ? AppColors.statusCompleted : AppColors.textSecondary),
                         ]),
                         const SizedBox(height: 4),
                         Tx(
                           d.access.enabled
-                              ? 'The customer can send money from, and receive withdrawals to, a new number on the networks below.'
-                              : 'The customer must use the registered number.',
+                              ? tr('The customer can send money from, and receive withdrawals to, a new number on the networks below.')
+                              : tr('The customer must use the registered number.'),
                           style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 10),
@@ -291,7 +291,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                               : () => _run(
                                   () => api.setPaymentNumberAccess(d.id, enabled: true, methods: _networksPicked.toList()),
                                   tr('Could not save.')),
-                          child: Tx(d.access.enabled ? 'Save networks' : 'Authorize this customer'),
+                          child: Tx(d.access.enabled ? 'Save networks' : tr('Authorize this customer')),
                         ),
                         if (d.access.enabled)
                           TextButton(
@@ -339,7 +339,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                               TextButton(
                                 key: Key('block-${n.id}'),
                                 onPressed: _busy ? null : () => _run(() => api.setPaymentNumberBlocked(n.id, !n.blocked), tr('Could not change the number.')),
-                                child: Tx(n.blocked ? 'Unblock' : 'Block'),
+                                child: Tx(n.blocked ? 'Unblock' : tr('Block')),
                               ),
                               IconButton(
                                 key: Key('remove-${n.id}'),

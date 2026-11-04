@@ -54,7 +54,7 @@ class _AccountScreenState extends State<AccountScreen> {
       final account = await context.read<Session>().api.getAccount();
       if (mounted) setState(() => _account = account);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Failed to load account.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Failed to load account.'));
     }
   }
 

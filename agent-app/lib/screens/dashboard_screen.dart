@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load dashboard data.';
+        _error = e is ApiException ? e.message : tr('Failed to load dashboard data.');
         _loading = false;
       });
     }
@@ -327,7 +327,7 @@ class _CompanyBalancesCard extends StatelessWidget {
               children: [
                 Tx('Company Balances',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
-                Tx(d == null ? 'Cash register balances' : 'Total \$${d.total}',
+                Tx(d == null ? 'Cash register balances' : trp('Total \${0}', [d.total]),
                     style: TextStyle(color: AppColors.textSecondary)),
                 if (notes.isNotEmpty)
                   Tx(notes.join(' · '),
@@ -401,8 +401,8 @@ class _SmsMatchingCard extends StatelessWidget {
           ] else
             Tx(
               isListening
-                  ? 'Online — listening for authorized EVC Plus payment SMS on this device. Tap to see submissions.'
-                  : 'Off — turn on to automatically match incoming EVC Plus payment SMS. Tap to see submissions.',
+                  ? tr('Online — listening for authorized EVC Plus payment SMS on this device. Tap to see submissions.')
+                  : tr('Off — turn on to automatically match incoming EVC Plus payment SMS. Tap to see submissions.'),
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
         ],

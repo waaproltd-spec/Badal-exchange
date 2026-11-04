@@ -56,7 +56,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
       final data = await context.read<Session>().api.getCompanyBalances(refresh: refresh);
       if (mounted) setState(() => _data = data);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load company balances.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load company balances.'));
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -104,7 +104,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                       icon: Icons.warning_amber_rounded,
                       color: AppColors.statusFailed,
                       value: '${data.lowCount}',
-                      label: data.lowCount == 1 ? 'Low balance company' : 'Low balance companies',
+                      label: data.lowCount == 1 ? 'Low balance company' : tr('Low balance companies'),
                     ),
                     StatCard(
                       icon: Icons.wifi_off_rounded,
@@ -188,10 +188,10 @@ class _LimitCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             data.totalLimit == null
-                ? 'No company has reported a limit'
+                ? tr('No company has reported a limit')
                 : unknown > 0
                     ? '$unknown ${unknown == 1 ? 'company' : 'companies'} not reported (not included)'
-                    : 'What the registers can still sell',
+                    : tr('What the registers can still sell'),
             key: const Key('total-limit-note'),
             style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
           ),
