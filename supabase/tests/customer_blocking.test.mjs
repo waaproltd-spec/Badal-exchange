@@ -244,7 +244,8 @@ test('the history records who, why and when, and is kept across block / unblock 
       assert.equal(h.byRole, 'agent');
     }
     const audit = (await tx.query(`SELECT action FROM public.audit_logs WHERE entity_type = 'user' AND entity_id = $1 AND action LIKE 'customer.%' ORDER BY created_at`, [customerId])).rows.map((r) => r.action);
-    assert.deepEqual(audit.slice(-3), ['customer.block', 'customer.unblock', 'customer.block']);
+    // All three are written in this one transaction, so they share one timestamp: their order is not defined, their number is.
+    assert.deepEqual(audit.slice(-3).sort(), ['customer.block', 'customer.block', 'customer.unblock']);
   });
 });
 
