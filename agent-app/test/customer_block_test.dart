@@ -8,6 +8,7 @@ import 'package:badal_agent_app/models/console.dart';
 import 'package:badal_agent_app/models/customer_block.dart';
 import 'package:badal_agent_app/screens/customer_info_screen.dart';
 import 'package:badal_agent_app/screens/users_screen.dart';
+import 'package:badal_agent_app/widgets/console_widgets.dart';
 import 'package:badal_agent_app/state/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,7 +47,7 @@ class _Api extends AgentApi {
       String status = 'all',
       String sort = 'newest',
       int offset = 0}) async {
-    calls.add('list $status');
+    calls.add('list $status ${query ?? ''}'.trimRight());
     final c = CustomerSummary.fromJson(_customer);
     return switch (status) {
       'blocked' => blocked ? [c] : [],
@@ -130,8 +131,16 @@ void main() {
     expect(find.byKey(const Key('unblock-customer')), findsNothing);
     await tester.tap(find.byKey(const Key('block-customer')));
     await tester.pumpAndSettle();
-    expect(find.text('Block Asha Warsame?'), findsOneWidget,
+    expect(find.text('Block this customer?'), findsOneWidget,
         reason: 'it asks first');
+    expect(
+        tester
+            .widget<Text>(find.byKey(const Key('block-who')))
+            .textSpan!
+            .toPlainText(),
+        contains('Asha Warsame (252611111111)'),
+        reason: 'the name and the number');
+    expect(find.text('Reason (Optional)'), findsOneWidget);
     await tester.tap(find.byKey(const Key('block-cancel')));
     await tester.pumpAndSettle();
     expect(api.calls.where((c) => c.contains('block')), isEmpty);
@@ -139,31 +148,65 @@ void main() {
   });
 
   testWidgets(
-      'blocking needs a reason; then the customer shows as Blocked with the reason and the history',
+      'blocking: the reason is optional; the customer shows as Blocked with the history',
       (tester) async {
     final api = await _pump(tester, _info);
     await tester.tap(find.byKey(const Key('block-customer')));
     await tester.pumpAndSettle();
+    // No reason typed: it goes through.
     await tester.tap(find.byKey(const Key('block-confirm')));
     await tester.pumpAndSettle();
-    expect(find.text('Write the reason for blocking'), findsOneWidget);
-    expect(api.calls.where((c) => c.startsWith('block')), isEmpty,
-        reason: 'nothing is sent without a reason');
-    await tester.enterText(
-        find.byKey(const Key('block-reason-field')), 'Fraud: stolen account');
-    await tester.tap(find.byKey(const Key('block-confirm')));
-    await tester.pumpAndSettle();
-    expect(api.calls.where((c) => c.startsWith('block')).toList(),
-        ['block Fraud: stolen account']);
+    expect(api.calls.where((c) => c.startsWith('block')).toList(), ['block -']);
     expect(find.byKey(const Key('block-notice')), findsOneWidget);
-    expect(tester.widget<Text>(find.byKey(const Key('block-reason'))).data,
-        'Fraud: stolen account');
     expect(find.text('Blocked'), findsWidgets,
         reason: 'the status says Blocked');
     expect(find.byKey(const Key('unblock-customer')), findsOneWidget);
     expect(find.byKey(const Key('block-customer')), findsNothing);
     expect(find.byKey(const Key('block-history-entry-0')), findsOneWidget);
     expect(find.textContaining('By Demo Manager'), findsOneWidget);
+  });
+
+  testWidgets('with a reason: it is sent and shown', (tester) async {
+    final api = await _pump(tester, _info);
+    await tester.tap(find.byKey(const Key('block-customer')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const Key('block-reason-field')), 'Suspected abuse');
+    await tester.tap(find.byKey(const Key('block-confirm')));
+    await tester.pumpAndSettle();
+    expect(api.calls.where((c) => c.startsWith('block')).toList(),
+        ['block Suspected abuse']);
+    expect(tester.widget<Text>(find.byKey(const Key('block-reason'))).data,
+        'Suspected abuse');
+  });
+
+  testWidgets(
+      'the buttons: a red Block Customer with a lock, a green Unblock Customer with an open lock',
+      (tester) async {
+    await _pump(tester, _info);
+    expect(
+        find.descendant(
+            of: find.byKey(const Key('block-customer')),
+            matching: find.byIcon(Icons.lock_rounded)),
+        findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    final blocked = _Api()
+      ..blocked = true
+      ..history.add({
+        'action': 'blocked',
+        'reason': null,
+        'by': 'Demo Manager',
+        'byRole': 'agent',
+        'at': '2026-11-03T09:00:00Z'
+      });
+    await _pump(tester, _info, api: blocked);
+    expect(
+        find.descendant(
+            of: find.byKey(const Key('unblock-customer')),
+            matching: find.byIcon(Icons.lock_open_rounded)),
+        findsOneWidget);
+    // The badge of a blocked customer has a lock too.
+    expect(find.byIcon(Icons.lock_rounded), findsWidgets);
   });
 
   testWidgets(
@@ -182,7 +225,13 @@ void main() {
     expect(find.byKey(const Key('block-notice')), findsOneWidget);
     await tester.tap(find.byKey(const Key('unblock-customer')));
     await tester.pumpAndSettle();
-    expect(find.text('Unblock Asha Warsame?'), findsOneWidget);
+    expect(find.text('Unblock this customer?'), findsOneWidget);
+    expect(
+        tester
+            .widget<Text>(find.byKey(const Key('block-who')))
+            .textSpan!
+            .toPlainText(),
+        contains('Asha Warsame (252611111111)'));
     await tester.tap(find.byKey(const Key('block-confirm')));
     await tester.pumpAndSettle();
     expect(
@@ -223,7 +272,8 @@ void main() {
       'Users: after blocking, the Blocked tab lists the customer and the counters follow',
       (tester) async {
     // A wider screen: the test font is wider than the real one and would overflow the tile's count row.
-    final api = await _pump(tester, const Scaffold(body: UsersScreen()), size: const Size(760, 2000));
+    final api = await _pump(tester, const Scaffold(body: UsersScreen()),
+        size: const Size(760, 2000));
     expect(find.text('Blocked (0)'), findsOneWidget);
     expect(find.text('Active (24)'), findsOneWidget);
     await tester.tap(find.text('Asha Warsame'));
@@ -252,8 +302,30 @@ void main() {
     expect(find.text('Xannibo Macmiilka'), findsOneWidget);
     await tester.tap(find.byKey(const Key('block-customer')));
     await tester.pumpAndSettle();
-    expect(find.text('Ma xannibaysaa Asha Warsame?'), findsOneWidget);
-    expect(find.text('Sababta xannibaadda'), findsOneWidget);
+    expect(find.text('Ma xannibaysaa macmiilkan?'), findsOneWidget);
+    expect(find.text('Sabab (ikhtiyaari)'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'Users: search by phone number or by name goes to the server (with the Blocked tab too)',
+      (tester) async {
+    final api = await _pump(tester, const Scaffold(body: UsersScreen()),
+        size: const Size(760, 2000));
+    final search = find.descendant(
+        of: find.byType(SearchField), matching: find.byType(TextField));
+    await tester.enterText(search, '252611111111');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(api.calls.last, 'list all 252611111111', reason: 'by phone number');
+    await tester.enterText(search, 'Asha');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(api.calls.last, 'list all Asha', reason: 'by name');
+    await tester.ensureVisible(find.text('Blocked (0)'));
+    await tester.tap(find.text('Blocked (0)'));
+    await tester.pumpAndSettle();
+    expect(api.calls.last, 'list blocked Asha',
+        reason: 'the search stays when the tab changes');
   });
 }

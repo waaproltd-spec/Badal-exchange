@@ -96,7 +96,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     final block = !(_block?.blocked ?? !c.isActive);
     final reason = await showDialog<String>(
       context: context,
-      builder: (_) => _BlockDialog(name: c.name, block: block),
+      builder: (_) => _BlockDialog(name: c.name, phone: c.phone, block: block),
     );
     if (reason == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -587,24 +587,39 @@ class _BlockSection extends StatelessWidget {
           ),
         if (blocked) const SizedBox(height: 10),
         blocked
-            ? OutlinedButton.icon(
+            ? FilledButton.icon(
                 key: const Key('unblock-customer'),
-                style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    foregroundColor: AppColors.statusCompleted,
-                    side: const BorderSide(color: AppColors.statusCompleted)),
-                onPressed: busy ? null : onToggle,
-                icon: const Icon(Icons.lock_open_rounded),
-                label: const Tx('Unblock Customer'),
-              )
-            : FilledButton.icon(
-                key: const Key('block-customer'),
                 style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    backgroundColor: AppColors.statusFailed),
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: AppColors.statusCompleted,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
                 onPressed: busy ? null : onToggle,
-                icon: const Icon(Icons.block_rounded),
-                label: const Tx('Block Customer'),
+                icon: busy
+                    ? const _ButtonSpinner()
+                    : const Icon(Icons.lock_open_rounded),
+                label: const Tx('Unblock Customer',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+              )
+            : OutlinedButton.icon(
+                key: const Key('block-customer'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: AppColors.statusFailed.withOpacity(0.08),
+                  foregroundColor: AppColors.statusFailed,
+                  side: const BorderSide(
+                      color: AppColors.statusFailed, width: 1.4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: busy ? null : onToggle,
+                icon: busy
+                    ? const _ButtonSpinner()
+                    : const Icon(Icons.lock_rounded),
+                label: const Tx('Block Customer',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
               ),
         if (info.history.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -655,12 +670,26 @@ class _BlockSection extends StatelessWidget {
   }
 }
 
-/// Confirms a block (the reason is required) or an unblock (the reason is optional). Pops with the
-/// reason (empty when none was typed), or null when cancelled.
+/// A small spinner in the colour of the button it is in.
+class _ButtonSpinner extends StatelessWidget {
+  const _ButtonSpinner();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+      key: Key('block-busy'),
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2.4));
+}
+
+/// Confirms a block or an unblock: the customer's name and number, an optional reason, Cancel and the
+/// action. Pops with the reason (empty when none was typed), or null when cancelled.
 class _BlockDialog extends StatefulWidget {
-  const _BlockDialog({required this.name, required this.block});
+  const _BlockDialog(
+      {required this.name, required this.phone, required this.block});
 
   final String name;
+  final String phone;
   final bool block;
 
   @override
@@ -668,7 +697,6 @@ class _BlockDialog extends StatefulWidget {
 }
 
 class _BlockDialogState extends State<_BlockDialog> {
-  final _formKey = GlobalKey<FormState>();
   final _reason = TextEditingController();
 
   @override
@@ -680,56 +708,108 @@ class _BlockDialogState extends State<_BlockDialog> {
   @override
   Widget build(BuildContext context) {
     final block = widget.block;
+    final color = block ? AppColors.statusFailed : AppColors.statusCompleted;
     return AlertDialog(
-      title: Text(trp(block ? 'Block {0}?' : 'Unblock {0}?', [widget.name])),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      icon: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+            color: color.withOpacity(0.14), shape: BoxShape.circle),
+        child: Icon(block ? Icons.lock_rounded : Icons.lock_open_rounded,
+            color: color, size: 28),
+      ),
+      title: Tx(block ? 'Block this customer?' : 'Unblock this customer?',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w900)),
       content: SizedBox(
         width: 420,
-        child: Form(
-          key: _formKey,
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                tr(block
-                    ? 'They are signed out everywhere and can not log in or use any service until you unblock them.'
-                    : 'They can log in and use the services again.'),
-                style: TextStyle(color: AppColors.textSecondary),
+              Text.rich(
+                key: const Key('block-who'),
+                textAlign: TextAlign.center,
+                TextSpan(children: [
+                  TextSpan(
+                      text: tr(block
+                          ? 'Are you sure you want to block'
+                          : 'Are you sure you want to unblock')),
+                  const TextSpan(text: '\n'),
+                  TextSpan(
+                      text: widget.name,
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                  TextSpan(
+                      text: ' (${widget.phone})?',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                ]),
+                style: TextStyle(color: AppColors.textSecondary, height: 1.35),
               ),
-              const SizedBox(height: 12),
-              TextFormField(
+              if (block)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Tx(
+                    'They are signed out everywhere and can not log in or use any service until you unblock them. Their balance and history are not touched.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: AppColors.textFaint),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              TextField(
                 key: const Key('block-reason-field'),
                 controller: _reason,
                 maxLength: 300,
                 maxLines: 2,
                 decoration: InputDecoration(
-                    labelText: tr(
-                        block ? 'Reason for blocking' : 'Reason (optional)')),
-                validator: (v) => block && (v ?? '').trim().length < 3
-                    ? tr('Write the reason for blocking')
-                    : null,
+                  labelText: tr('Reason (Optional)'),
+                  hintText: block
+                      ? tr('e.g. Suspected abuse, Invalid activity')
+                      : null,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
               ),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const Key('block-cancel'),
+                    style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14))),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Tx('Cancel',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    key: const Key('block-confirm'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: color,
+                      foregroundColor: AppColors.onPrimary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_reason.text.trim()),
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Tx(block ? 'Block Customer' : 'Unblock Customer',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w800))),
+                  ),
+                ),
+              ]),
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-            key: const Key('block-cancel'),
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Tx('Cancel')),
-        FilledButton(
-          key: const Key('block-confirm'),
-          style: FilledButton.styleFrom(
-              backgroundColor:
-                  block ? AppColors.statusFailed : AppColors.statusCompleted),
-          onPressed: () {
-            if (_formKey.currentState!.validate())
-              Navigator.of(context).pop(_reason.text.trim());
-          },
-          child: Tx(block ? 'Block' : 'Unblock'),
-        ),
-      ],
     );
   }
 }

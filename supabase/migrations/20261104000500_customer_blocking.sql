@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS public.customer_block_history (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   seq         BIGINT GENERATED ALWAYS AS IDENTITY,   -- the order, even for entries made in the same instant
   customer_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  -- Who the customer was at the time (a name or number can change later).
+  customer_name  TEXT,
+  customer_phone TEXT,
   action      TEXT NOT NULL CHECK (action IN ('blocked', 'unblocked')),
   reason      TEXT,
   actor_id    UUID REFERENCES public.users(id) ON DELETE SET NULL,
@@ -30,7 +33,7 @@ REVOKE ALL ON public.customer_block_history FROM PUBLIC, anon, authenticated;
 CREATE OR REPLACE FUNCTION private.customer_block_json(p_customer_id uuid)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT jsonb_build_object(
-    'customerId', u.id,
+    'customerId', u.id, 'customerName', u.name, 'customerPhone', u.phone,
     'status', CASE WHEN u.status = 'active' THEN 'active' ELSE 'blocked' END,
     'blockedReason', CASE WHEN u.status <> 'active' THEN
         (SELECT h.reason FROM public.customer_block_history h WHERE h.customer_id = u.id AND h.action = 'blocked'
@@ -41,7 +44,8 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
     'history', COALESCE((
       SELECT jsonb_agg(jsonb_build_object(
                'id', h.id, 'action', h.action, 'reason', h.reason, 'at', h.created_at,
-               'by', a.name, 'byPhone', a.phone, 'byRole', h.actor_role) ORDER BY h.seq DESC)
+               'customerName', h.customer_name, 'customerPhone', h.customer_phone,
+               'byId', h.actor_id, 'by', a.name, 'byPhone', a.phone, 'byRole', h.actor_role) ORDER BY h.seq DESC)
       FROM public.customer_block_history h LEFT JOIN public.users a ON a.id = h.actor_id
       WHERE h.customer_id = u.id), '[]'::jsonb)
   )
@@ -60,8 +64,9 @@ BEGIN
   RETURN r;
 END $$;
 
--- Blocks (p_blocked = true, a reason is required) or unblocks (the reason is optional).
--- Only customers; once each way (blocking a blocked customer is ALREADY_BLOCKED).
+-- Blocks (p_blocked = true) or unblocks; the reason is optional both ways.
+-- Only customers; once each way (blocking a blocked customer is ALREADY_BLOCKED). Nothing about the customer's
+-- wallet, orders or ledger is touched: blocking only closes the door to new activity.
 CREATE OR REPLACE FUNCTION public.manage_set_customer_blocked(p_customer_id uuid, p_blocked boolean, p_reason text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
@@ -77,9 +82,6 @@ BEGIN
   IF NOT FOUND THEN PERFORM private.raise_api(404, 'NOT_FOUND', 'Customer not found'); END IF;
 
   IF p_blocked THEN
-    IF v_reason IS NULL OR char_length(v_reason) < 3 THEN
-      PERFORM private.raise_api(400, 'VALIDATION_ERROR', 'Write the reason for blocking this customer');
-    END IF;
     IF u.status <> 'active' THEN PERFORM private.raise_api(409, 'ALREADY_BLOCKED', 'This customer is already blocked'); END IF;
     UPDATE public.users SET status = 'disabled', updated_at = now() WHERE id = u.id;   -- bans the login, ends the sessions
   ELSE
@@ -87,8 +89,8 @@ BEGIN
     UPDATE public.users SET status = 'active', updated_at = now() WHERE id = u.id;
   END IF;
 
-  INSERT INTO public.customer_block_history (customer_id, action, reason, actor_id, actor_role)
-  VALUES (u.id, CASE WHEN p_blocked THEN 'blocked' ELSE 'unblocked' END, v_reason, v_id, private.app_role());
+  INSERT INTO public.customer_block_history (customer_id, customer_name, customer_phone, action, reason, actor_id, actor_role)
+  VALUES (u.id, u.name, u.phone, CASE WHEN p_blocked THEN 'blocked' ELSE 'unblocked' END, v_reason, v_id, private.app_role());
   PERFORM private.audit(v_id, private.app_role(), CASE WHEN p_blocked THEN 'customer.block' ELSE 'customer.unblock' END,
     'user', u.id::text, jsonb_build_object('status', u.status),
     jsonb_build_object('status', CASE WHEN p_blocked THEN 'disabled' ELSE 'active' END, 'reason', v_reason));

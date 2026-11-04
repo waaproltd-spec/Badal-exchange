@@ -16,11 +16,13 @@ const db = new pg.Pool({ connectionString: DATABASE_URL, max: 4 });
 let managerId; // an agent allowed to manage settings
 let customerId;
 let plainAgentId; // an agent without that permission
+let otherCustomerId;
 let adminId;
 
 before(async () => {
   managerId = (await db.query(`SELECT id FROM users WHERE phone = '252610000002'`)).rows[0].id;
   customerId = (await db.query(`SELECT id FROM users WHERE phone = '252610000003'`)).rows[0].id;
+  otherCustomerId = (await db.query(`SELECT id FROM users WHERE role = 'customer' AND id <> $1 AND status = 'active' ORDER BY created_at LIMIT 1`, [customerId])).rows[0]?.id;
   adminId = (await db.query(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`)).rows[0]?.id;
   plainAgentId = (await db.query(
     `SELECT u.id FROM users u LEFT JOIN agent_profiles p ON p.user_id = u.id
@@ -64,12 +66,9 @@ const block = (tx, reason = 'Fraud: used a stolen account', id = customerId) => 
 const unblock = (tx, reason = null, id = customerId) => tx.call('public.manage_set_customer_blocked($1,false,$2)', [id, reason]);
 const overview = (tx) => tx.call('public.agent_customer_overview()');
 
-test('blocking needs a reason, blocks the customer, and says so everywhere', async () => {
+test('blocking (with or without a reason) blocks the customer, and says so everywhere', async () => {
   await asUser(managerId, async (tx) => {
-    assert.equal(await tx.refused('public.manage_set_customer_blocked($1,true,NULL)', [customerId]), 'VALIDATION_ERROR');
-    assert.equal(await tx.refused('public.manage_set_customer_blocked($1,true,$2)', [customerId, '  ']), 'VALIDATION_ERROR');
-    assert.equal(await tx.refused('public.manage_set_customer_blocked($1,true,$2)', [customerId, 'ab']), 'VALIDATION_ERROR');
-    assert.equal(await tx.refused('public.manage_set_customer_blocked($1,true,$2)', [customerId, 'x'.repeat(301)]), 'VALIDATION_ERROR');
+    assert.equal(await tx.refused('public.manage_set_customer_blocked($1,true,$2)', [customerId, 'x'.repeat(301)]), 'VALIDATION_ERROR', 'at most 300 characters');
     const before = await overview(tx);
     const r = await block(tx);
     assert.equal(r.status, 'blocked');
@@ -126,6 +125,98 @@ test('a blocked customer: login banned, sessions gone, every customer call refus
     await tx.as(managerId);
     assert.equal(await tx.refused('public.manage_set_customer_blocked($1,false,NULL)', [customerId]), 'NOT_BLOCKED');
   });
+});
+
+test('the reason is optional: a block without one is recorded as such', async () => {
+  await asUser(managerId, async (tx) => {
+    const r = await tx.call('public.manage_set_customer_blocked($1,true,NULL)', [customerId]);
+    assert.equal(r.status, 'blocked');
+    assert.equal(r.blockedReason, null);
+    assert.equal(r.history[0].reason, null);
+    const ws = await tx.call('public.manage_set_customer_blocked($1,false,$2)', [customerId, '   ']);
+    assert.equal(ws.history[0].reason, null, 'blank is no reason');
+  });
+});
+
+test('blocking closes the door to new activity and touches nothing else: balance, orders, ledger, other customers', async () => {
+  await asUser(managerId, async (tx) => {
+    await tx.query(`INSERT INTO public.wallets (customer_id, available_cents) VALUES ($1, 1234) ON CONFLICT (customer_id) DO UPDATE SET available_cents = 1234`, [customerId]);
+    const snapshot = async () => ({
+      wallet: (await tx.query(`SELECT available_cents, pending_cents, total_deposit_cents, total_withdraw_cents FROM public.wallets WHERE customer_id = $1`, [customerId])).rows[0],
+      orders: (await tx.query(`SELECT id, status, amount_cents FROM public.orders WHERE customer_id = $1 ORDER BY id`, [customerId])).rows,
+      ledger: (await tx.query(`SELECT l.id, l.entry_type, l.amount_cents FROM public.ledger_entries l JOIN public.wallets w ON w.id = l.wallet_id WHERE w.customer_id = $1 ORDER BY l.id`, [customerId])).rows,
+    });
+    const other = otherCustomerId ? (await tx.query(`SELECT status FROM public.users WHERE id = $1`, [otherCustomerId])).rows[0].status : null;
+    const before = await snapshot();
+    await block(tx);
+    assert.deepEqual(await snapshot(), before, 'balance, order history and ledger are exactly as they were');
+    if (otherCustomerId) assert.equal((await tx.query(`SELECT status FROM public.users WHERE id = $1`, [otherCustomerId])).rows[0].status, other, 'no other customer is affected');
+    // No new deposit, withdrawal or service transaction.
+    await tx.as(customerId);
+    assert.equal(await tx.refused(`public.customer_create_deposit('evc_plus', '5.00', 'blk-dep-1', '252611111111')`), 'FORBIDDEN');
+    assert.equal(await tx.refused(`public.customer_create_withdrawal('evc_plus', '5.00', 'blk-wd-1', '252611111111')`), 'FORBIDDEN');
+    assert.equal(await tx.refused(`public.customer_create_exchange_order('{}')`) !== null, true);
+    assert.equal(await tx.refused('public.customer_tips()'), 'FORBIDDEN');
+    await tx.as(managerId);
+    assert.deepEqual(await snapshot(), before, 'the refused attempts changed nothing');
+    await unblock(tx);
+    assert.deepEqual(await snapshot(), before, 'unblocking restores the access and changes nothing else');
+  });
+});
+
+test('Users: search by name or phone, the Blocked tab and the counters, and it all persists (committed, seen from other connections)', async () => {
+  const phone = `2526${String(Date.now()).slice(-8)}`;
+  const name = `Blocky Search ${phone.slice(-4)}`;
+  const user = (await db.query(
+    `INSERT INTO public.users (role, phone, name, password_hash) VALUES ('customer', $1, $2, private.hash_password('ChangeMe123!')) RETURNING id`, [phone, name])).rows[0];
+  await db.query(`INSERT INTO public.wallets (customer_id, available_cents) VALUES ($1, 777)`, [user.id]);
+  const asManager = async (fn) => {
+    const c = await db.connect(); // a connection of its own: what another phone sees
+    try {
+      await c.query('BEGIN');
+      await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: managerId, role: 'authenticated', aud: 'authenticated' })]);
+      const r = await fn(c);
+      await c.query('COMMIT');
+      return r;
+    } catch (e) {
+      await c.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally {
+      c.release();
+    }
+  };
+  const call = (sql, params = []) => asManager(async (c) => (await c.query(`SELECT ${sql} AS r`, params)).rows[0].r);
+  const list = async (status, q) => (await call(`public.agent_customers($1, $2, 'newest', 100, 0)`, [q, status])).map((x) => x.id);
+  const overview = () => call('public.agent_customer_overview()');
+  const before = await overview();
+  assert.ok((await list('active', phone)).includes(user.id), 'found by phone, in Active');
+  assert.ok((await list('active', name.slice(0, 12))).includes(user.id), 'found by name');
+  assert.ok(!(await list('blocked', phone)).includes(user.id));
+
+  await call('public.manage_set_customer_blocked($1,true,$2)', [user.id, 'Suspected abuse']);
+  const mid = await overview();
+  assert.equal(mid.blocked, before.blocked + 1);
+  assert.equal(mid.active, before.active - 1);
+  assert.equal(mid.total, before.total);
+  assert.ok((await list('blocked', phone)).includes(user.id), 'in the Blocked tab, found by phone');
+  assert.ok((await list('blocked', name.slice(0, 12))).includes(user.id), 'in the Blocked tab, found by name');
+  assert.ok(!(await list('active', phone)).includes(user.id), 'out of Active');
+  assert.ok((await list('all', phone)).includes(user.id));
+  // Persisted: the history is in the table, with the customer as they were, and the wallet is untouched.
+  const { rows: [h] } = await db.query(`SELECT * FROM public.customer_block_history WHERE customer_id = $1`, [user.id]);
+  assert.deepEqual([h.action, h.reason, h.customer_name, h.customer_phone, h.actor_id], ['blocked', 'Suspected abuse', name, phone, managerId]);
+  assert.equal((await db.query(`SELECT available_cents FROM public.wallets WHERE customer_id = $1`, [user.id])).rows[0].available_cents, '777');
+
+  await call('public.manage_set_customer_blocked($1,false,NULL)', [user.id]);
+  const after = await overview();
+  assert.deepEqual([after.blocked, after.active, after.total], [before.blocked, before.active, before.total]);
+  assert.ok((await list('active', phone)).includes(user.id));
+  assert.ok(!(await list('blocked', phone)).includes(user.id));
+  const info = await call('public.manage_customer_block_info($1)', [user.id]);
+  assert.equal(info.status, 'active');
+  assert.deepEqual(info.history.map((x) => x.action), ['unblocked', 'blocked'], 'both kept, newest first');
+  assert.equal(info.history[0].byId, managerId);
+  assert.equal(info.history[1].customerPhone, phone);
 });
 
 test('the history records who, why and when, and is kept across block / unblock / block', async () => {

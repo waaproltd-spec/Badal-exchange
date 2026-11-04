@@ -299,6 +299,7 @@ class StatusPill extends StatelessWidget {
       decoration: BoxDecoration(color: color.withOpacity(0.13), borderRadius: BorderRadius.circular(999)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (status == 'completed') ...[Icon(Icons.check_circle_rounded, size: 14, color: color), const SizedBox(width: 4)],
+        if (status == 'blocked') ...[Icon(Icons.lock_rounded, size: 13, color: color), const SizedBox(width: 4)],
         Flexible(child: Tx(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700))),
       ]),
     );
