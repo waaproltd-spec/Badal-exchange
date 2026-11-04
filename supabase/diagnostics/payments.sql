@@ -303,3 +303,12 @@ FROM public.merchant_transactions;
 SELECT to_char(m.first_seen_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS seen_somalia, length(m.transaction_id) AS id_len,
        right(m.raw ->> 'tranID', 6) AS tran_id_end6, length(m.raw ->> 'tranID') AS tran_id_len, m.raw ->> 'credit' AS credit
 FROM public.merchant_transactions m WHERE m.raw ->> 'credit' ~ '^[0-9.]+$' ORDER BY m.first_seen_at DESC LIMIT 6;
+
+\echo
+\echo '== 25. Support bot (read-only): did the newest /start reach the database? (chat ids masked) =='
+SELECT '...' || right(c.chat_id::text, 3) AS chat, c.state, c.customer_id IS NOT NULL AS linked,
+       to_char(c.created_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS created_somalia,
+       to_char(c.updated_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS updated_somalia
+FROM public.support_chats c ORDER BY greatest(c.created_at, c.updated_at) DESC LIMIT 6;
+SELECT kind, count(*) AS n, to_char(max(created_at) AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS newest_somalia
+FROM public.support_events GROUP BY kind;
