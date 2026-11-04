@@ -130,7 +130,9 @@ void main() {
     final heading = tester.getSize(find.text('Recent Activity'));
     final button = tester.getSize(find.byKey(const Key('activity-see-all')));
     expect(button.width, lessThan(230), reason: 'as wide as its text: ${button.width}');
-    expect(heading.height, lessThan(30), reason: 'one line, not a column of letters: ${heading.height}');
+    // The test font is wider than a phone's, so the heading may take two or three lines, but never a column of letters.
+    expect(heading.height, lessThan(100), reason: 'not a column of letters: ${heading.height}');
+    expect(heading.width, greaterThan(100), reason: 'not squeezed: ${heading.width}');
     expect(find.text('Latest transactions'), findsOneWidget);
   });
 }
