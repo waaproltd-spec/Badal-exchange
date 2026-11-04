@@ -312,3 +312,13 @@ SELECT '...' || right(c.chat_id::text, 3) AS chat, c.state, c.customer_id IS NOT
 FROM public.support_chats c ORDER BY greatest(c.created_at, c.updated_at) DESC LIMIT 6;
 SELECT kind, count(*) AS n, to_char(max(created_at) AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS newest_somalia
 FROM public.support_events GROUP BY kind;
+
+\echo
+\echo '== 26. Scheduled messages (read-only): schedules and the newest runs =='
+SELECT left(s.message, 24) AS message, s.kind, to_char(s.send_time, 'HH24:MI') AS time_somalia, s.channels, s.status,
+       to_char(s.next_run_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS next_somalia,
+       to_char(s.last_run_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS last_somalia
+FROM public.broadcast_schedules s WHERE s.deleted_at IS NULL ORDER BY s.updated_at DESC LIMIT 6;
+SELECT r.channel, r.status, r.total, r.sent, r.failed, r.skipped,
+       to_char(r.created_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS created_somalia
+FROM public.broadcast_runs r ORDER BY r.created_at DESC LIMIT 8;
