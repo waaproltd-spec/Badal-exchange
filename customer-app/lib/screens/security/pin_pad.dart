@@ -96,7 +96,7 @@ class _KeySlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: SizedBox(width: 62, height: 62, child: child));
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: SizedBox(width: 60, height: 60, child: child));
 }
 
 class _Key extends StatelessWidget {
