@@ -22,6 +22,7 @@ import '../../widgets/transaction_views.dart';
 import '../../widgets/wallet_card.dart';
 import '../bonus/bonus_screen.dart';
 import '../tips/tips_screen.dart';
+
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../withdraw/withdraw_details_screen.dart';
@@ -329,26 +330,27 @@ class _TipsServiceCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(colors: [TipsColors.surface, Color(0xFF0B3D25)]),
-            border: Border.all(color: TipsColors.accent.withOpacity(0.5)),
+            gradient: AppColors.cardGradient,
           ),
           child: Row(
             children: [
               Container(
                 width: 28,
                 height: 28,
-                decoration: BoxDecoration(color: TipsColors.accent, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.tips_and_updates_rounded, color: TipsColors.background, size: 18),
+                decoration: BoxDecoration(color: AppColors.lightGold, borderRadius: BorderRadius.circular(10)),
+                child: Icon(Icons.tips_and_updates_rounded, color: AppColors.primaryDeep, size: 18),
               ),
               const SizedBox(width: 10),
               Text(AppStrings.tips,
-                  style: const TextStyle(color: TipsColors.text, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 1)),
+                  style: AppTextStyles.body.copyWith(color: AppColors.textOnPrimary, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 1)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(AppStrings.tipsSubtitle,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: TipsColors.muted, fontSize: 12)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.body.copyWith(color: AppColors.textOnPrimary.withOpacity(0.8), fontSize: 12)),
               ),
-              const Icon(Icons.chevron_right_rounded, color: TipsColors.accent, size: 20),
+              Icon(Icons.chevron_right_rounded, color: AppColors.lightGold, size: 20),
             ],
           ),
         ),

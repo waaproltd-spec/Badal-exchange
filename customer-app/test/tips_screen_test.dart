@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/api_exception.dart';
@@ -6,6 +7,8 @@ import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/models/tip.dart';
 import 'package:badal_exchange_customer/screens/tips/tips_screen.dart';
+import 'package:badal_exchange_customer/theme/colors.dart';
+import 'package:badal_exchange_customer/theme/theme_mode.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -208,5 +211,31 @@ void main() {
     expect(find.text('Koobiyee Koodhka'), findsOneWidget);
     expect(find.text('Fur'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('TIPS uses the app\'s own colours and follows light / dark', (tester) async {
+    Color cardColor() => tester.widget<Material>(find.descendant(of: find.byKey(const Key('tip-f1')), matching: find.byType(Material)).first).color!;
+    AppThemeMode.current.value = ThemeMode.light;
+    await tester.pumpWidget(_app(_FakeApi()));
+    await tester.pumpAndSettle();
+    final light = cardColor();
+    expect(light, AppColors.surface);
+    expect(tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor, AppColors.screenBackground);
+    AppThemeMode.current.value = ThemeMode.dark;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app(_FakeApi()));
+    await tester.pumpAndSettle();
+    expect(cardColor(), AppColors.surface);
+    expect(cardColor(), isNot(light), reason: 'dark mode repaints the card with the app\'s dark surface');
+    AppThemeMode.current.value = ThemeMode.light;
+  });
+
+  test('no colour is written inside the TIPS screens: only the app\'s AppColors', () {
+    for (final f in ['lib/screens/tips/tips_screen.dart', 'lib/models/tip.dart']) {
+      final src = File(f).readAsStringSync();
+      expect(RegExp(r'Color\(0x|(?<![A-Za-z])Colors\.(?!transparent)').hasMatch(src), isFalse, reason: f);
+    }
+    final home = File('lib/screens/home/home_screen.dart').readAsStringSync();
+    expect(home.contains('TipsColors'), isFalse);
   });
 }

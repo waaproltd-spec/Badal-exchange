@@ -1,6 +1,7 @@
 // TIPS (Shaxaha) in the Agent App: the Admin Dashboard management (list, create, edit,
 // publish, delete, sales and revenue, purchase history and refunds) and the Agent view.
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:badal_agent_app/api/agent_api.dart';
@@ -260,5 +261,11 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await _pump(tester, const TipPurchasesScreen(manager: true), size: const Size(320, 800));
     expect(tester.takeException(), isNull);
+  });
+
+  test('no colour is written inside the TIPS screens: only the app\'s AppColors', () {
+    final src = File('lib/screens/admin/tips_screens.dart').readAsStringSync();
+    expect(RegExp(r'Color\(0x|(?<![A-Za-z])Colors\.(?!transparent)').hasMatch(src), isFalse);
+    expect(File('lib/models/tips.dart').readAsStringSync().contains('Color('), isFalse);
   });
 }

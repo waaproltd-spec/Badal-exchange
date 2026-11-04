@@ -7,21 +7,9 @@ import '../../api/customer_api.dart';
 import '../../l10n/server_text.dart';
 import '../../l10n/strings.dart';
 import '../../models/tip.dart';
+import '../../theme/colors.dart';
+import '../../theme/text_styles.dart';
 import '../../state/wallet_provider.dart';
-
-/// The TIPS (Shaxaha) palette: dark green, whatever the app theme is.
-class TipsColors {
-  static const background = Color(0xFF06170F);
-  static const surface = Color(0xFF0D2A1B);
-  static const card = Color(0xFF123424);
-  static const border = Color(0xFF1E4A33);
-  static const accent = Color(0xFF2ECC71);
-  static const accentDark = Color(0xFF14804A);
-  static const gold = Color(0xFFF5C451);
-  static const text = Color(0xFFEFFAF3);
-  static const muted = Color(0xFF8FB3A0);
-  static const error = Color(0xFFFF6B6B);
-}
 
 IconData sportIcon(String sport) => switch (sport) {
       'football' => Icons.sports_soccer_rounded,
@@ -101,19 +89,19 @@ class _TipsScreenState extends State<TipsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TipsColors.surface,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(AppStrings.tipBuyTitle, style: const TextStyle(color: TipsColors.text, fontWeight: FontWeight.w800)),
-        content: Text(AppStrings.tipBuyMessage(price, balance ?? '—'), style: const TextStyle(color: TipsColors.muted, height: 1.4)),
+        title: Text(AppStrings.tipBuyTitle, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800)),
+        content: Text(AppStrings.tipBuyMessage(price, balance ?? '—'), style: TextStyle(color: AppColors.textMuted, height: 1.4)),
         actions: [
           TextButton(
             key: const Key('tip-buy-cancel'),
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppStrings.cancel, style: const TextStyle(color: TipsColors.muted)),
+            child: Text(AppStrings.cancel, style: TextStyle(color: AppColors.textMuted)),
           ),
           FilledButton(
             key: const Key('tip-buy-confirm'),
-            style: FilledButton.styleFrom(backgroundColor: TipsColors.accent, foregroundColor: TipsColors.background),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.textOnPrimary),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('${AppStrings.tipBuyConfirm}  \$$price'),
           ),
@@ -166,26 +154,22 @@ class _TipsScreenState extends State<TipsScreen> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: TipsColors.background,
+        backgroundColor: AppColors.screenBackground,
         appBar: AppBar(
-          backgroundColor: TipsColors.background,
-          foregroundColor: TipsColors.text,
-          elevation: 0,
-          centerTitle: true,
-          title: Text(AppStrings.tips, style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1)),
+          title: Text(AppStrings.tips, style: AppTextStyles.appBarTitle),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(56),
             child: Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(color: TipsColors.surface, borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(color: AppColors.textOnPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
               child: TabBar(
                 key: const Key('tips-tabs'),
-                indicator: BoxDecoration(color: TipsColors.accent, borderRadius: BorderRadius.circular(12)),
+                indicator: BoxDecoration(color: AppColors.lightGold, borderRadius: BorderRadius.circular(12)),
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
-                labelColor: TipsColors.background,
-                unselectedLabelColor: TipsColors.muted,
+                labelColor: AppColors.primaryDeep,
+                unselectedLabelColor: AppColors.textOnPrimary,
                 labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                 tabs: [
                   Tab(height: 40, text: AppStrings.tipsAll),
@@ -242,7 +226,7 @@ class _TipList extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget body;
     if (tips == null && error == null) {
-      body = const Center(child: CircularProgressIndicator(color: TipsColors.accent));
+      body = Center(child: CircularProgressIndicator(color: AppColors.primary));
     } else if (tips == null) {
       body = _Message(icon: Icons.cloud_off_rounded, text: error!, retry: onRefresh);
     } else if (tips!.isEmpty) {
@@ -263,8 +247,8 @@ class _TipList extends StatelessWidget {
       );
     }
     return RefreshIndicator(
-      color: TipsColors.accent,
-      backgroundColor: TipsColors.surface,
+      color: AppColors.primary,
+      backgroundColor: AppColors.primaryTint,
       onRefresh: onRefresh,
       // Centered column on a wide screen (the web).
       child: Align(
@@ -289,15 +273,15 @@ class _Message extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       children: [
         const SizedBox(height: 60),
-        Icon(icon, size: 56, color: TipsColors.muted),
+        Icon(icon, size: 56, color: AppColors.textMuted),
         const SizedBox(height: 14),
-        Text(text, textAlign: TextAlign.center, style: const TextStyle(color: TipsColors.muted, fontSize: 15)),
+        Text(text, textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted, fontSize: 15)),
         if (retry != null) ...[
           const SizedBox(height: 14),
           Center(
             child: OutlinedButton(
               key: const Key('tips-retry'),
-              style: OutlinedButton.styleFrom(foregroundColor: TipsColors.accent, side: const BorderSide(color: TipsColors.accent)),
+              style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: BorderSide(color: AppColors.primary)),
               onPressed: retry,
               child: Text(AppStrings.retry),
             ),
@@ -323,7 +307,7 @@ class TipCard extends StatelessWidget {
     final locked = tip.locked;
     final code = tip.oddsCode;
     return Material(
-      color: TipsColors.card,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -332,7 +316,7 @@ class TipCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: tip.isPaid && !locked ? TipsColors.gold.withOpacity(0.5) : TipsColors.border),
+            border: Border.all(color: tip.isPaid && !locked ? AppColors.goldDark.withOpacity(0.5) : AppColors.cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -342,8 +326,8 @@ class TipCard extends StatelessWidget {
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: BoxDecoration(color: TipsColors.surface, borderRadius: BorderRadius.circular(14)),
-                    child: Icon(sportIcon(tip.sport), color: TipsColors.accent, size: 24),
+                    decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(14)),
+                    child: Icon(sportIcon(tip.sport), color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -353,13 +337,13 @@ class TipCard extends StatelessWidget {
                         Text(tip.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: TipsColors.text, fontWeight: FontWeight.w800, fontSize: 16)),
+                            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
                         const SizedBox(height: 2),
                         Text('${AppStrings.sportName(tip.sport)} • ${tip.teamCount} ${AppStrings.tipTeams}',
                             key: Key('tip-meta-${tip.id}'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: TipsColors.muted, fontSize: 13)),
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -367,24 +351,24 @@ class TipCard extends StatelessWidget {
                   _Badge(
                     key: Key('tip-badge-${tip.id}'),
                     text: tip.isPaid ? AppStrings.tipsPaid : AppStrings.tipsFree,
-                    color: tip.isPaid ? TipsColors.gold : TipsColors.accent,
+                    color: tip.isPaid ? AppColors.goldDark : AppColors.primary,
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: TipsColors.surface, borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(14)),
                 child: Row(
                   children: [
                     Icon(locked ? Icons.lock_rounded : Icons.confirmation_number_rounded,
-                        size: 20, color: locked ? TipsColors.gold : TipsColors.accent),
+                        size: 20, color: locked ? AppColors.goldDark : AppColors.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(AppStrings.oddsCode, style: const TextStyle(color: TipsColors.muted, fontSize: 11.5)),
+                          Text(AppStrings.oddsCode, style: TextStyle(color: AppColors.textMuted, fontSize: 11.5)),
                           const SizedBox(height: 2),
                           Text(
                             locked ? '••••••••••' : (code ?? ''),
@@ -392,7 +376,7 @@ class TipCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: locked ? TipsColors.muted : TipsColors.text,
+                              color: locked ? AppColors.textMuted : AppColors.textPrimary,
                               fontWeight: FontWeight.w800,
                               fontSize: 17,
                               letterSpacing: locked ? 2 : 0.5,
@@ -407,10 +391,10 @@ class TipCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(AppStrings.tipTotalOdds, style: const TextStyle(color: TipsColors.muted, fontSize: 11.5)),
+                            Text(AppStrings.tipTotalOdds, style: TextStyle(color: AppColors.textMuted, fontSize: 11.5)),
                             const SizedBox(height: 2),
                             Text(tip.totalOdds!.toStringAsFixed(2),
-                                style: const TextStyle(color: TipsColors.gold, fontWeight: FontWeight.w800, fontSize: 15)),
+                                style: const TextStyle(color: AppColors.goldDark, fontWeight: FontWeight.w800, fontSize: 15)),
                           ],
                         ),
                       ),
@@ -426,28 +410,28 @@ class TipCard extends StatelessWidget {
                       child: Text(locked ? '\$${tip.price}' : AppStrings.tipOwned,
                           key: Key('tip-price-${tip.id}'),
                           style: TextStyle(
-                              color: locked ? TipsColors.gold : TipsColors.accent, fontWeight: FontWeight.w800, fontSize: 18)),
+                              color: locked ? AppColors.goldDark : AppColors.primary, fontWeight: FontWeight.w800, fontSize: 18)),
                     ),
                   Expanded(
                     child: locked
                         ? FilledButton.icon(
                             key: Key('tip-unlock-${tip.id}'),
                             style: FilledButton.styleFrom(
-                                backgroundColor: TipsColors.gold,
-                                foregroundColor: TipsColors.background,
+                                backgroundColor: AppColors.goldDark,
+                                foregroundColor: AppColors.primaryDeep,
                                 minimumSize: const Size(0, 44),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                             onPressed: busy ? null : onUnlock,
                             icon: busy
-                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: TipsColors.background))
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryDeep))
                                 : const Icon(Icons.lock_open_rounded, size: 18),
                             label: Text(AppStrings.unlockTip, style: const TextStyle(fontWeight: FontWeight.w800)),
                           )
                         : FilledButton.icon(
                             key: Key('tip-copy-${tip.id}'),
                             style: FilledButton.styleFrom(
-                                backgroundColor: TipsColors.accent,
-                                foregroundColor: TipsColors.background,
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.textOnPrimary,
                                 minimumSize: const Size(0, 44),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                             onPressed: code == null ? null : () => copyTipCode(context, code),
@@ -534,12 +518,9 @@ class _TipDetailScreenState extends State<TipDetailScreen> {
         if (!didPop) Navigator.of(context).pop(_tip);
       },
       child: Scaffold(
-        backgroundColor: TipsColors.background,
+        backgroundColor: AppColors.screenBackground,
         appBar: AppBar(
-          backgroundColor: TipsColors.background,
-          foregroundColor: TipsColors.text,
-          elevation: 0,
-          title: Text(tip.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          title: Text(tip.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.appBarTitle),
         ),
         body: Align(
           alignment: Alignment.topCenter,
@@ -558,35 +539,35 @@ class _TipDetailScreenState extends State<TipDetailScreen> {
                 ],
                 if (tip.note != null && tip.note!.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  Text(tip.note!, style: const TextStyle(color: TipsColors.muted, height: 1.4)),
+                  Text(tip.note!, style: TextStyle(color: AppColors.textMuted, height: 1.4)),
                 ],
                 if (tip.matches.isNotEmpty) ...[
                   const SizedBox(height: 18),
-                  Text(AppStrings.tipMatches, style: const TextStyle(color: TipsColors.text, fontWeight: FontWeight.w800, fontSize: 16)),
+                  Text(AppStrings.tipMatches, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
                   const SizedBox(height: 8),
                   for (final m in tip.matches)
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(color: TipsColors.surface, borderRadius: BorderRadius.circular(14)),
+                      decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(14)),
                       child: Row(
                         children: [
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(m.match, style: const TextStyle(color: TipsColors.text, fontWeight: FontWeight.w700)),
+                                Text(m.match, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
                                 if (m.pick.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 2),
-                                    child: Text(m.pick, style: const TextStyle(color: TipsColors.muted, fontSize: 13)),
+                                    child: Text(m.pick, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
                                   ),
                               ],
                             ),
                           ),
                           if (m.odds != null)
                             Text(m.odds!.toStringAsFixed(2),
-                                style: const TextStyle(color: TipsColors.gold, fontWeight: FontWeight.w800, fontSize: 16)),
+                                style: const TextStyle(color: AppColors.goldDark, fontWeight: FontWeight.w800, fontSize: 16)),
                         ],
                       ),
                     ),

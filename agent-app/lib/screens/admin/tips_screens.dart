@@ -41,8 +41,6 @@ String tipSportName(String sport) => switch (sport) {
       _ => tr('Other'),
     };
 
-const _green = Color(0xFF14804A);
-
 /// Keeps a form or list readable on a wide screen (the web).
 Widget tipsCentered(Widget child) => Align(
       alignment: Alignment.topCenter,
@@ -179,7 +177,7 @@ class _TipRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            TintedIcon(icon: tipSportIcon(tip.sport), color: _green),
+            TintedIcon(icon: tipSportIcon(tip.sport), color: AppColors.primary),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -208,7 +206,7 @@ class _TipRow extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            _Pill(tip.isPaid ? tr('Paid') : tr('Free'), tip.isPaid ? AppColors.accentOrange : _green),
+            _Pill(tip.isPaid ? tr('Paid') : tr('Free'), tip.isPaid ? AppColors.accentOrange : AppColors.primary),
             _Pill(tip.published ? tr('Published') : tr('Draft'), tip.published ? AppColors.statusCompleted : AppColors.textSecondary),
             if (tip.isPaid) Text('\$${tip.price}', style: const TextStyle(fontWeight: FontWeight.w800)),
             Text('${tr('Code')}: ${tip.oddsCode}', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
@@ -561,7 +559,7 @@ class _TipFormScreenState extends State<TipFormScreen> {
                 style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                 onPressed: _saving ? null : _save,
                 child: _saving
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Tx('Save'),
               ),
               Padding(
@@ -679,7 +677,7 @@ class _TipPurchasesScreenState extends State<TipPurchasesScreen> {
                       ConsoleCard(
                         key: Key('purchase-${p.id}'),
                         child: Row(children: [
-                          TintedIcon(icon: tipSportIcon(p.sport), color: p.refunded ? AppColors.textSecondary : _green),
+                          TintedIcon(icon: tipSportIcon(p.sport), color: p.refunded ? AppColors.textSecondary : AppColors.primary),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
