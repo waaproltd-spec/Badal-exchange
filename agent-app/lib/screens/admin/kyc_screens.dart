@@ -8,6 +8,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import '../../l10n/tr.dart';
 
 final _when = DateFormat('d MMM yyyy, HH:mm');
 
@@ -77,7 +78,7 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('KYC Management')),
+      appBar: AppBar(title: const Tx('KYC Management')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -88,7 +89,7 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
                     key: const Key('kyc-list'),
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                     children: [
-                      Text(
+                      Tx(
                         _provider == 'none'
                             ? 'No identity-verification service is set up: every application is checked by the server, then by an admin here.'
                             : 'Identity service: $_provider. Only what it verifies and every check passes is approved automatically.',
@@ -127,20 +128,20 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(x.customerName?.isNotEmpty == true ? x.customerName! : x.fullName,
+                                    Tx(x.customerName?.isNotEmpty == true ? x.customerName! : x.fullName,
                                         style: const TextStyle(fontWeight: FontWeight.w700)),
                                     Text('+${x.phone} · ${x.documentType == 'passport' ? 'Passport' : 'National ID'} ${x.documentNumber}',
                                         maxLines: 1, overflow: TextOverflow.ellipsis,
                                         style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                                     if (x.submittedAt != null)
-                                      Text(_when.format(x.submittedAt!.toLocal()),
+                                      Tx(_when.format(x.submittedAt!.toLocal()),
                                           style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                                   ]),
                                 ),
                                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                                   StatusPill(x.status == 'approved' ? 'completed' : (x.status == 'rejected' ? 'failed' : 'pending')),
                                   if (x.failedChecks > 0)
-                                    Text('${x.failedChecks} check(s) failed',
+                                    Text(trp('{0} check(s) failed', [x.failedChecks]),
                                         style: const TextStyle(fontSize: 11.5, color: AppColors.statusFailed)),
                                 ]),
                               ]),
@@ -200,8 +201,8 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
             labelText: decision == 'approve' ? 'Reason (kept with the decision)' : 'Reason (shown to the customer)'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(key: const Key('kyc-confirm'), onPressed: () => Navigator.pop(context, true), child: Text(title)),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Tx('Cancel')),
+          FilledButton(key: const Key('kyc-confirm'), onPressed: () => Navigator.pop(context, true), child: Tx(title)),
         ],
       ),
     );
@@ -213,7 +214,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not save the decision.')));
+            .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save the decision.')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -224,21 +225,21 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
   Widget build(BuildContext context) {
     final a = _app;
     return Scaffold(
-      appBar: AppBar(title: const Text('Review KYC Application')),
+      appBar: AppBar(title: const Tx('Review KYC Application')),
       body: a == null
           ? (_error == null ? const LoadingView() : ErrorStateView(message: _error!, onRetry: _load))
           : ListView(
               key: const Key('kyc-review'),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
-                Text(a.item.customerName?.isNotEmpty == true ? a.item.customerName! : a.item.fullName,
+                Tx(a.item.customerName?.isNotEmpty == true ? a.item.customerName! : a.item.fullName,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                 Text('+${a.item.phone}', style: TextStyle(color: AppColors.textSecondary)),
                 const SizedBox(height: 6),
                 Text(kycStatusLabels[a.item.status] ?? a.item.status,
                     key: const Key('kyc-review-status'), style: const TextStyle(fontWeight: FontWeight.w700)),
                 if (a.item.submittedAt != null)
-                  Text('Submitted ${_when.format(a.item.submittedAt!.toLocal())}', style: TextStyle(color: AppColors.textFaint)),
+                  Text(trp('Submitted {0}', [_when.format(a.item.submittedAt!.toLocal())]), style: TextStyle(color: AppColors.textFaint)),
                 const SectionHeader(title: 'Documents'),
                 Wrap(spacing: 10, runSpacing: 10, children: [
                   for (final kind in ['front', 'back', 'selfie'])
@@ -250,7 +251,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                           builder: (_) => Dialog(child: InteractiveViewer(child: Image.memory(a.documents[kind]!))),
                         ),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text({'front': a.item.documentType == 'passport' ? 'Passport photo' : 'ID front', 'back': 'ID back',
+                          Tx({'front': a.item.documentType == 'passport' ? 'Passport photo' : 'ID front', 'back': 'ID back',
                             'selfie': 'Selfie'}[kind]!, style: const TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           ClipRRect(
@@ -260,7 +261,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                               height: 110,
                               child: Image.memory(a.documents[kind]!, fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => ColoredBox(color: AppColors.border,
-                                      child: Center(child: Text('Not an image')))),
+                                      child: Center(child: Tx('Not an image')))),
                             ),
                           ),
                         ]),
@@ -281,8 +282,8 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(c.ok ? Icons.check_circle_rounded : Icons.error_rounded,
                         color: c.ok ? AppColors.statusCompleted : AppColors.statusFailed),
-                    title: Text(c.key.replaceAll('_', ' ')),
-                    subtitle: c.detail == null ? null : Text(c.detail!),
+                    title: Tx(c.key.replaceAll('_', ' ')),
+                    subtitle: c.detail == null ? null : Tx(c.detail!),
                   ),
                 InfoRow('Identity service', a.provider ?? 'none'),
                 if (a.decided) ...[
@@ -305,21 +306,21 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                       style: FilledButton.styleFrom(backgroundColor: AppColors.statusCompleted),
                       onPressed: _busy ? null : () => _decide('approve'),
                       icon: const Icon(Icons.check_rounded),
-                      label: const Text('Approve'),
+                      label: const Tx('Approve'),
                     ),
                     FilledButton.icon(
                       key: const Key('kyc-reject'),
                       style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
                       onPressed: _busy ? null : () => _decide('reject'),
                       icon: const Icon(Icons.close_rounded),
-                      label: const Text('Reject'),
+                      label: const Tx('Reject'),
                     ),
                     FilledButton.icon(
                       key: const Key('kyc-resubmit'),
                       style: FilledButton.styleFrom(backgroundColor: AppColors.accentOrange),
                       onPressed: _busy ? null : () => _decide('resubmit'),
                       icon: const Icon(Icons.restart_alt_rounded),
-                      label: const Text('Request Resubmission'),
+                      label: const Tx('Request Resubmission'),
                     ),
                   ]),
                 ],

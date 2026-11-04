@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../widgets/order_card.dart';
 import '../widgets/state_views.dart';
 import '../widgets/withdrawal_action_sheets.dart';
+import '../l10n/tr.dart';
 
 /// Pending Withdrawals: pending/processing withdrawal orders. The agent
 /// moves each one through: Start Processing -> (agent actually sends the
@@ -59,7 +60,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
   void _showSnack(String message, {Color? color}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
+      SnackBar(content: Tx(message), backgroundColor: color),
     );
   }
 
@@ -130,16 +131,16 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
     }
     if (order.status == 'pending') {
       return [
-        ElevatedButton(onPressed: () => _startProcessing(order), child: const Text('Start Processing')),
+        ElevatedButton(onPressed: () => _startProcessing(order), child: const Tx('Start Processing')),
       ];
     }
     if (order.status == 'processing') {
       return [
-        ElevatedButton(onPressed: () => _complete(order), child: const Text('Complete')),
+        ElevatedButton(onPressed: () => _complete(order), child: const Tx('Complete')),
         OutlinedButton(
           onPressed: () => _fail(order),
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.statusFailed),
-          child: const Text('Mark Failed'),
+          child: const Tx('Mark Failed'),
         ),
       ];
     }

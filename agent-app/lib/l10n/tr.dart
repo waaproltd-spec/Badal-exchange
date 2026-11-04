@@ -23,8 +23,8 @@ String trp(String english, List<Object?> values) {
 
 /// A [Text] that translates itself when it is built, so it can stay `const`.
 /// Takes the same arguments as [Text] that the app uses.
-class T extends StatelessWidget {
-  const T(
+class Tx extends StatelessWidget {
+  const Tx(
     this.text, {
     super.key,
     this.style,

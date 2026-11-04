@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
 
 /// Bottom sheet collecting the payout transaction reference once the agent
 /// has actually sent the withdrawal (via EVC Plus USSD/agent line, or the
@@ -100,12 +101,12 @@ class _SingleFieldSheetState extends State<_SingleFieldSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            Tx(
               widget.title,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 6),
-            Text(
+            Tx(
               widget.subtitle,
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
@@ -129,7 +130,7 @@ class _SingleFieldSheetState extends State<_SingleFieldSheet> {
                       foregroundColor: Colors.white,
                     )
                   : null,
-              child: Text(widget.submitLabel),
+              child: Tx(widget.submitLabel),
             ),
           ],
         ),

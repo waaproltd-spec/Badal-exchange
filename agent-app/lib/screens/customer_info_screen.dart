@@ -13,6 +13,7 @@ import '../models/wallet_adjustment.dart';
 import 'admin/system_screens.dart';
 import 'wallet/wallet_adjust_screen.dart';
 import 'wallet/wallet_history_screen.dart';
+import '../l10n/tr.dart';
 
 /// One customer: profile, wallet, totals, recent orders and recent wallet
 /// transactions. The only change made here is a password reset, for
@@ -56,9 +57,9 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<Session>().api.resetCustomerPassword(widget.customerId, password);
-      messenger.showSnackBar(const SnackBar(content: Text('Password reset. Tell the customer their new password.')));
+      messenger.showSnackBar(const SnackBar(content: Tx('Password reset. Tell the customer their new password.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not reset the password.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not reset the password.')));
     }
   }
 
@@ -79,7 +80,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customer Info'),
+        title: const Tx('Customer Info'),
         actions: [
           IconButton(
             key: const Key('wallet-history'),
@@ -115,7 +116,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    Tx(
                       c.name,
                       style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                     ),
@@ -139,14 +140,14 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Wallet Balance', style: TextStyle(color: AppColors.textSecondary)),
+                    Tx('Wallet Balance', style: TextStyle(color: AppColors.textSecondary)),
                     Text(
                       '\$${c.walletBalance}',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                     ),
                     if (d.pendingBalance != '0.00')
                       Text(
-                        '\$${d.pendingBalance} held for pending withdrawals',
+                        trp('\${0} held for pending withdrawals', [d.pendingBalance]),
                         style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                   ],
@@ -199,7 +200,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         const SizedBox(height: 8),
         const SectionHeader(title: 'Recent Orders'),
         if (d.recentOrders.isEmpty)
-          ConsoleCard(child: Text('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Tx('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final o in d.recentOrders) ...[
             ActivityTile(item: o, showCustomer: false, onTap: () => showActivityDetails(context, o)),
@@ -214,7 +215,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ),
         ),
         if (d.recentTransactions.isEmpty)
-          ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Tx('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final t in d.recentTransactions) ...[
             _LedgerTile(entry: t),
@@ -250,8 +251,8 @@ class _LedgerTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                Text(
+                Tx(label, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Tx(
                   formatDateTime(entry.createdAt),
                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
@@ -262,7 +263,7 @@ class _LedgerTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('$sign\$${entry.amount}', style: TextStyle(fontWeight: FontWeight.w800, color: color)),
-              Text('Bal. \$${entry.balanceAfter}', style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+              Text(trp('Bal. \${0}', [entry.balanceAfter]), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
             ],
           ),
         ],
@@ -296,15 +297,14 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Reset password'),
+      title: const Tx('Reset password'),
       content: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Only do this when ${widget.name} asked for it from their registered number. '
-              'They are signed out everywhere.',
+              trp('Only do this when {0} asked for it from their registered number. They are signed out everywhere.', [widget.name]),
               style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
@@ -326,12 +326,12 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) Navigator.of(context).pop(_password.text);
           },
-          child: const Text('Reset'),
+          child: const Tx('Reset'),
         ),
       ],
     );
@@ -369,7 +369,7 @@ class _WalletButton extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                  child: Tx(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
                 ),
               ),
             ],

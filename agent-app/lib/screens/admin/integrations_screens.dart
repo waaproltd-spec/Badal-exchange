@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
+import '../../l10n/tr.dart';
 
 /// Payment integrations: the EVC Plus and MobCash/WinWin manager accounts.
 /// Credentials are stored encrypted on the server; the password is
@@ -27,7 +28,7 @@ class _IntegrationsScreenState extends ListScreenState<IntegrationsScreen, Payme
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment Integrations')),
+      appBar: AppBar(title: const Tx('Payment Integrations')),
       body: body(
         builder: (items) => ListView(
           padding: const EdgeInsets.all(16),
@@ -52,14 +53,14 @@ class _IntegrationsScreenState extends ListScreenState<IntegrationsScreen, Payme
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(i.label, style: const TextStyle(fontWeight: FontWeight.w800)),
-                          Text(
+                          Tx(i.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Tx(
                             i.hasCredentials ? 'Account: ${i.username ?? 'set'}' : 'No credentials saved',
                             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                           ),
                           if (i.isMobCash)
                             Text(
-                              'Automation: ${i.automationMode}${i.automationMode == 'automatic' && i.dryRun ? ' (dry run)' : ''}',
+                              trp('Automation: {0}{1}', [i.automationMode, i.automationMode == 'automatic' && i.dryRun ? ' (dry run)' : '']),
                               style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                             ),
                         ],
@@ -164,7 +165,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
   Widget build(BuildContext context) {
     final d = _data;
     return Scaffold(
-      appBar: AppBar(title: Text(d?.label ?? 'Integration')),
+      appBar: AppBar(title: Tx(d?.label ?? 'Integration')),
       body: d == null
           ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
           : RefreshIndicator(onRefresh: _load, child: _body(d)),
@@ -179,8 +180,8 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
         ConsoleCard(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: SwitchListTile(
-            title: const Text('Integration active', style: TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text(d.isActive ? 'Active' : 'Inactive'),
+            title: const Tx('Integration active', style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Tx(d.isActive ? 'Active' : 'Inactive'),
             value: d.isActive,
             onChanged: _busy
                 ? null
@@ -207,7 +208,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _busy ? null : () => _editCredentials(d),
-                      child: Text(d.hasCredentials ? 'Change credentials' : 'Set credentials'),
+                      child: Tx(d.hasCredentials ? 'Change credentials' : 'Set credentials'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -216,7 +217,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                       onPressed: _busy || !d.hasCredentials
                           ? null
                           : () => _act(() => api.testIntegration(d.provider), 'Connection test finished.'),
-                      child: const Text('Test connection'),
+                      child: const Tx('Test connection'),
                     ),
                   ),
                 ],
@@ -230,7 +231,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
+                Tx(
                   'There is no official MobCash API: automatic mode drives the real MobCash web portal. It always '
                   'starts in dry run (nothing is submitted) and must be reviewed before going live.',
                   style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
@@ -254,12 +255,12 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                               () => api.setAutomationMode(d.provider, mode: 'automatic', dryRun: true),
                               'Automatic mode on (dry run).',
                             ),
-                    child: const Text('Enable automatic (dry run)'),
+                    child: const Tx('Enable automatic (dry run)'),
                   ),
                 if (d.automationMode == 'automatic' && d.dryRun)
                   ElevatedButton(
                     onPressed: _busy || d.circuitBreakerTrippedAt != null ? null : _goLive,
-                    child: const Text('Turn dry run OFF (go live)'),
+                    child: const Tx('Turn dry run OFF (go live)'),
                   ),
                 if (d.automationMode == 'automatic' && !d.dryRun)
                   OutlinedButton(
@@ -269,7 +270,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                               () => api.setAutomationMode(d.provider, mode: 'automatic', dryRun: true),
                               'Back to dry run.',
                             ),
-                    child: const Text('Back to dry run'),
+                    child: const Tx('Back to dry run'),
                   ),
                 if (d.automationMode == 'automatic')
                   TextButton(
@@ -279,21 +280,21 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                               () => api.setAutomationMode(d.provider, mode: 'manual', dryRun: true),
                               'Back to manual mode.',
                             ),
-                    child: const Text('Switch to manual'),
+                    child: const Tx('Switch to manual'),
                   ),
                 if (d.circuitBreakerTrippedAt != null)
                   OutlinedButton(
                     onPressed: _busy
                         ? null
                         : () => _act(() => api.resetCircuitBreaker(d.provider), 'Circuit breaker reset.'),
-                    child: const Text('Reset circuit breaker'),
+                    child: const Tx('Reset circuit breaker'),
                   ),
               ],
             ),
           ),
           const GroupLabel('Automation runs'),
           if (_runs == null || _runs!.isEmpty)
-            ConsoleCard(child: Text('No runs yet.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Tx('No runs yet.', style: TextStyle(color: AppColors.textSecondary)))
           else
             for (final r in _runs!.take(50)) ...[
               ConsoleCard(
@@ -305,11 +306,11 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(r.runType.replaceAll('_', ' '), style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Tx(r.runType.replaceAll('_', ' '), style: const TextStyle(fontWeight: FontWeight.w700)),
                           if ((r.message ?? '').isNotEmpty)
-                            Text(r.message!, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                            Tx(r.message!, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                           if (r.finishedAt != null)
-                            Text(formatDateTime(r.finishedAt!), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                            Tx(formatDateTime(r.finishedAt!), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                         ],
                       ),
                     ),
@@ -390,13 +391,13 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
   Widget build(BuildContext context) {
     final i = widget.integration;
     return Scaffold(
-      appBar: AppBar(title: Text('${i.label} credentials')),
+      appBar: AppBar(title: Text(trp('{0} credentials', [i.label]))),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(
+            Tx(
               'Stored encrypted on the server. The password is write-only — it is never shown again.',
               style: TextStyle(color: AppColors.textSecondary),
             ),
@@ -418,7 +419,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
               OutlinedButton.icon(
                 onPressed: _busy ? null : _checkLogin,
                 icon: const Icon(Icons.login_rounded),
-                label: const Text('Check MobCash login first'),
+                label: const Tx('Check MobCash login first'),
               ),
               if (_check != null) ...[
                 const SizedBox(height: 10),
@@ -427,14 +428,14 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      Tx(
                         _check!.success ? 'Login worked' : 'Login failed',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      Text(_check!.message, style: TextStyle(color: AppColors.textSecondary)),
+                      Tx(_check!.message, style: TextStyle(color: AppColors.textSecondary)),
                       if (_check!.eposList.isNotEmpty) ...[
                         const SizedBox(height: 6),
-                        Text('EPOS accounts: ${_check!.eposList.join(', ')}'),
+                        Text(trp('EPOS accounts: {0}', [_check!.eposList.join(', ')])),
                       ],
                     ],
                   ),
@@ -442,7 +443,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
               ],
             ],
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _busy ? null : _save, child: Text(_busy ? 'Working…' : 'Save credentials')),
+            ElevatedButton(onPressed: _busy ? null : _save, child: Tx(_busy ? 'Working…' : 'Save credentials')),
           ],
         ),
       ),

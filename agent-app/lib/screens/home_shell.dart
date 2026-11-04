@@ -7,6 +7,7 @@ import 'dashboard_screen.dart';
 import 'history_screen.dart';
 import 'reports_screen.dart';
 import 'users_screen.dart';
+import '../l10n/tr.dart';
 
 /// Bottom navigation with six tabs:
 /// Dashboard | Users | Reports | Commission | History | Account.
@@ -41,7 +42,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_index])),
+      appBar: AppBar(title: Tx(_titles[_index])),
       body: IndexedStack(
         index: _index,
         children: [

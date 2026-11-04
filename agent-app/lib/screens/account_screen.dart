@@ -25,6 +25,7 @@ import 'admin/unconfirmed_deposits_screen.dart';
 import 'admin/withdrawal_verification_screen.dart';
 import 'manage_screens.dart';
 import 'wallet/wallet_history_screen.dart';
+import '../l10n/tr.dart';
 
 /// Account: profile, admin features (everything the old admin dashboard
 /// managed; only for agents granted 'manage_settings'), contact links and
@@ -57,7 +58,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Tx(text)));
 
   Future<void> _open(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
@@ -78,13 +79,13 @@ class _AccountScreenState extends State<AccountScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('Automatic SMS matching stops on this device until you log in again.'),
+        title: const Tx('Log out?'),
+        content: const Tx('Automatic SMS matching stops on this device until you log in again.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log out', style: TextStyle(color: AppColors.statusFailed)),
+            child: const Tx('Log out', style: TextStyle(color: AppColors.statusFailed)),
           ),
         ],
       ),
@@ -318,7 +319,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.logout_rounded, color: AppColors.statusFailed),
                 const SizedBox(width: 14),
-                const Text('Logout', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.statusFailed)),
+                const Tx('Logout', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.statusFailed)),
               ],
             ),
           ),
@@ -343,12 +344,12 @@ class _ProfileCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                Tx(
                   account.name,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
-                Text(
+                Tx(
                   account.email ?? account.phone ?? '—',
                   style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
@@ -361,7 +362,7 @@ class _ProfileCard extends StatelessWidget {
                         color: AppColors.lightGold,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
+                      child: const Tx(
                         'Agent',
                         style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.purpleDark),
                       ),
@@ -405,7 +406,7 @@ class _NavRow extends StatelessWidget {
           children: [
             TintedIcon(icon: icon, color: color, size: 36),
             const SizedBox(width: 14),
-            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
+            Expanded(child: Tx(label, style: const TextStyle(fontWeight: FontWeight.w700))),
             Icon(trailing, color: AppColors.textFaint, size: 20),
           ],
         ),
@@ -425,7 +426,7 @@ class _LockedNote extends StatelessWidget {
           Icon(Icons.lock_outline_rounded, color: AppColors.textFaint),
           SizedBox(width: 12),
           Expanded(
-            child: Text(
+            child: Tx(
               'Your account does not have access to these settings. Ask an admin to grant the '
               '"manage_settings" responsibility.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
@@ -445,7 +446,7 @@ class _SubLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-      child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.purple)),
+      child: Tx(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.purple)),
     );
   }
 }

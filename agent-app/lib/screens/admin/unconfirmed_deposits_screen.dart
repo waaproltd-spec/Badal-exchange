@@ -8,6 +8,7 @@ import '../../models/payment_methods.dart';
 import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/state_views.dart';
+import '../../l10n/tr.dart';
 
 /// Unconfirmed Deposits (manage_unconfirmed_deposits): customers who started
 /// a deposit, apart from confirmed payments.
@@ -97,7 +98,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Unconfirmed Deposits')),
+      appBar: AppBar(title: const Tx('Unconfirmed Deposits')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -114,7 +115,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
       key: const Key('unconfirmed-deposits'),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
-        Text(
+        Tx(
           'Customers who started a deposit. Nothing here has been credited: a wallet is credited only '
           'when the payment itself is verified.',
           style: TextStyle(color: AppColors.textSecondary),
@@ -156,7 +157,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
             (_Show.overdue, 'Overdue'),
             (_Show.closed, 'Expired / rejected'),
           ])
-            ChoiceChip(label: Text(label), selected: _show == s, onSelected: (_) => setState(() => _show = s)),
+            ChoiceChip(label: Tx(label), selected: _show == s, onSelected: (_) => setState(() => _show = s)),
         ]),
         const SizedBox(height: 8),
         if (shown.isEmpty)
@@ -194,8 +195,8 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(d.customerPhone, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                  Text(
+                  Tx(d.customerPhone, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  Tx(
                     [d.customerName, methodInfo(d.method).label, if (d.accountId != null) 'ID ${d.accountId}', d.orderCode]
                         .whereType<String>()
                         .join(' · '),
@@ -203,7 +204,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
                   ),
                 ]),
               ),
-              Text(d.amount != null ? '\$${d.amount}' : 'No amount',
+              Tx(d.amount != null ? '\$${d.amount}' : 'No amount',
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             ]),
             const SizedBox(height: 10),
@@ -212,14 +213,14 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(8)),
-              child: Text(d.statusText, style: const TextStyle(fontWeight: FontWeight.w600)),
+              child: Tx(d.statusText, style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
             const SizedBox(height: 8),
             Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.timer_outlined, size: 16, color: d.overdue ? AppColors.statusFailed : AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text('Waiting ${waitedEnglish(d.waitingSeconds)}',
+                Text(trp('Waiting {0}', [waitedEnglish(d.waitingSeconds)]),
                     style: TextStyle(fontWeight: FontWeight.w700, color: d.overdue ? AppColors.statusFailed : AppColors.textPrimary)),
               ]),
               if (d.overdue)
@@ -227,12 +228,11 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
                   key: Key('overdue-${d.id}'),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(color: AppColors.statusFailed, borderRadius: BorderRadius.circular(6)),
-                  child: const Text('OVERDUE 48h', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: const Tx('OVERDUE 48h', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
             ]),
             const SizedBox(height: 4),
-            Text('Started ${_when.format(d.startedAt.toLocal())}'
-                '${d.submittedAt != null ? '  ·  Confirmed by customer ${_when.format(d.submittedAt!.toLocal())}' : ''}',
+            Text(trp('Started {0}{1}', [_when.format(d.startedAt.toLocal()), d.submittedAt != null ? '  ·  Confirmed by customer ${_when.format(d.submittedAt!.toLocal())}' : '']),
                 style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
           ],
         ),
@@ -267,7 +267,7 @@ class _Count extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('$value', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
-        Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Tx(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ]),
     );
   }

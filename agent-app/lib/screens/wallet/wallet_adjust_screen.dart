@@ -9,6 +9,7 @@ import '../../models/wallet_adjustment.dart';
 import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
+import '../../l10n/tr.dart';
 
 /// Add Money or Deduct Money on one customer's wallet: amount (with quick
 /// amounts), reason, current and new balance, then a confirmation. The
@@ -93,15 +94,15 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(widget.add ? WalletStrings.addMoney : WalletStrings.deductMoney),
-        content: Text(WalletStrings.confirmQuestion(widget.add, _money(amount), widget.name)),
+        title: Tx(widget.add ? WalletStrings.addMoney : WalletStrings.deductMoney),
+        content: Tx(WalletStrings.confirmQuestion(widget.add, _money(amount), widget.name)),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(WalletStrings.cancel)),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Tx(WalletStrings.cancel)),
           FilledButton(
             key: const Key('confirm-adjust'),
             style: FilledButton.styleFrom(backgroundColor: _color),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(widget.add ? WalletStrings.confirmAdd : WalletStrings.confirmDeduct),
+            child: Tx(widget.add ? WalletStrings.confirmAdd : WalletStrings.confirmDeduct),
           ),
         ],
       ),
@@ -141,7 +142,7 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
     final after = amount == null ? null : _balanceCents + (widget.add ? amount : -amount);
     final problem = _problem;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.add ? WalletStrings.addMoney : WalletStrings.deductMoney)),
+      appBar: AppBar(title: Tx(widget.add ? WalletStrings.addMoney : WalletStrings.deductMoney)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         child: Column(
@@ -156,12 +157,12 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.name,
+                        Tx(widget.name,
                             style: TextStyle(
                                 fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                        Text(widget.phone, style: TextStyle(color: AppColors.textSecondary)),
+                        Tx(widget.phone, style: TextStyle(color: AppColors.textSecondary)),
                         const SizedBox(height: 6),
-                        Text(WalletStrings.walletBalance,
+                        Tx(WalletStrings.walletBalance,
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                         Text(_money(_balanceCents),
                             key: const Key('adjust-balance'),
@@ -178,7 +179,7 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(WalletStrings.amountUsd, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Tx(WalletStrings.amountUsd, style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   TextField(
                     key: const Key('adjust-amount'),
@@ -216,7 +217,7 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Text(widget.add ? WalletStrings.reasonAdd : WalletStrings.reasonDeduct,
+                  Tx(widget.add ? WalletStrings.reasonAdd : WalletStrings.reasonDeduct,
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   TextField(
@@ -237,7 +238,7 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(WalletStrings.details, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Tx(WalletStrings.details, style: const TextStyle(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
                   InfoRow(WalletStrings.currentBalance, _money(_balanceCents)),
                   InfoRow(
@@ -267,7 +268,7 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
                     ? const SizedBox(
                         width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
                     : Icon(widget.add ? Icons.send_rounded : Icons.remove_circle_outline_rounded),
-                label: Text(widget.add ? WalletStrings.confirmAdd : WalletStrings.confirmDeduct,
+                label: Tx(widget.add ? WalletStrings.confirmAdd : WalletStrings.confirmDeduct,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
               ),
             ),
@@ -289,7 +290,7 @@ class _ResultDialog extends StatelessWidget {
     return AlertDialog(
       key: const Key('adjust-result'),
       icon: const Icon(Icons.check_circle_rounded, color: AppColors.statusCompleted, size: 48),
-      title: Text(a.isAdd ? WalletStrings.added : WalletStrings.deducted),
+      title: Tx(a.isAdd ? WalletStrings.added : WalletStrings.deducted),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -299,7 +300,7 @@ class _ResultDialog extends StatelessWidget {
           InfoRow(WalletStrings.balanceAfter, '\$${a.balanceAfter}'),
         ],
       ),
-      actions: [FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(WalletStrings.done))],
+      actions: [FilledButton(onPressed: () => Navigator.of(context).pop(), child: Tx(WalletStrings.done))],
     );
   }
 }

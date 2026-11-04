@@ -11,6 +11,7 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import '../l10n/tr.dart';
 
 /// Complete transaction history: deposits, withdrawals and payment
 /// confirmations (SMS / agent-entered), with search (customer name, phone,
@@ -126,7 +127,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
     final chips = <Widget>[];
     void add(String label, HistoryFilter Function() clear) {
       chips.add(InputChip(
-        label: Text(label),
+        label: Tx(label),
         onDeleted: () => _apply(clear()),
         backgroundColor: AppColors.surface,
         side: BorderSide(color: AppColors.border),
@@ -207,7 +208,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Text(_loadingMore ? 'Loading…' : 'Load more'),
+                  child: Tx(_loadingMore ? 'Loading…' : 'Load more'),
                 ),
               ),
           ],
@@ -263,14 +264,14 @@ class _FilterSheetState extends State<_FilterSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Tx('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 16),
           DropdownButtonFormField<String?>(
             value: _status,
             decoration: const InputDecoration(labelText: 'Status'),
             items: [
-              const DropdownMenuItem(value: null, child: Text('Any status')),
-              for (final s in statuses) DropdownMenuItem(value: s, child: Text(s[0].toUpperCase() + s.substring(1))),
+              const DropdownMenuItem(value: null, child: Tx('Any status')),
+              for (final s in statuses) DropdownMenuItem(value: s, child: Tx(s[0].toUpperCase() + s.substring(1))),
             ],
             onChanged: (v) => setState(() => _status = v),
           ),
@@ -279,8 +280,8 @@ class _FilterSheetState extends State<_FilterSheet> {
             value: _method,
             decoration: const InputDecoration(labelText: 'Payment method'),
             items: [
-              const DropdownMenuItem(value: null, child: Text('Any method')),
-              for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Text(m.label)),
+              const DropdownMenuItem(value: null, child: Tx('Any method')),
+              for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Tx(m.label)),
             ],
             onChanged: (v) => setState(() => _method = v),
           ),
@@ -288,7 +289,7 @@ class _FilterSheetState extends State<_FilterSheet> {
           OutlinedButton.icon(
             onPressed: _pickRange,
             icon: const Icon(Icons.date_range_rounded),
-            label: Text(
+            label: Tx(
               _range == null ? 'Any date' : '${_pretty.format(_range!.start)} – ${_pretty.format(_range!.end)}',
             ),
           ),
@@ -300,7 +301,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   onPressed: () => Navigator.of(context).pop(
                     HistoryFilter(type: widget.initial.type, query: widget.initial.query),
                   ),
-                  child: const Text('Clear'),
+                  child: const Tx('Clear'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -314,7 +315,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                       to: () => _range != null ? _iso.format(_range!.end) : null,
                     ),
                   ),
-                  child: const Text('Apply'),
+                  child: const Tx('Apply'),
                 ),
               ),
             ],

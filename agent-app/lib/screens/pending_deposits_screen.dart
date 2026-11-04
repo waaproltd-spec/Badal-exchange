@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/payment_confirm_sheet.dart';
 import '../widgets/state_views.dart';
 import 'customer_info_screen.dart';
+import '../l10n/tr.dart';
 
 /// Lacagaha Sugaya Xaqiijinta: every deposit customers sent that is not
 /// confirmed yet (agent_deposit_board). At the top: customers waiting, their
@@ -98,13 +99,12 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Diid ${d.order.orderCode}?'),
+        title: Text(trp('Diid {0}?', [d.order.orderCode])),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('\$${d.order.amount} · ${d.order.methodLabel} · ${d.order.phoneNumber ?? d.order.accountId ?? ''}\n'
-                'Lacag lama siin macmiilka; dalabka waa la xirayaa.'),
+            Text(trp('\${0} · {1} · {2}\nLacag lama siin macmiilka; dalabka waa la xirayaa.', [d.order.amount, d.order.methodLabel, d.order.phoneNumber ?? d.order.accountId ?? ''])),
             const SizedBox(height: 12),
             TextField(
               key: const Key('reject-reason'),
@@ -115,11 +115,11 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Ka noqo')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Tx('Ka noqo')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Diid'),
+            child: const Tx('Diid'),
           ),
         ],
       ),
@@ -128,12 +128,12 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     try {
       await context.read<Session>().api.rejectDeposit(d.order.id, reason: reason.text.trim());
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${d.order.orderCode} waa la diiday.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(trp('{0} waa la diiday.', [d.order.orderCode]))));
       _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Lama diidi karin.')));
+          .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Lama diidi karin.')));
     }
   }
 
@@ -170,7 +170,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _confirm(),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Xaqiiji lacag'),
+        label: const Tx('Xaqiiji lacag'),
       ),
     );
   }
@@ -182,10 +182,10 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
       key: const Key('deposit-board'),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
       children: [
-        Text('Lacagaha Sugaya Xaqiijinta',
+        Tx('Lacagaha Sugaya Xaqiijinta',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         const SizedBox(height: 4),
-        Text('Liiska dhammaan lacagaha ay macmiishu soo direen ee aan weli la xaqiijin.',
+        Tx('Liiska dhammaan lacagaha ay macmiishu soo direen ee aan weli la xaqiijin.',
             style: TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 16),
         _summary(board, wide),
@@ -209,7 +209,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
         if (shown.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text('Waxaa la muujinayaa ${shown.length} ka mid ah ${board.deposits.length}',
+            child: Text(trp('Waxaa la muujinayaa {0} ka mid ah {1}', [shown.length, board.deposits.length]),
                 style: TextStyle(color: AppColors.textSecondary)),
           ),
       ],
@@ -245,8 +245,8 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
       isExpanded: true,
       decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
       items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('Dhammaan Hababka')),
-        for (final m in methods) DropdownMenuItem<String?>(value: m, child: Text(methodInfo(m).label)),
+        const DropdownMenuItem<String?>(value: null, child: Tx('Dhammaan Hababka')),
+        for (final m in methods) DropdownMenuItem<String?>(value: m, child: Tx(methodInfo(m).label)),
       ],
       onChanged: (v) => setState(() => _method = v),
     );
@@ -268,7 +268,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     final refresh = OutlinedButton.icon(
       onPressed: _load,
       icon: const Icon(Icons.refresh_rounded, size: 18),
-      label: const Text('Cusboonaysii'),
+      label: const Tx('Cusboonaysii'),
     );
     if (wide) {
       return Row(children: [
@@ -299,7 +299,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(color: color.withOpacity(0.18), borderRadius: BorderRadius.circular(8)),
-      child: Text(d.isPending ? 'Sugaya Xaqiijin' : 'Waqtigii Dhammaaday',
+      child: Tx(d.isPending ? 'Sugaya Xaqiijin' : 'Waqtigii Dhammaaday',
           textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
     );
   }
@@ -310,14 +310,14 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
             key: Key('confirm-${d.order.id}'),
             style: FilledButton.styleFrom(backgroundColor: AppColors.statusCompleted),
             onPressed: () => _confirm(deposit: d),
-            child: const Text('Xaqiiji'),
+            child: const Tx('Xaqiiji'),
           ),
           const SizedBox(width: 8),
           FilledButton(
             key: Key('reject-${d.order.id}'),
             style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
             onPressed: () => _reject(d),
-            child: const Text('Diid'),
+            child: const Tx('Diid'),
           ),
           const SizedBox(width: 4),
         ],
@@ -340,27 +340,27 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
           dataRowMaxHeight: 64,
           columns: const [
             DataColumn(label: Text('#')),
-            DataColumn(label: Text('Deposit ID')),
-            DataColumn(label: Text('Macmiilka')),
-            DataColumn(label: Text('Lambarka')),
-            DataColumn(label: Text('Lacagta'), numeric: true),
-            DataColumn(label: Text('Habka')),
-            DataColumn(label: Text('Taariikhda')),
-            DataColumn(label: Text('Waqtiga\nSugaysa')),
-            DataColumn(label: Text('Xaaladda')),
-            DataColumn(label: Text('Ficil')),
+            DataColumn(label: Tx('Deposit ID')),
+            DataColumn(label: Tx('Macmiilka')),
+            DataColumn(label: Tx('Lambarka')),
+            DataColumn(label: Tx('Lacagta'), numeric: true),
+            DataColumn(label: Tx('Habka')),
+            DataColumn(label: Tx('Taariikhda')),
+            DataColumn(label: Tx('Waqtiga\nSugaysa')),
+            DataColumn(label: Tx('Xaaladda')),
+            DataColumn(label: Tx('Ficil')),
           ],
           rows: [
             for (var i = 0; i < rows.length; i++)
               DataRow(cells: [
                 DataCell(Text('${i + 1}')),
-                DataCell(Text(rows[i].order.orderCode)),
-                DataCell(Text(rows[i].customerName ?? '—')),
-                DataCell(Text(_number(rows[i]))),
+                DataCell(Tx(rows[i].order.orderCode)),
+                DataCell(Tx(rows[i].customerName ?? '—')),
+                DataCell(Tx(_number(rows[i]))),
                 DataCell(Text('\$${rows[i].order.amount}', style: const TextStyle(fontWeight: FontWeight.w700))),
-                DataCell(Text(rows[i].order.methodLabel)),
-                DataCell(Text(_when.format(rows[i].order.createdAt.toLocal()))),
-                DataCell(Text(waitedText(rows[i].waitingSeconds),
+                DataCell(Tx(rows[i].order.methodLabel)),
+                DataCell(Tx(_when.format(rows[i].order.createdAt.toLocal()))),
+                DataCell(Tx(waitedText(rows[i].waitingSeconds),
                     style: TextStyle(fontWeight: FontWeight.w700, color: _waitColor(rows[i])))),
                 DataCell(_status(rows[i])),
                 DataCell(Row(mainAxisSize: MainAxisSize.min, children: _actions(rows[i]))),
@@ -384,7 +384,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
               const SizedBox(width: 10),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(d.customerName ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  Tx(d.customerName ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                   Text('${d.order.orderCode} · ${d.order.methodLabel} · ${_number(d)}',
                       style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
                 ]),
@@ -395,10 +395,10 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
             Row(children: [
               Icon(Icons.timer_outlined, size: 16, color: _waitColor(d)),
               const SizedBox(width: 4),
-              Text(waitedText(d.waitingSeconds), style: TextStyle(fontWeight: FontWeight.w700, color: _waitColor(d))),
+              Tx(waitedText(d.waitingSeconds), style: TextStyle(fontWeight: FontWeight.w700, color: _waitColor(d))),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(DateFormat('d MMM, HH:mm').format(d.order.createdAt.toLocal()),
+                child: Tx(DateFormat('d MMM, HH:mm').format(d.order.createdAt.toLocal()),
                     style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
               ),
               _status(d),
@@ -435,13 +435,13 @@ class _SummaryCard extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Tx(title, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              child: Tx(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             ),
-            Text(note, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Tx(note, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
         ),
       ]),

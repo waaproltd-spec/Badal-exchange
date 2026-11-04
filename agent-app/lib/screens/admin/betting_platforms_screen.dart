@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
+import '../../l10n/tr.dart';
 
 Color _statusColor(String status) => switch (status) {
       'connected' => AppColors.statusCompleted,
@@ -93,12 +94,12 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
   Widget build(BuildContext context) {
     final platforms = _platforms;
     return Scaffold(
-      appBar: AppBar(title: const Text('Betting Platforms')),
+      appBar: AppBar(title: const Tx('Betting Platforms')),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('add-platform'),
         onPressed: _adapters.isEmpty ? null : _add,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add platform'),
+        label: const Tx('Add platform'),
       ),
       body: _error != null
           ? ErrorStateView(message: _error!, onRetry: _load)
@@ -109,7 +110,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                     children: [
-                      Text(
+                      Tx(
                         'A platform can be switched on only after its saved credentials pass Test connection. '
                         'Built-in platforms without saved credentials use the server secrets, as before.',
                         style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
@@ -130,7 +131,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(p.name, style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                                Tx(p.name, style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                                 Text(p.statusLabel,
                                     key: Key('platform-status-${p.method}'),
                                     style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: _statusColor(p.status))),
@@ -139,7 +140,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                                       key: Key('platform-mode-${p.method}'),
                                       style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
                                 if (p.lastTestAt != null)
-                                  Text('Tested ${formatDateTime(p.lastTestAt!)}',
+                                  Text(trp('Tested {0}', [formatDateTime(p.lastTestAt!)]),
                                       style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                               ]),
                             ),
@@ -180,7 +181,7 @@ class _AddPlatformDialogState extends State<_AddPlatformDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add a betting platform'),
+      title: const Tx('Add a betting platform'),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         TextField(
           key: const Key('platform-name'),
@@ -195,21 +196,21 @@ class _AddPlatformDialogState extends State<_AddPlatformDialog> {
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'API'),
           items: [
-            for (final a in widget.adapters) DropdownMenuItem(value: a.adapter, child: Text(a.label, overflow: TextOverflow.ellipsis)),
+            for (final a in widget.adapters) DropdownMenuItem(value: a.adapter, child: Tx(a.label, overflow: TextOverflow.ellipsis)),
           ],
           onChanged: (v) => setState(() => _adapter = v ?? _adapter),
         ),
         const SizedBox(height: 8),
-        Text(
+        Tx(
           'A company with a different API needs its own adapter, written from its official API documentation.',
           style: TextStyle(fontSize: 12, color: AppColors.textFaint),
         ),
       ]),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
         FilledButton(
           onPressed: _name.text.trim().length < 2 ? null : () => Navigator.of(context).pop((_name.text.trim(), _adapter)),
-          child: const Text('Add'),
+          child: const Tx('Add'),
         ),
       ],
     );
@@ -352,7 +353,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
   Widget build(BuildContext context) {
     final adapter = widget.adapter;
     return Scaffold(
-      appBar: AppBar(title: Text(_p.name)),
+      appBar: AppBar(title: Tx(_p.name)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -406,13 +407,13 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                           key: const Key('platform-logo-choose'),
                           onPressed: _busy ? null : _chooseLogo,
                           icon: const Icon(Icons.photo_library_rounded),
-                          label: Text(_p.logo != null ? 'Change logo' : (_p.builtIn ? 'Replace logo' : 'Choose logo')),
+                          label: Tx(_p.logo != null ? 'Change logo' : (_p.builtIn ? 'Replace logo' : 'Choose logo')),
                         ),
                         if (_p.logo != null)
                           TextButton(
                             key: const Key('platform-logo-remove'),
                             onPressed: _busy ? null : _removeLogo,
-                            child: Text(_p.builtIn ? 'Back to the built-in logo' : 'Remove'),
+                            child: Tx(_p.builtIn ? 'Back to the built-in logo' : 'Remove'),
                           ),
                       ]),
                     ]),
@@ -423,7 +424,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
             const SizedBox(height: 12),
             if (adapter == null)
               const ConsoleCard(
-                child: Text('No adapter for this API: it has to be written from the provider\'s official documentation.',
+                child: Tx('No adapter for this API: it has to be written from the provider\'s official documentation.',
                     style: TextStyle(color: AppColors.statusFailed)),
               )
             else ...[
@@ -461,7 +462,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                     key: const Key('platform-save'),
                     onPressed: _busy ? null : _save,
                     icon: const Icon(Icons.save_rounded),
-                    label: const Text('Save'),
+                    label: const Tx('Save'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -470,7 +471,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                     key: const Key('platform-test'),
                     onPressed: _busy || _p.status == 'not_configured' || _p.status == 'server' ? null : _test,
                     icon: const Icon(Icons.wifi_tethering_rounded),
-                    label: const Text('Test connection'),
+                    label: const Tx('Test connection'),
                   ),
                 ),
               ]),
@@ -482,7 +483,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                 onPressed: _busy ? null : _remove,
                 style: OutlinedButton.styleFrom(foregroundColor: AppColors.statusFailed),
                 icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('Remove platform'),
+                label: const Tx('Remove platform'),
               ),
             ],
           ],
@@ -512,9 +513,9 @@ class _RemoveDialogState extends State<_RemoveDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Remove ${widget.name}?'),
+      title: Text(trp('Remove {0}?', [widget.name])),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('It is switched off and its credentials deleted. Every order that used it is kept.',
+        Tx('It is switched off and its credentials deleted. Every order that used it is kept.',
             style: TextStyle(color: AppColors.textSecondary)),
         TextField(
           key: const Key('remove-reason'),
@@ -524,11 +525,11 @@ class _RemoveDialogState extends State<_RemoveDialog> {
         ),
       ]),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
           onPressed: _reason.text.trim().length < 3 ? null : () => Navigator.of(context).pop(_reason.text.trim()),
-          child: const Text('Remove'),
+          child: const Tx('Remove'),
         ),
       ],
     );

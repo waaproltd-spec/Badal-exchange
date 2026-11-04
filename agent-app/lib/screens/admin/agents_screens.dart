@@ -10,6 +10,7 @@ import '../../widgets/order_card.dart';
 import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
 import 'agent_reports_screens.dart';
+import '../../l10n/tr.dart';
 
 /// Responsibilities an agent can hold. 'manage_settings' grants every
 /// management function (this Account → Admin features area).
@@ -49,7 +50,7 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Agents'), actions: [
+      appBar: AppBar(title: const Tx('Agents'), actions: [
         IconButton(
           key: const Key('agents-performance'),
           tooltip: 'Performance',
@@ -66,7 +67,7 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
         icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Add agent'),
+        label: const Tx('Add agent'),
       ),
       body: body(
         builder: (agents) => ListView(
@@ -87,9 +88,9 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(a.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                          Text(a.phone ?? '—', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                          Text(
+                          Tx(a.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Tx(a.phone ?? '—', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          Tx(
                             a.lastSeenAt != null ? 'Last seen ${formatDateTime(a.lastSeenAt!)}' : 'Never seen',
                             style: TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                           ),
@@ -230,7 +231,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
   Widget build(BuildContext context) {
     final a = _agent;
     return Scaffold(
-      appBar: AppBar(title: Text(a.name)),
+      appBar: AppBar(title: Tx(a.name)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -256,20 +257,20 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                 key: const Key('agent-edit'),
                 onPressed: _busy ? null : _edit,
                 icon: const Icon(Icons.edit_rounded),
-                label: const Text('Edit'),
+                label: const Tx('Edit'),
               ),
               OutlinedButton.icon(
                 key: const Key('agent-reset-password'),
                 onPressed: _busy ? null : _resetPassword,
                 icon: const Icon(Icons.lock_reset_rounded),
-                label: const Text('Reset password'),
+                label: const Tx('Reset password'),
               ),
               OutlinedButton.icon(
                 key: const Key('agent-delete'),
                 onPressed: _busy ? null : _delete,
                 style: OutlinedButton.styleFrom(foregroundColor: AppColors.statusFailed),
                 icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('Delete'),
+                label: const Tx('Delete'),
               ),
             ],
           ),
@@ -280,7 +281,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _busy ? null : _editResponsibilities,
                   icon: const Icon(Icons.tune_rounded),
-                  label: const Text('Responsibilities'),
+                  label: const Tx('Responsibilities'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -291,7 +292,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                       ? ElevatedButton.styleFrom(backgroundColor: AppColors.statusFailed, foregroundColor: Colors.white)
                       : null,
                   icon: Icon(a.isActive ? Icons.block_rounded : Icons.check_circle_rounded),
-                  label: Text(a.isActive ? 'Disable' : 'Enable'),
+                  label: Tx(a.isActive ? 'Disable' : 'Enable'),
                 ),
               ),
             ],
@@ -299,14 +300,14 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           const GroupLabel('Responsibilities'),
           ConsoleCard(
             child: a.responsibilities.isEmpty
-                ? Text('None', style: TextStyle(color: AppColors.textSecondary))
+                ? Tx('None', style: TextStyle(color: AppColors.textSecondary))
                 : Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
                       for (final r in a.responsibilities)
                         Chip(
-                          label: Text(responsibilityLabel(r)),
+                          label: Tx(responsibilityLabel(r)),
                           backgroundColor: r == 'manage_settings' ? AppColors.lightGold : AppColors.surfaceRaised,
                           side: BorderSide(color: AppColors.border),
                         ),
@@ -317,7 +318,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           if (_devices == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_devices!.isEmpty)
-            ConsoleCard(child: Text('No registered devices.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Tx('No registered devices.', style: TextStyle(color: AppColors.textSecondary)))
           else
             for (final d in _devices!) ...[
               ConsoleCard(
@@ -329,8 +330,8 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(d.label ?? d.deviceId, style: const TextStyle(fontWeight: FontWeight.w700)),
-                          Text(
+                          Tx(d.label ?? d.deviceId, style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Tx(
                             d.lastSeenAt != null ? 'Last seen ${formatDateTime(d.lastSeenAt!)}' : 'Registered',
                             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
@@ -347,7 +348,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           if (_logins == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_logins!.isEmpty)
-            ConsoleCard(child: Text('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Tx('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary)))
           else
             ConsoleCard(
               key: const Key('agent-logins'),
@@ -365,7 +366,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           if (_orders == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_orders!.isEmpty)
-            ConsoleCard(child: Text('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Tx('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
           else
             for (final o in _orders!.take(50)) OrderCard(order: o),
         ],
@@ -394,7 +395,7 @@ class _ResponsibilitiesDialogState extends State<_ResponsibilitiesDialog> {
         if (!knownResponsibilities.any((k) => k.$1 == r)) (r, r.replaceAll('_', ' ')),
     ];
     return AlertDialog(
-      title: const Text('Responsibilities'),
+      title: const Tx('Responsibilities'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -403,15 +404,15 @@ class _ResponsibilitiesDialogState extends State<_ResponsibilitiesDialog> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _selected.contains(key),
-                title: Text(label),
+                title: Tx(label),
                 onChanged: (v) => setState(() => v == true ? _selected.add(key) : _selected.remove(key)),
               ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.of(context).pop(_selected.toList()), child: const Text('Save')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(_selected.toList()), child: const Tx('Save')),
       ],
     );
   }
@@ -461,7 +462,7 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Agent')),
+      appBar: AppBar(title: const Tx('Add Agent')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -491,11 +492,11 @@ class _CreateAgentScreenState extends State<_CreateAgentScreen> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _responsibilities.contains(key),
-                title: Text(label),
+                title: Tx(label),
                 onChanged: (v) => setState(() => v == true ? _responsibilities.add(key) : _responsibilities.remove(key)),
               ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Creating…' : 'Create agent')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Creating…' : 'Create agent')),
           ],
         ),
       ),
@@ -528,7 +529,7 @@ class _EditAgentDialogState extends State<_EditAgentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Edit agent'),
+      title: const Tx('Edit agent'),
       content: Form(
         key: _formKey,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -548,12 +549,12 @@ class _EditAgentDialogState extends State<_EditAgentDialog> {
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) Navigator.of(context).pop((_name.text.trim(), _phone.text.trim()));
           },
-          child: const Text('Save'),
+          child: const Tx('Save'),
         ),
       ],
     );
@@ -584,11 +585,11 @@ class _NewPasswordDialogState extends State<_NewPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Reset password'),
+      title: const Tx('Reset password'),
       content: Form(
         key: _formKey,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('${widget.name} is signed out everywhere and logs in with the new password.',
+          Text(trp('{0} is signed out everywhere and logs in with the new password.', [widget.name]),
               style: TextStyle(color: AppColors.textSecondary)),
           TextFormField(
             key: const Key('new-agent-password'),
@@ -607,12 +608,12 @@ class _NewPasswordDialogState extends State<_NewPasswordDialog> {
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) Navigator.of(context).pop(_password.text);
           },
-          child: const Text('Reset'),
+          child: const Tx('Reset'),
         ),
       ],
     );
@@ -640,9 +641,9 @@ class _DeleteAgentDialogState extends State<_DeleteAgentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Delete ${widget.name}?'),
+      title: Text(trp('Delete {0}?', [widget.name])),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(
+        Tx(
           'They are signed out and can no longer log in. Their orders and the audit trail are kept.',
           style: TextStyle(color: AppColors.textSecondary),
         ),
@@ -654,11 +655,11 @@ class _DeleteAgentDialogState extends State<_DeleteAgentDialog> {
         ),
       ]),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
           onPressed: _reason.text.trim().length < 3 ? null : () => Navigator.of(context).pop(_reason.text.trim()),
-          child: const Text('Delete'),
+          child: const Tx('Delete'),
         ),
       ],
     );

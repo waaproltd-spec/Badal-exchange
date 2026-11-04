@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
 
 /// Centered loading spinner used while a list/profile fetch is in flight.
 class LoadingView extends StatelessWidget {
@@ -35,7 +36,7 @@ class EmptyStateView extends StatelessWidget {
           children: [
             Icon(icon, size: 48, color: AppColors.textFaint),
             const SizedBox(height: 16),
-            Text(
+            Tx(
               title,
               style: TextStyle(
                 fontSize: 16,
@@ -46,7 +47,7 @@ class EmptyStateView extends StatelessWidget {
             ),
             if (message != null) ...[
               const SizedBox(height: 6),
-              Text(
+              Tx(
                 message!,
                 style: TextStyle(fontSize: 13, color: AppColors.textFaint),
                 textAlign: TextAlign.center,
@@ -77,13 +78,13 @@ class ErrorStateView extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: AppColors.statusFailed),
             const SizedBox(height: 16),
-            Text(
+            Tx(
               message,
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+            OutlinedButton(onPressed: onRetry, child: const Tx('Retry')),
           ],
         ),
       ),

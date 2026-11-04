@@ -10,6 +10,7 @@ import '../models/sms_transaction_log.dart';
 import '../services/sms_log_store.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
 
 /// Lets an agent confirm a deposit payment they personally verified as real
 /// and completed: a mobile-money payment that arrived (EVC Plus, Golis,
@@ -39,7 +40,7 @@ void showMatchResultSnackBar(BuildContext context, MatchResult result) {
     MatchStatus.duplicate => ('This transaction was already submitted.', AppColors.statusDuplicate),
     MatchStatus.error => (result.errorMessage ?? 'Something went wrong.', AppColors.statusFailed),
   };
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Tx(text), backgroundColor: color));
 }
 
 class _PaymentConfirmForm extends StatefulWidget {
@@ -142,12 +143,12 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              Tx(
                 'Confirm payment',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 6),
-              Text(
+              Tx(
                 isPlatform
                     ? 'Only enter a top-up you personally confirmed as completed in the ${_info.label} cashier tools.'
                     : 'Only enter a ${_info.label} payment you personally saw arrive.',
@@ -206,7 +207,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
                 onPressed: _submitting ? null : _submit,
                 child: _submitting
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Submit confirmation'),
+                    : const Tx('Submit confirmation'),
               ),
             ],
           ),

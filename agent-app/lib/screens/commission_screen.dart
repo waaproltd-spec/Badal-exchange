@@ -9,6 +9,7 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import '../l10n/tr.dart';
 
 /// Commission (agent_commission), its own tab (Reports is unchanged):
 /// what Badal Exchange earns on completed betting-company orders -- 2% of
@@ -126,7 +127,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
           Row(children: [
             Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.textSecondary),
             const SizedBox(width: 6),
-            Expanded(child: Text(_rangeLabel(r), style: const TextStyle(fontWeight: FontWeight.w600))),
+            Expanded(child: Tx(_rangeLabel(r), style: const TextStyle(fontWeight: FontWeight.w600))),
           ]),
           const SizedBox(height: 12),
           ChoiceChipsRow<String?>(
@@ -146,10 +147,10 @@ class _CommissionScreenState extends State<CommissionScreen> {
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Agent', isDense: true),
               items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('All agents (consolidated)')),
-                const DropdownMenuItem<String?>(value: 'automatic', child: Text('Automatic (no agent)')),
+                const DropdownMenuItem<String?>(value: null, child: Tx('All agents (consolidated)')),
+                const DropdownMenuItem<String?>(value: 'automatic', child: Tx('Automatic (no agent)')),
                 for (final a in r.agents!)
-                  DropdownMenuItem<String?>(value: a.id, child: Text(a.name.isEmpty ? (a.phone ?? a.id) : a.name)),
+                  DropdownMenuItem<String?>(value: a.id, child: Tx(a.name.isEmpty ? (a.phone ?? a.id) : a.name)),
               ],
               onChanged: (v) {
                 setState(() => _agent = v);
@@ -157,12 +158,12 @@ class _CommissionScreenState extends State<CommissionScreen> {
               },
             )
           else
-            Text('Your commission: the orders you handled.',
+            Tx('Your commission: the orders you handled.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(_error!, style: const TextStyle(color: AppColors.statusFailed)),
+              child: Tx(_error!, style: const TextStyle(color: AppColors.statusFailed)),
             ),
           const SizedBox(height: 12),
           TwoColumnGrid(children: [
@@ -239,11 +240,11 @@ class _Line extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [
           Expanded(
-            child: Text(label,
+            child: Tx(label,
                 style: TextStyle(color: strong ? AppColors.textPrimary : AppColors.textSecondary,
                     fontWeight: strong ? FontWeight.w800 : FontWeight.w500)),
           ),
-          Text(value,
+          Tx(value,
               style: TextStyle(fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
                   color: strong ? AppColors.statusCompleted : AppColors.textPrimary)),
         ]),
@@ -302,7 +303,7 @@ class _Figure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
-        Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: color ?? AppColors.textPrimary)),
+        Tx(label, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
+        Tx(value, style: TextStyle(fontWeight: FontWeight.w700, color: color ?? AppColors.textPrimary)),
       ]);
 }

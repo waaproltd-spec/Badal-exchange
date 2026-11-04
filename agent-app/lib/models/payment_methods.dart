@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../l10n/tr.dart';
 
 /// Payment methods, mirroring backend/src/lib/methods.ts.
 ///
@@ -139,7 +140,7 @@ class MethodBadge extends StatelessWidget {
         color: info.color.withOpacity(0.14),
         borderRadius: BorderRadius.circular(size * 0.3),
       ),
-      child: Text(
+      child: Tx(
         info.initials,
         style: TextStyle(color: info.color, fontWeight: FontWeight.w800, fontSize: size * 0.3),
       ),

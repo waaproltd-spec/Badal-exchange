@@ -5,6 +5,7 @@ import '../api/api_exception.dart';
 import '../models/console.dart';
 import '../theme/app_theme.dart';
 import 'console_widgets.dart';
+import '../l10n/tr.dart';
 
 const _rates = [(50, '0.5%'), (100, '1%'), (150, '1.5%'), (200, '2%')];
 
@@ -48,7 +49,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
       final b = await widget.api.setCustomerBonus(widget.customerId, rateBp: rateBp, enabled: enabled);
       if (mounted) setState(() => _bonus = b);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not save the bonus.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save the bonus.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -68,11 +69,11 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Withdrawal Bonus', style: TextStyle(color: AppColors.textSecondary)),
+                Tx('Withdrawal Bonus', style: TextStyle(color: AppColors.textSecondary)),
                 Text('\$${b.balance}',
                     key: const Key('bonus-balance'),
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                Text('Earned in total \$${b.totalEarned}',
+                Text(trp('Earned in total \${0}', [b.totalEarned]),
                     style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
               ]),
             ),
@@ -83,7 +84,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
             ),
           ]),
           const SizedBox(height: 10),
-          Text(
+          Tx(
             !b.programmeOn
                 ? 'The bonus is switched off for everyone.'
                 : b.enabled
@@ -116,7 +117,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
                       size: 18, color: e.earned ? AppColors.statusCompleted : AppColors.purple),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
+                    child: Tx(
                       e.earned
                           ? '${e.rate ?? ''} of \$${e.withdrawal ?? ''} ${e.direction == 'deposit' ? 'deposit' : 'withdrawal'} · ${e.orderCode ?? ''}'
                           : 'Moved to main wallet',

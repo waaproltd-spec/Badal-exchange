@@ -4,6 +4,7 @@ import '../../models/company_balance.dart';
 import '../../models/payment_methods.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
+import '../../l10n/tr.dart';
 
 /// How a company's balance status reads and looks.
 (String, Color, IconData) companyStatusLook(String status) => switch (status) {
@@ -31,7 +32,7 @@ class CompanyStatusPill extends StatelessWidget {
           Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 6),
           Flexible(
-            child: Text(label,
+            child: Tx(label,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
           ),
@@ -108,12 +109,12 @@ class CompanyCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(c.label,
+                    Tx(c.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
                     const SizedBox(height: 2),
-                    Text(companySource(c),
+                    Tx(companySource(c),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
@@ -138,7 +139,7 @@ class CompanyCard extends StatelessWidget {
                     if (c.connected && c.balance != null)
                       FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text('Limit ${companyLimit(c)}',
+                        child: Text(trp('Limit {0}', [companyLimit(c)]),
                             key: Key('company-limit-${c.method}'),
                             style: TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 12.5, color: AppColors.textSecondary)),

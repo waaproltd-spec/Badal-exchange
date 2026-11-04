@@ -13,6 +13,7 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_mode.dart';
 import '../widgets/state_views.dart';
+import '../l10n/tr.dart';
 
 /// Reports (agent_report_overview): Today / Yesterday / Last Month (the last
 /// 30 days) / All Time, or a custom range from the date line. Every section
@@ -144,7 +145,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       key: const Key('reports'),
       padding: EdgeInsets.fromLTRB(16, 4, 16, 32 + bottom),
       children: [
-        Text('Analytics & Insights', style: TextStyle(fontSize: 15, color: _R.muted)),
+        Tx('Analytics & Insights', style: TextStyle(fontSize: 15, color: _R.muted)),
         const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -172,10 +173,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Icon(Icons.calendar_month_rounded, size: 18, color: _range == 'custom' ? _R.text : _R.muted),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(_rangeLabel(r),
+                child: Tx(_rangeLabel(r),
                     style: TextStyle(color: _R.text, fontWeight: _range == 'custom' ? FontWeight.w700 : FontWeight.w500)),
               ),
-              Text('Custom', style: TextStyle(color: _R.muted, fontSize: 13)),
+              Tx('Custom', style: TextStyle(color: _R.muted, fontSize: 13)),
               Icon(Icons.expand_more_rounded, color: _R.muted, size: 18),
             ]),
           ),
@@ -183,7 +184,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(_error!, style: const TextStyle(color: AppColors.statusFailed)),
+            child: Tx(_error!, style: const TextStyle(color: AppColors.statusFailed)),
           ),
         const SizedBox(height: 10),
         const _Heading('Total Overview'),
@@ -240,7 +241,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           if (r.usersCount > r.users.length)
             Padding(
               padding: const EdgeInsets.only(top: 2, bottom: 6),
-              child: Text('Top ${r.users.length} of ${r.usersCount} customers',
+              child: Text(trp('Top {0} of {1} customers', [r.users.length, r.usersCount]),
                   style: TextStyle(color: _R.muted, fontSize: 12.5)),
             ),
         ],
@@ -284,7 +285,7 @@ class _Heading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 18, bottom: 10),
-        child: Text(text, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _R.text)),
+        child: Tx(text, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _R.text)),
       );
 }
 
@@ -297,7 +298,7 @@ class _Empty extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(color: _R.card, borderRadius: BorderRadius.circular(18)),
-        child: Text(text, style: TextStyle(color: _R.muted)),
+        child: Tx(text, style: TextStyle(color: _R.muted)),
       );
 }
 
@@ -317,7 +318,7 @@ class _FilterPill extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-          child: Text(label,
+          child: Tx(label,
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -358,12 +359,12 @@ class _OverviewCard extends StatelessWidget {
         const SizedBox(height: 10),
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(value, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: valueColor)),
+          child: Tx(value, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: valueColor)),
         ),
         const SizedBox(height: 6),
-        Text(label, style: TextStyle(fontSize: 15, color: _R.muted)),
+        Tx(label, style: TextStyle(fontSize: 15, color: _R.muted)),
         const SizedBox(height: 4),
-        Text(caption, textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: _R.muted)),
+        Tx(caption, textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: _R.muted)),
       ]),
     );
   }
@@ -398,8 +399,8 @@ class _SplitRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(children: [
-            Expanded(child: Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: _R.text))),
-            Text(countOnly ? '${figure.count}' : '${usd(figure.total)}  ·  ${figure.count}',
+            Expanded(child: Tx(label, style: TextStyle(fontWeight: FontWeight.w600, color: _R.text))),
+            Tx(countOnly ? '${figure.count}' : '${usd(figure.total)}  ·  ${figure.count}',
                 style: TextStyle(color: _R.muted, fontSize: 13.5)),
             Icon(Icons.chevron_right_rounded, color: _R.muted, size: 20),
           ]),
@@ -441,17 +442,17 @@ class _RankCard extends StatelessWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor: _R.yellow,
-            child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+            child: Tx(initial, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
           ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(row.label,
+            Tx(row.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _R.text)),
             const SizedBox(height: 2),
-            Text(row.phone != null ? '+${row.phone!.replaceAll('+', '')}' : '${row.count} transactions',
+            Tx(row.phone != null ? '+${row.phone!.replaceAll('+', '')}' : '${row.count} transactions',
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, color: _R.muted)),
           ]),
         ),
@@ -462,11 +463,11 @@ class _RankCard extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
-              child: Text(usd(row.total), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _R.green)),
+              child: Tx(usd(row.total), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _R.green)),
             ),
           ),
           if (row.phone != null)
-            Text('${row.count} txns', style: TextStyle(fontSize: 12.5, color: _R.muted)),
+            Text(trp('{0} txns', [row.count]), style: TextStyle(fontSize: 12.5, color: _R.muted)),
         ]),
       ]),
     );
@@ -489,7 +490,7 @@ class _TransactionRow extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('${t.label} · ${t.direction == 'deposit' ? 'Deposit' : 'Withdrawal'}',
                   maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, color: _R.text)),
-              Text(
+              Tx(
                 [t.orderCode, t.customerName ?? t.customerPhone, if (t.completedAt != null) _when.format(t.completedAt!.toLocal())]
                     .whereType<String>()
                     .join(' · '),
@@ -500,7 +501,7 @@ class _TransactionRow extends StatelessWidget {
             ]),
           ),
           const SizedBox(width: 8),
-          Text(usd(t.amount), style: const TextStyle(fontWeight: FontWeight.w800, color: _R.green, fontSize: 16)),
+          Tx(usd(t.amount), style: const TextStyle(fontWeight: FontWeight.w800, color: _R.green, fontSize: 16)),
         ]),
       );
 }
@@ -517,7 +518,7 @@ class _Legend extends StatelessWidget {
       children: [
         Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Tx(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ],
     );
   }

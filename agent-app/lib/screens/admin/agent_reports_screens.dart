@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
+import '../../l10n/tr.dart';
 
 /// Each agent's completed deposits and withdrawals, failures and wallet
 /// adjustments over a period.
@@ -44,7 +45,7 @@ class _AgentPerformanceScreenState extends State<AgentPerformanceScreen> {
   Widget build(BuildContext context) {
     final rows = _rows;
     return Scaffold(
-      appBar: AppBar(title: const Text('Agent performance')),
+      appBar: AppBar(title: const Tx('Agent performance')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -68,14 +69,14 @@ class _AgentPerformanceScreenState extends State<AgentPerformanceScreen> {
             else if (rows == null)
               const LoadingView()
             else if (rows.isEmpty)
-              ConsoleCard(child: Text('No agents.', style: TextStyle(color: AppColors.textSecondary)))
+              ConsoleCard(child: Tx('No agents.', style: TextStyle(color: AppColors.textSecondary)))
             else
               for (final r in rows) ...[
                 ConsoleCard(
                   key: Key('performance-${r.id}'),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      Expanded(child: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w800))),
+                      Expanded(child: Tx(r.name, style: const TextStyle(fontWeight: FontWeight.w800))),
                       StatusPill(r.status == 'active' ? 'active' : 'blocked'),
                     ]),
                     const SizedBox(height: 6),
@@ -126,7 +127,7 @@ class _LoginHistoryScreenState extends State<LoginHistoryScreen> {
   Widget build(BuildContext context) {
     final events = _events;
     return Scaffold(
-      appBar: AppBar(title: const Text('Login history')),
+      appBar: AppBar(title: const Tx('Login history')),
       body: _error != null
           ? ErrorStateView(message: _error!, onRetry: _load)
           : events == null
@@ -137,7 +138,7 @@ class _LoginHistoryScreenState extends State<LoginHistoryScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       if (events.isEmpty)
-                        ConsoleCard(child: Text('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary))),
+                        ConsoleCard(child: Tx('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary))),
                       for (final e in events) ...[
                         ConsoleCard(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -151,7 +152,7 @@ class _LoginHistoryScreenState extends State<LoginHistoryScreen> {
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text('${e.userName ?? e.actorName ?? '—'} · ${e.label}',
                                     style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                                Text(
+                                Tx(
                                   [
                                     formatDateTime(e.createdAt),
                                     if (e.action != 'user.login' && e.actorName != null && e.actorName != e.userName)

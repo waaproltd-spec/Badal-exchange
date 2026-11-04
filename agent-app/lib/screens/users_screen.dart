@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'customer_info_screen.dart';
+import '../l10n/tr.dart';
 
 /// Users = Customer App customers (not agents). Customer counts (total,
 /// active, blocked, and new in the chosen period), then the list: searchable
@@ -162,8 +163,8 @@ class _UsersScreenState extends State<UsersScreen> {
                     avatar: Icon(Icons.calendar_month_rounded,
                         size: 18, color: _period == id ? AppColors.onPrimary : AppColors.textSecondary),
                     label: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                      Text(en, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      Text(so, style: const TextStyle(fontSize: 11)),
+                      Tx(en, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Tx(so, style: const TextStyle(fontSize: 11)),
                     ]),
                     selected: _period == id,
                     showCheckmark: false,
@@ -240,10 +241,10 @@ class _UsersScreenState extends State<UsersScreen> {
                   _load();
                 },
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'newest', child: Text('Newest first')),
-                  PopupMenuItem(value: 'oldest', child: Text('Oldest first')),
-                  PopupMenuItem(value: 'balance', child: Text('Highest balance')),
-                  PopupMenuItem(value: 'name', child: Text('Name A–Z')),
+                  PopupMenuItem(value: 'newest', child: Tx('Newest first')),
+                  PopupMenuItem(value: 'oldest', child: Tx('Oldest first')),
+                  PopupMenuItem(value: 'balance', child: Tx('Highest balance')),
+                  PopupMenuItem(value: 'name', child: Tx('Name A–Z')),
                 ],
               ),
             ],
@@ -272,7 +273,7 @@ class _UsersScreenState extends State<UsersScreen> {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Text(_loadingMore ? 'Loading…' : 'Load more'),
+                  child: Tx(_loadingMore ? 'Loading…' : 'Load more'),
                 ),
               ),
           ],
@@ -301,17 +302,17 @@ class _CustomerTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                Tx(
                   customer.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
-                Text(customer.phone, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                Tx(customer.phone, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                 if (customer.registeredAt != null)
                   Text(
-                    'Joined ${formatDate(customer.registeredAt!)}',
+                    trp('Joined {0}', [formatDate(customer.registeredAt!)]),
                     style: TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                   ),
                 const SizedBox(height: 6),
@@ -355,7 +356,7 @@ class _Count extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, size: 13, color: AppColors.textFaint),
       const SizedBox(width: 3),
-      Text(text, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+      Tx(text, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
     ]);
   }
 }

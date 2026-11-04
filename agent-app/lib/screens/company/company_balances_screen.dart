@@ -11,6 +11,7 @@ import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import 'company_detail_screen.dart';
 import 'company_widgets.dart';
+import '../../l10n/tr.dart';
 
 /// Company Balances: each company's cash register balance as the server
 /// read it from the company, the total of the verified ones, and which
@@ -71,7 +72,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
     final data = _data;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Company Balances'),
+        title: const Tx('Company Balances'),
         actions: [
           IconButton(
             key: const Key('refresh-balances'),
@@ -122,7 +123,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                   _BalanceCard(data: data),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text('Could not refresh: $_error',
+                    Text(trp('Could not refresh: {0}', [_error]),
                         key: const Key('balances-error'), style: const TextStyle(color: AppColors.statusFailed)),
                   ],
                   const SizedBox(height: 8),
@@ -132,7 +133,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                     const SizedBox(height: 8),
                   ],
                   const SizedBox(height: 4),
-                  Text(
+                  Tx(
                     'Balance: what customers bought through the register. Limit: what it can still sell. '
                     'Read from each register (CashdeskBot) and updated with every completed sale and payout; '
                     'they can\'t be changed here. Companies without a balance connection show no amount.',
@@ -170,7 +171,7 @@ class _LimitCard extends StatelessWidget {
             Icon(Icons.speed_rounded, color: Colors.white.withOpacity(0.9), size: 22),
             const SizedBox(width: 8),
             Flexible(
-              child: Text('Total Limit',
+              child: Tx('Total Limit',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
@@ -223,7 +224,7 @@ class _BalanceCard extends StatelessWidget {
             Icon(Icons.account_balance_wallet_rounded, color: Colors.white.withOpacity(0.9), size: 22),
             const SizedBox(width: 8),
             Flexible(
-              child: Text('Total Balance',
+              child: Tx('Total Balance',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
@@ -239,14 +240,12 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Verified balances of ${data.totalCompanies} '
-            '${data.totalCompanies == 1 ? 'company' : 'companies'}'
-            '${left > 0 ? ' · $left not included (offline or not updated)' : ''}',
+            trp('Verified balances of {0} {1}{2}', [data.totalCompanies, data.totalCompanies == 1 ? 'company' : 'companies', left > 0 ? ' · $left not included (offline or not updated)' : '']),
             key: const Key('total-note'),
             style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12.5),
           ),
           const SizedBox(height: 4),
-          Text('Updated ${formatDateTime(data.generatedAt)}',
+          Text(trp('Updated {0}', [formatDateTime(data.generatedAt)]),
               style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11.5)),
         ],
       ),

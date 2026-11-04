@@ -7,6 +7,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import '../../l10n/tr.dart';
 
 String _err(Object e, String fallback) => e is ApiException ? e.message : fallback;
 
@@ -69,7 +70,7 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Customer Payment Numbers')),
+      appBar: AppBar(title: const Tx('Customer Payment Numbers')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -81,7 +82,7 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                     children: [
                       ConsoleCard(
-                        child: Text(
+                        child: Tx(
                           'An authorized customer can send money from, and receive withdrawals to, a new phone number on EVC Plus, '
                           'Golis, ZAAD and eDahab. Everyone else keeps using their registered number.',
                           style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
@@ -116,13 +117,13 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
                               },
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
-                                  Expanded(child: Text(c.name.isEmpty ? '+${c.phone}' : c.name, style: const TextStyle(fontWeight: FontWeight.w700))),
+                                  Expanded(child: Tx(c.name.isEmpty ? '+${c.phone}' : c.name, style: const TextStyle(fontWeight: FontWeight.w700))),
                                   _Pill(c.enabled ? 'Authorized' : 'Not authorized', c.enabled ? AppColors.statusCompleted : AppColors.textSecondary),
                                 ]),
                                 Text('+${c.phone} · ${c.accountId}', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-                                if (c.enabled) Text(_networks(c.methods), style: const TextStyle(fontSize: 12.5)),
+                                if (c.enabled) Tx(_networks(c.methods), style: const TextStyle(fontSize: 12.5)),
                                 if (c.numberCount > 0)
-                                  Text('${c.numberCount} number${c.numberCount == 1 ? '' : 's'} on file',
+                                  Text(trp('{0} number{1} on file', [c.numberCount, c.numberCount == 1 ? '' : 's']),
                                       style: TextStyle(fontSize: 12.5, color: AppColors.textFaint)),
                               ]),
                             ),
@@ -143,7 +144,7 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(20)),
-        child: Text(text, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
+        child: Tx(text, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
       );
 }
 
@@ -221,11 +222,11 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
       await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text(title),
-          content: Text(message),
+          title: Tx(title),
+          content: Tx(message),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-            TextButton(key: const Key('confirm-action'), onPressed: () => Navigator.of(context).pop(true), child: Text(action)),
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
+            TextButton(key: const Key('confirm-action'), onPressed: () => Navigator.of(context).pop(true), child: Tx(action)),
           ],
         ),
       ) ??
@@ -236,7 +237,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
     final d = _data;
     final api = context.read<Session>().api;
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment numbers')),
+      appBar: AppBar(title: const Tx('Payment numbers')),
       body: _loading
           ? const LoadingView()
           : (d == null
@@ -247,8 +248,8 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                   children: [
                     ConsoleCard(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(d.name.isEmpty ? '+${d.phone}' : d.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                        Text('Registered number: +${d.phone} · ${d.accountId}', style: TextStyle(color: AppColors.textSecondary)),
+                        Tx(d.name.isEmpty ? '+${d.phone}' : d.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                        Text(trp('Registered number: +{0} · {1}', [d.phone, d.accountId]), style: TextStyle(color: AppColors.textSecondary)),
                       ]),
                     ),
                     const SizedBox(height: 10),
@@ -256,11 +257,11 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                       key: const Key('payment-number-access'),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                         Row(children: [
-                          const Expanded(child: Text('Can use another number', style: TextStyle(fontWeight: FontWeight.w800))),
+                          const Expanded(child: Tx('Can use another number', style: TextStyle(fontWeight: FontWeight.w800))),
                           _Pill(d.access.enabled ? 'Authorized' : 'Not authorized', d.access.enabled ? AppColors.statusCompleted : AppColors.textSecondary),
                         ]),
                         const SizedBox(height: 4),
-                        Text(
+                        Tx(
                           d.access.enabled
                               ? 'The customer can send money from, and receive withdrawals to, a new number on the networks below.'
                               : 'The customer must use the registered number.',
@@ -271,7 +272,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                           for (final n in paymentNumberNetworks)
                             FilterChip(
                               key: Key('network-${n.$1}'),
-                              label: Text(n.$2),
+                              label: Tx(n.$2),
                               selected: _networksPicked.contains(n.$1),
                               onSelected: _busy
                                   ? null
@@ -290,7 +291,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                               : () => _run(
                                   () => api.setPaymentNumberAccess(d.id, enabled: true, methods: _networksPicked.toList()),
                                   'Could not save.'),
-                          child: Text(d.access.enabled ? 'Save networks' : 'Authorize this customer'),
+                          child: Tx(d.access.enabled ? 'Save networks' : 'Authorize this customer'),
                         ),
                         if (d.access.enabled)
                           TextButton(
@@ -302,21 +303,21 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                                       await _run(() => api.setPaymentNumberAccess(d.id, enabled: false), 'Could not revoke.');
                                     }
                                   },
-                            child: const Text('Revoke permission', style: TextStyle(color: AppColors.statusFailed)),
+                            child: const Tx('Revoke permission', style: TextStyle(color: AppColors.statusFailed)),
                           ),
                         if (!d.access.enabled && d.access.revokedAt != null)
-                          Text('Revoked ${formatDateTime(d.access.revokedAt!)}${d.access.revokedBy == null ? '' : ' by ${d.access.revokedBy}'}',
+                          Text(trp('Revoked {0}{1}', [formatDateTime(d.access.revokedAt!), d.access.revokedBy == null ? '' : ' by ${d.access.revokedBy}']),
                               style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                         if (d.access.enabled && d.access.grantedAt != null)
-                          Text('Authorized ${formatDateTime(d.access.grantedAt!)}${d.access.grantedBy == null ? '' : ' by ${d.access.grantedBy}'}',
+                          Text(trp('Authorized {0}{1}', [formatDateTime(d.access.grantedAt!), d.access.grantedBy == null ? '' : ' by ${d.access.grantedBy}']),
                               style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                       ]),
                     ),
                     const SizedBox(height: 10),
-                    const Text('Numbers on file', style: TextStyle(fontWeight: FontWeight.w800)),
+                    const Tx('Numbers on file', style: TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 6),
                     if (d.numbers.isEmpty)
-                      Text('No numbers yet.', key: Key('no-numbers'), style: TextStyle(color: AppColors.textSecondary))
+                      Text(tr('No numbers yet.'), key: Key('no-numbers'), style: TextStyle(color: AppColors.textSecondary))
                     else
                       for (final n in d.numbers)
                         Padding(
@@ -329,17 +330,16 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text('+${n.phone} · ${paymentNumberNetworkLabel(n.method)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                                   Text(
-                                    '${n.label == null ? '' : '${n.label} · '}added by the ${n.addedBy} · used ${n.uses} time${n.uses == 1 ? '' : 's'}'
-                                    '${n.lastUsedAt == null ? '' : ' · last ${formatDateTime(n.lastUsedAt!)}'}',
+                                    trp('{0}added by the {1} · used {2} time{3}{4}', [n.label == null ? '' : '${n.label} · ', n.addedBy, n.uses, n.uses == 1 ? '' : 's', n.lastUsedAt == null ? '' : ' · last ${formatDateTime(n.lastUsedAt!)}']),
                                     style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                                   ),
-                                  if (n.blocked) const Text('Blocked', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.statusFailed)),
+                                  if (n.blocked) const Tx('Blocked', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.statusFailed)),
                                 ]),
                               ),
                               TextButton(
                                 key: Key('block-${n.id}'),
                                 onPressed: _busy ? null : () => _run(() => api.setPaymentNumberBlocked(n.id, !n.blocked), 'Could not change the number.'),
-                                child: Text(n.blocked ? 'Unblock' : 'Block'),
+                                child: Tx(n.blocked ? 'Unblock' : 'Block'),
                               ),
                               IconButton(
                                 key: Key('remove-${n.id}'),
@@ -359,13 +359,13 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                     const SizedBox(height: 10),
                     ConsoleCard(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        const Text('Add a number', style: TextStyle(fontWeight: FontWeight.w800)),
+                        const Tx('Add a number', style: TextStyle(fontWeight: FontWeight.w800)),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
                           key: const Key('new-number-network'),
                           value: _newMethod,
                           decoration: const InputDecoration(labelText: 'Network'),
-                          items: [for (final n in paymentNumberNetworks) DropdownMenuItem(value: n.$1, child: Text(n.$2))],
+                          items: [for (final n in paymentNumberNetworks) DropdownMenuItem(value: n.$1, child: Tx(n.$2))],
                           onChanged: (v) => setState(() => _newMethod = v ?? _newMethod),
                         ),
                         const SizedBox(height: 8),
@@ -388,7 +388,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                                     _phone.clear();
                                     _label.clear();
                                   }, 'Could not add the number.'),
-                          child: const Text('Add number'),
+                          child: const Tx('Add number'),
                         ),
                       ]),
                     ),

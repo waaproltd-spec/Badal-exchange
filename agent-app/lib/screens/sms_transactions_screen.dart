@@ -10,6 +10,7 @@ import '../services/sms_log_store.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/state_views.dart';
+import '../l10n/tr.dart';
 
 /// A log of SMS-derived (and manual WinWin) submissions this device has
 /// made, with the match status the backend returned for each. There is no
@@ -115,7 +116,7 @@ class _SmsLogTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(
+                  child: Tx(
                     entry.isManualWinwin ? 'Manual WinWin confirmation' : 'EVC Plus SMS (${entry.provider})',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                   ),
@@ -131,8 +132,8 @@ class _SmsLogTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (entry.sender != null)
-                        Text(entry.sender!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                      Text('Ref: ${entry.transactionRef}', style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                        Tx(entry.sender!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      Text(trp('Ref: {0}', [entry.transactionRef]), style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                     ],
                   ),
                 ),
@@ -144,12 +145,12 @@ class _SmsLogTile extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Submitted ${_dateFormat.format(entry.submittedAt.toLocal())}',
+              trp('Submitted {0}', [_dateFormat.format(entry.submittedAt.toLocal())]),
               style: TextStyle(fontSize: 11, color: AppColors.textFaint),
             ),
             if (entry.status == MatchStatus.error && entry.errorMessage != null) ...[
               const SizedBox(height: 6),
-              Text(
+              Tx(
                 entry.errorMessage!,
                 style: const TextStyle(fontSize: 12, color: AppColors.statusFailed),
               ),

@@ -8,6 +8,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import '../../l10n/tr.dart';
 
 /// Withdrawal Verification (manage_withdrawal_verifications): before a
 /// customer's first withdrawal an admin approves the account. The server
@@ -67,7 +68,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(decision == 'reject' ? 'Reject ${v.accountId}?' : 'Restrict ${v.accountId} again?'),
+          title: Tx(decision == 'reject' ? 'Reject ${v.accountId}?' : 'Restrict ${v.accountId} again?'),
           content: TextField(
             key: const Key('verify-reason'),
             controller: controller,
@@ -75,11 +76,11 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             decoration: const InputDecoration(labelText: 'Reason (shown to the customer)'),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Tx('Cancel')),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.statusFailed),
               onPressed: () => Navigator.pop(context, true),
-              child: Text(decision == 'reject' ? 'Reject' : 'Restrict'),
+              child: Tx(decision == 'reject' ? 'Reject' : 'Restrict'),
             ),
           ],
         ),
@@ -90,11 +91,11 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Approve ${v.accountId}?'),
-          content: Text('${v.phone} can then withdraw under the usual rules.'),
+          title: Text(trp('Approve {0}?', [v.accountId])),
+          content: Text(trp('{0} can then withdraw under the usual rules.', [v.phone])),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Approve')),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Tx('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Tx('Approve')),
           ],
         ),
       );
@@ -110,7 +111,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not save the decision.')));
+          .showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save the decision.')));
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -122,7 +123,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Withdrawal Verification')),
+      appBar: AppBar(title: const Tx('Withdrawal Verification')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -133,7 +134,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
                     key: const Key('verifications'),
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                     children: [
-                      Text(
+                      Tx(
                         'Before a first withdrawal the account must be approved here. Until then the server '
                         'refuses every withdrawal of the account. Balances are never changed.',
                         style: TextStyle(color: AppColors.textSecondary),
@@ -179,7 +180,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
           Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(v.name?.isNotEmpty == true ? v.name! : v.phone, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                Tx(v.name?.isNotEmpty == true ? v.name! : v.phone, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 Text('${v.accountId} · +${v.phone.replaceAll('+', '')}', style: TextStyle(color: AppColors.textSecondary)),
               ]),
             ),
@@ -196,7 +197,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
           if (v.reason != null && v.reason!.isNotEmpty) InfoRow('Reason', v.reason!),
           if (v.recent.isNotEmpty) ...[
             const SizedBox(height: 6),
-            const Text('Recent transactions', style: TextStyle(fontWeight: FontWeight.w700)),
+            const Tx('Recent transactions', style: TextStyle(fontWeight: FontWeight.w700)),
             for (final o in v.recent.take(5))
               Padding(
                 padding: const EdgeInsets.only(top: 3),
@@ -213,21 +214,21 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
                 key: Key('approve-${v.customerId}'),
                 onPressed: busy ? null : () => _decide(v, 'approve'),
                 icon: const Icon(Icons.check_rounded),
-                label: const Text('Approve'),
+                label: const Tx('Approve'),
               ),
             if (v.status == 'pending')
               OutlinedButton.icon(
                 key: Key('reject-${v.customerId}'),
                 onPressed: busy ? null : () => _decide(v, 'reject'),
                 icon: const Icon(Icons.close_rounded),
-                label: const Text('Reject'),
+                label: const Tx('Reject'),
               ),
             if (v.status == 'approved')
               OutlinedButton.icon(
                 key: Key('restrict-${v.customerId}'),
                 onPressed: busy ? null : () => _decide(v, 'restrict'),
                 icon: const Icon(Icons.block_rounded),
-                label: const Text('Restrict'),
+                label: const Tx('Restrict'),
               ),
           ]),
         ]),

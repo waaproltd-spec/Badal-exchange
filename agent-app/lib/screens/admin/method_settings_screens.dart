@@ -7,6 +7,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../manage_screens.dart';
+import '../../l10n/tr.dart';
 
 /// Payment method management: ON/OFF switches and withdrawal limits, for
 /// mobile money and betting platforms alike. There are no rates or fees:
@@ -36,8 +37,8 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
               for (final m in methods)
                 SwitchListTile(
                   secondary: MethodLogo(method: m.method, width: 84),
-                  title: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(m.enabled ? 'ON — customers can use it' : 'OFF — hidden from customers'),
+                  title: Tx(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Tx(m.enabled ? 'ON — customers can use it' : 'OFF — hidden from customers'),
                   value: m.enabled,
                   onChanged: (v) => run(
                     () => api.setMethodEnabled(m.method, v),
@@ -54,14 +55,14 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Platforms')),
+      appBar: AppBar(title: const Tx('Manage Platforms')),
       body: body(
         builder: (methods) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
             Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text(
+              child: Tx(
                 'A platform turned OFF is hidden from customers and refuses new orders. '
                 'Orders already in progress still complete.',
                 style: TextStyle(color: AppColors.textSecondary),
@@ -112,7 +113,7 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(title: Tx(widget.title)),
       body: body(
         builder: (methods) => ListView(
           padding: const EdgeInsets.all(16),
@@ -132,14 +133,14 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
                           Row(
                             children: [
                               Expanded(
-                                child: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                                child: Tx(m.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                               ),
                               StatusPill(m.enabled ? 'active' : 'off'),
                             ],
                           ),
                           const SizedBox(height: 4),
                           for (final line in _summary(m))
-                            Text(line, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                            Tx(line, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                         ],
                       ),
                     ),
@@ -238,7 +239,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
   Widget build(BuildContext context) {
     final s = widget.settings;
     return Scaffold(
-      appBar: AppBar(title: Text(s.label)),
+      appBar: AppBar(title: Tx(s.label)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -248,7 +249,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: SwitchListTile(
                 secondary: MethodLogo(method: s.method, width: 84),
-                title: Text(s.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                title: Tx(s.label, style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text(
                   '${s.isPlatform ? 'Betting platform' : 'Mobile money'} • ${_enabled ? 'ON' : 'OFF'}',
                 ),
@@ -302,7 +303,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                     SwitchListTile(
                       key: const Key('merchant-ussd-on'),
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Show customers this code'),
+                      title: const Tx('Show customers this code'),
                       value: _merchantOn,
                       onChanged: (v) => setState(() => _merchantOn = v),
                     ),
@@ -311,10 +312,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Off: customers send money to the deposit number as before'
-                '${s.method == 'evc_plus' ? ' (*712*, confirmed automatically from the SMS)' : ''}. '
-                'On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms '
-                'each deposit from the merchant account; they wait up to 24 hours.',
+                trp('Off: customers send money to the deposit number as before{0}. On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms each deposit from the merchant account; they wait up to 24 hours.', [s.method == 'evc_plus' ? ' (*712*, confirmed automatically from the SMS)' : '']),
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
             ],
@@ -343,17 +341,17 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Shown to customers on ${s.label} Complete Deposit, with a Copy button each. Leave both empty to hide it.',
+                trp('Shown to customers on {0} Complete Deposit, with a Copy button each. Leave both empty to hide it.', [s.label]),
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
             ],
             const SizedBox(height: 12),
-            Text(
+            Tx(
               'Deposits and withdrawals are 1:1 with no fee: the customer gets exactly the amount sent.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
           ],
         ),
       ),

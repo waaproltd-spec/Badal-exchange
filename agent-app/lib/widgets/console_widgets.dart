@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/console.dart';
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
 
 /// Shared building blocks for the Dashboard / Users / Reports / History /
 /// Account tabs, so all five read as one card-based design.
@@ -58,13 +59,13 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
+            child: Tx(
               title,
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
             ),
           ),
           if (actionLabel != null)
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            TextButton(onPressed: onAction, child: Tx(actionLabel!)),
         ],
       ),
     );
@@ -80,7 +81,7 @@ class GroupLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-      child: Text(
+      child: Tx(
         text.toUpperCase(),
         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: AppColors.textSecondary),
       ),
@@ -144,7 +145,7 @@ class StatCard extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
+                  child: Tx(
                     value,
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                   ),
@@ -153,10 +154,10 @@ class StatCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Tx(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           if (caption != null) ...[
             const SizedBox(height: 2),
-            Text(caption!, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
+            Tx(caption!, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
           ],
         ],
       ),
@@ -207,7 +208,7 @@ class ChoiceChipsRow<T> extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(label),
+                label: Tx(label),
                 selected: value == selected,
                 onSelected: (_) => onSelected(value),
                 showCheckmark: false,
@@ -294,7 +295,7 @@ class StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(color: color.withOpacity(0.13), borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
+      child: Tx(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -334,7 +335,7 @@ class ActivityTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                Tx(
                   item.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -388,7 +389,7 @@ class InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: Text(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            child: Tx(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           ),
           Expanded(
             child: SelectableText(
@@ -417,7 +418,7 @@ Future<void> showActivityDetails(BuildContext context, HistoryItem item) {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: Tx(
                   item.title,
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),

@@ -10,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
+import '../../l10n/tr.dart';
 
 /// Dalab-Reseller-style payments: automatic withdrawal payouts from the agent
 /// phone, payment SMS review for deposits, and Baari's wallets on the phone.
@@ -24,7 +25,7 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(color: color.withOpacity(0.13), borderRadius: BorderRadius.circular(999)),
-        child: Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
+        child: Tx(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
       );
 }
 
@@ -45,11 +46,11 @@ Future<bool> _confirm(BuildContext context, String title, String message, String
     await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        title: Tx(title),
+        content: Tx(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(action)),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Tx(action)),
         ],
       ),
     ) ??
@@ -87,7 +88,7 @@ class _PayoutsScreenState extends ListScreenState<PayoutsScreen, PayoutOrder> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Automatic Payouts')),
+      appBar: AppBar(title: const Tx('Automatic Payouts')),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -131,7 +132,7 @@ class _PayoutsScreenState extends ListScreenState<PayoutsScreen, PayoutOrder> {
                                 Text('${o.orderCode} • ${o.customerName ?? ''}',
                                     style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
                                 if (o.failureReason != null)
-                                  Text(o.failureReason!, style: const TextStyle(color: AppColors.statusFailed, fontSize: 12)),
+                                  Tx(o.failureReason!, style: const TextStyle(color: AppColors.statusFailed, fontSize: 12)),
                               ]),
                             ),
                             _Pill(label, color),
@@ -224,14 +225,14 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Mark as paid'),
+        title: const Tx('Mark as paid'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Only if the payout wallet\'s history shows \$${_order!.payoutAmount} sent to ${_order!.phoneNumber}.'),
+          Text(trp('Only if the payout wallet\'s history shows \${0} sent to {1}.', [_order!.payoutAmount, _order!.phoneNumber])),
           TextField(controller: ref, decoration: const InputDecoration(labelText: 'Carrier reference')),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('It was paid')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('It was paid')),
         ],
       ),
     );
@@ -261,7 +262,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
   Widget build(BuildContext context) {
     final o = _order;
     return Scaffold(
-      appBar: AppBar(title: Text(o?.orderCode ?? 'Payout')),
+      appBar: AppBar(title: Tx(o?.orderCode ?? 'Payout')),
       body: o == null
           ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
           : RefreshIndicator(
@@ -273,7 +274,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
                         Expanded(
-                          child: Text('Withdrawal ${o.methodLabel}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                          child: Text(trp('Withdrawal {0}', [o.methodLabel]), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                         ),
                         _Pill(_payoutState(o).$1, _payoutState(o).$2),
                       ]),
@@ -293,17 +294,17 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                   Wrap(spacing: 8, runSpacing: 8, children: [
                     if (o.status == 'processing' && o.payoutReview) ...[
                       FilledButton.icon(
-                          onPressed: _busy ? null : _retry, icon: const Icon(Icons.replay_rounded), label: const Text('Retry payout')),
+                          onPressed: _busy ? null : _retry, icon: const Icon(Icons.replay_rounded), label: const Tx('Retry payout')),
                       OutlinedButton.icon(
-                          onPressed: _busy ? null : _complete, icon: const Icon(Icons.verified_rounded), label: const Text('It was paid')),
+                          onPressed: _busy ? null : _complete, icon: const Icon(Icons.verified_rounded), label: const Tx('It was paid')),
                       OutlinedButton.icon(
-                          onPressed: _busy ? null : _fail, icon: const Icon(Icons.undo_rounded), label: const Text('Fail & refund')),
+                          onPressed: _busy ? null : _fail, icon: const Icon(Icons.undo_rounded), label: const Tx('Fail & refund')),
                     ],
                     if ((o.status == 'pending' || (o.status == 'processing' && o.payoutRequested)) && !o.payoutReview)
                       FilledButton.icon(
                           onPressed: _busy ? null : _payNow,
                           icon: const Icon(Icons.send_rounded),
-                          label: const Text('Send payout from this phone')),
+                          label: const Tx('Send payout from this phone')),
                   ]),
                   if (o.dialAttempts.isNotEmpty) ...[
                     const GroupLabel('Payout attempts'),
@@ -313,13 +314,13 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                         child: ConsoleCard(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
-                              Expanded(child: Text('Attempt ${a.attemptNumber}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                              Expanded(child: Text(trp('Attempt {0}', [a.attemptNumber]), style: const TextStyle(fontWeight: FontWeight.w700))),
                               _Pill(a.status, a.status == 'success' ? AppColors.statusCompleted : AppColors.statusDuplicate),
                             ]),
-                            if (a.step1Response != null) Text('Carrier, step 1: ${a.step1Response}'),
-                            if (a.step2Response != null) Text('Carrier, after PIN: ${a.step2Response}'),
+                            if (a.step1Response != null) Text(trp('Carrier, step 1: {0}', [a.step1Response])),
+                            if (a.step2Response != null) Text(trp('Carrier, after PIN: {0}', [a.step2Response])),
                             if (a.createdAt != null)
-                              Text(formatDateTime(a.createdAt!), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                              Tx(formatDateTime(a.createdAt!), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
                           ]),
                         ),
                       ),
@@ -364,16 +365,15 @@ class _PaymentSmsReviewScreenState extends ListScreenState<PaymentSmsReviewScree
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Assign to a deposit'),
+        title: const Tx('Assign to a deposit'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Only when you are sure which pending deposit this \$${s.amount} payment belongs to. '
-              'That customer\'s wallet is credited.'),
+          Text(trp('Only when you are sure which pending deposit this \${0} payment belongs to. That customer\'s wallet is credited.', [s.amount])),
           const SizedBox(height: 12),
           TextField(controller: code, decoration: const InputDecoration(labelText: 'Deposit order code')),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Assign')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('Assign')),
         ],
       ),
     );
@@ -385,7 +385,7 @@ class _PaymentSmsReviewScreenState extends ListScreenState<PaymentSmsReviewScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment SMS')),
+      appBar: AppBar(title: const Tx('Payment SMS')),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -420,7 +420,7 @@ class _PaymentSmsReviewScreenState extends ListScreenState<PaymentSmsReviewScree
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
                               Expanded(
-                                child: Text(
+                                child: Tx(
                                   s.amount != null ? '\$${s.amount} from ${s.phone ?? '?'} (${s.provider ?? s.sender})' : s.sender,
                                   style: const TextStyle(fontWeight: FontWeight.w700),
                                 ),
@@ -428,19 +428,19 @@ class _PaymentSmsReviewScreenState extends ListScreenState<PaymentSmsReviewScree
                               StatusPill(s.matchStatus),
                             ]),
                             const SizedBox(height: 6),
-                            Text(s.body, style: const TextStyle(fontSize: 13)),
+                            Tx(s.body, style: const TextStyle(fontSize: 13)),
                             if (s.reason != null) ...[
                               const SizedBox(height: 4),
-                              Text(s.reason!, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                              Tx(s.reason!, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                             ],
                             if (s.orderCode != null)
-                              Text('Deposit: ${s.orderCode}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                              Text(trp('Deposit: {0}', [s.orderCode]), style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                             if (s.receivedAt != null)
-                              Text(formatDateTime(s.receivedAt!), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                              Tx(formatDateTime(s.receivedAt!), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
                             if (open && s.amount != null)
                               Align(
                                 alignment: Alignment.centerRight,
-                                child: TextButton(onPressed: () => _assign(s), child: const Text('Assign to deposit')),
+                                child: TextButton(onPressed: () => _assign(s), child: const Tx('Assign to deposit')),
                               ),
                           ]),
                         ),
@@ -523,15 +523,15 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, set) => AlertDialog(
-          title: Text(w == null ? 'Add wallet' : 'Edit wallet'),
+          title: Tx(w == null ? 'Add wallet' : 'Edit wallet'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               DropdownButtonFormField<String>(
                 value: method,
                 decoration: const InputDecoration(labelText: 'Wallet'),
                 items: const [
-                  DropdownMenuItem(value: 'evc_plus', child: Text('EVC Plus')),
-                  DropdownMenuItem(value: 'edahab', child: Text('eDahab')),
+                  DropdownMenuItem(value: 'evc_plus', child: Tx('EVC Plus')),
+                  DropdownMenuItem(value: 'edahab', child: Tx('eDahab')),
                 ],
                 onChanged: (v) => set(() => method = v ?? method),
               ),
@@ -543,8 +543,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('SIM is in this phone'),
-                subtitle: const Text('Its payment SMS are read here and its payouts are sent from here'),
+                title: const Tx('SIM is in this phone'),
+                subtitle: const Tx('Its payment SMS are read here and its payouts are sent from here'),
                 value: onThisPhone,
                 onChanged: (v) => set(() => onThisPhone = v),
               ),
@@ -553,16 +553,16 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                   value: slot,
                   decoration: const InputDecoration(labelText: 'SIM slot'),
                   items: const [
-                    DropdownMenuItem(value: 1, child: Text('SIM 1')),
-                    DropdownMenuItem(value: 2, child: Text('SIM 2')),
+                    DropdownMenuItem(value: 1, child: Tx('SIM 1')),
+                    DropdownMenuItem(value: 2, child: Tx('SIM 2')),
                   ],
                   onChanged: (v) => set(() => slot = v),
                 ),
             ]),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('Save')),
           ],
         ),
       ),
@@ -590,7 +590,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('PIN for ${w.methodLabel} ${w.phoneNumber}'),
+        title: Text(trp('PIN for {0} {1}', [w.methodLabel, w.phoneNumber])),
         content: TextField(
           controller: pin,
           obscureText: true,
@@ -598,8 +598,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           decoration: const InputDecoration(labelText: 'Wallet PIN', helperText: 'Stored encrypted; it is never shown again.'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save PIN')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('Save PIN')),
         ],
       ),
     );
@@ -611,7 +611,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('*736 code for ${w.methodLabel} ${w.phoneNumber}'),
+        title: Text(trp('*736 code for {0} {1}', [w.methodLabel, w.phoneNumber])),
         content: TextField(
           controller: code,
           obscureText: true,
@@ -623,8 +623,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save code')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('Save code')),
         ],
       ),
     );
@@ -667,7 +667,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('${g.methodLabel} limits'),
+        title: Text(trp('{0} limits', [g.methodLabel])),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(
             key: const Key('auto-daily'),
@@ -683,8 +683,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('Save')),
         ],
       ),
     );
@@ -703,7 +703,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('${g.methodLabel} wallet balance'),
+        title: Text(trp('{0} wallet balance', [g.methodLabel])),
         content: TextField(
           key: const Key('auto-balance'),
           controller: bal,
@@ -714,8 +714,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('Save')),
         ],
       ),
     );
@@ -739,20 +739,20 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       child: ConsoleCard(
         key: Key('auto-${g.method}'),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(g.methodLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          Tx(g.methodLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
           SegmentedButton<String>(
             key: Key('auto-mode-${g.method}'),
             segments: const [
-              ButtonSegment(value: 'off', label: Text('Off')),
-              ButtonSegment(value: 'test', label: Text('Test')),
-              ButtonSegment(value: 'live', label: Text('Live')),
+              ButtonSegment(value: 'off', label: Tx('Off')),
+              ButtonSegment(value: 'test', label: Tx('Test')),
+              ButtonSegment(value: 'live', label: Tx('Live')),
             ],
             selected: {g.mode},
             onSelectionChanged: g.hasWallet || g.mode != 'off' ? (v) => _setMode(g, v.first) : null,
           ),
           const SizedBox(height: 6),
-          Text(g.hasWallet ? help : 'Add a wallet with a phone and PIN first.',
+          Tx(g.hasWallet ? help : 'Add a wallet with a phone and PIN first.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
           InfoRow('Paid today', '\$${g.paidToday} of \$${g.dailyLimit}'),
           InfoRow('Minimum balance', '\$${g.minBalance}'),
@@ -764,14 +764,14 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           ),
           InfoRow('\$${g.testAmount} test', g.testPassed ? 'Passed${g.testOrderCode != null ? ' (${g.testOrderCode})' : ''}' : 'Not passed yet'),
           if (g.liveNeedsRetest)
-            const Text('The payout wallet or phone changed: switch to Test and send a new test.',
+            const Tx('The payout wallet or phone changed: switch to Test and send a new test.',
                 style: TextStyle(color: AppColors.statusFailed)),
           if (g.waiting > 0 && g.heldReason != null)
-            Text('${g.waiting} waiting · ${g.heldReason}',
+            Text(trp('{0} waiting · {1}', [g.waiting, g.heldReason]),
                 key: Key('auto-held-${g.method}'), style: const TextStyle(color: AppColors.statusPending)),
           Wrap(spacing: 8, children: [
-            TextButton(onPressed: () => _editLimits(g), child: const Text('Limits')),
-            if (g.hasWallet) TextButton(onPressed: () => _enterBalance(g), child: const Text('Enter balance')),
+            TextButton(onPressed: () => _editLimits(g), child: const Tx('Limits')),
+            if (g.hasWallet) TextButton(onPressed: () => _enterBalance(g), child: const Tx('Enter balance')),
           ]),
         ]),
       ),
@@ -813,7 +813,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Sahal daily limit'),
+        title: const Tx('Sahal daily limit'),
         content: TextField(
           key: const Key('sahal-daily'),
           controller: daily,
@@ -821,8 +821,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           decoration: const InputDecoration(labelText: 'Daily limit (\$)', helperText: 'Sent from Sahal per day'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Tx('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Tx('Save')),
         ],
       ),
     );
@@ -852,20 +852,20 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
       child: ConsoleCard(
         key: const Key('auto-sahal'),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Golis, ZAAD & EVC Plus (from Sahal)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const Tx('Golis, ZAAD & EVC Plus (from Sahal)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
           SegmentedButton<String>(
             key: const Key('auto-mode-sahal'),
             segments: const [
-              ButtonSegment(value: 'off', label: Text('Off')),
-              ButtonSegment(value: 'test', label: Text('Test')),
-              ButtonSegment(value: 'live', label: Text('Live')),
+              ButtonSegment(value: 'off', label: Tx('Off')),
+              ButtonSegment(value: 'test', label: Tx('Test')),
+              ButtonSegment(value: 'live', label: Tx('Live')),
             ],
             selected: {g.mode},
             onSelectionChanged: (v) => _setSahalMode(g, v.first),
           ),
           const SizedBox(height: 6),
-          Text(help, style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+          Tx(help, style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
           InfoRow('Sent today', '\$${g.paidToday} of \$${g.dailyLimit}'),
           InfoRow(
             'Sahal balance',
@@ -874,12 +874,12 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                 : '\$${g.balance}${g.balanceSeenAt != null ? ' (${formatDateTime(g.balanceSeenAt!)})' : ''}',
           ),
           if (g.needsBalance > 0)
-            Text('${g.needsBalance} waiting for more Sahal balance: top up Sahal and they go out.',
+            Text(trp('{0} waiting for more Sahal balance: top up Sahal and they go out.', [g.needsBalance]),
                 key: const Key('sahal-needs-balance'), style: const TextStyle(color: AppColors.statusPending)),
           InfoRow('\$${g.testAmount} test', g.testPassed ? 'Passed' : 'Not passed yet'),
           if (g.waiting > 0) InfoRow('Waiting', '${g.waiting}'),
           if (g.unclear > 0)
-            Text('${g.unclear} transfer(s) without a clear answer: check them in Sahal before paying again.',
+            Text(trp('{0} transfer(s) without a clear answer: check them in Sahal before paying again.', [g.unclear]),
                 style: const TextStyle(color: AppColors.statusFailed)),
           for (final a in g.recent.take(5)) ...[
             Text(
@@ -894,12 +894,12 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                 child: TextButton(
                   key: Key('sahal-retry-${a.orderCode}'),
                   onPressed: () => _run(() => _session.api.retrySahalPayout(a.orderId!), '${a.orderCode} will be sent again.'),
-                  child: const Text('Try again'),
+                  child: const Tx('Try again'),
                 ),
               ),
           ],
           Wrap(spacing: 8, children: [
-            TextButton(onPressed: () => _editSahalLimit(g), child: const Text('Limit')),
+            TextButton(onPressed: () => _editSahalLimit(g), child: const Tx('Limit')),
           ]),
         ]),
       ),
@@ -918,7 +918,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
     final wallets = _wallets;
     final d = _device;
     return Scaffold(
-      appBar: AppBar(title: const Text('Wallets & Auto Payout')),
+      appBar: AppBar(title: const Tx('Wallets & Auto Payout')),
       body: wallets == null
           ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
           : RefreshIndicator(
@@ -931,8 +931,8 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Automatic withdrawal payouts'),
-                        subtitle: const Text('Pays EVC Plus / eDahab withdrawals whose payout wallet is on this phone, one at a time'),
+                        title: const Tx('Automatic withdrawal payouts'),
+                        subtitle: const Tx('Pays EVC Plus / eDahab withdrawals whose payout wallet is on this phone, one at a time'),
                         value: _auto,
                         onChanged: _setAuto,
                       ),
@@ -942,7 +942,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                         if (d?.accessibilityEnabled != true)
                           OutlinedButton(
                             onPressed: () => _session.payouts.device.openAccessibilitySettings(),
-                            child: const Text('Open Accessibility'),
+                            child: const Tx('Open Accessibility'),
                           ),
                         if (d?.permissionsGranted != true)
                           OutlinedButton(
@@ -950,7 +950,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                               await Permission.phone.request();
                               _load();
                             },
-                            child: const Text('Grant permission'),
+                            child: const Tx('Grant permission'),
                           ),
                       ]),
                     ]),
@@ -960,9 +960,9 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                   if (_sahal != null) _sahalCard(_sahal!),
                   Row(children: [
                     const Expanded(child: GroupLabel('Badal Exchange wallets')),
-                    TextButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('Add')),
+                    TextButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Tx('Add')),
                   ]),
-                  Text(
+                  Tx(
                     'Deposit SMS for a wallet only count when they arrive on its phone and SIM. '
                     'Withdrawals are paid from the oldest wallet of each kind that has a phone and a PIN.',
                     style: TextStyle(color: AppColors.textSecondary),
@@ -975,7 +975,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                         onTap: () => _edit(w),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               Text('${_methodLabel(w.method)} ${w.phoneNumber}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                              Text(
+                              Tx(
                                 [
                                   w.deviceId == null
                                       ? 'No phone set'
@@ -986,10 +986,10 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                               ),
                               Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-                                TextButton(onPressed: () => _setPin(w), child: Text(w.hasPin ? 'Change PIN' : 'Set PIN')),
+                                TextButton(onPressed: () => _setPin(w), child: Tx(w.hasPin ? 'Change PIN' : 'Set PIN')),
                                 if (w.method == 'evc_plus')
                                   TextButton(
-                                      onPressed: () => _setCode(w), child: Text(w.hasCode ? 'Change *736 code' : 'Set *736 code')),
+                                      onPressed: () => _setCode(w), child: Tx(w.hasCode ? 'Change *736 code' : 'Set *736 code')),
                                 IconButton(
                                     tooltip: 'Remove',
                                     onPressed: () => _delete(w),

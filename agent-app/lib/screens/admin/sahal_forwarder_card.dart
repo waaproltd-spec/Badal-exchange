@@ -7,6 +7,7 @@ import '../../api/api_exception.dart';
 import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
+import '../../l10n/tr.dart';
 
 /// Sahal access code from an SMS-forwarding app. When the merchant phone
 /// does not run this app, an app such as "SMS Forwarder" can send the Sahal
@@ -88,7 +89,7 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
 
   void _copy(String text, String what) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$what copied')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(trp('{0} copied', [what]))));
   }
 
   @override
@@ -107,20 +108,20 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
           ),
           if (_token != null) ...[
             const SizedBox(height: 12),
-            Text('Put these in the forwarding app (Add filter → Incoming SMS/RCS → Recipients → Add → URL). '
+            Tx('Put these in the forwarding app (Add filter → Incoming SMS/RCS → Recipients → Add → URL). '
                 'This token is shown once: copy it now.',
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
             const SizedBox(height: 8),
             _Copyable(label: 'URL', value: SahalForwarderCard.url, onCopy: () => _copy(SahalForwarderCard.url, 'URL')),
             _Copyable(label: 'Header  Authorization', value: 'Bearer $_token', onCopy: () => _copy('Bearer $_token', 'Header')),
             const SizedBox(height: 6),
-            Text('Method POST, JSON body {"from": "<sender>", "text": "<message>"} using the forwarding app\'s '
+            Tx('Method POST, JSON body {"from": "<sender>", "text": "<message>"} using the forwarding app\'s '
                 'own placeholders for the sender and the message. Filter on messages containing "Sahal".',
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
           ],
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: AppColors.statusFailed)),
+            Tx(_error!, style: const TextStyle(color: AppColors.statusFailed)),
           ],
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: [
@@ -128,13 +129,13 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
               key: const Key('forwarder-make'),
               onPressed: _busy ? null : _make,
               icon: const Icon(Icons.key_rounded),
-              label: Text(configured ? 'New token (replaces the old)' : 'Create token'),
+              label: Tx(configured ? 'New token (replaces the old)' : 'Create token'),
             ),
             if (configured)
               TextButton(
                 key: const Key('forwarder-revoke'),
                 onPressed: _busy ? null : _revoke,
-                child: const Text('Turn off'),
+                child: const Tx('Turn off'),
               ),
           ]),
         ]),
@@ -155,7 +156,7 @@ class _Copyable extends StatelessWidget {
     return Row(children: [
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Tx(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           SelectableText(value, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
         ]),
       ),

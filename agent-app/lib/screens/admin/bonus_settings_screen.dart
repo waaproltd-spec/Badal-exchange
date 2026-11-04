@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../customer_info_screen.dart';
+import '../../l10n/tr.dart';
 
 const _rates = [(50, '0.5%'), (100, '1%'), (150, '1.5%'), (200, '2%')];
 
@@ -61,7 +62,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
           .setBonusSettings(enabled: enabled, defaultRateBp: defaultRateBp, eligible: eligible);
       if (mounted) setState(() => _settings = s);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not save.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -78,9 +79,9 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
     try {
       final updated = await context.read<Session>().api.setBonusLimits(daily: result.$1, monthly: result.$2);
       if (mounted) setState(() => _settings = updated);
-      messenger.showSnackBar(const SnackBar(content: Text('Bonus limits saved.')));
+      messenger.showSnackBar(const SnackBar(content: Tx('Bonus limits saved.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not save.')));
+      messenger.showSnackBar(SnackBar(content: Tx(e is ApiException ? e.message : 'Could not save.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -96,7 +97,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
   Widget build(BuildContext context) {
     final s = _settings;
     return Scaffold(
-      appBar: AppBar(title: const Text('Bonus')),
+      appBar: AppBar(title: const Tx('Bonus')),
       body: s == null
           ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
           : RefreshIndicator(onRefresh: _load, child: _body(s)),
@@ -113,7 +114,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               const TintedIcon(icon: Icons.redeem_rounded, color: AppColors.accentOrange, size: 44),
               const SizedBox(width: 12),
               Expanded(
-                child: Text('Bonus system',
+                child: Tx('Bonus system',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               ),
               Switch(
@@ -123,14 +124,14 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               ),
             ]),
             const SizedBox(height: 6),
-            Text(
+            Tx(
               s.enabled
                   ? 'Customers earn the bonus on completed transactions of the types switched on below.'
                   : 'Off: nobody earns a bonus. Bonuses already earned stay in the customers\' bonus wallets.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
-            Text('Bonus rate', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Tx('Bonus rate', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             const SizedBox(height: 6),
             IgnorePointer(
               ignoring: _saving,
@@ -144,7 +145,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Text('For every customer without a rate of their own (set on Customer Info).',
+            Tx('For every customer without a rate of their own (set on Customer Info).',
                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
           ]),
         ),
@@ -154,18 +155,18 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(
-                child: Text('Limits per customer',
+                child: Tx('Limits per customer',
                     style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
               ),
               TextButton(
                 key: const Key('bonus-limits-edit'),
                 onPressed: _saving ? null : () => _editLimits(s),
-                child: const Text('Change'),
+                child: const Tx('Change'),
               ),
             ]),
             InfoRow('Per day', s.dailyLimit == null ? 'No limit' : '\$${s.dailyLimit}'),
             InfoRow('Per month', s.monthlyLimit == null ? 'No limit' : '\$${s.monthlyLimit}'),
-            Text('Over a limit, the rest of a bonus is not credited; the history says so.',
+            Tx('Over a limit, the rest of a bonus is not credited; the history says so.',
                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
           ]),
         ),
@@ -198,7 +199,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
                 SwitchListTile(
                   key: Key('bonus-type-${t.key}'),
                   dense: true,
-                  title: Text(t.label),
+                  title: Tx(t.label),
                   value: t.eligible,
                   onChanged: _saving ? null : (v) => _toggleType(s, t, v),
                 ),
@@ -209,7 +210,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
         const SizedBox(height: 4),
         const SectionHeader(title: 'Customers'),
         if (s.customers.isEmpty)
-          ConsoleCard(child: Text('No customer has a bonus yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Tx('No customer has a bonus yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final c in s.customers) ...[
             ConsoleCard(
@@ -221,13 +222,13 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               child: Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(c.name, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    Tx(c.name, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                     Text('${c.phone} · ${c.rate}', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                   ]),
                 ),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text('\$${c.balance}', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  Text('Earned \$${c.totalEarned}', style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                  Text(trp('Earned \${0}', [c.totalEarned]), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                 ]),
               ]),
             ),
@@ -236,7 +237,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
         const SizedBox(height: 4),
         const SectionHeader(title: 'History'),
         if (s.history.isEmpty)
-          ConsoleCard(child: Text('Nothing yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Tx('Nothing yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final e in s.history) ...[
             _HistoryTile(entry: e),
@@ -266,10 +267,10 @@ class _HistoryTile extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(e.customerName ?? '', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            Text(what, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-            if (e.note != null) Text(e.note!, style: const TextStyle(fontSize: 12, color: AppColors.statusPending)),
-            Text(formatDateTime(e.createdAt), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+            Tx(e.customerName ?? '', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Tx(what, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+            if (e.note != null) Tx(e.note!, style: const TextStyle(fontSize: 12, color: AppColors.statusPending)),
+            Tx(formatDateTime(e.createdAt), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
           ]),
         ),
         Text('${e.earned ? '+' : '-'}\$${e.amount}', style: TextStyle(fontWeight: FontWeight.w800, color: color)),
@@ -310,7 +311,7 @@ class _LimitsDialogState extends State<_LimitsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Bonus limits'),
+      title: const Tx('Bonus limits'),
       content: Form(
         key: _formKey,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -331,12 +332,12 @@ class _LimitsDialogState extends State<_LimitsDialog> {
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('Cancel')),
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) Navigator.of(context).pop((_daily.text.trim(), _monthly.text.trim()));
           },
-          child: const Text('Save'),
+          child: const Tx('Save'),
         ),
       ],
     );

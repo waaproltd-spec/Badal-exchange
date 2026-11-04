@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
+import '../l10n/tr.dart';
 
 /// Screens opened from the Account tab. The admin features need the
 /// 'manage_settings' responsibility; the backend enforces it on every call.
@@ -20,7 +21,7 @@ import 'login_screen.dart';
 String errorText(Object e, String fallback) => e is ApiException ? e.message : fallback;
 
 void showSnack(BuildContext context, String text) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Tx(text)));
 
 /// Loads a list, shows loading/error/empty states, and reloads on demand.
 abstract class ListScreenState<W extends StatefulWidget, T> extends State<W> {
@@ -95,11 +96,11 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Home Ads')),
+      appBar: AppBar(title: const Tx('Manage Home Ads')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add ad'),
+        label: const Tx('Add ad'),
       ),
       body: body(
         builder: (ads) => ads.isEmpty
@@ -125,9 +126,9 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(ad.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                Tx(ad.title, style: const TextStyle(fontWeight: FontWeight.w800)),
                                 if ((ad.body ?? '').isNotEmpty)
-                                  Text(
+                                  Tx(
                                     ad.body!,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -288,7 +289,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
       key: const Key('ad-image-card'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Image (optional)', style: TextStyle(fontWeight: FontWeight.w700)),
+        const Tx('Image (optional)', style: TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         if (preview != null)
           ClipRRect(
@@ -303,7 +304,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
               key: const Key('ad-image-choose'),
               onPressed: _saving ? null : _choose,
               icon: const Icon(Icons.photo_library_outlined),
-              label: Text(preview == null ? 'Choose Image' : 'Change Image'),
+              label: Tx(preview == null ? 'Choose Image' : 'Change Image'),
             ),
             if (preview != null)
               TextButton(
@@ -315,14 +316,14 @@ class _HomeAdFormState extends State<HomeAdForm> {
                           _removed = true;
                           _upload = _Upload.idle;
                         }),
-                child: const Text('Remove'),
+                child: const Tx('Remove'),
               ),
           ],
         ),
         if (_picked != null && _upload == _Upload.idle)
           Padding(
             padding: EdgeInsets.only(top: 4),
-            child: Text('Saved when you tap Save.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            child: Tx('Saved when you tap Save.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           ),
         if (status != null)
           Padding(
@@ -341,7 +342,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.ad == null ? 'Add Home Ad' : 'Edit Home Ad')),
+      appBar: AppBar(title: Tx(widget.ad == null ? 'Add Home Ad' : 'Edit Home Ad')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -376,12 +377,12 @@ class _HomeAdFormState extends State<HomeAdForm> {
             const SizedBox(height: 8),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Show to customers'),
+              title: const Tx('Show to customers'),
               value: _enabled,
               onChanged: (v) => setState(() => _enabled = v),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
           ],
         ),
       ),
@@ -417,11 +418,11 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Deposit Numbers')),
+      appBar: AppBar(title: const Tx('Manage Deposit Numbers')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add number'),
+        label: const Tx('Add number'),
       ),
       body: body(
         builder: (numbers) => numbers.isEmpty
@@ -447,8 +448,8 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(n.number, style: const TextStyle(fontWeight: FontWeight.w800)),
-                                Text(
+                                Tx(n.number, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                Tx(
                                   [methodInfo(n.method).label, if ((n.label ?? '').isNotEmpty) n.label!].join(' • '),
                                   style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                                 ),
@@ -527,7 +528,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
   Widget build(BuildContext context) {
     final isPlatform = methodInfo(_method).isPlatform;
     return AlertDialog(
-      title: Text(widget.number == null ? 'Add deposit number' : 'Edit deposit number'),
+      title: Tx(widget.number == null ? 'Add deposit number' : 'Edit deposit number'),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -537,7 +538,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
               DropdownButtonFormField<String>(
                 value: _method,
                 decoration: const InputDecoration(labelText: 'Payment method'),
-                items: [for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Text(m.label))],
+                items: [for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Tx(m.label))],
                 onChanged: (v) => setState(() => _method = v ?? _method),
               ),
               const SizedBox(height: 12),
@@ -554,7 +555,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Show to customers'),
+                title: const Tx('Show to customers'),
                 value: _enabled,
                 onChanged: (v) => setState(() => _enabled = v),
               ),
@@ -563,8 +564,8 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
+        TextButton(onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
       ],
     );
   }
@@ -612,7 +613,7 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Send Notification')),
+      appBar: AppBar(title: const Tx('Send Notification')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -639,7 +640,7 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
                   ElevatedButton.icon(
                     onPressed: _sending ? null : _send,
                     icon: const Icon(Icons.send_rounded),
-                    label: Text(_sending ? 'Sending…' : 'Send to all customers'),
+                    label: Tx(_sending ? 'Sending…' : 'Send to all customers'),
                   ),
                 ],
               ),
@@ -649,18 +650,18 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
           if (items == null)
             (error != null ? ErrorStateView(message: error!, onRetry: load) : const LoadingView())
           else if (items!.isEmpty)
-            Text('Nothing sent yet.', style: TextStyle(color: AppColors.textSecondary))
+            Tx('Nothing sent yet.', style: TextStyle(color: AppColors.textSecondary))
           else
             for (final n in items!) ...[
               ConsoleCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(n.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Tx(n.title, style: const TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
-                    Text(n.body, style: TextStyle(color: AppColors.textSecondary)),
+                    Tx(n.body, style: TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 6),
-                    Text(formatDateTime(n.createdAt), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                    Tx(formatDateTime(n.createdAt), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                   ],
                 ),
               ),
@@ -716,9 +717,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Password changed'),
-        content: const Text('Please log in again with your new password.'),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+        title: const Tx('Password changed'),
+        content: const Tx('Please log in again with your new password.'),
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('OK'))],
       ),
     );
     if (!mounted) return;
@@ -728,7 +729,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password')),
+      appBar: AppBar(title: const Tx('Change Password')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -757,7 +758,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _saving ? null : _save,
-              child: Text(_saving ? 'Saving…' : 'Change password'),
+              child: Tx(_saving ? 'Saving…' : 'Change password'),
             ),
           ],
         ),
@@ -770,11 +771,11 @@ Future<bool> confirmDialog(BuildContext context, String title, String message) a
   final ok = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
+      title: Tx(title),
+      content: Tx(message),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('OK')),
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Tx('OK')),
       ],
     ),
   );

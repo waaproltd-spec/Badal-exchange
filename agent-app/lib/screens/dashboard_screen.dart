@@ -17,6 +17,7 @@ import 'company/company_balances_screen.dart';
 import 'pending_deposits_screen.dart';
 import 'pending_withdrawals_screen.dart';
 import 'sms_transactions_screen.dart';
+import '../l10n/tr.dart';
 
 /// Dashboard: the agent's overview. Pending counts open the screens where
 /// those orders are actioned; the other counts open History filtered. Also
@@ -111,7 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
 
   Future<void> _push(String title, Widget body) async {
     await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(appBar: AppBar(title: Text(title)), body: body),
+      builder: (_) => Scaffold(appBar: AppBar(title: Tx(title)), body: body),
     ));
     if (mounted) _load();
   }
@@ -122,7 +123,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
       final started = await session.enableSmsAutoMatching();
       if (!started && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('SMS permission is required to enable automatic matching.')),
+          const SnackBar(content: Tx('SMS permission is required to enable automatic matching.')),
         );
       }
     } else {
@@ -148,11 +149,11 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Text(
-            'Welcome, ${session.agentDisplayName}',
+            trp('Welcome, {0}', [session.agentDisplayName]),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 2),
-          Text('Manage your transactions and company balances', style: TextStyle(color: AppColors.textSecondary)),
+          Tx('Manage your transactions and company balances', style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 12),
           Row(children: [
             Expanded(
@@ -160,7 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
                 key: const Key('dashboard-day'),
                 onPressed: _pickDay,
                 icon: const Icon(Icons.calendar_today_rounded, size: 18),
-                label: Text(longDay(_stats?.day ?? _day ?? DateTime.now())),
+                label: Tx(longDay(_stats?.day ?? _day ?? DateTime.now())),
               ),
             ),
             const SizedBox(width: 8),
@@ -273,7 +274,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
             )
           else
             ConsoleCard(
-              child: Text(
+              child: Tx(
                 'Automatic EVC Plus SMS matching is only available on Android agent devices.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
@@ -286,7 +287,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
           ),
           if (s.recentActivity.isEmpty)
             ConsoleCard(
-              child: Text('No activity yet.', style: TextStyle(color: AppColors.textSecondary)),
+              child: Tx('No activity yet.', style: TextStyle(color: AppColors.textSecondary)),
             )
           else
             for (final item in s.recentActivity) ...[
@@ -324,12 +325,12 @@ class _CompanyBalancesCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Company Balances',
+                Tx('Company Balances',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
-                Text(d == null ? 'Cash register balances' : 'Total \$${d.total}',
+                Tx(d == null ? 'Cash register balances' : 'Total \$${d.total}',
                     style: TextStyle(color: AppColors.textSecondary)),
                 if (notes.isNotEmpty)
-                  Text(notes.join(' · '),
+                  Tx(notes.join(' · '),
                       style: const TextStyle(color: AppColors.statusFailed, fontWeight: FontWeight.w700, fontSize: 12.5)),
               ],
             ),
@@ -374,7 +375,7 @@ class _SmsMatchingCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
+                child: Tx(
                   'EVC Plus SMS Matching',
                   style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
@@ -392,13 +393,13 @@ class _SmsMatchingCard extends StatelessWidget {
           const SizedBox(height: 6),
           if (deviceRegistrationError != null) ...[
             Text(
-              'This device is not registered as an authorized agent device: $deviceRegistrationError',
+              trp('This device is not registered as an authorized agent device: {0}', [deviceRegistrationError]),
               style: const TextStyle(fontSize: 12, color: AppColors.statusFailed),
             ),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: onRetryDeviceRegistration, child: const Text('Retry registration')),
+            OutlinedButton(onPressed: onRetryDeviceRegistration, child: const Tx('Retry registration')),
           ] else
-            Text(
+            Tx(
               isListening
                   ? 'Online — listening for authorized EVC Plus payment SMS on this device. Tap to see submissions.'
                   : 'Off — turn on to automatically match incoming EVC Plus payment SMS. Tap to see submissions.',

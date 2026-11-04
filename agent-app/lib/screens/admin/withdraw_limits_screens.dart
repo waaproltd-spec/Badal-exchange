@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import 'kyc_screens.dart';
+import '../../l10n/tr.dart';
 
 String _err(Object e, String fallback) => e is ApiException ? e.message : fallback;
 
@@ -90,7 +91,7 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
   Widget build(BuildContext context) {
     final d = _defaults;
     return Scaffold(
-      appBar: AppBar(title: const Text('Customer Withdrawal Limits')),
+      appBar: AppBar(title: const Tx('Customer Withdrawal Limits')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -107,14 +108,14 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                           onTap: _editDefaults,
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
-                              const Expanded(child: Text('Default limits (withdrawals only)', style: TextStyle(fontWeight: FontWeight.w800))),
+                              const Expanded(child: Tx('Default limits (withdrawals only)', style: TextStyle(fontWeight: FontWeight.w800))),
                               const Icon(Icons.edit_rounded, size: 18, color: AppColors.purple),
                             ]),
                             const SizedBox(height: 8),
-                            Text('Not verified: \$${d.unverifiedDaily} a day · \$${d.unverifiedMonthly} a month'),
-                            Text('KYC approved: \$${d.verifiedDaily} a day · \$${d.verifiedMonthly} a month'),
+                            Text(trp('Not verified: \${0} a day · \${1} a month', [d.unverifiedDaily, d.unverifiedMonthly])),
+                            Text(trp('KYC approved: \${0} a day · \${1} a month', [d.verifiedDaily, d.verifiedMonthly])),
                             const SizedBox(height: 4),
-                            Text('The day starts at 00:00 Somalia time, the month on the 1st.',
+                            Tx('The day starts at 00:00 Somalia time, the month on the 1st.',
                                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                           ]),
                         ),
@@ -147,18 +148,18 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                               },
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
-                                  Expanded(child: Text(c.name.isEmpty ? '+${c.phone}' : c.name, style: const TextStyle(fontWeight: FontWeight.w700))),
+                                  Expanded(child: Tx(c.name.isEmpty ? '+${c.phone}' : c.name, style: const TextStyle(fontWeight: FontWeight.w700))),
                                   _Pill(c.verified ? 'KYC approved' : _kyc(c.kycStatus), c.verified ? AppColors.statusCompleted : AppColors.textSecondary),
                                 ]),
                                 Text('+${c.phone}${c.custom ? ' · custom limits' : ''}',
                                     style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                                 const SizedBox(height: 6),
-                                Text('Today \$${c.dailyUsed} of \$${c.dailyLimit} · left \$${c.dailyRemaining}'),
-                                Text('Month \$${c.monthlyUsed} of \$${c.monthlyLimit} · left \$${c.monthlyRemaining}'),
+                                Text(trp('Today \${0} of \${1} · left \${2}', [c.dailyUsed, c.dailyLimit, c.dailyRemaining])),
+                                Text(trp('Month \${0} of \${1} · left \${2}', [c.monthlyUsed, c.monthlyLimit, c.monthlyRemaining])),
                                 if (c.warning != null)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
+                                    child: Tx(
                                       c.warning!.endsWith('reached') ? 'Limit reached' : 'Close to the limit',
                                       style: TextStyle(
                                           fontSize: 12.5,
@@ -185,7 +186,7 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
         decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-        child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+        child: Tx(text, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
       );
 }
 
@@ -249,15 +250,15 @@ class _DefaultsSheetState extends State<_DefaultsSheet> {
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          const Text('Default withdrawal limits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Tx('Default withdrawal limits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text('Withdrawals only. Deposits are never limited.', style: TextStyle(color: AppColors.textSecondary)),
+          Tx('Withdrawals only. Deposits are never limited.', style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 14),
-          const Text('Not verified (no approved KYC)', style: TextStyle(fontWeight: FontWeight.w700)),
+          const Tx('Not verified (no approved KYC)', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Row(children: [_field('Daily', _ud, const Key('unverified-daily')), const SizedBox(width: 10), _field('Monthly', _um, const Key('unverified-monthly'))]),
           const SizedBox(height: 14),
-          const Text('KYC approved', style: TextStyle(fontWeight: FontWeight.w700)),
+          const Tx('KYC approved', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Row(children: [_field('Daily', _vd, const Key('verified-daily')), const SizedBox(width: 10), _field('Monthly', _vm, const Key('verified-monthly'))]),
           if (_error != null) ...[
@@ -265,7 +266,7 @@ class _DefaultsSheetState extends State<_DefaultsSheet> {
             Text(_error!, key: const Key('limits-error'), style: const TextStyle(color: AppColors.statusFailed)),
           ],
           const SizedBox(height: 16),
-          ElevatedButton(key: const Key('save-defaults'), onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+          ElevatedButton(key: const Key('save-defaults'), onPressed: _saving ? null : _save, child: Tx(_saving ? 'Saving…' : 'Save')),
         ]),
       ),
     );
@@ -353,7 +354,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
   Widget build(BuildContext context) {
     final d = _data;
     return Scaffold(
-      appBar: AppBar(title: const Text('Withdrawal limits')),
+      appBar: AppBar(title: const Tx('Withdrawal limits')),
       body: _loading
           ? const LoadingView()
           : (d == null
@@ -364,11 +365,11 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                   children: [
                     ConsoleCard(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(d.name.isEmpty ? '+${d.phone}' : d.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                        Tx(d.name.isEmpty ? '+${d.phone}' : d.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                         Text('+${d.phone} · ${d.accountId}', style: TextStyle(color: AppColors.textSecondary)),
                         const SizedBox(height: 10),
                         Row(children: [
-                          const Text('KYC: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                          const Tx('KYC: ', style: TextStyle(fontWeight: FontWeight.w700)),
                           _Pill(d.verified ? 'Approved' : _kyc(d.kycStatus), d.verified ? AppColors.statusCompleted : AppColors.statusProcessing),
                         ]),
                         if (d.kycApplicationId != null)
@@ -381,7 +382,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                                 if (mounted) _load();
                               },
                               icon: const Icon(Icons.badge_rounded, size: 18),
-                              label: const Text('Review KYC (approve / reject)'),
+                              label: const Tx('Review KYC (approve / reject)'),
                             ),
                           ),
                       ]),
@@ -390,19 +391,18 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                     ConsoleCard(
                       key: const Key('customer-limit-numbers'),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Withdrawn and remaining', style: TextStyle(fontWeight: FontWeight.w800)),
+                        const Tx('Withdrawn and remaining', style: TextStyle(fontWeight: FontWeight.w800)),
                         const SizedBox(height: 6),
-                        Text('Today: \$${d.dailyUsed} of \$${d.dailyLimit} · left \$${d.dailyRemaining}${d.customDaily ? ' (custom)' : ''}'),
-                        Text('This month: \$${d.monthlyUsed} of \$${d.monthlyLimit} · left \$${d.monthlyRemaining}${d.customMonthly ? ' (custom)' : ''}'),
+                        Text(trp('Today: \${0} of \${1} · left \${2}{3}', [d.dailyUsed, d.dailyLimit, d.dailyRemaining, d.customDaily ? ' (custom)' : ''])),
+                        Text(trp('This month: \${0} of \${1} · left \${2}{3}', [d.monthlyUsed, d.monthlyLimit, d.monthlyRemaining, d.customMonthly ? ' (custom)' : ''])),
                       ]),
                     ),
                     const SizedBox(height: 10),
                     ConsoleCard(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        const Text("This customer's own limits", style: TextStyle(fontWeight: FontWeight.w800)),
+                        const Tx("This customer's own limits", style: TextStyle(fontWeight: FontWeight.w800)),
                         const SizedBox(height: 4),
-                        Text('Leave a box empty to use the default (\$${d.verified ? d.defaults.verifiedDaily : d.defaults.unverifiedDaily} a day, '
-                            '\$${d.verified ? d.defaults.verifiedMonthly : d.defaults.unverifiedMonthly} a month).',
+                        Text(trp('Leave a box empty to use the default (\${0} a day, \${1} a month).', [d.verified ? d.defaults.verifiedDaily : d.defaults.unverifiedDaily, d.verified ? d.defaults.verifiedMonthly : d.defaults.unverifiedMonthly]),
                             style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                         const SizedBox(height: 10),
                         Row(children: [
@@ -431,16 +431,16 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                           Text(_saveError!, key: const Key('limits-error'), style: const TextStyle(color: AppColors.statusFailed)),
                         ],
                         const SizedBox(height: 12),
-                        ElevatedButton(key: const Key('save-custom'), onPressed: _saving ? null : () => _save(), child: const Text('Save limits')),
+                        ElevatedButton(key: const Key('save-custom'), onPressed: _saving ? null : () => _save(), child: const Tx('Save limits')),
                         if (d.hasCustom)
-                          TextButton(key: const Key('reset-custom'), onPressed: _saving ? null : () => _save(reset: true), child: const Text('Back to the default limits')),
+                          TextButton(key: const Key('reset-custom'), onPressed: _saving ? null : () => _save(reset: true), child: const Tx('Back to the default limits')),
                       ]),
                     ),
                     const SizedBox(height: 10),
-                    const Text('Recent withdrawals', style: TextStyle(fontWeight: FontWeight.w800)),
+                    const Tx('Recent withdrawals', style: TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 6),
                     if (d.history.isEmpty)
-                      Text('No withdrawals yet.', style: TextStyle(color: AppColors.textSecondary))
+                      Tx('No withdrawals yet.', style: TextStyle(color: AppColors.textSecondary))
                     else
                       for (final h in d.history)
                         Padding(

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/order.dart';
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
 
 /// A single order (deposit or withdrawal) rendered as a card: order code,
 /// method + counterparty, amount/fee/net, status badge, timestamp, and an
@@ -54,7 +55,7 @@ class OrderCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      Tx(
                         order.counterpartyLabel,
                         style: TextStyle(
                           fontSize: 17,
@@ -63,7 +64,7 @@ class OrderCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
+                      Tx(
                         order.orderCode.isNotEmpty ? order.orderCode : order.id,
                         style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
@@ -83,7 +84,7 @@ class OrderCard extends StatelessWidget {
                     ),
                     if (order.fee != '0.00')
                       Text(
-                        'Fee \$${order.fee}',
+                        trp('Fee \${0}', [order.fee]),
                         style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                   ],
@@ -95,7 +96,7 @@ class OrderCard extends StatelessWidget {
               children: [
                 Icon(Icons.schedule, size: 14, color: AppColors.textFaint),
                 const SizedBox(width: 4),
-                Text(
+                Tx(
                   _dateFormat.format(order.createdAt.toLocal()),
                   style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                 ),
@@ -103,7 +104,7 @@ class OrderCard extends StatelessWidget {
                   const SizedBox(width: 12),
                   Icon(Icons.tag, size: 14, color: AppColors.textFaint),
                   const SizedBox(width: 4),
-                  Text(
+                  Tx(
                     order.depositCode!,
                     style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                   ),

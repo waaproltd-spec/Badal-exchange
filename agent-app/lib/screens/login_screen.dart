@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import 'home_shell.dart';
+import '../l10n/tr.dart';
 
 /// The nine digits typed after the +252 country code. Whatever the agent
 /// types or pastes is cleaned up: only digits are kept, a country code that
@@ -115,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        const Text(
+                        const Tx(
                           'BADAL EXCHANGE',
                           style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.purpleDark, letterSpacing: 0.4),
                           textAlign: TextAlign.center,
@@ -128,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Row(mainAxisSize: MainAxisSize.min, children: const [
                               Icon(Icons.account_circle_rounded, color: AppColors.purpleDark, size: 22),
                               SizedBox(width: 8),
-                              Text('Agent App', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
+                              Tx('Agent App', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
                             ]),
                           ),
                         ),
@@ -216,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 const Icon(Icons.error_outline, color: AppColors.statusFailed, size: 18),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text(
+                                  child: Tx(
                                     session.loginError!,
                                     style: const TextStyle(color: AppColors.statusFailed, fontSize: 13),
                                   ),
@@ -240,10 +241,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             Container(width: 1, height: 52, margin: const EdgeInsets.symmetric(horizontal: 14), color: const Color(0xFFD9C3F2)),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text('Authorized agents only.',
+                                Tx('Authorized agents only.',
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
                                 SizedBox(height: 2),
-                                Text('Logging in registers this device for EVC Plus SMS payment verification.',
+                                Tx('Logging in registers this device for EVC Plus SMS payment verification.',
                                     style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                               ]),
                             ),
@@ -331,7 +332,7 @@ class _LoginButton extends StatelessWidget {
                       : Row(mainAxisSize: MainAxisSize.min, children: const [
                           Icon(Icons.login_rounded, color: Colors.white, size: 28),
                           SizedBox(width: 12),
-                          Text('Log in', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
+                          Tx('Log in', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
                         ]),
                 ),
               ),
