@@ -72,6 +72,9 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   decisionRestricted: '⛔ Akoonkan bixintiisa waa la hakiyay; ka beddel Agent App-ka.',
   decisionDone: (status: string, who: string, when: string) =>
     `\n\n${status === 'approved' ? '✅ <b>CODSIGA WAA LA FASAXAY</b>' : '❌ <b>CODSIGA WAA LA DIIDAY</b>'}\n👨‍💼 Maamulaha: ${who}\n🕒 Waqtiga: ${when}`,
+  groupLinked: '✅ Kooxdan waa la xaqiijiyay. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaa lagu soo diri doonaa; xubnaha kooxdu waxay fasaxi/diidi karaan.',
+  groupAnonymous: '⚠️ Fariintan waxaa loo diray sidii <b>maamule qarsoon</b> (anonymous), sidaas darteed ma garan karo yaad tahay. Fadlan ka damiso <b>Remain anonymous</b> (Group → Administrators → magacaaga), kadibna mar kale qor /linkgroup.',
+  groupNotAllowed: '⛔ Kaliya maamulaha la ogol yahay ayaa kooxda xiri kara.',
   btnApprove: '✅ Fasax',
   btnReject: '❌ Diid',
   adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
