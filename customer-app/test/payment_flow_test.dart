@@ -749,14 +749,13 @@ void main() {
     await tester.tap(find.byKey(const Key('withdraw-continue')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('withdraw-verify')), findsOneWidget);
-    expect(find.text('Account Approval Required'), findsOneWidget);
-    expect(find.text('To withdraw your funds, please contact Admin on WhatsApp to have your account approved for withdrawals.'),
-        findsOneWidget);
+    expect(find.byKey(const Key('approval-title')), findsOneWidget);
     expect(find.byKey(const Key('contact-admin-whatsapp')), findsOneWidget);
-    expect(find.text('+252 61 234 5678'), findsOneWidget);
+    expect(find.byKey(const Key('contact-admin-telegram')), findsOneWidget);
+    expect(find.text('+252 61 234 5678'), findsNothing, reason: 'the number is not shown');
     expect(api.submitted, isEmpty, reason: 'no withdrawal is made');
     expect(api.quotes, 0, reason: 'not even a quote');
-    await tester.tap(find.byKey(const Key('verify-cancel')));
+    await tester.tapAt(const Offset(200, 10)); // the barrier closes it
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('withdraw-verify')), findsNothing);
   });

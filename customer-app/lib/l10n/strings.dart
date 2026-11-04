@@ -414,7 +414,13 @@ class AppStrings {
   static String get verifyTitle => _t('Account Approval Required', 'Account-ka waa in la fasaxo');
   static String get verifyBody => _t(
       'To withdraw your funds, please contact Admin on WhatsApp to have your account approved for withdrawals.',
-      'Si aad lacag ula baxdo markii ugu horreysay, fadlan la xiriir maamulka si account-kaaga loo xaqiijiyo loona fasaxo.');
+      'Haddii aad rabto inaad lacag la baxdo markii ugu horreysay, fadlan la xiriir maamulka si akoonkaaga loo xaqiijiyo loona fasaxo.');
+  static String get approvalTitleLead => _t('Account Must Be ', 'Akoonka Waa In ');
+  static String get approvalTitleHighlight => _t('Approved', 'La Fasaxo');
+  static String get contactAdminWhatsappLabel => _t('Contact Admin (WhatsApp)', 'La Xiriir Maamulka (WhatsApp)');
+  static String get contactAdminTelegramLabel => _t('Contact Admin (Telegram)', 'La Xiriir Maamulka (Telegram)');
+  static String approvalAppMissing(String app) =>
+      _t('Could not open $app. Please install it and try again.', 'Ma furi karo $app. Fadlan ku rakib oo mar kale isku day.');
   static String get verifyRejected => _t('Not approved', 'Lama fasixin');
   static String get verifyRestricted => _t('Withdrawals are on hold', 'Bixinta waa la joojiyay');
   static String get contactAdminWhatsapp => _t('Contact Admin on WhatsApp', 'La xiriir Maamulka (WhatsApp)');
