@@ -419,8 +419,6 @@ class AppStrings {
   static String get approvalTitleHighlight => _t('Approved', 'La Fasaxo');
   static String get contactAdminWhatsappLabel => _t('Contact Admin (WhatsApp)', 'La Xiriir Maamulka (WhatsApp)');
   static String get contactAdminTelegramLabel => _t('Contact Admin (Telegram)', 'La Xiriir Maamulka (Telegram)');
-  static String get approvalMessageCopied =>
-      _t('Your message is ready: paste it in the chat.', 'Fariintaada waa diyaar: ku dheji sheekada.');
   static String approvalAppMissing(String app) =>
       _t('Could not open $app. Please install it and try again.', 'Ma furi karo $app. Fadlan ku rakib oo mar kale isku day.');
   static String get verifyRejected => _t('Not approved', 'Lama fasixin');

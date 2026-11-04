@@ -125,10 +125,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => WithdrawalApprovalSheet(
         whatsappLink: _whatsappLink,
-        telegramMessage: _access?.prefilled(
-          platform: _info.isPlatform ? _info.label : null,
-          platformAccountId: _info.isPlatform ? _identifierController.text.trim() : null,
-        ),
+        customerId: _access?.accountId,
         reason: _access?.reason,
       ),
     );

@@ -356,6 +356,9 @@ test('the database functions are for the bot only', async (t) => {
     ['support_session', { p_chat: 1 }],
     ['support_orders', { p_chat: 1 }],
     ['support_ai_allowed', { p_chat: 1 }],
+    ['support_admin_chat', {}],
+    ['support_admin_link', { p_chat: 1 }],
+    ['support_approval_request', { p_chat: 1, p_account: 'BX00000000' }],
   ]) {
     const { error } = await cu.rpc(fn, args);
     assert.ok(error, `${fn} is refused to a customer`);
@@ -370,4 +373,46 @@ test('no voice, audio or image code exists in the bot', async () => {
   for (const bad of ['support_create_ticket', '#BADAL', 'awaiting_ticket', 'sendVoice', 'sendAudio', 'sendVideoNote', 'sendPhoto', 'speech', 'transcri', 'whisper', 'text-to-speech', 'getFile', 'base64']) {
     assert.ok(!code.includes(bad), `${bad} must not appear`);
   }
+});
+
+test('withdrawal approval from the Customer App: /start fasax_<Customer ID> reaches the administrator; nothing but a count is stored', async (t) => {
+  if (!served) return t.skip('support-bot is not served');
+  const c = await customer();
+  const code = `BX${c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const adminChat = nextChat();
+  // The administrator's Telegram account starts the bot once.
+  const linkedAdmin = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: adminChat, type: 'private' }, from: { id: adminChat, username: 'Badalexchangeadmin' }, text: '/start' } });
+  assert.match(texts(linkedAdmin).join('\n'), /Waa lagu xaqiijiyay maamule/);
+  assert.equal(Number((await db.query(`SELECT chat_id FROM support_admin`)).rows[0].chat_id), adminChat);
+
+  // Somebody else with /start is not the administrator.
+  const other = nextChat();
+  await send(message(other, { text: '/start' }));
+  assert.equal(Number((await db.query(`SELECT chat_id FROM support_admin`)).rows[0].chat_id), adminChat);
+
+  // The customer taps Telegram in the app.
+  const chat = nextChat();
+  const was = (await db.query(`SELECT value FROM app_settings WHERE key = 'withdrawal_verification'`)).rows[0]?.value;
+  await db.query(`INSERT INTO app_settings (key, value) VALUES ('withdrawal_verification', 'on') ON CONFLICT (key) DO UPDATE SET value = 'on'`);
+  t.after(() => db.query(`UPDATE app_settings SET value = $1 WHERE key = 'withdrawal_verification'`, [was ?? 'on']));
+  const r = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: chat, type: 'private' }, from: { id: chat, username: 'macaamiil1' }, text: `/start fasax_${code}` } });
+  assert.match(texts(r).find((x) => /gaarsiiyay maamulka/.test(x)) ?? '', /gaarsiiyay maamulka/);
+  const toAdmin = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === adminChat);
+  assert.ok(toAdmin, 'the administrator got the request');
+  assert.match(toAdmin.body.text, /Codsi fasax bixin/);
+  assert.ok(toAdmin.body.text.includes(code));
+  assert.ok(toAdmin.body.text.includes(`+${c.phone}`));
+  assert.ok(toAdmin.body.text.includes('@macaamiil1'));
+  assert.doesNotMatch(toAdmin.body.text, /pin|password/i);
+
+  // An unknown ID: nothing reaches the administrator.
+  const bad = await send(message(nextChat(), { text: '/start fasax_BX00000000' }));
+  assert.match(texts(bad).join('\n'), /lama helin/);
+  assert.equal(bad.calls.filter((x) => x.body?.chat_id === adminChat).length, 0);
+
+  // Five an hour a chat.
+  const spam = nextChat();
+  for (let i = 0; i < 5; i++) await send(message(spam, { text: `/start fasax_${code}` }));
+  const limited = await send(message(spam, { text: `/start fasax_${code}` }));
+  assert.match(texts(limited).join('\n'), /Codsiyo badan/);
 });

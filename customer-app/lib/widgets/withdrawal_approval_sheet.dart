@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/strings.dart';
@@ -12,14 +11,13 @@ const approvalTelegramBot = 'Badalaisupportbot';
 /// and Telegram (@Badalaisupportbot). Dark by design, in light and dark mode alike.
 class WithdrawalApprovalSheet extends StatelessWidget {
   const WithdrawalApprovalSheet(
-      {super.key, this.whatsappLink, this.telegramMessage, this.reason, this.launch});
+      {super.key, this.whatsappLink, this.customerId, this.reason, this.launch});
 
   /// The administration's WhatsApp link (with the message ready), or null when none is set.
   final Uri? whatsappLink;
 
-  /// The ready message for the administration. A Telegram bot chat cannot be opened with text in it, so it is
-  /// placed on the clipboard for the customer to paste.
-  final String? telegramMessage;
+  /// The customer's ID (BX...): Telegram opens the bot with it, so the bot tells the administrator who asks.
+  final String? customerId;
 
   /// The administrator's reason when the account was rejected or restricted.
   final String? reason;
@@ -50,23 +48,18 @@ class WithdrawalApprovalSheet extends StatelessWidget {
       _say(context, AppStrings.approvalAppMissing('WhatsApp'));
   }
 
-  /// The Telegram app first; without it, the t.me page in the browser.
+  /// The Telegram app first; without it, the t.me page in the browser. Both carry the start code
+  /// (fasax_<Customer ID>) that makes the bot send the request to the administrator.
   Future<void> _telegram(BuildContext context) async {
-    final text = telegramMessage;
-    var pasted = false;
-    if (text != null && text.isNotEmpty) {
-      try {
-        await Clipboard.setData(ClipboardData(text: text));
-        pasted = true;
-      } catch (_) {}
-    }
-    var ok = await _open(Uri.parse('tg://resolve?domain=$approvalTelegramBot'));
-    if (!ok) ok = await _open(Uri.parse('https://t.me/$approvalTelegramBot'));
-    if (!context.mounted) return;
+    final id = (customerId ?? '').replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+    final start = id.isEmpty ? '' : (id.length <= 40 ? '&start=fasax_$id' : '');
+    var ok = await _open(Uri.parse('tg://resolve?domain=$approvalTelegramBot$start'));
     if (!ok) {
+      ok = await _open(Uri.parse(
+          'https://t.me/$approvalTelegramBot${start.isEmpty ? '' : '?start=fasax_$id'}'));
+    }
+    if (!ok && context.mounted) {
       _say(context, AppStrings.approvalAppMissing('Telegram'));
-    } else if (pasted) {
-      _say(context, AppStrings.approvalMessageCopied);
     }
   }
 

@@ -58,6 +58,14 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
     `💰 <b>Haraagayga</b>\nHaraaga la isticmaali karo: <b>$${b.available}</b>\nGunno: $${b.bonus}` +
     (Number(b.pending) > 0 ? `\nLacagta la sugayo: $${b.pending}` : ''),
   me: (name: string, wallet: string) => `⚙️ <b>Xogtayda</b>\nMagaca: ${name || '—'}\nWallet ID: <b>${wallet || '—'}</b>`,
+  approvalSent: '✅ Codsigaaga waa la gaarsiiyay maamulka. Fadlan sug; marka akoonkaaga la fasaxo waad bixin kartaa.',
+  approvalAlready: '✅ Akoonkaaga horey ayaa loo fasaxay bixinta. Waad bixin kartaa.',
+  approvalUnknown: '❌ Customer ID-gan lama helin. Fadlan ka fur App-ka Bixinta mar kale oo taabo Telegram.',
+  approvalLimited: '⛔ Codsiyo badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
+  approvalNoAdmin: '⚠️ Hadda codsiga si toos ah ugama gaarsiin karo maamulka. Fadlan taabo badhanka hoose oo ka dir Admin-ka.',
+  adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
+  adminRequest: (name: string, id: string, phone: string, status: string, who: string) =>
+    `🔔 <b>Codsi fasax bixin</b>\n\nMacaamiil: <b>${name || '—'}</b>\nCustomer ID: <b>${id}</b>\nTelefoon: ${phone ? '+' + phone : '—'}\nXaalad: ${status}${who}\n\nKa fasax Agent App-ka (Account > Withdrawal Verification).`,
   unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
   voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor su’aashaada qoraal ahaan.',
   otherRefused: '🚫 Bot-kan wuxuu aqbalaa <b>qoraal</b> kaliya. Sawirada (screenshots), codka iyo faylasha kale lama aqbalo. Fadlan qor su’aashaada.',
@@ -213,8 +221,18 @@ async function onMessage(m: any, from: any) {
     return void (await say(chat, voice ? T.voiceRefused : T.otherRefused));
   }
 
-  const s = await rpc('support_session', { p_chat: chat });
   const text: string = typeof m.text === 'string' ? m.text.trim() : '';
+
+  // The administrator's own Telegram account starts the bot once: that chat then receives the approval requests.
+  if (/^\/start(\s|$)/.test(text) && String(from?.username ?? '').toLowerCase() === ADMIN_TG.toLowerCase()) {
+    await rpc('support_admin_link', { p_chat: chat });
+    return void (await say(chat, T.adminLinked));
+  }
+  // Customer App, Withdraw: https://t.me/<bot>?start=fasax_<Customer ID> asks the administrator to approve the account.
+  const ask = /^\/start\s+fasax_([A-Za-z0-9]{10})$/.exec(text);
+  if (ask) return approvalRequest(chat, ask[1], from);
+
+  const s = await rpc('support_session', { p_chat: chat });
 
   if (text === '/start') {
     if (s.linked) return void (await say(chat, T.menuTitle, { reply_markup: menu() }));
@@ -262,6 +280,24 @@ async function onMessage(m: any, from: any) {
     console.error('support-bot ai', safe(err));
   }
   await say(chat, answer ? esc(answer) : T.aiFailed, { reply_markup: menu() });
+}
+
+async function approvalRequest(chat: number, account: string, from: any) {
+  const r = await rpc('support_approval_request', { p_chat: chat, p_account: account });
+  if (r.limited) return void (await say(chat, T.approvalLimited));
+  if (!r.ok) return void (await say(chat, T.approvalUnknown));
+  if (r.allowed) return void (await say(chat, T.approvalAlready));
+  const adminChat = await rpc('support_admin_chat', {});
+  if (adminChat) {
+    const who = from?.username ? `\nTelegram: @${esc(String(from.username))}` : '';
+    try {
+      await say(Number(adminChat), T.adminRequest(esc(r.name ?? ''), esc(r.accountId), esc(String(r.phone ?? '')), esc(String(r.status)), who));
+      return void (await say(chat, T.approvalSent));
+    } catch (err) {
+      console.error('support-bot approval', safe(err));
+    }
+  }
+  await say(chat, T.approvalNoAdmin, { reply_markup: adminLink() });
 }
 
 const shareKeyboard = () => ({

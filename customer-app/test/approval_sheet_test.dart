@@ -1,11 +1,10 @@
 import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/widgets/withdrawal_approval_sheet.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> _pump(WidgetTester tester,
-    {Uri? wa, String? tg, List<Uri>? opened, bool opens = true, double w = 360}) async {
+    {Uri? wa, String? id, List<Uri>? opened, bool opens = true, double w = 360}) async {
   tester.view.physicalSize = Size(w * 3, 800 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -15,7 +14,7 @@ Future<void> _pump(WidgetTester tester,
         alignment: Alignment.bottomCenter,
         child: WithdrawalApprovalSheet(
           whatsappLink: wa,
-          telegramMessage: tg,
+          customerId: id,
           reason: null,
           launch: (u) async {
             opened?.add(u);
@@ -102,19 +101,14 @@ void main() {
     expect(find.text(AppStrings.supportNotSet), findsOneWidget);
   });
 
-  testWidgets('Telegram: the ready message goes to the clipboard and the customer is told to paste it', (tester) async {
-    String? clip;
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') clip = (call.arguments as Map)['text'] as String?;
-      return null;
-    });
-    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
-    await _pump(tester, tg: 'Asc Maamule\nCustomer ID: BX1', opened: <Uri>[]);
+  testWidgets('Telegram opens the bot with the start code carrying the Customer ID', (tester) async {
+    final opened = <Uri>[];
+    await _pump(tester, id: 'BX45495228', opened: opened);
     await tester.tap(find.byKey(const Key('contact-admin-telegram')));
     await tester.pump();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
-    await tester.pump();
-    expect(clip, 'Asc Maamule\nCustomer ID: BX1');
-    expect(find.text(AppStrings.approvalMessageCopied), findsOneWidget);
+    expect(opened.map((u) => u.toString()), [
+      'tg://resolve?domain=Badalaisupportbot&start=fasax_BX45495228',
+      'https://t.me/Badalaisupportbot?start=fasax_BX45495228',
+    ]);
   });
 }
