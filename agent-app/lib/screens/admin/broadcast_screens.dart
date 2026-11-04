@@ -124,7 +124,7 @@ class _BroadcastScreenState extends ListScreenState<BroadcastScreen, BroadcastSc
               BroadcastStatsGrid(stats: _data.stats),
               const SizedBox(height: 8),
               Tx(
-                'Messages go out by themselves to every customer who linked Telegram with the bot.',
+                'Messages go out by themselves to every active customer: as a push notification in the Customer App and / or on Telegram.',
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
               if (_data.sendingNow != null) ...[
@@ -158,7 +158,7 @@ class _BroadcastScreenState extends ListScreenState<BroadcastScreen, BroadcastSc
   }
 }
 
-/// Total customers, messages sent, failed, active schedules.
+/// Total customers, notifications sent, failed, active schedules.
 class BroadcastStatsGrid extends StatelessWidget {
   const BroadcastStatsGrid({super.key, required this.stats});
 
@@ -171,16 +171,17 @@ class BroadcastStatsGrid extends StatelessWidget {
         key: const Key('broadcast-stat-customers'),
         icon: Icons.groups_rounded,
         color: AppColors.primary,
-        value: '${stats.eligibleCustomers}',
-        label: tr('Customers on Telegram'),
-        caption: trp('of {0} registered', [stats.registeredCustomers]),
+        value: '${stats.activeCustomers}',
+        label: tr('Total customers'),
+        caption: trp('{0} with notifications • {1} on Telegram', [stats.pushReachable, stats.eligibleCustomers]),
       ),
       StatCard(
         key: const Key('broadcast-stat-sent'),
         icon: Icons.send_rounded,
         color: AppColors.statusCompleted,
         value: '${stats.sent}',
-        label: tr('Messages sent'),
+        label: tr('Notifications sent'),
+        caption: trp('Push {0} • Telegram {1}', [stats.pushSent, stats.telegramSent]),
       ),
       StatCard(
         key: const Key('broadcast-stat-failed'),
@@ -188,6 +189,7 @@ class BroadcastStatsGrid extends StatelessWidget {
         color: AppColors.statusFailed,
         value: '${stats.failed}',
         label: tr('Failed'),
+        caption: trp('Push {0} • Telegram {1}', [stats.pushFailed, stats.telegramFailed]),
       ),
       StatCard(
         key: const Key('broadcast-stat-active'),
@@ -212,7 +214,12 @@ class BroadcastProgressCard extends StatelessWidget {
       key: const Key('broadcast-progress'),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Tx('Sending progress', style: const TextStyle(fontWeight: FontWeight.w800))),
+          Expanded(
+            child: Text(
+              '${tr('Sending progress')} • ${run.isPush ? tr('Push notification') : tr('Telegram')}',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
           Text('${run.percent}%', key: const Key('broadcast-percent'), style: const TextStyle(fontWeight: FontWeight.w800)),
         ]),
         const SizedBox(height: 8),
@@ -223,6 +230,9 @@ class BroadcastProgressCard extends StatelessWidget {
         const SizedBox(height: 8),
         Text(trp('Sent {0} • Failed {1} • Total {2}', [run.sent, run.failed, run.total]),
             key: const Key('broadcast-counts'), style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+        if (run.skipped > 0)
+          Text(trp('{0} customers have no device (notifications off or signed out).', [run.skipped]),
+              key: const Key('broadcast-skipped'), style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ]),
     );
   }
@@ -268,9 +278,22 @@ class _ScheduleRow extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 8),
+        if (s.title != null && s.title!.isNotEmpty)
+          Text(s.title!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
         Text(s.message, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppColors.textPrimary)),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          for (final c in s.channels)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(c == 'push' ? Icons.notifications_active_rounded : Icons.send_rounded, size: 13, color: AppColors.primary),
+                const SizedBox(width: 4),
+                Text(c == 'push' ? tr('Push') : tr('Telegram'),
+                    key: Key('broadcast-channel-${s.id}-$c'), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              ]),
+            ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(20)),
@@ -304,6 +327,10 @@ class BroadcastFormScreen extends StatefulWidget {
 class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
   static const _maxLength = 4000;
   late final TextEditingController _message;
+  late final TextEditingController _title;
+  final _testPhone = TextEditingController();
+  late bool _push;
+  late bool _telegram;
   late String _kind;
   late TimeOfDay _time;
   late int _weekday;
@@ -320,6 +347,10 @@ class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
     super.initState();
     final s = widget.schedule;
     _message = TextEditingController(text: s?.message ?? '');
+    _title = TextEditingController(text: s?.title ?? '');
+    // A new schedule is a push notification to the Customer App; Telegram is the other channel.
+    _push = s?.push ?? true;
+    _telegram = s?.telegram ?? false;
     _kind = s?.kind ?? 'daily';
     final parts = (s?.time ?? '08:00').split(':');
     _time = TimeOfDay(hour: int.tryParse(parts.first) ?? 8, minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0);
@@ -331,6 +362,8 @@ class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
   @override
   void dispose() {
     _message.dispose();
+    _title.dispose();
+    _testPhone.dispose();
     super.dispose();
   }
 
@@ -352,7 +385,12 @@ class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.10), borderRadius: BorderRadius.circular(16)),
-            child: Text(text.isEmpty ? tr('Write the message first.') : text, key: const Key('broadcast-preview-text')),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              if (_push)
+                Text(_title.text.trim().isEmpty ? 'BADAL EXCHANGE' : _title.text.trim(),
+                    key: const Key('broadcast-preview-title'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text(text.isEmpty ? tr('Write the message first.') : text, key: const Key('broadcast-preview-text')),
+            ]),
           ),
         ),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Tx('Close'))],
@@ -380,6 +418,32 @@ class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
     }
   }
 
+  Future<void> _testPush() async {
+    final text = _message.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = tr('Write the message first.'));
+      return;
+    }
+    if (_testPhone.text.trim().isEmpty) {
+      setState(() => _error = tr('Enter the phone number of a Customer App account for the test.'));
+      return;
+    }
+    setState(() {
+      _testing = true;
+      _error = null;
+    });
+    try {
+      final hasDevice = await _api.testPush(title: _title.text.trim(), message: text, phone: _testPhone.text.trim());
+      if (mounted) {
+        showSnack(context, hasDevice ? tr('Test notification queued: it arrives within a minute.') : tr('That customer has no device registered: the app must be open once with notifications allowed.'));
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(e, tr('Something went wrong.')));
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
   Future<void> _save() async {
     final text = _message.text.trim();
     if (text.isEmpty) {
@@ -399,6 +463,8 @@ class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
         weekday: _weekday,
         monthDay: _monthDay,
         active: _activate,
+        title: _title.text.trim().isEmpty ? null : _title.text.trim(),
+        channels: [if (_push) 'push', if (_telegram) 'telegram'],
       );
       if (mounted) {
         showSnack(context, tr('Schedule saved.'));
@@ -420,6 +486,42 @@ class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
         ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
+            Tx('Send through', style: const TextStyle(fontWeight: FontWeight.w800)),
+            SwitchListTile(
+              key: const Key('broadcast-channel-push'),
+              contentPadding: EdgeInsets.zero,
+              value: _push,
+              onChanged: (v) => setState(() {
+                _push = v;
+                if (!_push && !_telegram) _telegram = true; // at least one
+              }),
+              title: const Tx('Push notification (Customer App)'),
+              subtitle: const Tx('Every active customer, even with the app closed.'),
+            ),
+            SwitchListTile(
+              key: const Key('broadcast-channel-telegram'),
+              contentPadding: EdgeInsets.zero,
+              value: _telegram,
+              onChanged: (v) => setState(() {
+                _telegram = v;
+                if (!_push && !_telegram) _push = true;
+              }),
+              title: const Tx('Telegram'),
+              subtitle: const Tx('Customers who linked Telegram with the bot.'),
+            ),
+            if (_push) ...[
+              const SizedBox(height: 8),
+              Tx('Title', style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              TextField(
+                key: const Key('broadcast-title'),
+                controller: _title,
+                maxLength: 100,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(hintText: 'BADAL EXCHANGE'),
+              ),
+            ],
+            const SizedBox(height: 4),
             Tx('Message', style: const TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
             TextField(
@@ -512,17 +614,40 @@ class _BroadcastFormScreenState extends State<BroadcastFormScreen> {
                   label: const Tx('Preview'),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const Key('broadcast-test-button'),
-                  onPressed: _testing ? null : _test,
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                  icon: const Icon(Icons.send_outlined),
-                  label: const Tx('Test message'),
+              if (_telegram) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('broadcast-test-button'),
+                    onPressed: _testing ? null : _test,
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Tx('Test message'),
+                  ),
                 ),
-              ),
+              ],
             ]),
+            if (_push) ...[
+              const SizedBox(height: 12),
+              Tx('Test notification', style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              TextField(
+                key: const Key('broadcast-test-phone'),
+                controller: _testPhone,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(hintText: tr('Customer phone number')),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const Key('broadcast-test-push-button'),
+                onPressed: _testing ? null : _testPush,
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+                icon: const Icon(Icons.notifications_active_outlined),
+                label: const Tx('Test push'),
+              ),
+              const SizedBox(height: 4),
+              Tx('Goes to this one customer only, never to everyone.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            ],
             const SizedBox(height: 8),
             ElevatedButton.icon(
               key: const Key('broadcast-save'),

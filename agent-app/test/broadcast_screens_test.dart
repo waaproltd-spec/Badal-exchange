@@ -13,8 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Map<String, dynamic> _schedule(String id, String kind, String time, {String status = 'active', int? weekday, int? monthDay, String message = 'Macaamiisha sharafta leh, mahadsanid.', Map<String, dynamic>? lastRun}) => {
-      'id': id, 'message': message, 'kind': kind, 'time': time, 'weekday': weekday, 'monthDay': monthDay, 'status': status,
+Map<String, dynamic> _schedule(String id, String kind, String time, {String status = 'active', int? weekday, int? monthDay, String message = 'Macaamiisha sharafta leh, mahadsanid.', Map<String, dynamic>? lastRun, List<String> channels = const ['telegram'], String? title}) => {
+      'id': id, 'title': title, 'channels': channels, 'message': message, 'kind': kind, 'time': time, 'weekday': weekday, 'monthDay': monthDay, 'status': status,
       'nextRunAt': '2026-11-05T05:00:00Z', 'lastRunAt': null, 'lastRun': lastRun,
     };
 
@@ -26,8 +26,8 @@ class _Api extends AgentApi {
   bool teamChatLinked = true;
   Map<String, dynamic> runSending = const {};
   List<Map<String, dynamic>> schedules = [
-    _schedule('s1', 'daily', '08:00', lastRun: {'status': 'done', 'total': 100, 'sent': 97, 'failed': 3}),
-    _schedule('s2', 'weekly', '10:00', weekday: 7),
+    _schedule('s1', 'daily', '08:00', channels: ['push'], title: 'Maalinle', lastRun: {'status': 'done', 'total': 100, 'sent': 97, 'failed': 3}),
+    _schedule('s2', 'weekly', '10:00', weekday: 7, channels: ['push', 'telegram']),
     _schedule('s3', 'monthly', '09:00', monthDay: 1, status: 'paused'),
   ];
 
@@ -35,16 +35,16 @@ class _Api extends AgentApi {
   Future<BroadcastData> getBroadcasts() async {
     calls.add('list');
     return BroadcastData.fromJson({
-      'stats': {'registeredCustomers': 150, 'eligibleCustomers': 120, 'sent': 1920, 'failed': 28, 'activeSchedules': 2, 'teamChatLinked': teamChatLinked},
+      'stats': {'registeredCustomers': 160, 'activeCustomers': 150, 'pushReachable': 130, 'eligibleCustomers': 120, 'sent': 1920, 'failed': 28, 'pushSent': 1500, 'pushFailed': 20, 'pushNoDevice': 40, 'telegramSent': 420, 'telegramFailed': 8, 'activeSchedules': 2, 'teamChatLinked': teamChatLinked},
       'schedules': schedules,
       'runs': [if (runSending.isNotEmpty) runSending],
     });
   }
 
   @override
-  Future<BroadcastSchedule> saveBroadcast({String? id, required String message, required String kind, required String time, int? weekday, int? monthDay, bool active = true}) async {
+  Future<BroadcastSchedule> saveBroadcast({String? id, required String message, required String kind, required String time, int? weekday, int? monthDay, bool active = true, String? title, List<String> channels = const ['push']}) async {
     calls.add('save');
-    saved = {'id': id, 'message': message, 'kind': kind, 'time': time, 'weekday': weekday, 'monthDay': monthDay, 'active': active};
+    saved = {'id': id, 'message': message, 'kind': kind, 'time': time, 'weekday': weekday, 'monthDay': monthDay, 'active': active, 'title': title, 'channels': channels};
     return BroadcastSchedule.fromJson(_schedule(id ?? 'new', kind, time, weekday: weekday, monthDay: monthDay));
   }
 
@@ -59,6 +59,15 @@ class _Api extends AgentApi {
   Future<void> deleteBroadcast(String id) async {
     calls.add('delete $id');
     schedules.removeWhere((s) => s['id'] == id);
+  }
+
+  bool deviceRegistered = true;
+
+  @override
+  Future<bool> testPush({String? title, required String message, required String phone}) async {
+    calls.add('push $title|$message|$phone');
+    if (phone == '252699999999') throw const ApiException(statusCode: 404, code: 'NOT_FOUND', message: 'No Customer App customer has this phone number');
+    return deviceRegistered;
   }
 
   @override
@@ -95,16 +104,19 @@ void main() {
   });
 
   test('the model: progress is what was handled of the total', () {
-    final run = BroadcastRun.fromJson({'id': 'r', 'status': 'sending', 'total': 200, 'sent': 150, 'failed': 24});
-    expect(run.percent, 87);
+    final run = BroadcastRun.fromJson({'id': 'r', 'status': 'sending', 'total': 200, 'sent': 150, 'failed': 24, 'skipped': 6});
+    expect(run.percent, 90);
     expect(run.sending, isTrue);
     expect(BroadcastRun.fromJson({'id': 'r', 'status': 'done', 'total': 0}).percent, 100);
   });
 
   testWidgets('the stats and each schedule: kind, time, state, next moment (Mogadishu) and the last run', (tester) async {
     await _pump(tester, const BroadcastScreen());
-    expect(tester.widget<Text>(find.descendant(of: find.byKey(const Key('broadcast-stat-customers')), matching: find.text('120'))).data, '120');
-    expect(find.text('of 150 registered'), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const Key('broadcast-stat-customers')), matching: find.text('150')), findsOneWidget, reason: 'every active customer');
+    expect(find.text('130 with notifications • 120 on Telegram'), findsOneWidget);
+    expect(find.text('Notifications sent'), findsOneWidget);
+    expect(find.text('Push 1500 • Telegram 420'), findsOneWidget);
+    expect(find.text('Push 20 • Telegram 8'), findsOneWidget);
     expect(find.descendant(of: find.byKey(const Key('broadcast-stat-sent')), matching: find.text('1920')), findsOneWidget);
     expect(find.descendant(of: find.byKey(const Key('broadcast-stat-failed')), matching: find.text('28')), findsOneWidget);
     expect(find.descendant(of: find.byKey(const Key('broadcast-stat-active')), matching: find.text('2')), findsOneWidget);
@@ -116,13 +128,20 @@ void main() {
     expect(tester.widget<Text>(find.byKey(const Key('broadcast-last-s1'))).data, 'Last run: 97 sent, 3 failed');
     expect(tester.widget<Text>(find.byKey(const Key('broadcast-status-s3'))).data, 'Paused');
     expect(find.byKey(const Key('broadcast-progress')), findsNothing);
+    expect(find.byKey(const Key('broadcast-channel-s1-push')), findsOneWidget);
+    expect(find.byKey(const Key('broadcast-channel-s1-telegram')), findsNothing);
+    expect(find.byKey(const Key('broadcast-channel-s2-push')), findsOneWidget);
+    expect(find.byKey(const Key('broadcast-channel-s2-telegram')), findsOneWidget);
+    expect(find.text('Maalinle'), findsOneWidget, reason: 'the title');
   });
 
   testWidgets('a run being sent shows its progress; the list asks again by itself', (tester) async {
-    final api = _Api()..runSending = {'id': 'r1', 'status': 'sending', 'total': 200, 'sent': 150, 'failed': 24, 'isTest': false};
+    final api = _Api()..runSending = {'id': 'r1', 'status': 'sending', 'channel': 'push', 'total': 200, 'sent': 150, 'failed': 24, 'skipped': 6, 'isTest': false};
     await _pump(tester, const BroadcastScreen(), api: api);
     expect(find.byKey(const Key('broadcast-progress')), findsOneWidget);
-    expect(tester.widget<Text>(find.byKey(const Key('broadcast-percent'))).data, '87%');
+    expect(tester.widget<Text>(find.byKey(const Key('broadcast-percent'))).data, '90%', reason: '(150 + 24 + 6) of 200');
+    expect(find.text('Sending progress • Push notification'), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('broadcast-skipped'))).data, '6 customers have no device (notifications off or signed out).');
     expect(tester.widget<Text>(find.byKey(const Key('broadcast-counts'))).data, 'Sent 150 • Failed 24 • Total 200');
     final before = api.calls.where((c) => c == 'list').length;
     await tester.pump(const Duration(seconds: 9));
@@ -166,7 +185,7 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('broadcast-save')));
     await tester.tap(find.byKey(const Key('broadcast-save')));
     await tester.pumpAndSettle();
-    expect(api.saved, {'id': null, 'message': 'Toddobaad wanaagsan!', 'kind': 'weekly', 'time': '08:00', 'weekday': 3, 'monthDay': 1, 'active': true});
+    expect(api.saved, {'id': null, 'message': 'Toddobaad wanaagsan!', 'kind': 'weekly', 'time': '08:00', 'weekday': 3, 'monthDay': 1, 'active': true, 'title': null, 'channels': ['push']});
   });
 
   testWidgets('a monthly schedule picks the day of the month; an empty message is not saved', (tester) async {
@@ -210,6 +229,8 @@ void main() {
   testWidgets('Preview shows the message; Test message goes to the team chat and says so; a missing team chat is explained', (tester) async {
     final api = await _pump(tester, const BroadcastFormScreen());
     await tester.enterText(find.byKey(const Key('broadcast-message')), 'Salaan\nMahadsanid 💙');
+    await tester.tap(find.byKey(const Key('broadcast-channel-telegram')));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('broadcast-preview-button')));
     await tester.tap(find.byKey(const Key('broadcast-preview-button')));
     await tester.pumpAndSettle();
@@ -239,6 +260,8 @@ void main() {
     expect(find.text('Axad'), findsOneWidget);
     expect(find.text('Isniin'), findsOneWidget);
     expect(find.text('Maalin kasta oo Axad ah, saacadda 08:00 AM (waqtiga Muqdisho)'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('broadcast-channel-telegram')));
+    await tester.pumpAndSettle();
     expect(find.text('Fariinta tijaabada'), findsOneWidget);
     // The two buttons sit side by side, not one under the other.
     final a = tester.getRect(find.byKey(const Key('broadcast-preview-button')));
@@ -246,5 +269,60 @@ void main() {
     expect(a.right, lessThanOrEqualTo(b.left), reason: 'side by side');
     expect((a.center.dy - b.center.dy).abs(), lessThan(30), reason: 'on one row');
     expect(b.right, lessThanOrEqualTo(320));
+  });
+
+  testWidgets('channels: push by default, Telegram optional, at least one; the title and the channels are saved', (tester) async {
+    final api = await _pump(tester, const BroadcastFormScreen());
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('broadcast-channel-push'))).value, isTrue);
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('broadcast-channel-telegram'))).value, isFalse);
+    // Turning the only channel off turns the other one on.
+    await tester.tap(find.byKey(const Key('broadcast-channel-push')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('broadcast-channel-telegram'))).value, isTrue);
+    expect(find.byKey(const Key('broadcast-title')), findsNothing, reason: 'no title for Telegram only');
+    await tester.tap(find.byKey(const Key('broadcast-channel-push')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('broadcast-title')), 'Ogeysiis muhiim ah');
+    await tester.enterText(find.byKey(const Key('broadcast-message')), 'Salaan');
+    await tester.ensureVisible(find.byKey(const Key('broadcast-save')));
+    await tester.tap(find.byKey(const Key('broadcast-save')));
+    await tester.pumpAndSettle();
+    expect(api.saved?['title'], 'Ogeysiis muhiim ah');
+    expect(api.saved?['channels'], ['push', 'telegram']);
+  });
+
+  testWidgets('Test push: one customer by phone; says if the customer has no device; an unknown number is explained; the preview shows the title', (tester) async {
+    final api = await _pump(tester, const BroadcastFormScreen());
+    await tester.enterText(find.byKey(const Key('broadcast-title')), 'Salaan');
+    await tester.enterText(find.byKey(const Key('broadcast-message')), 'Mahadsanid');
+    await tester.ensureVisible(find.byKey(const Key('broadcast-test-push-button')));
+    await tester.tap(find.byKey(const Key('broadcast-test-push-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('broadcast-error')), findsOneWidget, reason: 'a phone number is needed');
+    expect(api.calls.where((c) => c.startsWith('push')), isEmpty);
+
+    await tester.enterText(find.byKey(const Key('broadcast-test-phone')), '252610000003');
+    await tester.tap(find.byKey(const Key('broadcast-test-push-button')));
+    await tester.pumpAndSettle();
+    expect(api.calls, contains('push Salaan|Mahadsanid|252610000003'));
+    expect(find.text('Test notification queued: it arrives within a minute.'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+
+    api.deviceRegistered = false;
+    await tester.tap(find.byKey(const Key('broadcast-test-push-button')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('has no device registered'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+
+    await tester.enterText(find.byKey(const Key('broadcast-test-phone')), '252699999999');
+    await tester.tap(find.byKey(const Key('broadcast-test-push-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('No Customer App customer has this phone number'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('broadcast-preview-button')));
+    await tester.tap(find.byKey(const Key('broadcast-preview-button')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.byKey(const Key('broadcast-preview-title'))).data, 'Salaan');
+    expect(find.byKey(const Key('broadcast-test-button')), findsNothing, reason: 'the Telegram test is only for Telegram');
   });
 }

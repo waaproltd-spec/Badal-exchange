@@ -982,9 +982,13 @@ class AgentApi {
     int? weekday,
     int? monthDay,
     bool active = true,
+    String? title,
+    List<String> channels = const ['push'],
   }) async =>
       BroadcastSchedule.fromJson(await _map('manage_save_broadcast', {
         'p_id': id,
+        'p_title': title,
+        'p_channels': channels,
         'p_message': message,
         'p_kind': kind,
         'p_time': time,
@@ -997,6 +1001,11 @@ class AgentApi {
       _map('manage_set_broadcast_status', {'p_id': id, 'p_status': active ? 'active' : 'paused'});
 
   Future<void> deleteBroadcast(String id) => _map('manage_delete_broadcast', {'p_id': id});
+
+  /// A push notification to one customer's devices (by phone number: your own Customer App account), never
+  /// to everyone. True when that customer has a device registered.
+  Future<bool> testPush({String? title, required String message, required String phone}) async =>
+      (await _map('manage_test_push', {'p_title': title, 'p_message': message, 'p_phone': phone}))['hasDevice'] as bool? ?? false;
 
   /// Sends [message] to the team chat only (never to customers).
   Future<void> testBroadcast(String message) => _map('manage_test_broadcast', {'p_message': message});

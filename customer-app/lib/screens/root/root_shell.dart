@@ -76,6 +76,11 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     final m = push?.opened.value;
     if (push == null || m == null || !mounted) return;
     push.opened.value = null;
+    // A scheduled message: the app opens, on Home.
+    if (m.isScheduled) {
+      if (mounted) setState(() => _index = 0);
+      return;
+    }
     if (m.isBroadcast) {
       await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
       return;
@@ -97,9 +102,9 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     final m = _push?.foreground.value;
     if (m == null || !mounted) return;
     _push?.foreground.value = null;
-    if (!m.isBroadcast) return;
+    if (!m.isBroadcast && !m.isScheduled) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      key: Key('push-banner-${m.isBroadcast ? 'broadcast' : m.orderId}'),
+      key: Key('push-banner-${m.isScheduled ? 'scheduled' : m.isBroadcast ? 'broadcast' : m.orderId}'),
       duration: const Duration(seconds: 6),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -109,10 +114,13 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
           if (m.body != null) Text(m.body!),
         ],
       ),
-      action: SnackBarAction(
-        label: AppStrings.viewDetails,
-        onPressed: () => _push?.opened.value = m,
-      ),
+      // A broadcast is in the Notifications list; a scheduled message is only the banner.
+      action: m.isBroadcast
+          ? SnackBarAction(
+              label: AppStrings.viewDetails,
+              onPressed: () => _push?.opened.value = m,
+            )
+          : null,
     ));
   }
 

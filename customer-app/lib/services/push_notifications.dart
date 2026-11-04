@@ -6,9 +6,10 @@ import 'package:flutter/foundation.dart';
 import '../api/customer_api.dart';
 
 /// A notification the backend sent: 'deposit_completed' or
-/// 'withdraw_completed' for the order [orderId], or 'broadcast' (an admin's
-/// "Send to all customers"). The text comes from the server; the app only
-/// uses the type and the id.
+/// 'withdraw_completed' for the order [orderId], 'broadcast' (an admin's
+/// "Send to all customers") or 'scheduled_message' (a message the admins
+/// scheduled: daily, weekly or monthly). The text comes from the server; the
+/// app only uses the type and the id.
 class PushMessage {
   const PushMessage({required this.type, this.orderId = '', this.title, this.body});
 
@@ -21,13 +22,18 @@ class PushMessage {
 
   static const orderTypes = {'deposit_completed', 'withdraw_completed'};
   static const broadcast = 'broadcast';
+  static const scheduled = 'scheduled_message';
 
   bool get isBroadcast => type == broadcast;
+
+  /// A scheduled message: tapping it just opens the app (it is not in the Notifications list).
+  bool get isScheduled => type == scheduled;
 
   /// Null for anything that isn't one of our notifications.
   static PushMessage? fromData(Map<String, dynamic> data, {String? title, String? body}) {
     final type = data['type'];
     if (type == broadcast) return PushMessage(type: broadcast, title: title, body: body);
+    if (type == scheduled) return PushMessage(type: scheduled, title: title, body: body);
     final orderId = data['orderId'];
     if (type is! String || !orderTypes.contains(type) || orderId is! String || orderId.isEmpty) return null;
     return PushMessage(type: type, orderId: orderId, title: title, body: body);
