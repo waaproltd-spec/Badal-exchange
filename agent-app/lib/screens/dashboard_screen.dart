@@ -12,6 +12,8 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/dashboard_widgets.dart';
+import '../widgets/page_banner.dart';
+import '../models/report_overview.dart' show usd;
 import '../widgets/state_views.dart';
 import 'company/company_balances_screen.dart';
 import 'pending_deposits_screen.dart';
@@ -29,6 +31,9 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback? onOpenUsers;
 
   const DashboardScreen({super.key, required this.onOpenHistory, this.onOpenUsers});
+
+  /// Pending deposits + withdrawals, for the bell in the app bar.
+  static final ValueNotifier<int> pending = ValueNotifier(0);
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -63,6 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
       if (session.canViewCompanyBalances) _loadCompanies(session);
       _loadStats(session);
       if (!mounted) return;
+      DashboardScreen.pending.value = summary.pendingDeposits + summary.pendingWithdrawals;
       setState(() {
         _summary = summary;
         _loading = false;
@@ -146,15 +152,27 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        key: const Key('dashboard-list'),
+        padding: EdgeInsets.zero,
         children: [
-          Text(
-            trp('Welcome, {0}', [session.agentDisplayName]),
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+          PageBanner(
+            topInset: false,
+            leading: Container(
+              width: 62,
+              height: 62,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppColors.onHeader, borderRadius: BorderRadius.circular(18)),
+              child: Image.asset('assets/brand/logo.png', key: const Key('banner-logo')),
+            ),
+            title: trp('Welcome, {0}', [session.agentDisplayName]),
+            subtitle: 'Manage your transactions and company balances',
+            titleSize: 22,
           ),
-          const SizedBox(height: 2),
-          Tx('Manage your transactions and company balances', style: TextStyle(color: AppColors.textSecondary)),
-          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
           Row(children: [
             Expanded(
               child: OutlinedButton.icon(
@@ -280,10 +298,37 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               ),
             ),
           const SizedBox(height: 8),
-          SectionHeader(
-            title: tr('Recent Activity'),
-            actionLabel: tr('See all'),
-            onAction: () => widget.onOpenHistory(const HistoryFilter()),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 12),
+            child: Row(children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(color: AppColors.header, borderRadius: BorderRadius.circular(16)),
+                child: const Icon(Icons.history_rounded, color: AppColors.onHeader, size: 26),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Tx('Recent Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  Tx('Latest transactions', style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+                ]),
+              ),
+              OutlinedButton(
+                key: const Key('activity-see-all'),
+                style: OutlinedButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
+                  backgroundColor: AppColors.primaryTint,
+                  foregroundColor: AppColors.primaryDark,
+                ),
+                onPressed: () => widget.onOpenHistory(const HistoryFilter()),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Tx('See all', style: TextStyle(fontWeight: FontWeight.w800)),
+                  const Icon(Icons.chevron_right_rounded, size: 18),
+                ]),
+              ),
+            ]),
           ),
           if (s.recentActivity.isEmpty)
             ConsoleCard(
@@ -294,13 +339,16 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               ActivityTile(item: item, onTap: () => showActivityDetails(context, item)),
               const SizedBox(height: 8),
             ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Dashboard entry to Company Balances: the verified total and any warnings.
+/// Dashboard entry to Company Balances: the verified total and any warnings, on a dark card.
 class _CompanyBalancesCard extends StatelessWidget {
   final CompanyBalancesOverview? data;
   final VoidCallback onTap;
@@ -310,33 +358,81 @@ class _CompanyBalancesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = data;
-    final notes = [
-      if (d != null && d.lowCount > 0) '${d.lowCount} low',
-      if (d != null && d.unavailableCount > 0) '${d.unavailableCount} offline',
-    ];
-    return ConsoleCard(
+    Widget chip(IconData icon, String text, Color color) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(color: color.withOpacity(0.18), borderRadius: BorderRadius.circular(20)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 5),
+            Flexible(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 13))),
+          ]),
+        );
+    return Material(
       key: const Key('company-balances-entry'),
-      onTap: onTap,
-      child: Row(
-        children: [
-          const TintedIcon(icon: Icons.account_balance_wallet_rounded, color: AppColors.purple, size: 46),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.header, Color.lerp(AppColors.header, AppColors.primary, 0.45)!],
+            ),
+          ),
+          child: IntrinsicHeight(
+            child: Row(
               children: [
-                Tx('Company Balances',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
-                Tx(d == null ? tr('Cash register balances') : trp('Total \${0}', [d.total]),
-                    style: TextStyle(color: AppColors.textSecondary)),
-                if (notes.isNotEmpty)
-                  Tx(notes.join(' · '),
-                      style: const TextStyle(color: AppColors.statusFailed, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(color: AppColors.onHeader.withOpacity(0.14), borderRadius: BorderRadius.circular(18)),
+                  child: Icon(Icons.account_balance_wallet_rounded, size: 30, color: AppColors.lightGold),
+                ),
+                const SizedBox(width: 12),
+                VerticalDivider(width: 1, color: AppColors.onHeader.withOpacity(0.25)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Tx('Company Balances', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: AppColors.onHeader)),
+                      ),
+                      if (d == null)
+                        Tx('Cash register balances', style: TextStyle(color: AppColors.onHeader.withOpacity(0.75)))
+                      else ...[
+                        Tx('Total Balance', style: TextStyle(color: AppColors.onHeader.withOpacity(0.75))),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(usd(d.total), key: const Key('company-total'), style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.onHeader)),
+                        ),
+                        if (d.lowCount > 0 || d.unavailableCount > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Wrap(spacing: 8, runSpacing: 6, children: [
+                              if (d.lowCount > 0) chip(Icons.warning_amber_rounded, trp('{0} Low', [d.lowCount]), const Color(0xFFFF8A7A)),
+                              if (d.unavailableCount > 0)
+                                chip(Icons.check_circle_rounded, trp('{0} Offline', [d.unavailableCount]), const Color(0xFF5BE08F)),
+                            ]),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: AppColors.onHeader.withOpacity(0.85)),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
-        ],
+        ),
       ),
     );
   }

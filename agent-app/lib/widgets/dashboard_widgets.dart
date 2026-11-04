@@ -55,23 +55,39 @@ class CustomersCard extends StatelessWidget {
     return ConsoleCard(
       key: const Key('dashboard-customers'),
       onTap: onTap,
-      child: Row(children: [
-        const TintedIcon(icon: Icons.groups_rounded, color: AppColors.purple, size: 44),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Tx('Total Customers', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text('$total',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-            ),
-            Text(trp('+{0} new this month', [newThisMonth]), style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-          ]),
-        ),
-        if (onTap != null) Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
-      ]),
+      child: IntrinsicHeight(
+        child: Row(children: [
+          const TintedIcon(icon: Icons.groups_rounded, color: AppColors.purple, size: 56),
+          const SizedBox(width: 12),
+          VerticalDivider(width: 1, color: AppColors.border),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Tx('Total Customers', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.textPrimary)),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text('$total', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.statusCompleted.withOpacity(0.14), borderRadius: BorderRadius.circular(20)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.arrow_upward_rounded, size: 16, color: AppColors.statusCompleted),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(trp('+{0} new this month', [newThisMonth]),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.statusCompleted)),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+          if (onTap != null) Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+        ]),
+      ),
     );
   }
 }

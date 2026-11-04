@@ -11,6 +11,7 @@ import '../state/history_filter.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_mode.dart';
+import '../widgets/page_banner.dart';
 import '../widgets/state_views.dart';
 import '../l10n/tr.dart';
 import '../l10n/date_format.dart';
@@ -127,11 +128,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: _R.page,
-      child: _loading
-          ? const LoadingView()
-          : (_error != null && _report == null
-              ? ErrorStateView(message: _error!, onRetry: _load)
-              : RefreshIndicator(onRefresh: _load, child: _content(_report!))),
+      child: Column(children: [
+        const PageBanner(icon: Icons.bar_chart_rounded, title: 'Reports', subtitle: 'Analytics & Insights', art: Icons.trending_up_rounded),
+        Expanded(
+          child: _loading
+              ? const LoadingView()
+              : (_error != null && _report == null
+                  ? ErrorStateView(message: _error!, onRetry: _load)
+                  : RefreshIndicator(onRefresh: _load, child: _content(_report!))),
+        ),
+      ]),
     );
   }
 
@@ -143,10 +149,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final open = ReportTotal(r.status('pending').count + r.status('processing').count, '0');
     return ListView(
       key: const Key('reports'),
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 32 + bottom),
+      padding: EdgeInsets.fromLTRB(0, 0, 0, 32 + bottom),
       children: [
-        Tx('Analytics & Insights', style: TextStyle(fontSize: 15, color: _R.muted)),
-        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
@@ -273,6 +280,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _SplitRow(label: tr('Cancelled / rejected'), figure: cancelled, onTap: () => _open(type: 'order', status: 'cancelled')),
           _SplitRow(label: tr('Expired unpaid'), figure: expired, onTap: () => _open(type: 'order', status: 'expired')),
         ]),
+          ]),
+        ),
       ],
     );
   }
@@ -310,19 +319,20 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fg = selected ? AppColors.onPrimary : AppColors.primaryDark;
     return Material(
-      color: selected ? _R.yellow : _R.chip,
-      borderRadius: BorderRadius.circular(24),
+      color: selected ? AppColors.selected : Colors.transparent,
+      shape: StadiumBorder(side: BorderSide(color: selected ? AppColors.selected : AppColors.primary.withOpacity(0.55), width: 1.4)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        customBorder: const StadiumBorder(),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-          child: Tx(label,
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? const Color(0xFF1C1C1E) : _R.muted)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.calendar_month_rounded, size: 20, color: fg),
+            const SizedBox(width: 8),
+            Tx(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: fg)),
+          ]),
         ),
       ),
     );

@@ -6,6 +6,7 @@ import '../models/console.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
+import '../widgets/page_banner.dart';
 import '../widgets/state_views.dart';
 import 'customer_info_screen.dart';
 import '../l10n/tr.dart';
@@ -146,7 +147,10 @@ class _UsersScreenState extends State<UsersScreen> {
   Widget build(BuildContext context) {
     final o = _overview;
     String count(int? n) => n == null ? '' : ' ($n)';
-    return RefreshIndicator(
+    return Column(children: [
+      const PageBanner(icon: Icons.groups_rounded, title: 'Users', subtitle: 'Manage your customers'),
+      Expanded(
+        child: RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -280,7 +284,8 @@ class _UsersScreenState extends State<UsersScreen> {
           ],
         ],
       ),
-    );
+    )),
+    ]);
   }
 }
 

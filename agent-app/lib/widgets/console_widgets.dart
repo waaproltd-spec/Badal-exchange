@@ -20,8 +20,9 @@ class ConsoleCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final Color? color;
+  final Color? borderColor;
 
-  const ConsoleCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.color});
+  const ConsoleCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.color, this.borderColor});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +36,7 @@ class ConsoleCard extends StatelessWidget {
           padding: padding,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: borderColor ?? AppColors.border),
           ),
           child: child,
         ),
@@ -132,7 +133,8 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ConsoleCard(
       onTap: onTap,
-      color: Color.alphaBlend(color.withOpacity(0.05), AppColors.surface),
+      color: Color.alphaBlend(color.withOpacity(0.06), AppColors.surface),
+      borderColor: color.withOpacity(0.28),
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,7 +297,10 @@ class StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(color: color.withOpacity(0.13), borderRadius: BorderRadius.circular(999)),
-      child: Tx(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (status == 'completed') ...[Icon(Icons.check_circle_rounded, size: 14, color: color), const SizedBox(width: 4)],
+        Flexible(child: Tx(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700))),
+      ]),
     );
   }
 }
@@ -325,9 +330,26 @@ class ActivityTile extends StatelessWidget {
         : (item.counterparty ?? '—');
 
     return ConsoleCard(
+      key: Key('activity-${item.id}'),
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
+      padding: EdgeInsets.zero,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The coloured edge: green for money in, orange for money out, red for a failure.
+            Container(
+              key: const Key('activity-stripe'),
+              width: 5,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
         children: [
           TintedIcon(icon: icon, color: color),
           const SizedBox(width: 12),
@@ -369,6 +391,11 @@ class ActivityTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
