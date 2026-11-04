@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
+import '../../services/app_lock.dart';
 import '../../models/withdraw_limits.dart';
 import '../../state/auth_provider.dart';
 import '../../theme/colors.dart';
@@ -12,6 +13,7 @@ import '../../widgets/withdraw_limits_card.dart';
 import '../auth/login_screen.dart';
 import 'change_password_screen.dart';
 import 'kyc_screen.dart';
+import 'verification_settings_screen.dart';
 
 const _green = Color(0xFF2EE59D);
 const _amber = Color(0xFFE0A100);
@@ -295,6 +297,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: const Color(0xFF3B33C9),
                         title: AppStrings.changePassword,
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
+                      ),
+                      const SizedBox(height: 6),
+                      ListenableBuilder(
+                        listenable: AppLock.instance,
+                        builder: (context, _) => _NavPanel(
+                          key: const Key('verification-lock'),
+                          icon: Icons.fingerprint_rounded,
+                          color: const Color(0xFF1B7F5C),
+                          title: AppStrings.verificationLock,
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                                color: (AppLock.instance.enabled ? _green : AppColors.textMuted).withOpacity(0.16),
+                                borderRadius: BorderRadius.circular(20)),
+                            child: Text(AppLock.instance.enabled ? AppStrings.statusOn : AppStrings.verificationLockOff,
+                                maxLines: 1,
+                                style: TextStyle(
+                                    color: AppLock.instance.enabled ? _green : AppColors.textMuted,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12)),
+                          ),
+                          onTap: () => Navigator.of(context)
+                              .push(MaterialPageRoute(builder: (_) => const VerificationSettingsScreen())),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       OutlinedButton.icon(

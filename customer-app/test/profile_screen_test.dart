@@ -76,10 +76,20 @@ void main() {
   });
 
   testWidgets('everything fits one screen on a normal phone: nothing to scroll', (tester) async {
-    await _open(tester);
+    // 360 x 800 (the Verification lock row joined the screen).
+    await _open(tester, size: const Size(360, 800));
     final scroll = tester.state<ScrollableState>(find.byType(Scrollable).first);
     expect(scroll.position.maxScrollExtent, 0);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the Verification lock row shows its state and opens its page', (tester) async {
+    await _open(tester, size: const Size(360, 800));
+    expect(find.byKey(const Key('verification-lock')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('verification-lock')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('lock-switch')), findsOneWidget);
+    expect(find.text(AppStrings.fingerprintPrivacy), findsOneWidget);
   });
 
   testWidgets('a verified customer: verified status and the higher limits', (tester) async {

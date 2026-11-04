@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../api/customer_api.dart';
+import '../services/app_lock.dart';
 import '../services/push_notifications.dart';
 import '../models/auth_user.dart';
 import '../l10n/strings.dart';
@@ -15,13 +16,15 @@ import '../screens/auth/login_screen.dart';
 /// The session tokens are held by Supabase Auth (in secure storage); this
 /// class never handles a raw token.
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({required this.apiClient, required this.customerApi, this.navigatorKey}) {
+  AuthProvider({required this.apiClient, required this.customerApi, this.navigatorKey, AppLock? appLock})
+      : _appLock = appLock ?? AppLock.instance {
     apiClient.onSessionExpired = _handleSessionExpired;
     apiClient.onSessionReplaced = _handleSessionReplaced;
   }
 
   final ApiClient apiClient;
   final CustomerApi customerApi;
+  final AppLock _appLock;
 
   /// Used to bounce back to the login screen if a token refresh fails
   /// while the user is deep in some other screen (not just at startup).
@@ -140,7 +143,19 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Signs out and shows the login screen with [message] (verification: too
+  /// many wrong PINs, the password is then the only way in).
+  Future<void> logoutToLogin(String message) async {
+    await logout();
+    navigatorKey?.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginScreen(message: message)),
+      (route) => false,
+    );
+  }
+
   Future<void> _clearSession() async {
+    // The PIN and fingerprint choice belong to this sign-in only.
+    await _appLock.disable();
     await apiClient.secureStorage.delete(key: SecureStorageKeys.userPhone);
     await apiClient.secureStorage.delete(key: SecureStorageKeys.userName);
     // Tokens written by app versions that used the old REST backend.

@@ -77,6 +77,60 @@ class AppStrings {
   static String get enterPhone9 => _t('Enter the 9 digits after +252', 'Geli 9-ka god ee ka dambeeya +252');
   static String get passwordTooShort =>
       _t('Password must be at least 8 characters', 'Erayga sirtu waa inuu ahaadaa ugu yaraan 8 xaraf');
+  // Customer verification (fingerprint / PIN / password)
+  static String get welcomeBack => _t('Welcome back', 'Soo dhawoow');
+  static String get unlock => _t('Unlock', 'Fur');
+  static String get verifyTitle => _t('Verify it\'s you', 'Xaqiiji inaad adigu tahay');
+  static String get verifySubtitle =>
+      _t('Enter your PIN or use your fingerprint', 'Geli PIN-kaaga ama isticmaal faraha');
+  static String get verifyPasswordSubtitle =>
+      _t('Enter your account password', 'Geli erayga sirta ee akoonkaaga');
+  static String get useFingerprint => _t('Use fingerprint', 'Isticmaal faraha');
+  static String get fingerprintReason =>
+      _t('Verify your identity to open Badal Exchange', 'Xaqiiji aqoonsigaaga si aad u furto Badal Exchange');
+  static String get fingerprintFailed =>
+      _t('Fingerprint not recognized. Enter your PIN.', 'Faraha lama aqoonsan. Geli PIN-kaaga.');
+  static String get usePasswordInstead => _t('Use password instead', 'Isticmaal erayga sirta');
+  static String get usePinInstead => _t('Use PIN instead', 'Isticmaal PIN-ka');
+  static String get accountPassword => _t('Account password', 'Erayga sirta akoonka');
+  static String get verifyButton => _t('Verify', 'Xaqiiji');
+  static String get wrongPin => _t('Wrong PIN. Try again.', 'PIN-ku waa khalad. Mar kale isku day.');
+  static String pinWait(int seconds) {
+    final m = seconds ~/ 60, s = seconds % 60;
+    final t = m > 0 ? '$m:${s.toString().padLeft(2, '0')}' : '${seconds}s';
+    return _t('Too many wrong tries. Wait $t.', 'Isku day badan oo khalad ah. Sug $t.');
+  }
+
+  static String get tooManyPins =>
+      _t('Too many wrong PINs. Please log in again with your password.',
+          'PIN khalad ah ayaa aad u badan. Fadlan mar kale ku gal erayga sirta.');
+  static String get verificationLock => _t('Verification lock', 'Xaqiijinta amniga');
+  static String get verificationLockOn =>
+      _t('On: PIN and fingerprint when the app opens', 'Shidan: PIN iyo faraha marka app-ka la furo');
+  static String get statusOn => _t('On', 'Shidan');
+  static String get verificationLockOff => _t('Off', 'Damsan');
+  static String get fingerprint => _t('Fingerprint', 'Faraha (Fingerprint)');
+  static String get changePin => _t('Change PIN', 'Beddel PIN-ka');
+  static String get createPin => _t('Create a PIN', 'Samee PIN');
+  static String get createPinHelp => _t('Choose a 6-digit PIN', 'Dooro PIN 6 lambar ah');
+  static String get confirmPinHelp => _t('Enter the PIN again', 'Mar kale geli PIN-ka');
+  static String get pinsDontMatch =>
+      _t('The PINs do not match. Try again.', 'PIN-yadu isma laha. Mar kale isku day.');
+  static String get weakPin =>
+      _t('Choose a PIN that is not repeated or in a row (like 123456).',
+          'Dooro PIN aan la soo celin ama isku xigin (sida 123456).');
+  static String get useFingerprintToo =>
+      _t('Also use your fingerprint to verify?', 'Ma isticmaashaa faraha sidoo kale xaqiijinta?');
+  static String get noFingerprintSet =>
+      _t('No fingerprint is set up on this phone.', 'Taleefankan faraha looma diiwaangelin.');
+  static String get fingerprintPrivacy =>
+      _t('Your fingerprint stays on your phone. It is never sent to our servers.',
+          'Faraha waxay ku hartaa taleefankaaga. Marnaba looma diro server-kayaga.');
+  static String get verificationLockEnabled =>
+      _t('Verification lock is on.', 'Xaqiijinta amniga waa la shiday.');
+  static String get verificationLockDisabled =>
+      _t('Verification lock is off.', 'Xaqiijinta amniga waa la damiyay.');
+  static String get pinChanged => _t('Your PIN was changed.', 'PIN-kaaga waa la beddelay.');
   static String get changePassword => _t('Change Password', 'Beddel Erayga Sirta');
   static String get currentPassword => _t('Current Password', 'Erayga Sirta Hadda');
   static String get currentPasswordHint => _t('The password you log in with', 'Erayga aad hadda ku gasho');

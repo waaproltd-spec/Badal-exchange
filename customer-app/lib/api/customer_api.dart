@@ -62,6 +62,12 @@ class CustomerApi {
 
   /// Changes the password; this phone stays signed in. A wrong
   /// [currentPassword] is INVALID_PASSWORD.
+  /// Checks the account password for the verification screen: only the sign-in
+  /// check (no login record, other phones stay signed in); throws when wrong.
+  Future<void> verifyPassword({required String phone, required String password}) async {
+    await _client.signIn(phone: phone, password: password);
+  }
+
   Future<void> changePassword({required String currentPassword, required String newPassword}) async {
     await _client.rpc('change_password', {'p_current_password': currentPassword, 'p_new_password': newPassword});
   }

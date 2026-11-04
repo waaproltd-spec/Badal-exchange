@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'api/api_client.dart';
 import 'api/customer_api.dart';
 import 'l10n/strings.dart';
+import 'screens/security/app_lock_gate.dart';
 import 'screens/splash_screen.dart';
+import 'services/app_lock.dart';
 import 'services/push_notifications.dart';
 import 'state/auth_provider.dart';
 import 'state/orders_provider.dart';
@@ -28,6 +30,8 @@ Future<void> main() async {
   }
   await AppLanguage.load();
   await AppThemeMode.load();
+  // Customer verification: starts locked when the customer turned it on.
+  await AppLock.instance.load();
   runApp(const BaariApp());
 }
 
@@ -74,6 +78,7 @@ class BaariApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             navigatorKey: navigatorKey,
             theme: AppTheme.current,
+            builder: (context, child) => AppLockGate(lock: AppLock.instance, child: child ?? const SizedBox.shrink()),
             home: const SplashScreen(),
           ),
         ),
