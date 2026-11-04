@@ -169,7 +169,12 @@ class _LimitCard extends StatelessWidget {
           Row(children: [
             Icon(Icons.speed_rounded, color: Colors.white.withOpacity(0.9), size: 22),
             const SizedBox(width: 8),
-            const Text('Total Limit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
+            Flexible(
+              child: Text('Total Limit',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
+            ),
           ]),
           const SizedBox(height: 6),
           FittedBox(
@@ -217,7 +222,12 @@ class _BalanceCard extends StatelessWidget {
           Row(children: [
             Icon(Icons.account_balance_wallet_rounded, color: Colors.white.withOpacity(0.9), size: 22),
             const SizedBox(width: 8),
-            const Text('Total Balance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
+            Flexible(
+              child: Text('Total Balance',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
+            ),
           ]),
           const SizedBox(height: 6),
           FittedBox(

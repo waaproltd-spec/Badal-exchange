@@ -128,7 +128,7 @@ String _text(WidgetTester tester, String key) => tester.widget<Text>(find.byKey(
 
 void main() {
   testWidgets('verified total, each company with its status; low shows what to top up', (tester) async {
-    await _phone(tester);
+    await _phone(tester, const Size(393, 1500));
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     expect(_text(tester, 'total-amount'), '\$955.00');
@@ -207,7 +207,7 @@ void main() {
   });
 
   testWidgets('company details: balance, checks, period and transaction filters', (tester) async {
-    await _phone(tester);
+    await _phone(tester, const Size(393, 1500));
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('company-888starz')));
