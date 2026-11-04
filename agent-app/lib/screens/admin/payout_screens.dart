@@ -129,7 +129,7 @@ class _PayoutsScreenState extends ListScreenState<PayoutsScreen, PayoutOrder> {
                                     style: const TextStyle(fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 4),
                                 Text('${o.orderCode} • ${o.customerName ?? ''}',
-                                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
                                 if (o.failureReason != null)
                                   Text(o.failureReason!, style: const TextStyle(color: AppColors.statusFailed, fontSize: 12)),
                               ]),
@@ -319,7 +319,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                             if (a.step1Response != null) Text('Carrier, step 1: ${a.step1Response}'),
                             if (a.step2Response != null) Text('Carrier, after PIN: ${a.step2Response}'),
                             if (a.createdAt != null)
-                              Text(formatDateTime(a.createdAt!), style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                              Text(formatDateTime(a.createdAt!), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
                           ]),
                         ),
                       ),
@@ -331,7 +331,7 @@ class _PayoutDetailScreenState extends State<PayoutDetailScreen> {
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
                           '${formatDateTime(DateTime.tryParse('${h['createdAt']}') ?? DateTime.now())}  ${h['action']}',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                         ),
                       ),
                   ],
@@ -431,12 +431,12 @@ class _PaymentSmsReviewScreenState extends ListScreenState<PaymentSmsReviewScree
                             Text(s.body, style: const TextStyle(fontSize: 13)),
                             if (s.reason != null) ...[
                               const SizedBox(height: 4),
-                              Text(s.reason!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                              Text(s.reason!, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                             ],
                             if (s.orderCode != null)
-                              Text('Deposit: ${s.orderCode}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                              Text('Deposit: ${s.orderCode}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                             if (s.receivedAt != null)
-                              Text(formatDateTime(s.receivedAt!), style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                              Text(formatDateTime(s.receivedAt!), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
                             if (open && s.amount != null)
                               Align(
                                 alignment: Alignment.centerRight,
@@ -753,7 +753,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
           ),
           const SizedBox(height: 6),
           Text(g.hasWallet ? help : 'Add a wallet with a phone and PIN first.',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
           InfoRow('Paid today', '\$${g.paidToday} of \$${g.dailyLimit}'),
           InfoRow('Minimum balance', '\$${g.minBalance}'),
           InfoRow(
@@ -865,7 +865,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
             onSelectionChanged: (v) => _setSahalMode(g, v.first),
           ),
           const SizedBox(height: 6),
-          Text(help, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+          Text(help, style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
           InfoRow('Sent today', '\$${g.paidToday} of \$${g.dailyLimit}'),
           InfoRow(
             'Sahal balance',
@@ -962,7 +962,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                     const Expanded(child: GroupLabel('Badal Exchange wallets')),
                     TextButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('Add')),
                   ]),
-                  const Text(
+                  Text(
                     'Deposit SMS for a wallet only count when they arrive on its phone and SIM. '
                     'Withdrawals are paid from the oldest wallet of each kind that has a phone and a PIN.',
                     style: TextStyle(color: AppColors.textSecondary),
@@ -983,7 +983,7 @@ class _PayoutSettingsScreenState extends State<PayoutSettingsScreen> {
                                           '${w.simSlot != null ? ', SIM ${w.simSlot}' : ''}',
                                   if (w.paysWithdrawals) 'pays withdrawals',
                                 ].join(' • '),
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                               ),
                               Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
                                 TextButton(onPressed: () => _setPin(w), child: Text(w.hasPin ? 'Change PIN' : 'Set PIN')),

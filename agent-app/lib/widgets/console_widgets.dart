@@ -60,7 +60,7 @@ class SectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
             ),
           ),
           if (actionLabel != null)
@@ -82,7 +82,7 @@ class GroupLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: AppColors.textSecondary),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: AppColors.textSecondary),
       ),
     );
   }
@@ -146,17 +146,17 @@ class StatCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           if (caption != null) ...[
             const SizedBox(height: 2),
-            Text(caption!, style: const TextStyle(fontSize: 11, color: AppColors.textFaint)),
+            Text(caption!, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
           ],
         ],
       ),
@@ -338,14 +338,14 @@ class ActivityTile extends StatelessWidget {
                   item.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '$who • ${formatDateTime(item.createdAt)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -388,12 +388,12 @@ class InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            child: Text(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           ),
           Expanded(
             child: SelectableText(
               value,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
           ),
         ],
@@ -419,7 +419,7 @@ Future<void> showActivityDetails(BuildContext context, HistoryItem item) {
               Expanded(
                 child: Text(
                   item.title,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
               ),
               StatusPill(item.status),

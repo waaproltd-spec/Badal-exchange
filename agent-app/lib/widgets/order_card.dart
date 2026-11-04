@@ -36,7 +36,7 @@ class OrderCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     '$directionLabel · $methodLabel',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textSecondary,
@@ -56,7 +56,7 @@ class OrderCard extends StatelessWidget {
                     children: [
                       Text(
                         order.counterpartyLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -65,7 +65,7 @@ class OrderCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         order.orderCode.isNotEmpty ? order.orderCode : order.id,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                        style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                     ],
                   ),
@@ -75,7 +75,7 @@ class OrderCard extends StatelessWidget {
                   children: [
                     Text(
                       '\$${order.amount}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
@@ -84,7 +84,7 @@ class OrderCard extends StatelessWidget {
                     if (order.fee != '0.00')
                       Text(
                         'Fee \$${order.fee}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                        style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                   ],
                 ),
@@ -97,7 +97,7 @@ class OrderCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   _dateFormat.format(order.createdAt.toLocal()),
-                  style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                  style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                 ),
                 if (order.depositCode != null) ...[
                   const SizedBox(width: 12),
@@ -105,7 +105,7 @@ class OrderCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     order.depositCode!,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                    style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                   ),
                 ],
               ],

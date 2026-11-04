@@ -68,16 +68,16 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(widget.name!,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                           if (widget.phone != null)
-                            Text(widget.phone!, style: const TextStyle(color: AppColors.textSecondary)),
+                            Text(widget.phone!, style: TextStyle(color: AppColors.textSecondary)),
                           if (widget.balance != null) ...[
                             const SizedBox(height: 4),
                             Text(WalletStrings.walletBalance,
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                             Text('\$${widget.balance}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                           ],
                         ],
@@ -104,14 +104,14 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
               },
             ),
             const SizedBox(height: 6),
-            Text(WalletStrings.privateNote, style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+            Text(WalletStrings.privateNote, style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
             const SizedBox(height: 10),
             if (_error != null)
               ErrorStateView(message: _error!, onRetry: _load)
             else if (items == null)
               const Padding(padding: EdgeInsets.only(top: 40), child: LoadingView())
             else if (items.isEmpty)
-              ConsoleCard(child: Text(WalletStrings.none, style: const TextStyle(color: AppColors.textSecondary)))
+              ConsoleCard(child: Text(WalletStrings.none, style: TextStyle(color: AppColors.textSecondary)))
             else
               for (final a in items) ...[
                 _AdjustmentTile(adjustment: a, showCustomer: widget.customerId == null),
@@ -148,17 +148,17 @@ class _AdjustmentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(a.isAdd ? WalletStrings.addMoney : WalletStrings.deductMoney,
-                    style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                 if (showCustomer)
                   Text('${a.customerName} · ${a.customerPhone}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.textSecondary)),
+                      style: TextStyle(color: AppColors.textSecondary)),
                 Text(a.reason,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textSecondary)),
-                Text(formatDateTime(a.createdAt), style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textSecondary)),
+                Text(formatDateTime(a.createdAt), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
               ],
             ),
           ),
@@ -172,7 +172,7 @@ class _AdjustmentTile extends StatelessWidget {
                       fontSize: 16,
                       color: a.isAdd ? AppColors.statusCompleted : AppColors.statusFailed)),
               const SizedBox(height: 18),
-              Text('Tx: ${a.reference}', style: const TextStyle(color: AppColors.textFaint, fontSize: 11)),
+              Text('Tx: ${a.reference}', style: TextStyle(color: AppColors.textFaint, fontSize: 11)),
             ],
           ),
         ],

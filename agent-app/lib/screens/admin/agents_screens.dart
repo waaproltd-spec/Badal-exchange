@@ -88,16 +88,16 @@ class _AgentsScreenState extends ListScreenState<AgentsScreen, AgentListItem> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(a.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                          Text(a.phone ?? '—', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          Text(a.phone ?? '—', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                           Text(
                             a.lastSeenAt != null ? 'Last seen ${formatDateTime(a.lastSeenAt!)}' : 'Never seen',
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint),
+                            style: TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                           ),
                         ],
                       ),
                     ),
                     StatusPill(a.isActive ? 'active' : 'blocked'),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
                   ],
                 ),
               ),
@@ -299,7 +299,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           const GroupLabel('Responsibilities'),
           ConsoleCard(
             child: a.responsibilities.isEmpty
-                ? const Text('None', style: TextStyle(color: AppColors.textSecondary))
+                ? Text('None', style: TextStyle(color: AppColors.textSecondary))
                 : Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -308,7 +308,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                         Chip(
                           label: Text(responsibilityLabel(r)),
                           backgroundColor: r == 'manage_settings' ? AppColors.lightGold : AppColors.surfaceRaised,
-                          side: const BorderSide(color: AppColors.border),
+                          side: BorderSide(color: AppColors.border),
                         ),
                     ],
                   ),
@@ -317,7 +317,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           if (_devices == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_devices!.isEmpty)
-            const ConsoleCard(child: Text('No registered devices.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Text('No registered devices.', style: TextStyle(color: AppColors.textSecondary)))
           else
             for (final d in _devices!) ...[
               ConsoleCard(
@@ -332,7 +332,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                           Text(d.label ?? d.deviceId, style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text(
                             d.lastSeenAt != null ? 'Last seen ${formatDateTime(d.lastSeenAt!)}' : 'Registered',
-                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
                       ),
@@ -347,7 +347,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           if (_logins == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_logins!.isEmpty)
-            const ConsoleCard(child: Text('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Text('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary)))
           else
             ConsoleCard(
               key: const Key('agent-logins'),
@@ -365,7 +365,7 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
           if (_orders == null)
             const Padding(padding: EdgeInsets.all(16), child: LoadingView())
           else if (_orders!.isEmpty)
-            const ConsoleCard(child: Text('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Text('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
           else
             for (final o in _orders!.take(50)) OrderCard(order: o),
         ],
@@ -589,7 +589,7 @@ class _NewPasswordDialogState extends State<_NewPasswordDialog> {
         key: _formKey,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text('${widget.name} is signed out everywhere and logs in with the new password.',
-              style: const TextStyle(color: AppColors.textSecondary)),
+              style: TextStyle(color: AppColors.textSecondary)),
           TextFormField(
             key: const Key('new-agent-password'),
             controller: _password,
@@ -642,7 +642,7 @@ class _DeleteAgentDialogState extends State<_DeleteAgentDialog> {
     return AlertDialog(
       title: Text('Delete ${widget.name}?'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text(
+        Text(
           'They are signed out and can no longer log in. Their orders and the audit trail are kept.',
           style: TextStyle(color: AppColors.textSecondary),
         ),

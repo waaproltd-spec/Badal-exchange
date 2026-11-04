@@ -142,7 +142,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Confirm payment',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
@@ -151,7 +151,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
                 isPlatform
                     ? 'Only enter a top-up you personally confirmed as completed in the ${_info.label} cashier tools.'
                     : 'Only enter a ${_info.label} payment you personally saw arrive.',
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(

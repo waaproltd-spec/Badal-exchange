@@ -182,7 +182,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                 ),
                 const SahalForwarderCard(),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Each sign-in makes Sahal text a new code, so sign in only when needed: the server keeps the '
                   'session open by reading every minute. A merchant payment credits a waiting deposit only when it '
                   'comes from the customer\'s own number with the same amount, once. Payments with no matching '
@@ -222,13 +222,13 @@ class _StatusCard extends StatelessWidget {
                 Text(label, key: const Key('feed-state'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: color)),
                 if ((status.message ?? '').isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(status.message!, style: const TextStyle(color: AppColors.textSecondary)),
+                  Text(status.message!, style: TextStyle(color: AppColors.textSecondary)),
                 ],
                 const SizedBox(height: 6),
                 Text(
                   'Payments read: ${status.rowsSeen}'
                   '${status.lastOkAt != null ? ' · last read ${formatDateTime(status.lastOkAt!)}' : ''}',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
               ],
             ),

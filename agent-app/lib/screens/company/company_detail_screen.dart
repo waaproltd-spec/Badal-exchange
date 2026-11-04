@@ -102,7 +102,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(companySource(c), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+                  Text(companySource(c), style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
                   if (warning != null) ...[
                     const SizedBox(height: 10),
                     Text(warning,
@@ -179,7 +179,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
               ),
               const SizedBox(height: 8),
               if (d.orders.isEmpty)
-                const ConsoleCard(
+                ConsoleCard(
                   child: Text('No transactions in this period.', style: TextStyle(color: AppColors.textSecondary)),
                 )
               else
@@ -190,7 +190,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
               if (c.connected) ...[
                 const SectionHeader(title: 'Register history'),
                 if (d.movements.isEmpty)
-                  const ConsoleCard(
+                  ConsoleCard(
                     child: Text('No sales or payouts recorded yet.', style: TextStyle(color: AppColors.textSecondary)),
                   )
                 else
@@ -200,7 +200,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   ),
                 const SectionHeader(title: 'Balance checks'),
                 if (d.checks.isEmpty)
-                  const ConsoleCard(child: Text('Not read yet.', style: TextStyle(color: AppColors.textSecondary)))
+                  ConsoleCard(child: Text('Not read yet.', style: TextStyle(color: AppColors.textSecondary)))
                 else
                   ConsoleCard(
                     child: Column(
@@ -236,15 +236,15 @@ class _Figure extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w700)),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(value,
               key: valueKey,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         ),
-        Text(hint, style: const TextStyle(color: AppColors.textFaint, fontSize: 11.5)),
+        Text(hint, style: TextStyle(color: AppColors.textFaint, fontSize: 11.5)),
       ],
     );
   }
@@ -275,9 +275,9 @@ class _MovementRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(what, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text(what, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                 Text('${formatDateTime(m.at)} · $after',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               ],
             ),
           ),
@@ -318,14 +318,14 @@ class _OrderTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('${deposit ? 'Deposit' : 'Withdrawal'} · ${o.orderCode}',
-                    style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                 Text(
                   [if (o.customerName != null) o.customerName!, if (o.accountId != null) 'ID ${o.accountId}'].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                 ),
-                Text(formatDateTime(o.createdAt), style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                Text(formatDateTime(o.createdAt), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
                 if (o.waitingTopUp)
                   const Text('Waiting for a cash register top-up',
                       style: TextStyle(color: AppColors.statusFailed, fontSize: 12, fontWeight: FontWeight.w700))
@@ -342,7 +342,7 @@ class _OrderTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(o.amount == null ? 'Amount pending' : '${deposit ? '+' : '-'}\$${o.amount}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               const SizedBox(height: 6),
               StatusPill(o.status),
             ],

@@ -109,7 +109,7 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                     children: [
-                      const Text(
+                      Text(
                         'A platform can be switched on only after its saved credentials pass Test connection. '
                         'Built-in platforms without saved credentials use the server secrets, as before.',
                         style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
@@ -130,17 +130,17 @@ class _BettingPlatformsScreenState extends State<BettingPlatformsScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(p.name, style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                                Text(p.name, style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                                 Text(p.statusLabel,
                                     key: Key('platform-status-${p.method}'),
                                     style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: _statusColor(p.status))),
                                 if (p.modeLabel != null)
                                   Text(p.modeLabel!,
                                       key: Key('platform-mode-${p.method}'),
-                                      style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                                      style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
                                 if (p.lastTestAt != null)
                                   Text('Tested ${formatDateTime(p.lastTestAt!)}',
-                                      style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                                      style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                               ]),
                             ),
                             Switch(
@@ -200,7 +200,7 @@ class _AddPlatformDialogState extends State<_AddPlatformDialog> {
           onChanged: (v) => setState(() => _adapter = v ?? _adapter),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'A company with a different API needs its own adapter, written from its official API documentation.',
           style: TextStyle(fontSize: 12, color: AppColors.textFaint),
         ),
@@ -371,7 +371,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                 ]),
                 if (_p.lastMessage != null) ...[
                   const SizedBox(height: 6),
-                  Text(_p.lastMessage!, key: const Key('platform-message'), style: const TextStyle(color: AppColors.textSecondary)),
+                  Text(_p.lastMessage!, key: const Key('platform-message'), style: TextStyle(color: AppColors.textSecondary)),
                 ],
                 const SizedBox(height: 6),
                 InfoRow('Last test', _p.lastTestAt != null ? formatDateTime(_p.lastTestAt!) : '—'),
@@ -389,7 +389,7 @@ class _BettingPlatformScreenState extends State<BettingPlatformScreen> {
                   else if (_p.builtIn)
                     MethodLogo(key: const Key('platform-builtin-logo-card'), method: _p.method, width: 64 * 2.4)
                   else
-                    const TintedIcon(icon: Icons.image_outlined, color: AppColors.textFaint, size: 64),
+                    TintedIcon(icon: Icons.image_outlined, color: AppColors.textFaint, size: 64),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -514,7 +514,7 @@ class _RemoveDialogState extends State<_RemoveDialog> {
     return AlertDialog(
       title: Text('Remove ${widget.name}?'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('It is switched off and its credentials deleted. Every order that used it is kept.',
+        Text('It is switched off and its credentials deleted. Every order that used it is kept.',
             style: TextStyle(color: AppColors.textSecondary)),
         TextField(
           key: const Key('remove-reason'),

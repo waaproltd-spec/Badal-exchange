@@ -203,7 +203,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
                   Text(_error!, key: const Key('account-error'), style: const TextStyle(color: AppColors.statusFailed)),
                 ],
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'A new login is never used until it has signed in and read Sahal\'s transactions, and you switch to it. '
                   'The working account, its session and the automatic deposits and withdrawals carry on until then. '
                   'The password and PIN are kept encrypted on the server and are never shown again.',
@@ -235,9 +235,9 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
                     Text(label, key: const Key('account-connection'),
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: color)),
                     if ((s.feedMessage ?? '').isNotEmpty)
-                      Text(s.feedMessage!, style: const TextStyle(color: AppColors.textSecondary)),
+                      Text(s.feedMessage!, style: TextStyle(color: AppColors.textSecondary)),
                     Text('Last read: ${_time(s.lastReadAt)}',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                        style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                   ],
                 ),
               ),
@@ -271,7 +271,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
             ],
           ),
           if (s.connection == 'authentication_required')
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text('Sahal asked for its SMS code. The phone with the SMS forwarder or this app enters it by '
                   'itself; if it does not, type it in Sahal Merchant Sign-in.',
@@ -294,7 +294,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
           Text('Last renewal: ${_time(s.lastRenewalAt)}', key: const Key('account-renewal-time')),
           Text('This session is ${_age(s.sessionAgeSeconds)} old'),
           const SizedBox(height: 6),
-          const Text('Sahal ends a session about every hour and texts a new code each time. The SMS forwarder enters '
+          Text('Sahal ends a session about every hour and texts a new code each time. The SMS forwarder enters '
               'it by itself when it can.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
           SwitchListTile(
@@ -327,7 +327,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
           Text(s.source == 'database'
               ? 'Activated here${s.activatedAt != null ? ' ${_time(s.activatedAt)}' : ''}. Password: saved (hidden).'
               : 'The login is in the server\'s settings. Connect a new account below to manage it from here.',
-              style: const TextStyle(color: AppColors.textSecondary)),
+              style: TextStyle(color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -349,9 +349,9 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
           Text(p.username, key: const Key('pending-username'), style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(label, key: const Key('pending-status'), style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-          if ((p.message ?? '').isNotEmpty) Text(p.message!, style: const TextStyle(color: AppColors.textSecondary)),
+          if ((p.message ?? '').isNotEmpty) Text(p.message!, style: TextStyle(color: AppColors.textSecondary)),
           Text('Password: saved (hidden)${p.hasPin ? ' · PIN: saved (hidden)' : ' · no PIN (transfers stay off for this account)'}',
-              style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
           if (p.needsCode) ...[
             const SizedBox(height: 10),
             TextField(
@@ -437,7 +437,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
             child: const Text('Save settings'),
           ),
           const SizedBox(height: 6),
-          const Text('Saving does not change the working account. Test the new login, then activate it.',
+          Text('Saving does not change the working account. Test the new login, then activate it.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
         ],
       ),

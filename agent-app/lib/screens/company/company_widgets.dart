@@ -111,12 +111,12 @@ class CompanyCard extends StatelessWidget {
                     Text(c.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
                     const SizedBox(height: 2),
                     Text(companySource(c),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   ],
                 ),
               ),
@@ -140,7 +140,7 @@ class CompanyCard extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         child: Text('Limit ${companyLimit(c)}',
                             key: Key('company-limit-${c.method}'),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 12.5, color: AppColors.textSecondary)),
                       ),
                     const SizedBox(height: 6),
@@ -148,7 +148,7 @@ class CompanyCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+              Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
             ],
           ),
           if (warning != null) ...[

@@ -80,7 +80,7 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
                     key: const Key('payment-numbers-list'),
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                     children: [
-                      const ConsoleCard(
+                      ConsoleCard(
                         child: Text(
                           'An authorized customer can send money from, and receive withdrawals to, a new phone number on EVC Plus, '
                           'Golis, ZAAD and eDahab. Everyone else keeps using their registered number.',
@@ -119,11 +119,11 @@ class _PaymentNumbersScreenState extends State<PaymentNumbersScreen> {
                                   Expanded(child: Text(c.name.isEmpty ? '+${c.phone}' : c.name, style: const TextStyle(fontWeight: FontWeight.w700))),
                                   _Pill(c.enabled ? 'Authorized' : 'Not authorized', c.enabled ? AppColors.statusCompleted : AppColors.textSecondary),
                                 ]),
-                                Text('+${c.phone} · ${c.accountId}', style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                                Text('+${c.phone} · ${c.accountId}', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                                 if (c.enabled) Text(_networks(c.methods), style: const TextStyle(fontSize: 12.5)),
                                 if (c.numberCount > 0)
                                   Text('${c.numberCount} number${c.numberCount == 1 ? '' : 's'} on file',
-                                      style: const TextStyle(fontSize: 12.5, color: AppColors.textFaint)),
+                                      style: TextStyle(fontSize: 12.5, color: AppColors.textFaint)),
                               ]),
                             ),
                           ),
@@ -248,7 +248,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                     ConsoleCard(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(d.name.isEmpty ? '+${d.phone}' : d.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                        Text('Registered number: +${d.phone} · ${d.accountId}', style: const TextStyle(color: AppColors.textSecondary)),
+                        Text('Registered number: +${d.phone} · ${d.accountId}', style: TextStyle(color: AppColors.textSecondary)),
                       ]),
                     ),
                     const SizedBox(height: 10),
@@ -264,7 +264,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                           d.access.enabled
                               ? 'The customer can send money from, and receive withdrawals to, a new number on the networks below.'
                               : 'The customer must use the registered number.',
-                          style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 10),
                         Wrap(spacing: 8, children: [
@@ -306,17 +306,17 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                           ),
                         if (!d.access.enabled && d.access.revokedAt != null)
                           Text('Revoked ${formatDateTime(d.access.revokedAt!)}${d.access.revokedBy == null ? '' : ' by ${d.access.revokedBy}'}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                              style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                         if (d.access.enabled && d.access.grantedAt != null)
                           Text('Authorized ${formatDateTime(d.access.grantedAt!)}${d.access.grantedBy == null ? '' : ' by ${d.access.grantedBy}'}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                              style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                       ]),
                     ),
                     const SizedBox(height: 10),
                     const Text('Numbers on file', style: TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 6),
                     if (d.numbers.isEmpty)
-                      const Text('No numbers yet.', key: Key('no-numbers'), style: TextStyle(color: AppColors.textSecondary))
+                      Text('No numbers yet.', key: Key('no-numbers'), style: TextStyle(color: AppColors.textSecondary))
                     else
                       for (final n in d.numbers)
                         Padding(
@@ -331,7 +331,7 @@ class _CustomerPaymentNumbersScreenState extends State<CustomerPaymentNumbersScr
                                   Text(
                                     '${n.label == null ? '' : '${n.label} · '}added by the ${n.addedBy} · used ${n.uses} time${n.uses == 1 ? '' : 's'}'
                                     '${n.lastUsedAt == null ? '' : ' · last ${formatDateTime(n.lastUsedAt!)}'}',
-                                    style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                                    style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                                   ),
                                   if (n.blocked) const Text('Blocked', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.statusFailed)),
                                 ]),

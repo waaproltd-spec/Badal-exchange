@@ -124,7 +124,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
           ChoiceChipsRow<String>(options: _ranges, selected: _range, onSelected: _selectRange),
           const SizedBox(height: 8),
           Row(children: [
-            const Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.textSecondary),
+            Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.textSecondary),
             const SizedBox(width: 6),
             Expanded(child: Text(_rangeLabel(r), style: const TextStyle(fontWeight: FontWeight.w600))),
           ]),
@@ -157,7 +157,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
               },
             )
           else
-            const Text('Your commission: the orders you handled.',
+            Text('Your commission: the orders you handled.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           if (_error != null)
             Padding(
@@ -274,7 +274,7 @@ class _TransactionCard extends StatelessWidget {
                 Text('$when · ${row.orderCode}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
               ]),
             ),
             const SizedBox(width: 8),
@@ -302,7 +302,7 @@ class _Figure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textFaint)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
         Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: color ?? AppColors.textPrimary)),
       ]);
 }

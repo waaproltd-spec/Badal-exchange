@@ -149,10 +149,10 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
         children: [
           Text(
             'Welcome, ${session.agentDisplayName}',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 2),
-          const Text('Manage your transactions and company balances', style: TextStyle(color: AppColors.textSecondary)),
+          Text('Manage your transactions and company balances', style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 12),
           Row(children: [
             Expanded(
@@ -272,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               onOpenLog: () => _push('SMS Transactions', const SmsTransactionsScreen()),
             )
           else
-            const ConsoleCard(
+            ConsoleCard(
               child: Text(
                 'Automatic EVC Plus SMS matching is only available on Android agent devices.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
@@ -285,7 +285,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
             onAction: () => widget.onOpenHistory(const HistoryFilter()),
           ),
           if (s.recentActivity.isEmpty)
-            const ConsoleCard(
+            ConsoleCard(
               child: Text('No activity yet.', style: TextStyle(color: AppColors.textSecondary)),
             )
           else
@@ -324,17 +324,17 @@ class _CompanyBalancesCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Company Balances',
+                Text('Company Balances',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
                 Text(d == null ? 'Cash register balances' : 'Total \$${d.total}',
-                    style: const TextStyle(color: AppColors.textSecondary)),
+                    style: TextStyle(color: AppColors.textSecondary)),
                 if (notes.isNotEmpty)
                   Text(notes.join(' · '),
                       style: const TextStyle(color: AppColors.statusFailed, fontWeight: FontWeight.w700, fontSize: 12.5)),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
         ],
       ),
     );
@@ -373,7 +373,7 @@ class _SmsMatchingCard extends StatelessWidget {
                 color: online ? AppColors.statusCompleted : AppColors.textFaint,
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'EVC Plus SMS Matching',
                   style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
@@ -402,7 +402,7 @@ class _SmsMatchingCard extends StatelessWidget {
               isListening
                   ? 'Online — listening for authorized EVC Plus payment SMS on this device. Tap to see submissions.'
                   : 'Off — turn on to automatically match incoming EVC Plus payment SMS. Tap to see submissions.',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
         ],
       ),

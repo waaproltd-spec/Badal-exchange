@@ -305,14 +305,14 @@ class _CustomerTile extends StatelessWidget {
                   customer.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
-                Text(customer.phone, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                Text(customer.phone, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                 if (customer.registeredAt != null)
                   Text(
                     'Joined ${formatDate(customer.registeredAt!)}',
-                    style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint),
+                    style: TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                   ),
                 const SizedBox(height: 6),
                 Wrap(spacing: 12, runSpacing: 2, children: [
@@ -336,7 +336,7 @@ class _CustomerTile extends StatelessWidget {
             ],
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
         ],
       ),
     );
@@ -355,7 +355,7 @@ class _Count extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, size: 13, color: AppColors.textFaint),
       const SizedBox(width: 3),
-      Text(text, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+      Text(text, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
     ]);
   }
 }

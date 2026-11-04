@@ -152,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   filled: false,
                                   contentPadding: EdgeInsets.symmetric(vertical: 18),
                                 ),
-                                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                                 keyboardType: TextInputType.phone,
                                 textInputAction: TextInputAction.next,
                                 inputFormatters: const [LocalPhoneFormatter()],
@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   filled: false,
                                   contentPadding: EdgeInsets.symmetric(vertical: 18),
                                 ),
-                                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                                 obscureText: _obscurePassword,
                                 enableSuggestions: false,
                                 autocorrect: false,
@@ -238,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Row(children: [
                             const Icon(Icons.verified_user_outlined, color: AppColors.purpleDark, size: 40),
                             Container(width: 1, height: 52, margin: const EdgeInsets.symmetric(horizontal: 14), color: const Color(0xFFD9C3F2)),
-                            const Expanded(
+                            Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text('Authorized agents only.',
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
@@ -296,7 +296,7 @@ class _CountryCode extends StatelessWidget {
             child: const Icon(Icons.star_rounded, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 10),
-          const Text('+252', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+          Text('+252', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
           const Icon(Icons.arrow_drop_down_rounded, color: AppColors.purpleDark, size: 26),
         ],
       );

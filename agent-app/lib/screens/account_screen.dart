@@ -345,12 +345,12 @@ class _ProfileCard extends StatelessWidget {
               children: [
                 Text(
                   account.name,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   account.email ?? account.phone ?? '—',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -419,7 +419,7 @@ class _LockedNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ConsoleCard(
+    return ConsoleCard(
       child: Row(
         children: [
           Icon(Icons.lock_outline_rounded, color: AppColors.textFaint),

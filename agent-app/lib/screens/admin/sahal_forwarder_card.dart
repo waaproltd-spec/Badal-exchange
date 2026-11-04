@@ -107,14 +107,14 @@ class _SahalForwarderCardState extends State<SahalForwarderCard> {
           ),
           if (_token != null) ...[
             const SizedBox(height: 12),
-            const Text('Put these in the forwarding app (Add filter → Incoming SMS/RCS → Recipients → Add → URL). '
+            Text('Put these in the forwarding app (Add filter → Incoming SMS/RCS → Recipients → Add → URL). '
                 'This token is shown once: copy it now.',
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
             const SizedBox(height: 8),
             _Copyable(label: 'URL', value: SahalForwarderCard.url, onCopy: () => _copy(SahalForwarderCard.url, 'URL')),
             _Copyable(label: 'Header  Authorization', value: 'Bearer $_token', onCopy: () => _copy('Bearer $_token', 'Header')),
             const SizedBox(height: 6),
-            const Text('Method POST, JSON body {"from": "<sender>", "text": "<message>"} using the forwarding app\'s '
+            Text('Method POST, JSON body {"from": "<sender>", "text": "<message>"} using the forwarding app\'s '
                 'own placeholders for the sender and the message. Filter on messages containing "Sahal".',
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
           ],
@@ -155,7 +155,7 @@ class _Copyable extends StatelessWidget {
     return Row(children: [
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           SelectableText(value, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
         ]),
       ),

@@ -11,6 +11,7 @@ import '../models/report_overview.dart';
 import '../state/history_filter.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_mode.dart';
 import '../widgets/state_views.dart';
 
 /// Reports (agent_report_overview): Today / Yesterday / Last Month (the last
@@ -33,15 +34,16 @@ class ReportsScreen extends StatefulWidget {
 /// The reference look: light grey page, white rounded cards, a yellow
 /// selected filter, green amounts.
 class _R {
-  static const page = Color(0xFFF4F4F5);
-  static const card = Colors.white;
+  static bool get _dark => AppThemeMode.isDark;
+  static Color get page => _dark ? const Color(0xFF0C0A10) : const Color(0xFFF4F4F5);
+  static Color get card => _dark ? const Color(0xFF16131D) : Colors.white;
   static const yellow = Color(0xFFFFD400);
-  static const yellowSoft = Color(0xFFFFF7D1);
-  static const chip = Color(0xFFEFEFF1);
+  static Color get yellowSoft => _dark ? const Color(0xFF3A3320) : const Color(0xFFFFF7D1);
+  static Color get chip => _dark ? const Color(0xFF26212F) : const Color(0xFFEFEFF1);
   static const green = Color(0xFF2E9E4F);
-  static const greenSoft = Color(0xFFE6F2E8);
-  static const text = Color(0xFF1C1C1E);
-  static const muted = Color(0xFF6B6B70);
+  static Color get greenSoft => _dark ? const Color(0xFF16301F) : const Color(0xFFE6F2E8);
+  static Color get text => _dark ? const Color(0xFFF3EEF8) : const Color(0xFF1C1C1E);
+  static Color get muted => _dark ? const Color(0xFFB9AEC6) : const Color(0xFF6B6B70);
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
@@ -142,7 +144,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       key: const Key('reports'),
       padding: EdgeInsets.fromLTRB(16, 4, 16, 32 + bottom),
       children: [
-        const Text('Analytics & Insights', style: TextStyle(fontSize: 15, color: _R.muted)),
+        Text('Analytics & Insights', style: TextStyle(fontSize: 15, color: _R.muted)),
         const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -173,8 +175,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: Text(_rangeLabel(r),
                     style: TextStyle(color: _R.text, fontWeight: _range == 'custom' ? FontWeight.w700 : FontWeight.w500)),
               ),
-              const Text('Custom', style: TextStyle(color: _R.muted, fontSize: 13)),
-              const Icon(Icons.expand_more_rounded, color: _R.muted, size: 18),
+              Text('Custom', style: TextStyle(color: _R.muted, fontSize: 13)),
+              Icon(Icons.expand_more_rounded, color: _R.muted, size: 18),
             ]),
           ),
         ),
@@ -239,7 +241,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 2, bottom: 6),
               child: Text('Top ${r.users.length} of ${r.usersCount} customers',
-                  style: const TextStyle(color: _R.muted, fontSize: 12.5)),
+                  style: TextStyle(color: _R.muted, fontSize: 12.5)),
             ),
         ],
         const _Heading('Largest Transactions'),
@@ -282,7 +284,7 @@ class _Heading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 18, bottom: 10),
-        child: Text(text, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _R.text)),
+        child: Text(text, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _R.text)),
       );
 }
 
@@ -295,7 +297,7 @@ class _Empty extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(color: _R.card, borderRadius: BorderRadius.circular(18)),
-        child: Text(text, style: const TextStyle(color: _R.muted)),
+        child: Text(text, style: TextStyle(color: _R.muted)),
       );
 }
 
@@ -319,7 +321,7 @@ class _FilterPill extends StatelessWidget {
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : const Color(0xFF55555A))),
+                  color: selected ? const Color(0xFF1C1C1E) : _R.muted)),
         ),
       ),
     );
@@ -359,9 +361,9 @@ class _OverviewCard extends StatelessWidget {
           child: Text(value, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: valueColor)),
         ),
         const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 15, color: _R.muted)),
+        Text(label, style: TextStyle(fontSize: 15, color: _R.muted)),
         const SizedBox(height: 4),
-        Text(caption, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11.5, color: _R.muted)),
+        Text(caption, textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: _R.muted)),
       ]),
     );
   }
@@ -396,10 +398,10 @@ class _SplitRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(children: [
-            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: _R.text))),
+            Expanded(child: Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: _R.text))),
             Text(countOnly ? '${figure.count}' : '${usd(figure.total)}  ·  ${figure.count}',
-                style: const TextStyle(color: _R.muted, fontSize: 13.5)),
-            const Icon(Icons.chevron_right_rounded, color: _R.muted, size: 20),
+                style: TextStyle(color: _R.muted, fontSize: 13.5)),
+            Icon(Icons.chevron_right_rounded, color: _R.muted, size: 20),
           ]),
         ),
       );
@@ -427,10 +429,10 @@ class _RankCard extends StatelessWidget {
               ? Container(
                   width: 30,
                   height: 30,
-                  decoration: const BoxDecoration(color: _R.yellowSoft, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: _R.yellowSoft, shape: BoxShape.circle),
                   child: const Icon(Icons.emoji_events_rounded, color: Color(0xFFF2B600), size: 18),
                 )
-              : Text('#$rank', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _R.muted)),
+              : Text('#$rank', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _R.muted)),
         ),
         const SizedBox(width: 6),
         if (method != null)
@@ -447,10 +449,10 @@ class _RankCard extends StatelessWidget {
             Text(row.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _R.text)),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _R.text)),
             const SizedBox(height: 2),
             Text(row.phone != null ? '+${row.phone!.replaceAll('+', '')}' : '${row.count} transactions',
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, color: _R.muted)),
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, color: _R.muted)),
           ]),
         ),
         const SizedBox(width: 8),
@@ -464,7 +466,7 @@ class _RankCard extends StatelessWidget {
             ),
           ),
           if (row.phone != null)
-            Text('${row.count} txns', style: const TextStyle(fontSize: 12.5, color: _R.muted)),
+            Text('${row.count} txns', style: TextStyle(fontSize: 12.5, color: _R.muted)),
         ]),
       ]),
     );
@@ -486,14 +488,14 @@ class _TransactionRow extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('${t.label} · ${t.direction == 'deposit' ? 'Deposit' : 'Withdrawal'}',
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, color: _R.text)),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, color: _R.text)),
               Text(
                 [t.orderCode, t.customerName ?? t.customerPhone, if (t.completedAt != null) _when.format(t.completedAt!.toLocal())]
                     .whereType<String>()
                     .join(' · '),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12.5, color: _R.muted),
+                style: TextStyle(fontSize: 12.5, color: _R.muted),
               ),
             ]),
           ),
@@ -515,7 +517,7 @@ class _Legend extends StatelessWidget {
       children: [
         Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ],
     );
   }
@@ -550,7 +552,7 @@ class _BarChartPainter extends CustomPainter {
     final gridPaint = Paint()
       ..color = AppColors.border
       ..strokeWidth = 1;
-    final textStyle = const TextStyle(fontSize: 10, color: AppColors.textFaint);
+    final textStyle = TextStyle(fontSize: 10, color: AppColors.textFaint);
 
     for (var i = 0; i <= 4; i++) {
       final y = chartH - chartH * i / 4;

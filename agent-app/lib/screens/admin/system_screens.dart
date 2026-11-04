@@ -78,7 +78,7 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
             children: [
               SearchField(hint: 'Filter by action or entity', controller: _search, onSubmitted: (_) => setState(() {})),
               const SizedBox(height: 12),
-              Text('Latest ${logs.length} entries', style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+              Text('Latest ${logs.length} entries', style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
               const SizedBox(height: 8),
               for (final l in shown) ...[
                 ConsoleCard(
@@ -99,7 +99,7 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
                             Text(l.action, style: const TextStyle(fontWeight: FontWeight.w700)),
                             Text(
                               '${l.actorRole ?? 'system'} • ${l.entityType} • ${formatDateTime(l.createdAt)}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                             ),
                           ],
                         ),
@@ -177,7 +177,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             const GroupLabel('Support contact links'),
-            const Text(
+            Text(
               'Shown on the Account tab here and available to the Customer App. Leave empty to hide.',
               style: TextStyle(color: AppColors.textSecondary),
             ),
@@ -234,7 +234,7 @@ class _CustomerLedgerScreenState extends ListScreenState<CustomerLedgerScreen, L
           padding: const EdgeInsets.all(16),
           children: [
             if (entries.isEmpty)
-              const ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary))),
+              ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary))),
             for (final e in entries) ...[
               ConsoleCard(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -247,7 +247,7 @@ class _CustomerLedgerScreenState extends ListScreenState<CustomerLedgerScreen, L
                           Text(e.description, style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text(
                             '${e.type} • ${formatDateTime(e.createdAt)}',
-                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
                       ),
@@ -256,7 +256,7 @@ class _CustomerLedgerScreenState extends ListScreenState<CustomerLedgerScreen, L
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text('\$${e.amount}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                        Text('Bal. \$${e.balanceAfter}', style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                        Text('Bal. \$${e.balanceAfter}', style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                       ],
                     ),
                   ],
@@ -292,7 +292,7 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
           padding: const EdgeInsets.all(16),
           children: [
             Text('Latest ${entries.length} entries, all customers',
-                style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
             const SizedBox(height: 8),
             for (final e in entries) ...[
               ConsoleCard(
@@ -305,7 +305,7 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
                         children: [
                           Text(e.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text('${e.type} • ${formatDateTime(e.createdAt)}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],
                       ),
                     ),
@@ -313,7 +313,7 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text('\$${e.amount}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                        Text('Bal. \$${e.balanceAfter}', style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                        Text('Bal. \$${e.balanceAfter}', style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                       ],
                     ),
                   ],
@@ -416,7 +416,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      const Text(
+                      Text(
                         'The Telegram bots (888starz, 1xBet, WinWin, Betwinner, DBbet, BetJam and BetOnGame) check their cash register balance, find players, and '
                         'make deposits and payouts. They act as you, and stop working for you if you lose '
                         'access to Admin features. Linking once works with every bot.',
@@ -444,7 +444,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                         if (code.expiresAt != null) ...[
                           const SizedBox(height: 4),
                           Text('Valid until ${formatDateTime(code.expiresAt!)}, once.',
-                              style: const TextStyle(color: AppColors.textSecondary)),
+                              style: TextStyle(color: AppColors.textSecondary)),
                         ],
                         const SizedBox(height: 12),
                       ],
@@ -537,7 +537,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    const Text(
+                    Text(
                       'Shown to every customer on the wallet card in the Customer App, with a copy button. '
                       'Letters, digits, - and _ only. Leave empty for no promo code.',
                       style: TextStyle(color: AppColors.textSecondary),

@@ -132,7 +132,7 @@ class _CompanyBalancesScreenState extends State<CompanyBalancesScreen> {
                     const SizedBox(height: 8),
                   ],
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Balance: what customers bought through the register. Limit: what it can still sell. '
                     'Read from each register (CashdeskBot) and updated with every completed sale and payout; '
                     'they can\'t be changed here. Companies without a balance connection show no amount.',

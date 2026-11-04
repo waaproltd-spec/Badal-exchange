@@ -117,7 +117,7 @@ class _SmsLogTile extends StatelessWidget {
                 Expanded(
                   child: Text(
                     entry.isManualWinwin ? 'Manual WinWin confirmation' : 'EVC Plus SMS (${entry.provider})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                   ),
                 ),
                 StatusBadge(status: _statusLabel),
@@ -131,21 +131,21 @@ class _SmsLogTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (entry.sender != null)
-                        Text(entry.sender!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                      Text('Ref: ${entry.transactionRef}', style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                        Text(entry.sender!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      Text('Ref: ${entry.transactionRef}', style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                     ],
                   ),
                 ),
                 Text(
                   '\$${entry.amount}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               'Submitted ${_dateFormat.format(entry.submittedAt.toLocal())}',
-              style: const TextStyle(fontSize: 11, color: AppColors.textFaint),
+              style: TextStyle(fontSize: 11, color: AppColors.textFaint),
             ),
             if (entry.status == MatchStatus.error && entry.errorMessage != null) ...[
               const SizedBox(height: 6),

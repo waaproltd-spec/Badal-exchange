@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'theme_mode.dart';
+
 /// Theme for the Badal Exchange agent app, using the BAARI palette shared
 /// with the customer app: dark purple headers, purple primary actions,
 /// light gold / orange accents on a warm cream background.
@@ -11,7 +13,9 @@ import 'package:flutter/services.dart';
 class AppColors {
   AppColors._();
 
-  // BAARI palette
+  static bool get _dark => AppThemeMode.isDark;
+
+  // BAARI palette (the brand colors: the same in light and dark)
   static const Color purpleDark = Color(0xFF3A0353);
   static const Color purple = Color(0xFF804A8A);
   static const Color purpleSecondary = Color(0xFF8B5FA3);
@@ -19,19 +23,28 @@ class AppColors {
   static const Color accentOrange = Color(0xFFF59E51);
   static const Color cream = Color(0xFFFFF4E6);
 
-  static const Color background = cream;
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceRaised = Color(0xFFFFFAF3);
-  static const Color border = Color(0xFFF0DFC8);
-  static const Color textPrimary = Color(0xFF24062F);
-  static const Color textSecondary = Color(0xFF6E5876);
-  static const Color textFaint = Color(0xFF9C8AA2);
+  // Roles. Light is a clean white design, dark is black with purple accents.
+  static Color get background => _dark ? const Color(0xFF0C0A10) : const Color(0xFFF7F5FB);
+  static Color get surface => _dark ? const Color(0xFF16131D) : const Color(0xFFFFFFFF);
+  static Color get surfaceRaised => _dark ? const Color(0xFF1D1927) : const Color(0xFFFCFBFE);
+  static Color get border => _dark ? const Color(0xFF2E2839) : const Color(0xFFE6DFEF);
+  static Color get textPrimary => _dark ? const Color(0xFFF3EEF8) : const Color(0xFF1E0A2B);
+  static Color get textSecondary => _dark ? const Color(0xFFB9AEC6) : const Color(0xFF665A72);
+  static Color get textFaint => _dark ? const Color(0xFF8C8199) : const Color(0xFF9B90A7);
 
-  static const Color header = purpleDark;
+  /// App bars and the headers of screens.
+  static Color get header => _dark ? const Color(0xFF1B0F29) : purpleDark;
   static const Color onHeader = Color(0xFFFFFFFF);
-  static const Color primary = purple;
-  static const Color primaryDark = purpleDark;
+
+  /// Buttons and active controls.
+  static Color get primary => _dark ? const Color(0xFF9A5FDB) : purple;
+
+  /// Strong brand text and icons: deep purple, light lavender when dark.
+  static Color get primaryDark => _dark ? const Color(0xFFE7D6F8) : purpleDark;
   static const Color onPrimary = Color(0xFFFFFFFF);
+
+  /// A soft tint of the brand for chips and badges.
+  static Color get primaryTint => _dark ? const Color(0xFF2A1D3B) : const Color(0xFFEFE6FA);
 
   // Status colors — kept consistent across the whole app.
   static const Color statusPending = Color(0xFFE0A63A); // amber
@@ -65,13 +78,15 @@ class AppColors {
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get light {
-    final base = ThemeData.light(useMaterial3: true);
+  static ThemeData get current {
+    final dark = AppThemeMode.isDark;
+    final brightness = dark ? Brightness.dark : Brightness.light;
+    final base = dark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
-      brightness: Brightness.light,
+      brightness: brightness,
     ).copyWith(
-      brightness: Brightness.light,
+      brightness: brightness,
       primary: AppColors.primary,
       onPrimary: AppColors.onPrimary,
       secondary: AppColors.accentOrange,
@@ -91,13 +106,13 @@ class AppTheme {
         bodyColor: AppColors.textPrimary,
         displayColor: AppColors.textPrimary,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.header,
         foregroundColor: AppColors.onHeader,
         elevation: 0,
         centerTitle: false,
         systemOverlayStyle: SystemUiOverlayStyle.light,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           color: AppColors.onHeader,
           fontSize: 20,
           fontWeight: FontWeight.w700,
@@ -109,7 +124,7 @@ class AppTheme {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: AppColors.border),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -118,22 +133,22 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.statusFailed),
         ),
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
-        hintStyle: const TextStyle(color: AppColors.textFaint),
+        labelStyle: TextStyle(color: AppColors.textSecondary),
+        hintStyle: TextStyle(color: AppColors.textFaint),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -146,35 +161,35 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.purpleDark,
+          foregroundColor: AppColors.primaryDark,
           minimumSize: const Size.fromHeight(48),
-          side: const BorderSide(color: AppColors.purple),
+          side: BorderSide(color: AppColors.primary),
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: dark ? AppColors.primaryDark : AppColors.primary,
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: AppColors.purpleDark,
-        contentTextStyle: TextStyle(color: AppColors.onHeader),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: dark ? const Color(0xFF2B2140) : AppColors.purpleDark,
+        contentTextStyle: const TextStyle(color: AppColors.onHeader),
         behavior: SnackBarBehavior.floating,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textFaint,
         type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
       ),
-      navigationDrawerTheme: const NavigationDrawerThemeData(
+      navigationDrawerTheme: NavigationDrawerThemeData(
         backgroundColor: AppColors.surface,
       ),
-      listTileTheme: const ListTileThemeData(
+      listTileTheme: ListTileThemeData(
         iconColor: AppColors.textSecondary,
         textColor: AppColors.textPrimary,
       ),
@@ -191,9 +206,13 @@ class AppTheme {
           (states) => states.contains(WidgetState.selected) ? AppColors.onPrimary : null,
         ),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.primary,
       ),
+      dividerTheme: DividerThemeData(color: AppColors.border),
+      bottomSheetTheme: BottomSheetThemeData(backgroundColor: AppColors.surface),
+      popupMenuTheme: PopupMenuThemeData(color: AppColors.surface),
+      chipTheme: ChipThemeData(backgroundColor: AppColors.primaryTint, labelStyle: TextStyle(color: AppColors.textPrimary)),
     );
   }
 }

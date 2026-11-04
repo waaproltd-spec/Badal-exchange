@@ -102,12 +102,12 @@ class _SingleFieldSheetState extends State<_SingleFieldSheet> {
           children: [
             Text(
               widget.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 6),
             Text(
               widget.subtitle,
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
             TextFormField(

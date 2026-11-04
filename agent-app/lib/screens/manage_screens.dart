@@ -131,7 +131,7 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
                                     ad.body!,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                                   ),
                               ],
                             ),
@@ -320,7 +320,7 @@ class _HomeAdFormState extends State<HomeAdForm> {
           ],
         ),
         if (_picked != null && _upload == _Upload.idle)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 4),
             child: Text('Saved when you tap Save.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           ),
@@ -450,7 +450,7 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
                                 Text(n.number, style: const TextStyle(fontWeight: FontWeight.w800)),
                                 Text(
                                   [methodInfo(n.method).label, if ((n.label ?? '').isNotEmpty) n.label!].join(' • '),
-                                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                                 ),
                               ],
                             ),
@@ -649,7 +649,7 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
           if (items == null)
             (error != null ? ErrorStateView(message: error!, onRetry: load) : const LoadingView())
           else if (items!.isEmpty)
-            const Text('Nothing sent yet.', style: TextStyle(color: AppColors.textSecondary))
+            Text('Nothing sent yet.', style: TextStyle(color: AppColors.textSecondary))
           else
             for (final n in items!) ...[
               ConsoleCard(
@@ -658,9 +658,9 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
                   children: [
                     Text(n.title, style: const TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
-                    Text(n.body, style: const TextStyle(color: AppColors.textSecondary)),
+                    Text(n.body, style: TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 6),
-                    Text(formatDateTime(n.createdAt), style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                    Text(formatDateTime(n.createdAt), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                   ],
                 ),
               ),

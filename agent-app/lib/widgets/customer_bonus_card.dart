@@ -68,12 +68,12 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Withdrawal Bonus', style: TextStyle(color: AppColors.textSecondary)),
+                Text('Withdrawal Bonus', style: TextStyle(color: AppColors.textSecondary)),
                 Text('\$${b.balance}',
                     key: const Key('bonus-balance'),
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                 Text('Earned in total \$${b.totalEarned}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                    style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
               ]),
             ),
             Switch(
@@ -89,7 +89,7 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
                 : b.enabled
                     ? 'Earns ${b.rate} of every completed eligible transaction (set in Account > Bonus).'
                     : 'Off for this customer: no bonus on their withdrawals.',
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 10),
           IgnorePointer(
@@ -122,11 +122,11 @@ class _CustomerBonusCardState extends State<CustomerBonusCard> {
                           : 'Moved to main wallet',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                      style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
                     ),
                   ),
                   Text('${formatDate(e.createdAt)}  ',
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                      style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                   Text('${e.earned ? '+' : '-'}\$${e.amount}',
                       style: TextStyle(
                           fontWeight: FontWeight.w800,

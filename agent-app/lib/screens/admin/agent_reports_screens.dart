@@ -68,7 +68,7 @@ class _AgentPerformanceScreenState extends State<AgentPerformanceScreen> {
             else if (rows == null)
               const LoadingView()
             else if (rows.isEmpty)
-              const ConsoleCard(child: Text('No agents.', style: TextStyle(color: AppColors.textSecondary)))
+              ConsoleCard(child: Text('No agents.', style: TextStyle(color: AppColors.textSecondary)))
             else
               for (final r in rows) ...[
                 ConsoleCard(
@@ -137,7 +137,7 @@ class _LoginHistoryScreenState extends State<LoginHistoryScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       if (events.isEmpty)
-                        const ConsoleCard(child: Text('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary))),
+                        ConsoleCard(child: Text('Nothing recorded yet.', style: TextStyle(color: AppColors.textSecondary))),
                       for (final e in events) ...[
                         ConsoleCard(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -150,14 +150,14 @@ class _LoginHistoryScreenState extends State<LoginHistoryScreen> {
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text('${e.userName ?? e.actorName ?? '—'} · ${e.label}',
-                                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                    style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                                 Text(
                                   [
                                     formatDateTime(e.createdAt),
                                     if (e.action != 'user.login' && e.actorName != null && e.actorName != e.userName)
                                       'by ${e.actorName}',
                                   ].join(' · '),
-                                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                                 ),
                               ]),
                             ),

@@ -59,7 +59,7 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
         builder: (methods) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'A platform turned OFF is hidden from customers and refuses new orders. '
@@ -139,11 +139,11 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
                           ),
                           const SizedBox(height: 4),
                           for (final line in _summary(m))
-                            Text(line, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                            Text(line, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
                   ],
                 ),
               ),
@@ -315,7 +315,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                 '${s.method == 'evc_plus' ? ' (*712*, confirmed automatically from the SMS)' : ''}. '
                 'On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms '
                 'each deposit from the merchant account; they wait up to 24 hours.',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
             ],
             if (s.hasPaymentLocation) ...[
@@ -344,11 +344,11 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               const SizedBox(height: 8),
               Text(
                 'Shown to customers on ${s.label} Complete Deposit, with a Copy button each. Leave both empty to hide it.',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
             ],
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Deposits and withdrawals are 1:1 with no fee: the customer gets exactly the amount sent.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),

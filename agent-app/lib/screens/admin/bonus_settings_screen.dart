@@ -112,7 +112,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
             Row(children: [
               const TintedIcon(icon: Icons.redeem_rounded, color: AppColors.accentOrange, size: 44),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text('Bonus system',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               ),
@@ -127,10 +127,10 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               s.enabled
                   ? 'Customers earn the bonus on completed transactions of the types switched on below.'
                   : 'Off: nobody earns a bonus. Bonuses already earned stay in the customers\' bonus wallets.',
-              style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
-            const Text('Bonus rate', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Text('Bonus rate', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             const SizedBox(height: 6),
             IgnorePointer(
               ignoring: _saving,
@@ -144,7 +144,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text('For every customer without a rate of their own (set on Customer Info).',
+            Text('For every customer without a rate of their own (set on Customer Info).',
                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
           ]),
         ),
@@ -153,7 +153,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
           key: const Key('bonus-limits'),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              const Expanded(
+              Expanded(
                 child: Text('Limits per customer',
                     style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
               ),
@@ -165,7 +165,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
             ]),
             InfoRow('Per day', s.dailyLimit == null ? 'No limit' : '\$${s.dailyLimit}'),
             InfoRow('Per month', s.monthlyLimit == null ? 'No limit' : '\$${s.monthlyLimit}'),
-            const Text('Over a limit, the rest of a bonus is not credited; the history says so.',
+            Text('Over a limit, the rest of a bonus is not credited; the history says so.',
                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
           ]),
         ),
@@ -209,7 +209,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
         const SizedBox(height: 4),
         const SectionHeader(title: 'Customers'),
         if (s.customers.isEmpty)
-          const ConsoleCard(child: Text('No customer has a bonus yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Text('No customer has a bonus yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final c in s.customers) ...[
             ConsoleCard(
@@ -221,13 +221,13 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
               child: Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(c.name, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                    Text('${c.phone} · ${c.rate}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    Text(c.name, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    Text('${c.phone} · ${c.rate}', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                   ]),
                 ),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('\$${c.balance}', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  Text('Earned \$${c.totalEarned}', style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                  Text('\$${c.balance}', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  Text('Earned \$${c.totalEarned}', style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                 ]),
               ]),
             ),
@@ -236,7 +236,7 @@ class _BonusSettingsScreenState extends State<BonusSettingsScreen> {
         const SizedBox(height: 4),
         const SectionHeader(title: 'History'),
         if (s.history.isEmpty)
-          const ConsoleCard(child: Text('Nothing yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Text('Nothing yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final e in s.history) ...[
             _HistoryTile(entry: e),
@@ -266,10 +266,10 @@ class _HistoryTile extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(e.customerName ?? '', style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            Text(what, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+            Text(e.customerName ?? '', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Text(what, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
             if (e.note != null) Text(e.note!, style: const TextStyle(fontSize: 12, color: AppColors.statusPending)),
-            Text(formatDateTime(e.createdAt), style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+            Text(formatDateTime(e.createdAt), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
           ]),
         ),
         Text('${e.earned ? '+' : '-'}\$${e.amount}', style: TextStyle(fontWeight: FontWeight.w800, color: color)),

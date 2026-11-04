@@ -133,7 +133,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
                     key: const Key('verifications'),
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                     children: [
-                      const Text(
+                      Text(
                         'Before a first withdrawal the account must be approved here. Until then the server '
                         'refuses every withdrawal of the account. Balances are never changed.',
                         style: TextStyle(color: AppColors.textSecondary),
@@ -180,7 +180,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(v.name?.isNotEmpty == true ? v.name! : v.phone, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                Text('${v.accountId} · +${v.phone.replaceAll('+', '')}', style: const TextStyle(color: AppColors.textSecondary)),
+                Text('${v.accountId} · +${v.phone.replaceAll('+', '')}', style: TextStyle(color: AppColors.textSecondary)),
               ]),
             ),
             StatusPill(v.status == 'approved' ? 'completed' : (v.status == 'pending' ? 'pending' : 'failed')),
@@ -202,7 +202,7 @@ class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScr
                 padding: const EdgeInsets.only(top: 3),
                 child: Text(
                   '${o['orderCode']} · ${o['direction']} · ${o['method']} · \$${o['amount']} · ${o['status']}',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
               ),
           ],

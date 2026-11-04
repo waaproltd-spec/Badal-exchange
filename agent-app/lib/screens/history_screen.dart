@@ -129,7 +129,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
         label: Text(label),
         onDeleted: () => _apply(clear()),
         backgroundColor: AppColors.surface,
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: AppColors.border),
       ));
     }
 

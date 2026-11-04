@@ -117,10 +117,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                   children: [
                     Text(
                       c.name,
-                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: 2),
-                    SelectableText(c.phone, style: const TextStyle(color: AppColors.textSecondary)),
+                    SelectableText(c.phone, style: TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 6),
                     StatusPill(c.status),
                   ],
@@ -139,15 +139,15 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Wallet Balance', style: TextStyle(color: AppColors.textSecondary)),
+                    Text('Wallet Balance', style: TextStyle(color: AppColors.textSecondary)),
                     Text(
                       '\$${c.walletBalance}',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                     ),
                     if (d.pendingBalance != '0.00')
                       Text(
                         '\$${d.pendingBalance} held for pending withdrawals',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                        style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                   ],
                 ),
@@ -199,7 +199,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         const SizedBox(height: 8),
         const SectionHeader(title: 'Recent Orders'),
         if (d.recentOrders.isEmpty)
-          const ConsoleCard(child: Text('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Text('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final o in d.recentOrders) ...[
             ActivityTile(item: o, showCustomer: false, onTap: () => showActivityDetails(context, o)),
@@ -214,7 +214,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ),
         ),
         if (d.recentTransactions.isEmpty)
-          const ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final t in d.recentTransactions) ...[
             _LedgerTile(entry: t),
@@ -250,10 +250,10 @@ class _LedgerTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                 Text(
                   formatDateTime(entry.createdAt),
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -262,7 +262,7 @@ class _LedgerTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('$sign\$${entry.amount}', style: TextStyle(fontWeight: FontWeight.w800, color: color)),
-              Text('Bal. \$${entry.balanceAfter}', style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+              Text('Bal. \$${entry.balanceAfter}', style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
             ],
           ),
         ],
@@ -305,7 +305,7 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
             Text(
               'Only do this when ${widget.name} asked for it from their registered number. '
               'They are signed out everywhere.',
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             TextFormField(

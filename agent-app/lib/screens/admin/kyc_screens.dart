@@ -92,7 +92,7 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
                         _provider == 'none'
                             ? 'No identity-verification service is set up: every application is checked by the server, then by an admin here.'
                             : 'Identity service: $_provider. Only what it verifies and every check passes is approved automatically.',
-                        style: const TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 10),
                       ChoiceChipsRow<String>(
@@ -131,10 +131,10 @@ class _KycManagementScreenState extends State<KycManagementScreen> {
                                         style: const TextStyle(fontWeight: FontWeight.w700)),
                                     Text('+${x.phone} · ${x.documentType == 'passport' ? 'Passport' : 'National ID'} ${x.documentNumber}',
                                         maxLines: 1, overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                                        style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                                     if (x.submittedAt != null)
                                       Text(_when.format(x.submittedAt!.toLocal()),
-                                          style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                                          style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                                   ]),
                                 ),
                                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -233,12 +233,12 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
               children: [
                 Text(a.item.customerName?.isNotEmpty == true ? a.item.customerName! : a.item.fullName,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                Text('+${a.item.phone}', style: const TextStyle(color: AppColors.textSecondary)),
+                Text('+${a.item.phone}', style: TextStyle(color: AppColors.textSecondary)),
                 const SizedBox(height: 6),
                 Text(kycStatusLabels[a.item.status] ?? a.item.status,
                     key: const Key('kyc-review-status'), style: const TextStyle(fontWeight: FontWeight.w700)),
                 if (a.item.submittedAt != null)
-                  Text('Submitted ${_when.format(a.item.submittedAt!.toLocal())}', style: const TextStyle(color: AppColors.textFaint)),
+                  Text('Submitted ${_when.format(a.item.submittedAt!.toLocal())}', style: TextStyle(color: AppColors.textFaint)),
                 const SectionHeader(title: 'Documents'),
                 Wrap(spacing: 10, runSpacing: 10, children: [
                   for (final kind in ['front', 'back', 'selfie'])
@@ -259,7 +259,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                               width: 150,
                               height: 110,
                               child: Image.memory(a.documents[kind]!, fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const ColoredBox(color: AppColors.border,
+                                  errorBuilder: (_, __, ___) => ColoredBox(color: AppColors.border,
                                       child: Center(child: Text('Not an image')))),
                             ),
                           ),
@@ -295,7 +295,7 @@ class _KycReviewScreenState extends State<KycReviewScreen> {
                   const SectionHeader(title: 'History'),
                   for (final h in a.history)
                     Text('${kycStatusLabels[h['status']] ?? h['status']} · ${h['reason'] ?? ''}',
-                        style: const TextStyle(color: AppColors.textSecondary)),
+                        style: TextStyle(color: AppColors.textSecondary)),
                 ],
                 if (!a.decided) ...[
                   const SizedBox(height: 16),

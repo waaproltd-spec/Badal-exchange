@@ -32,10 +32,10 @@ class _Legend extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
       const SizedBox(width: 6),
-      Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+      Text(label, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
       if (value != null) ...[
         const SizedBox(width: 10),
-        Text(value!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+        Text(value!, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
       ],
     ]);
   }
@@ -59,17 +59,17 @@ class CustomersCard extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Total Customers', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Text('Total Customers', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text('$total',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             ),
-            Text('+$newThisMonth new this month', style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+            Text('+$newThisMonth new this month', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
           ]),
         ),
-        if (onTap != null) const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+        if (onTap != null) Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
       ]),
     );
   }
@@ -102,7 +102,7 @@ class TransactionsOverviewCard extends StatelessWidget {
     return ConsoleCard(
       key: const Key('dashboard-overview'),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Transactions Overview',
+        Text('Transactions Overview',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         const SizedBox(height: 6),
         const Wrap(spacing: 12, runSpacing: 4, children: [
@@ -134,7 +134,7 @@ class TransactionsOverviewCard extends StatelessWidget {
               child: Text(shortDay(d.day),
                   textAlign: TextAlign.center,
                   maxLines: 1,
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary)),
+                  style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary)),
             ),
         ]),
       ]),
@@ -164,7 +164,7 @@ class TransactionStatusCard extends StatelessWidget {
     return ConsoleCard(
       key: const Key('dashboard-status'),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Transaction Status',
+        Text('Transaction Status',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         const SizedBox(height: 12),
         Row(children: [
@@ -175,8 +175,8 @@ class TransactionStatusCard extends StatelessWidget {
               painter: _RingPainter([for (final p in parts) (p.$1.toDouble(), p.$2)]),
               child: Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text('$total', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  const Text('Total', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  Text('$total', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  Text('Total', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 ]),
               ),
             ),
@@ -189,7 +189,7 @@ class TransactionStatusCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(children: [
                     Expanded(child: _Legend(p.$2, p.$3)),
-                    Text('${p.$1}', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                    Text('${p.$1}', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                   ]),
                 ),
             ]),
@@ -255,15 +255,15 @@ class TopListCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(
-            child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+            child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
           ),
           if (onViewAll != null)
             TextButton(onPressed: onViewAll, child: const Text('View All')),
         ]),
-        const Text('Last 7 days, completed', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Text('Last 7 days, completed', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
         const SizedBox(height: 8),
         if (rows.isEmpty)
-          Text(emptyText, style: const TextStyle(color: AppColors.textSecondary))
+          Text(emptyText, style: TextStyle(color: AppColors.textSecondary))
         else
           for (final r in rows)
             Padding(
@@ -278,10 +278,10 @@ class TopListCard extends StatelessWidget {
                         child: Text(r.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                       ),
                       Text('\$${r.amount}',
-                          style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                          style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                     ]),
                     const SizedBox(height: 4),
                     Row(children: [
@@ -297,7 +297,7 @@ class TopListCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text('${r.count} $countLabel', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('${r.count} $countLabel', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                     ]),
                   ]),
                 ),

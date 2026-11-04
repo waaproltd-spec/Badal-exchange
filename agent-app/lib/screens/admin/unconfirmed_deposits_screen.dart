@@ -114,7 +114,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
       key: const Key('unconfirmed-deposits'),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
-        const Text(
+        Text(
           'Customers who started a deposit. Nothing here has been credited: a wallet is credited only '
           'when the payment itself is verified.',
           style: TextStyle(color: AppColors.textSecondary),
@@ -199,7 +199,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
                     [d.customerName, methodInfo(d.method).label, if (d.accountId != null) 'ID ${d.accountId}', d.orderCode]
                         .whereType<String>()
                         .join(' · '),
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                   ),
                 ]),
               ),
@@ -233,7 +233,7 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
             const SizedBox(height: 4),
             Text('Started ${_when.format(d.startedAt.toLocal())}'
                 '${d.submittedAt != null ? '  ·  Confirmed by customer ${_when.format(d.submittedAt!.toLocal())}' : ''}',
-                style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
           ],
         ),
       ),
@@ -267,7 +267,7 @@ class _Count extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('$value', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ]),
     );
   }

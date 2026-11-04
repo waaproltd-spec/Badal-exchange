@@ -157,15 +157,15 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(widget.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                        Text(widget.phone, style: const TextStyle(color: AppColors.textSecondary)),
+                        Text(widget.phone, style: TextStyle(color: AppColors.textSecondary)),
                         const SizedBox(height: 6),
                         Text(WalletStrings.walletBalance,
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                         Text(_money(_balanceCents),
                             key: const Key('adjust-balance'),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                       ],
                     ),

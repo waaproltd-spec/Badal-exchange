@@ -55,18 +55,18 @@ class _IntegrationsScreenState extends ListScreenState<IntegrationsScreen, Payme
                           Text(i.label, style: const TextStyle(fontWeight: FontWeight.w800)),
                           Text(
                             i.hasCredentials ? 'Account: ${i.username ?? 'set'}' : 'No credentials saved',
-                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                           ),
                           if (i.isMobCash)
                             Text(
                               'Automation: ${i.automationMode}${i.automationMode == 'automatic' && i.dryRun ? ' (dry run)' : ''}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                              style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                             ),
                         ],
                       ),
                     ),
                     StatusPill(i.isActive ? 'active' : 'inactive'),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
                   ],
                 ),
               ),
@@ -230,7 +230,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'There is no official MobCash API: automatic mode drives the real MobCash web portal. It always '
                   'starts in dry run (nothing is submitted) and must be reviewed before going live.',
                   style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
@@ -293,7 +293,7 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
           ),
           const GroupLabel('Automation runs'),
           if (_runs == null || _runs!.isEmpty)
-            const ConsoleCard(child: Text('No runs yet.', style: TextStyle(color: AppColors.textSecondary)))
+            ConsoleCard(child: Text('No runs yet.', style: TextStyle(color: AppColors.textSecondary)))
           else
             for (final r in _runs!.take(50)) ...[
               ConsoleCard(
@@ -307,13 +307,13 @@ class _IntegrationDetailScreenState extends State<IntegrationDetailScreen> {
                         children: [
                           Text(r.runType.replaceAll('_', ' '), style: const TextStyle(fontWeight: FontWeight.w700)),
                           if ((r.message ?? '').isNotEmpty)
-                            Text(r.message!, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                            Text(r.message!, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                           if (r.finishedAt != null)
-                            Text(formatDateTime(r.finishedAt!), style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                            Text(formatDateTime(r.finishedAt!), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                         ],
                       ),
                     ),
-                    if (r.hasScreenshot) const Icon(Icons.image_outlined, color: AppColors.textFaint),
+                    if (r.hasScreenshot) Icon(Icons.image_outlined, color: AppColors.textFaint),
                     StatusPill(r.status == 'success' ? 'completed' : (r.status == 'failed' ? 'failed' : 'pending')),
                   ],
                 ),
@@ -396,7 +396,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
+            Text(
               'Stored encrypted on the server. The password is write-only — it is never shown again.',
               style: TextStyle(color: AppColors.textSecondary),
             ),
@@ -431,7 +431,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                         _check!.success ? 'Login worked' : 'Login failed',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      Text(_check!.message, style: const TextStyle(color: AppColors.textSecondary)),
+                      Text(_check!.message, style: TextStyle(color: AppColors.textSecondary)),
                       if (_check!.eposList.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text('EPOS accounts: ${_check!.eposList.join(', ')}'),

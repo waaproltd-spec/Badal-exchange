@@ -114,7 +114,7 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                             Text('Not verified: \$${d.unverifiedDaily} a day · \$${d.unverifiedMonthly} a month'),
                             Text('KYC approved: \$${d.verifiedDaily} a day · \$${d.verifiedMonthly} a month'),
                             const SizedBox(height: 4),
-                            const Text('The day starts at 00:00 Somalia time, the month on the 1st.',
+                            Text('The day starts at 00:00 Somalia time, the month on the 1st.',
                                 style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                           ]),
                         ),
@@ -151,7 +151,7 @@ class _WithdrawLimitsScreenState extends State<WithdrawLimitsScreen> {
                                   _Pill(c.verified ? 'KYC approved' : _kyc(c.kycStatus), c.verified ? AppColors.statusCompleted : AppColors.textSecondary),
                                 ]),
                                 Text('+${c.phone}${c.custom ? ' · custom limits' : ''}',
-                                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                                 const SizedBox(height: 6),
                                 Text('Today \$${c.dailyUsed} of \$${c.dailyLimit} · left \$${c.dailyRemaining}'),
                                 Text('Month \$${c.monthlyUsed} of \$${c.monthlyLimit} · left \$${c.monthlyRemaining}'),
@@ -251,7 +251,7 @@ class _DefaultsSheetState extends State<_DefaultsSheet> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
           const Text('Default withdrawal limits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          const Text('Withdrawals only. Deposits are never limited.', style: TextStyle(color: AppColors.textSecondary)),
+          Text('Withdrawals only. Deposits are never limited.', style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 14),
           const Text('Not verified (no approved KYC)', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
@@ -365,7 +365,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                     ConsoleCard(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(d.name.isEmpty ? '+${d.phone}' : d.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                        Text('+${d.phone} · ${d.accountId}', style: const TextStyle(color: AppColors.textSecondary)),
+                        Text('+${d.phone} · ${d.accountId}', style: TextStyle(color: AppColors.textSecondary)),
                         const SizedBox(height: 10),
                         Row(children: [
                           const Text('KYC: ', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -403,7 +403,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                         const SizedBox(height: 4),
                         Text('Leave a box empty to use the default (\$${d.verified ? d.defaults.verifiedDaily : d.defaults.unverifiedDaily} a day, '
                             '\$${d.verified ? d.defaults.verifiedMonthly : d.defaults.unverifiedMonthly} a month).',
-                            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                         const SizedBox(height: 10),
                         Row(children: [
                           Expanded(
@@ -440,7 +440,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                     const Text('Recent withdrawals', style: TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 6),
                     if (d.history.isEmpty)
-                      const Text('No withdrawals yet.', style: TextStyle(color: AppColors.textSecondary))
+                      Text('No withdrawals yet.', style: TextStyle(color: AppColors.textSecondary))
                     else
                       for (final h in d.history)
                         Padding(
@@ -452,7 +452,7 @@ class _CustomerLimitsScreenState extends State<CustomerLimitsScreen> {
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text('\$${h.amount} · ${h.method}', style: const TextStyle(fontWeight: FontWeight.w700)),
                                   Text('${h.orderCode}${h.createdAt == null ? '' : ' · ${formatDateTime(h.createdAt!)}'}',
-                                      style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                                      style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                                 ]),
                               ),
                               _Pill(h.counted ? h.status : '${h.status} (not counted)', h.counted ? AppColors.purple : AppColors.textSecondary),

@@ -23,7 +23,7 @@ class BadalAgentApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Badal Exchange Agent',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
+        theme: AppTheme.current,
         home: const _RootRouter(),
       ),
     );
@@ -55,7 +55,7 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
         child: Column(

@@ -182,10 +182,10 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
       key: const Key('deposit-board'),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
       children: [
-        const Text('Lacagaha Sugaya Xaqiijinta',
+        Text('Lacagaha Sugaya Xaqiijinta',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         const SizedBox(height: 4),
-        const Text('Liiska dhammaan lacagaha ay macmiishu soo direen ee aan weli la xaqiijin.',
+        Text('Liiska dhammaan lacagaha ay macmiishu soo direen ee aan weli la xaqiijin.',
             style: TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 16),
         _summary(board, wide),
@@ -210,7 +210,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text('Waxaa la muujinayaa ${shown.length} ka mid ah ${board.deposits.length}',
-                style: const TextStyle(color: AppColors.textSecondary)),
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
       ],
     );
@@ -386,7 +386,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(d.customerName ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                   Text('${d.order.orderCode} · ${d.order.methodLabel} · ${_number(d)}',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
                 ]),
               ),
               Text('\$${d.order.amount}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
@@ -399,7 +399,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
               const SizedBox(width: 8),
               Expanded(
                 child: Text(DateFormat('d MMM, HH:mm').format(d.order.createdAt.toLocal()),
-                    style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
               ),
               _status(d),
             ]),
@@ -435,13 +435,13 @@ class _SummaryCard extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(title, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              child: Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             ),
-            Text(note, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(note, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
         ),
       ]),
