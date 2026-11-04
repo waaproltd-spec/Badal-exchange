@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/home_nav_bar.dart';
 import '../state/history_filter.dart';
 import 'account_screen.dart';
 import 'commission_screen.dart';
@@ -54,46 +55,7 @@ class _HomeShellState extends State<HomeShell> {
           const AccountScreen(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        // Six tabs: on a narrow phone, or with a large text size, only the selected one shows its label.
-        labelBehavior: MediaQuery.sizeOf(context).width < 360 || MediaQuery.textScalerOf(context).scale(10) > 11.5
-            ? NavigationDestinationLabelBehavior.onlyShowSelected
-            : NavigationDestinationLabelBehavior.alwaysShow,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: tr('Dashboard'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline_rounded),
-            selectedIcon: Icon(Icons.people_rounded),
-            label: tr('Users'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart_rounded),
-            label: tr('Reports'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            selectedIcon: Icon(Icons.payments_rounded),
-            label: tr('Commission'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_rounded),
-            selectedIcon: Icon(Icons.history_toggle_off_rounded),
-            label: tr('History'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: tr('Account'),
-          ),
-        ],
-      ),
+      bottomNavigationBar: HomeNavBar(selectedIndex: _index, onSelected: (i) => setState(() => _index = i)),
     );
   }
 }
