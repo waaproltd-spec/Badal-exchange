@@ -14,6 +14,7 @@ const Map<String, String> somaliTexts = {
   '\${0} of \${1}': '\${0} ka mid ah \${1}',
   '\${0} test': 'Tijaabada \${0}',
   '\${0} to {1}': '\${0} ilaa {1}',
+  '(Somalia time)': '(waqtiga Soomaaliya)',
   '*736 code': 'Koodhka *736',
   '*736 code for {0} {1}': 'Koodhka *736 ee {0} {1}',
   '*736 code saved.': 'Koodhka *736 waa la keydiyay.',

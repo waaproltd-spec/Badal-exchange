@@ -11,6 +11,7 @@ import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import 'sahal_forwarder_card.dart';
 import '../../l10n/tr.dart';
+import '../../l10n/language.dart';
 
 /// Sahal merchant account, from the Admin Dashboard: the connection and its
 /// session, and a new login that is saved, tested in its own session and only
@@ -172,6 +173,7 @@ class _SahalAccountScreenState extends State<SahalAccountScreen> {
   static String _age(int? seconds) {
     if (seconds == null) return '—';
     final m = seconds ~/ 60;
+    if (AppLanguage.isSomali) return m >= 60 ? '${m ~/ 60} saac ${m % 60} daqiiqo' : '$m daqiiqo';
     return m >= 60 ? '${m ~/ 60} h ${m % 60} min' : '$m min';
   }
 

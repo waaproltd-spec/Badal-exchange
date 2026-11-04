@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' show DateFormat;
 import 'package:provider/provider.dart';
 
 import '../../api/api_exception.dart';
@@ -9,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../../l10n/tr.dart';
+import '../../l10n/date_format.dart';
 
 /// Withdrawal Verification (manage_withdrawal_verifications): before a
 /// customer's first withdrawal an admin approves the account. The server
@@ -24,7 +24,7 @@ class WithdrawalVerificationScreen extends StatefulWidget {
 }
 
 class _WithdrawalVerificationScreenState extends State<WithdrawalVerificationScreen> {
-  static final _when = DateFormat('MMM d, yyyy · HH:mm');
+  static final _when = AppDateFormat('MMM d, yyyy · HH:mm');
 
   String _status = 'pending';
   List<WithdrawalVerification>? _requests;

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' show DateFormat;
 import 'package:provider/provider.dart';
 
 import '../../api/api_exception.dart';
@@ -9,8 +8,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../../l10n/tr.dart';
+import '../../l10n/date_format.dart';
 
-final _when = DateFormat('d MMM yyyy, HH:mm');
+final _when = AppDateFormat('d MMM yyyy, HH:mm');
 
 /// KYC Management (manage_kyc_applications): applications by status, with a
 /// search by name, phone or document number. The server checks each

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/match_result.dart';
@@ -11,6 +10,7 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/state_views.dart';
 import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// A log of SMS-derived (and manual WinWin) submissions this device has
 /// made, with the match status the backend returned for each. There is no
@@ -84,7 +84,7 @@ class _SmsLogTile extends StatelessWidget {
 
   const _SmsLogTile({required this.entry});
 
-  static final _dateFormat = DateFormat('MMM d, HH:mm:ss');
+  static final _dateFormat = AppDateFormat('MMM d, HH:mm:ss');
 
   String get _statusLabel {
     switch (entry.status) {

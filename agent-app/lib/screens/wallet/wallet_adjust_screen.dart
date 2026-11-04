@@ -206,7 +206,7 @@ class _WalletAdjustScreenState extends State<WalletAdjustScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   backgroundColor: _amountCents == q * 100 ? AppColors.purple.withOpacity(0.12) : null,
                                   side: BorderSide(
-                                      color: _amountCents == q * 100 ? AppColors.purpleDark : AppColors.border),
+                                      color: _amountCents == q * 100 ? AppColors.selected : AppColors.border),
                                 ),
                                 onPressed: () => _amount.text = '$q.00',
                                 child: Text('\$$q', style: const TextStyle(fontWeight: FontWeight.w700)),

@@ -307,7 +307,8 @@ class _AgentDetailScreenState extends State<AgentDetailScreen> {
                     children: [
                       for (final r in a.responsibilities)
                         Chip(
-                          label: Tx(responsibilityLabel(r)),
+                          label: Tx(responsibilityLabel(r),
+                              style: r == 'manage_settings' ? const TextStyle(color: AppColors.purpleDark, fontWeight: FontWeight.w700) : null),
                           backgroundColor: r == 'manage_settings' ? AppColors.lightGold : AppColors.surfaceRaised,
                           side: BorderSide(color: AppColors.border),
                         ),

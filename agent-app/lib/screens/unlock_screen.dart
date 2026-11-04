@@ -225,7 +225,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
           ),
         ),
         Container(
-          height: 44,
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           alignment: Alignment.center,
           child: _error == null
               ? null
@@ -257,7 +258,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
           ),
         ),
         Container(
-          height: 40,
+          constraints: const BoxConstraints(minHeight: 40),
+          padding: const EdgeInsets.symmetric(vertical: 4),
           alignment: Alignment.center,
           child: _error == null
               ? null

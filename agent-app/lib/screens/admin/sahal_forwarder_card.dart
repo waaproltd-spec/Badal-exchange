@@ -24,7 +24,7 @@ class SahalForwarderCard extends StatefulWidget {
     if (t == null) return iso;
     final l = t.toUtc().add(const Duration(hours: 3));
     String two(int n) => n.toString().padLeft(2, '0');
-    return '${l.year}-${two(l.month)}-${two(l.day)} ${two(l.hour)}:${two(l.minute)} (Somalia time)';
+    return '${l.year}-${two(l.month)}-${two(l.day)} ${two(l.hour)}:${two(l.minute)} ${tr('(Somalia time)')}';
   }
 
   /// Where the forwarding app posts.

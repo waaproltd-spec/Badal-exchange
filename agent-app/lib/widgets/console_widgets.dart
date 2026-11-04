@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../models/console.dart';
 import '../theme/app_theme.dart';
 import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// Shared building blocks for the Dashboard / Users / Reports / History /
 /// Account tabs, so all five read as one card-based design.
 
-final _shortDateTime = DateFormat('MMM d, yyyy • HH:mm');
-final _shortDate = DateFormat('MMM d, yyyy');
+final _shortDateTime = AppDateFormat('MMM d, yyyy • HH:mm');
+final _shortDate = AppDateFormat('MMM d, yyyy');
 
 String formatDateTime(DateTime d) => _shortDateTime.format(d.toLocal());
 String formatDate(DateTime d) => _shortDate.format(d.toLocal());
@@ -212,9 +212,9 @@ class ChoiceChipsRow<T> extends StatelessWidget {
                 selected: value == selected,
                 onSelected: (_) => onSelected(value),
                 showCheckmark: false,
-                selectedColor: AppColors.purpleDark,
+                selectedColor: AppColors.selected,
                 backgroundColor: AppColors.surface,
-                side: BorderSide(color: value == selected ? AppColors.purpleDark : AppColors.border),
+                side: BorderSide(color: value == selected ? AppColors.selected : AppColors.border),
                 labelStyle: TextStyle(
                   color: value == selected ? AppColors.onHeader : AppColors.textPrimary,
                   fontWeight: FontWeight.w600,

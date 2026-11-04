@@ -1,3 +1,4 @@
+import 'package:badal_agent_app/l10n/language.dart';
 import 'package:badal_agent_app/models/deposit_board.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,7 +25,13 @@ void main() {
     expect(b.deposits.last.isPending, isFalse);
   });
 
-  test('time waited in Somali', () {
+  test('time waited, in English and in Somali', () {
+    expect(waitedText(40), '40 sec');
+    expect(waitedText(5 * 60), '5 min');
+    expect(waitedText(2 * 3600 + 5), '2 h');
+    expect(waitedText(3 * 86400), '3 days');
+    AppLanguage.current.value = AppLanguage.somali;
+    addTearDown(() => AppLanguage.current.value = AppLanguage.english);
     expect(waitedText(40), '40 ilbiriqsi');
     expect(waitedText(5 * 60), '5 daqiiqo');
     expect(waitedText(2 * 3600 + 5), '2 saac');

@@ -134,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
                               Icon(Icons.account_circle_rounded, color: AppColors.primaryDark, size: 22),
                               SizedBox(width: 8),
-                              Tx('Agent App', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
+                              Tx('Agent App', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                             ]),
                           ),
                         ),
@@ -172,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         _Field(
                           child: Row(children: [
                             const SizedBox(width: 16),
-                            const Icon(Icons.lock_rounded, color: AppColors.purpleDark, size: 26),
+                            Icon(Icons.lock_rounded, color: AppColors.primaryDark, size: 26),
                             const SizedBox(width: 14),
                             Expanded(
                               child: TextFormField(
@@ -201,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               key: const Key('toggle-password'),
                               tooltip: _obscurePassword ? tr('Show password') : tr('Hide password'),
                               icon: Icon(_obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                                  color: AppColors.purpleDark, size: 26),
+                                  color: AppColors.primaryDark, size: 26),
                               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                             ),
                             const SizedBox(width: 4),
@@ -242,12 +242,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             border: Border.all(color: AppColors.border),
                           ),
                           child: Row(children: [
-                            const Icon(Icons.verified_user_outlined, color: AppColors.purpleDark, size: 40),
+                            Icon(Icons.verified_user_outlined, color: AppColors.primaryDark, size: 40),
                             Container(width: 1, height: 52, margin: const EdgeInsets.symmetric(horizontal: 14), color: AppColors.border),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Tx('Authorized agents only.',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.purpleDark)),
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                                 SizedBox(height: 2),
                                 Tx('Logging in registers this device for EVC Plus SMS payment verification.',
                                     style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
@@ -303,7 +303,7 @@ class _CountryCode extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Text('+252', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-          const Icon(Icons.arrow_drop_down_rounded, color: AppColors.purpleDark, size: 26),
+          Icon(Icons.arrow_drop_down_rounded, color: AppColors.primaryDark, size: 26),
         ],
       );
 }

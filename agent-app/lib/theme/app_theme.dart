@@ -44,6 +44,9 @@ class AppColors {
   static Color get primaryDark => _dark ? const Color(0xFFE7D6F8) : purpleDark;
   static const Color onPrimary = Color(0xFFFFFFFF);
 
+  /// A selected chip or choice: deep purple in light, the lighter purple in dark.
+  static Color get selected => _dark ? primary : purpleDark;
+
   /// A soft tint of the brand for chips and badges.
   static Color get primaryTint => _dark ? const Color(0xFF2A1D3B) : const Color(0xFFEFE6FA);
 

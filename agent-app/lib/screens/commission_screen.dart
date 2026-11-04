@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' show DateFormat;
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
@@ -10,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// Commission (agent_commission), its own tab (Reports is unchanged):
 /// what Badal Exchange earns on completed betting-company orders -- 2% of
@@ -29,9 +29,9 @@ class CommissionScreen extends StatefulWidget {
 }
 
 class _CommissionScreenState extends State<CommissionScreen> {
-  static final _iso = DateFormat('yyyy-MM-dd');
-  static final _pretty = DateFormat('MMM d, yyyy');
-  static final _when = DateFormat('MMM d, yyyy · HH:mm');
+  static final _iso = AppDateFormat('yyyy-MM-dd');
+  static final _pretty = AppDateFormat('MMM d, yyyy');
+  static final _when = AppDateFormat('MMM d, yyyy · HH:mm');
 
   static List<(String, String)> get _ranges => [
     ('today', tr('Today')),

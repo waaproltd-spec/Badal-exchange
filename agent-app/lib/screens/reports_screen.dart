@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' show DateFormat;
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
@@ -14,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_mode.dart';
 import '../widgets/state_views.dart';
 import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// Reports (agent_report_overview): Today / Yesterday / Last Month (the last
 /// 30 days) / All Time, or a custom range from the date line. Every section
@@ -48,8 +48,8 @@ class _R {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  static final _iso = DateFormat('yyyy-MM-dd');
-  static final _pretty = DateFormat('MMM d, yyyy');
+  static final _iso = AppDateFormat('yyyy-MM-dd');
+  static final _pretty = AppDateFormat('MMM d, yyyy');
 
   String _range = 'today';
   DateTimeRange? _custom;
@@ -484,7 +484,7 @@ class _RankCard extends StatelessWidget {
 class _TransactionRow extends StatelessWidget {
   const _TransactionRow({required this.t});
   final TopTransaction t;
-  static final _when = DateFormat('MMM d, HH:mm');
+  static final _when = AppDateFormat('MMM d, HH:mm');
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -546,7 +546,7 @@ class _BarChartPainter extends CustomPainter {
   final List<ReportDay> series;
   _BarChartPainter(this.series);
 
-  static final _dayLabel = DateFormat('MMM d');
+  static final _dayLabel = AppDateFormat('MMM d');
 
   @override
   void paint(Canvas canvas, Size size) {

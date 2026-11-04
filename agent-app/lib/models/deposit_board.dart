@@ -1,4 +1,5 @@
 import 'order.dart';
+import '../l10n/language.dart';
 
 /// One deposit on the "Lacagaha Sugaya Xaqiijinta" board
 /// (agent_deposit_board): the order plus who sent it and how long it waited.
@@ -61,8 +62,15 @@ class DepositBoard {
   }
 }
 
-/// "2 daqiiqo", "4 saac", "2 maalin": how long a deposit has waited.
+/// How long a deposit has waited: "2 daqiiqo", "4 saac", "2 maalin" in Somali,
+/// "2 min", "4 h", "2 days" in English.
 String waitedText(int seconds) {
+  if (!AppLanguage.isSomali) {
+    if (seconds < 60) return '$seconds sec';
+    if (seconds < 3600) return '${seconds ~/ 60} min';
+    if (seconds < 86400) return '${seconds ~/ 3600} h';
+    return '${seconds ~/ 86400} days';
+  }
   if (seconds < 60) return '$seconds ilbiriqsi';
   if (seconds < 3600) return '${seconds ~/ 60} daqiiqo';
   if (seconds < 86400) return '${seconds ~/ 3600} saac';

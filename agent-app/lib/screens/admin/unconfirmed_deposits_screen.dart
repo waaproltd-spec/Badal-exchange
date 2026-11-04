@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/api_exception.dart';
@@ -9,6 +8,8 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/state_views.dart';
 import '../../l10n/tr.dart';
+import '../../l10n/date_format.dart';
+import '../../l10n/language.dart';
 
 /// Unconfirmed Deposits (manage_unconfirmed_deposits): customers who started
 /// a deposit, apart from confirmed payments.
@@ -32,8 +33,8 @@ class UnconfirmedDepositsScreen extends StatefulWidget {
 enum _Show { all, notConfirmed, pendingVerification, overdue, closed }
 
 class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
-  static final _when = DateFormat('d MMM yyyy, HH:mm');
-  static final _day = DateFormat('d MMM yyyy');
+  static final _when = AppDateFormat('d MMM yyyy, HH:mm');
+  static final _day = AppDateFormat('d MMM yyyy');
 
   UnconfirmedDeposits? _data;
   String? _error;
@@ -245,6 +246,12 @@ class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
 
 /// "45 sec", "12 min", "5 h 20 min", "2 days 3 h".
 String waitedEnglish(int seconds) {
+  if (AppLanguage.isSomali) {
+    if (seconds < 60) return '$seconds ilbiriqsi';
+    if (seconds < 3600) return '${seconds ~/ 60} daqiiqo';
+    if (seconds < 86400) return '${seconds ~/ 3600} saac ${(seconds % 3600) ~/ 60} daqiiqo';
+    return '${seconds ~/ 86400} maalin ${(seconds % 86400) ~/ 3600} saac';
+  }
   if (seconds < 60) return '$seconds sec';
   if (seconds < 3600) return '${seconds ~/ 60} min';
   if (seconds < 86400) return '${seconds ~/ 3600} h ${(seconds % 3600) ~/ 60} min';

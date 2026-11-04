@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
@@ -13,6 +12,7 @@ import '../widgets/payment_confirm_sheet.dart';
 import '../widgets/state_views.dart';
 import 'customer_info_screen.dart';
 import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// Lacagaha Sugaya Xaqiijinta: every deposit customers sent that is not
 /// confirmed yet (agent_deposit_board). At the top: customers waiting, their
@@ -33,8 +33,8 @@ class PendingDepositsScreen extends StatefulWidget {
 }
 
 class _PendingDepositsScreenState extends State<PendingDepositsScreen> with LiveRefresh {
-  static final _day = DateFormat('d MMM yyyy');
-  static final _when = DateFormat('d MMM yyyy\nHH:mm');
+  static final _day = AppDateFormat('d MMM yyyy');
+  static final _when = AppDateFormat('d MMM yyyy\nHH:mm');
 
   DepositBoard? _board;
   String? _error;
@@ -398,7 +398,7 @@ class _PendingDepositsScreenState extends State<PendingDepositsScreen> with Live
               Tx(waitedText(d.waitingSeconds), style: TextStyle(fontWeight: FontWeight.w700, color: _waitColor(d))),
               const SizedBox(width: 8),
               Expanded(
-                child: Tx(DateFormat('d MMM, HH:mm').format(d.order.createdAt.toLocal()),
+                child: Tx(AppDateFormat('d MMM, HH:mm').format(d.order.createdAt.toLocal()),
                     style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
               ),
               _status(d),

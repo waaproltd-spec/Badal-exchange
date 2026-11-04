@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../models/order.dart';
 import '../theme/app_theme.dart';
 import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// A single order (deposit or withdrawal) rendered as a card: order code,
 /// method + counterparty, amount/fee/net, status badge, timestamp, and an
@@ -15,7 +15,7 @@ class OrderCard extends StatelessWidget {
 
   const OrderCard({super.key, required this.order, this.actions = const []});
 
-  static final _dateFormat = DateFormat('MMM d, HH:mm');
+  static final _dateFormat = AppDateFormat('MMM d, HH:mm');
 
   @override
   Widget build(BuildContext context) {

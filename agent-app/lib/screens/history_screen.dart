@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
@@ -12,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// Complete transaction history: deposits, withdrawals and payment
 /// confirmations (SMS / agent-entered), with search (customer name, phone,
@@ -28,7 +28,7 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
   static const _pageSize = 50;
-  static final _pretty = DateFormat('MMM d');
+  static final _pretty = AppDateFormat('MMM d');
 
   final _search = TextEditingController();
   HistoryFilter _filter = const HistoryFilter();
@@ -227,8 +227,8 @@ class _FilterSheet extends StatefulWidget {
 }
 
 class _FilterSheetState extends State<_FilterSheet> {
-  static final _iso = DateFormat('yyyy-MM-dd');
-  static final _pretty = DateFormat('MMM d, yyyy');
+  static final _iso = AppDateFormat('yyyy-MM-dd');
+  static final _pretty = AppDateFormat('MMM d, yyyy');
 
   late String? _status = widget.initial.status;
   late String? _method = widget.initial.method;
