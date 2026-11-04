@@ -398,7 +398,7 @@ test('withdrawal approval from the Customer App: /start fasax_<Customer ID> reac
   await db.query(`INSERT INTO app_settings (key, value) VALUES ('withdrawal_verification', 'on') ON CONFLICT (key) DO UPDATE SET value = 'on'`);
   t.after(() => db.query(`UPDATE app_settings SET value = $1 WHERE key = 'withdrawal_verification'`, [was ?? 'on']));
   const r = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: chat, type: 'private' }, from: { id: chat, username: 'macaamiil1' }, text: `/start fasax_${code}` } });
-  assert.match(texts(r).find((x) => /gaarsiiyay maamulka/.test(x)) ?? '', /gaarsiiyay maamulka/);
+  assert.match(texts(r).find((x) => /loo gudbiyey maamulka/.test(x)) ?? '', /loo gudbiyey maamulka/);
   const toAdmin = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === adminChat);
   assert.ok(toAdmin, 'the administrator got the request');
   assert.match(toAdmin.body.text, /Codsi fasax bixin/);
