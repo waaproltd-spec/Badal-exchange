@@ -57,11 +57,13 @@ CREATE TABLE IF NOT EXISTS public.broadcast_deliveries (
   id         BIGSERIAL PRIMARY KEY,
   run_id     UUID NOT NULL REFERENCES public.broadcast_runs(id) ON DELETE CASCADE,
   chat_id    BIGINT NOT NULL,
+  customer_id UUID,                      -- the Customer App customer (null for a test message to the team chat)
   status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sending', 'sent', 'failed')),
   error      TEXT,
   claimed_at TIMESTAMPTZ,
   sent_at    TIMESTAMPTZ,
-  UNIQUE (run_id, chat_id)
+  UNIQUE (run_id, chat_id),
+  UNIQUE (run_id, customer_id)           -- one message per customer, even with two Telegram chats
 );
 CREATE INDEX IF NOT EXISTS broadcast_deliveries_todo ON public.broadcast_deliveries (status, id) WHERE status IN ('pending', 'sending');
 ALTER TABLE public.broadcast_deliveries ENABLE ROW LEVEL SECURITY;
@@ -116,7 +118,7 @@ BEGIN
   RETURN jsonb_build_object(
     'stats', jsonb_build_object(
       'registeredCustomers', (SELECT count(*) FROM public.users WHERE role = 'customer'),
-      'eligibleCustomers', (SELECT count(*) FROM public.support_chats sc JOIN public.users u ON u.id = sc.customer_id
+      'eligibleCustomers', (SELECT count(DISTINCT sc.customer_id) FROM public.support_chats sc JOIN public.users u ON u.id = sc.customer_id
                             WHERE u.role = 'customer' AND u.status = 'active'),
       'sent', COALESCE((SELECT sum(sent) FROM public.broadcast_runs WHERE NOT is_test), 0),
       'failed', COALESCE((SELECT sum(failed) FROM public.broadcast_runs WHERE NOT is_test), 0),
@@ -263,9 +265,13 @@ BEGIN
       ON CONFLICT (schedule_id, scheduled_for) DO NOTHING
       RETURNING id INTO v_run;
       IF v_run IS NOT NULL THEN
-        INSERT INTO public.broadcast_deliveries (run_id, chat_id)
-        SELECT v_run, sc.chat_id FROM public.support_chats sc JOIN public.users u ON u.id = sc.customer_id
+        -- Every active Customer App customer who linked Telegram with the bot (role customer: never an agent or an
+        -- administrator), once: a customer with two linked chats gets the message in the most recent one.
+        INSERT INTO public.broadcast_deliveries (run_id, chat_id, customer_id)
+        SELECT DISTINCT ON (sc.customer_id) v_run, sc.chat_id, sc.customer_id
+          FROM public.support_chats sc JOIN public.users u ON u.id = sc.customer_id
          WHERE u.role = 'customer' AND u.status = 'active'
+         ORDER BY sc.customer_id, sc.linked_at DESC NULLS LAST, sc.updated_at DESC
         ON CONFLICT DO NOTHING;
         UPDATE public.broadcast_runs r SET total = (SELECT count(*) FROM public.broadcast_deliveries d WHERE d.run_id = r.id),
                status = CASE WHEN EXISTS (SELECT 1 FROM public.broadcast_deliveries d WHERE d.run_id = r.id) THEN 'sending' ELSE 'done' END,

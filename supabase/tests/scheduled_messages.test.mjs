@@ -168,7 +168,17 @@ async function seedChats(tx) {
     if (linked) await tx.query(`INSERT INTO public.support_chats (chat_id, customer_id, state, linked_at) VALUES ($1,$2,'ready',now())`, [chat, u]);
     return { id: u, chat };
   };
-  return { a: await mk('active', true), b: await mk('active', true), c: await mk('active', true), disabled: await mk('disabled', true), unlinked: await mk('active', false) };
+  const t = { a: await mk('active', true), b: await mk('active', true), c: await mk('active', true), disabled: await mk('disabled', true), unlinked: await mk('active', false) };
+  // A customer who linked two Telegram chats (the second, more recent): one message only, to the newest.
+  t.twice = await mk('active', true);
+  t.twice.chat2 = t.twice.chat + 500000;
+  await tx.query(`INSERT INTO public.support_chats (chat_id, customer_id, state, linked_at) VALUES ($1,$2,'ready', now() + interval '1 minute')`, [t.twice.chat2, t.twice.id]);
+  // A staff account (an agent) that is linked to the bot: it is not a Customer App customer, so it gets nothing.
+  const agent = (await tx.query(`INSERT INTO public.users (role, phone, name, password_hash) VALUES ('agent', $1, 'Staff Test', private.hash_password('ChangeMe123!')) RETURNING id`,
+    [`2526${String(seed * 10 + n++).padStart(8, '0').slice(-8)}`])).rows[0].id;
+  t.staff = { id: agent, chat: 8800000000 + seed * 100 + n + 700000 };
+  await tx.query(`INSERT INTO public.support_chats (chat_id, customer_id, state, linked_at) VALUES ($1,$2,'ready',now())`, [t.staff.chat, agent]);
+  return t;
 }
 
 test('a due schedule becomes one run, once: every eligible customer gets one message, no duplicates', async () => {
@@ -188,6 +198,11 @@ test('a due schedule becomes one run, once: every eligible customer gets one mes
     for (const x of [t.a, t.b, t.c]) assert.equal(chats.filter((c) => c === x.chat).length, 1, 'one message each');
     assert.ok(!chats.includes(t.disabled.chat), 'a disabled customer gets nothing');
     assert.ok(!chats.includes(t.unlinked.chat), 'a customer who never linked Telegram can not be reached');
+    assert.ok(!chats.includes(t.staff.chat), 'a staff account is not a Customer App customer');
+    assert.equal(chats.filter((c) => c === t.twice.chat2).length, 1, 'two linked chats: one message, in the newest');
+    assert.ok(!chats.includes(t.twice.chat), 'not in the older chat too');
+    const perCustomer = (await tx.query(`SELECT customer_id, count(*) AS n FROM public.broadcast_deliveries WHERE run_id = $1 GROUP BY customer_id HAVING count(*) > 1`, [runs[0].id])).rows;
+    assert.equal(perCustomer.length, 0, 'never two messages to one customer');
     assert.equal(runs[0].total, chats.length);
     const after = (await tx.query(`SELECT * FROM public.broadcast_schedules WHERE id = $1`, [schedule.id])).rows[0];
     assert.ok(new Date(after.next_run_at) > new Date(), 'the next moment is tomorrow');
@@ -348,4 +363,16 @@ test('the worker: only the platform secret can wake it; it sends every message o
   } finally {
     telegram.close();
   }
+});
+
+test('the number of reachable customers counts Customer App customers once: linked, active, customers only', async () => {
+  await asManager(async (tx) => {
+    const before = (await tx.call('public.manage_broadcasts()')).stats;
+    const t = await seedChats(tx);
+    const after = (await tx.call('public.manage_broadcasts()')).stats;
+    // a, b, c and the one with two chats are reachable; the disabled, the unlinked and the staff account are not.
+    assert.equal(after.eligibleCustomers - before.eligibleCustomers, 4);
+    assert.equal(after.registeredCustomers - before.registeredCustomers, 6, 'registered customers: the staff account is not one');
+    assert.ok(t.twice.chat2 !== t.twice.chat);
+  });
 });
