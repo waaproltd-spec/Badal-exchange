@@ -410,11 +410,27 @@ class _CompanyBalancesCard extends StatelessWidget {
                       if (d == null)
                         Tx('Cash register balances', style: TextStyle(color: AppColors.onHeader.withOpacity(0.75)))
                       else ...[
-                        Tx('Total Balance', style: TextStyle(color: AppColors.onHeader.withOpacity(0.75))),
+                        Tx('Total Limit', style: TextStyle(color: AppColors.onHeader.withOpacity(0.75))),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
-                          child: Text(usd(d.total), key: const Key('company-total'), style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.onHeader)),
+                          child: Text(d.totalLimit == null ? tr('Not reported') : usd(d.totalLimit!),
+                              key: const Key('company-total-limit'),
+                              style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.onHeader)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Tx('Total Balance', style: TextStyle(fontSize: 13, color: AppColors.onHeader.withOpacity(0.75))),
+                            Text(': ', style: TextStyle(fontSize: 13, color: AppColors.onHeader.withOpacity(0.75))),
+                            Flexible(
+                              child: Text(usd(d.total),
+                                  key: const Key('company-total'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onHeader.withOpacity(0.9))),
+                            ),
+                          ]),
                         ),
                         if (d.lowCount > 0 || d.unavailableCount > 0)
                           Padding(

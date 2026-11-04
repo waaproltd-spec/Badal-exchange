@@ -34,7 +34,7 @@ class _Api extends AgentApi {
 
   @override
   Future<CompanyBalancesOverview> getCompanyBalances({bool refresh = false, DateTime? from, DateTime? to}) async => CompanyBalancesOverview.fromJson({
-        'companies': [], 'total': '66565.15', 'lowCount': 4, 'unavailableCount': 1, 'generatedAt': '2026-11-04T17:43:00Z',
+        'companies': [], 'total': '66565.15', 'totalLimit': '324.94', 'lowCount': 4, 'unavailableCount': 1, 'generatedAt': '2026-11-04T17:43:00Z',
       });
 }
 
@@ -59,7 +59,9 @@ void main() {
     expect(find.text('Welcome, BADAL EXCHANGE ADMIN'), findsOneWidget);
     expect(find.text('Manage your transactions and company balances'), findsOneWidget);
     expect(find.text('Company Balances'), findsOneWidget);
-    expect(find.text('Total Balance'), findsOneWidget);
+    expect(find.text('Total Limit'), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('company-total-limit'))).data, '\$324.94', reason: 'the same Total Limit as Company Balances');
+    expect(find.text('Total Balance'), findsOneWidget, reason: 'the balance stays as a smaller line');
     expect(tester.widget<Text>(find.byKey(const Key('company-total'))).data, '\$66,565.15', reason: 'grouped in thousands');
     expect(find.text('4 Low'), findsOneWidget);
     expect(find.text('1 Offline'), findsOneWidget);
