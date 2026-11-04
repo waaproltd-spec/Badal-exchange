@@ -2,6 +2,7 @@ import 'package:badal_agent_app/api/agent_api.dart';
 import 'package:badal_agent_app/models/commission.dart';
 import 'package:badal_agent_app/screens/commission_screen.dart';
 import 'package:badal_agent_app/state/session.dart';
+import 'package:badal_agent_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -232,5 +233,19 @@ void main() {
     await tester.scrollUntilVisible(find.byKey(const Key('top-agents')), 300, scrollable: _page);
     final later = tester.takeException()?.toString() ?? '';
     expect(later.contains('commission_screen.dart'), isFalse, reason: later);
+  });
+
+  testWidgets('with the app\'s real theme: the Custom Range button is as wide as its text', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(760, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ChangeNotifierProvider(
+        create: (_) => Session(api: _FakeApi()), child: MaterialApp(theme: AppTheme.current, home: const Scaffold(body: CommissionScreen()))));
+    await tester.pumpAndSettle();
+    final button = tester.getSize(find.byKey(const Key('range-custom')));
+    expect(button.width, lessThan(260), reason: 'not the whole card: ${button.width}');
+    final label = tester.getSize(find.byKey(const Key('range-label')));
+    expect(label.width, greaterThan(150), reason: 'the date is readable: ${label.width}');
   });
 }

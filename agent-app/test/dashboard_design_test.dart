@@ -9,6 +9,7 @@ import 'package:badal_agent_app/models/console.dart';
 import 'package:badal_agent_app/screens/dashboard_screen.dart';
 import 'package:badal_agent_app/screens/home_shell.dart';
 import 'package:badal_agent_app/state/session.dart';
+import 'package:badal_agent_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -37,14 +38,14 @@ class _Api extends AgentApi {
       });
 }
 
-Future<void> _pump(WidgetTester tester, Widget home, {Size size = const Size(393, 2200), _Api? api}) async {
+Future<void> _pump(WidgetTester tester, Widget home, {Size size = const Size(393, 2200), _Api? api, ThemeData? theme}) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final session = Session(api: api ?? _Api())
     ..profile = const AgentProfile(id: 'a1', name: 'BADAL EXCHANGE ADMIN', phone: '252610000002', status: 'active', responsibilities: ['manage_settings']);
-  await tester.pumpWidget(ChangeNotifierProvider<Session>.value(value: session, child: MaterialApp(home: home)));
+  await tester.pumpWidget(ChangeNotifierProvider<Session>.value(value: session, child: MaterialApp(theme: theme, home: home)));
   await tester.pumpAndSettle();
 }
 
@@ -121,5 +122,15 @@ void main() {
     // cards must not be among them.
     final problem = tester.takeException()?.toString() ?? '';
     expect(problem.contains('dashboard_screen.dart'), isFalse, reason: problem);
+  });
+
+  testWidgets('with the app\'s real theme (full-width outlined buttons): the Recent Activity heading is not squeezed by its See all button', (tester) async {
+    await _pump(tester, Scaffold(body: DashboardScreen(onOpenHistory: (_) {})), theme: AppTheme.current, size: const Size(393, 3000));
+    await tester.scrollUntilVisible(find.byKey(const Key('activity-see-all')), 300, scrollable: find.byType(Scrollable).first);
+    final heading = tester.getSize(find.text('Recent Activity'));
+    final button = tester.getSize(find.byKey(const Key('activity-see-all')));
+    expect(button.width, lessThan(230), reason: 'as wide as its text: ${button.width}');
+    expect(heading.height, lessThan(30), reason: 'one line, not a column of letters: ${heading.height}');
+    expect(find.text('Latest transactions'), findsOneWidget);
   });
 }

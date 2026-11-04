@@ -193,6 +193,7 @@ class _CommissionScreenState extends State<CommissionScreen> with LiveRefresh {
             final custom = OutlinedButton(
               key: const Key('range-custom'),
               style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 42), // as wide as its text, not the theme's full width
                 shape: const StadiumBorder(),
                 backgroundColor: _range == 'custom'
                     ? AppColors.selected

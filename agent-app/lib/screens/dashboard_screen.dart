@@ -317,6 +317,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
               OutlinedButton(
                 key: const Key('activity-see-all'),
                 style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 42), // as wide as its text, not the theme's full width
                   shape: const StadiumBorder(),
                   side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
                   backgroundColor: AppColors.primaryTint,
