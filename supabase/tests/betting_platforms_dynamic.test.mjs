@@ -126,3 +126,19 @@ test('an unknown platform is still not found', async () => {
   await assert.rejects(asUser(managerId, (tx) => tx.call(
     `public.manage_save_betting_platform('nosuchplatform', NULL, 'a', 'b', '1', 'c')`)), /Betting platform not found/);
 });
+
+test('a platform name can start with a digit (888starz admin, 1Win); it still needs a letter and 2 to 30 characters', async () => {
+  await asUser(managerId, async (tx) => {
+    const made = await tx.call(`public.manage_create_betting_platform($1, 'cashdeskbot')`, [`888 starz admin ${seed}`]);
+    assert.equal(made.method, `888starzadmin${seed}`);
+    assert.equal(made.status, 'not_configured');
+    assert.equal(made.active, false, 'a new platform starts switched off');
+    const p = await listed(tx, `888starzadmin${seed}`);
+    assert.ok(p, 'it is in the Agent App list');
+  });
+  for (const bad of ['X', '12345', '--', '']) {
+    await asUser(managerId, async (tx) => {
+      await assert.rejects(tx.call(`public.manage_create_betting_platform($1, 'cashdeskbot')`, [bad]), (e) => e.hint === 'VALIDATION_ERROR' || /VALIDATION_ERROR/.test(`${e.hint}${e.message}`), bad);
+    });
+  }
+});
