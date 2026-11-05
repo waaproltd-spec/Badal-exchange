@@ -14,8 +14,9 @@
 // types the code in the Agent App; it is then sent like the portal's
 // "Authenticate" page does (POST /api/account/2auth {type, code, sessionId})
 // and the session kept alive by reading every minute. Anything else stops
-// the feed until a manager signs in again, so the merchant phone is never
-// flooded with codes.
+// the feed; it then signs in again by itself (merchant_feed_auto_recover: only
+// while a phone reads SMS, never after a wrong password, a few times an hour at
+// most), so the merchant phone is never flooded with codes.
 //
 // The transactions are stored and matched by the database.
 //
@@ -187,7 +188,13 @@ async function run() {
   if (!creds.username || !creds.password) {
     return report({ state: 'not_configured', message: 'Set the Sahal merchant login in the Admin Dashboard (or GOLIS_MERCHANT_USERNAME and GOLIS_MERCHANT_PASSWORD)' });
   }
-  const feed = await rpc('merchant_feed_get', { p_provider: PROVIDER });
+  let feed = await rpc('merchant_feed_get', { p_provider: PROVIDER });
+  if (feed?.state === 'stopped' || feed?.state === 'needs_code') {
+    // Signs in again by itself (never after a wrong password; a phone must be reading SMS to enter the
+    // code; limits per hour and day -- all decided by the database).
+    const again = await rpc('merchant_feed_auto_recover', { p_provider: PROVIDER }).catch(() => null);
+    if (again?.recover === true) feed = await rpc('merchant_feed_get', { p_provider: PROVIDER });
+  }
   if (feed?.state === 'stopped' || feed?.state === 'needs_code') {
     // Waiting for a person; a kept session still reads Sahal's list.
     return feed?.readSessionId ? { readOnly: await readWithKeptSession(feed) } : { skipped: feed.state };

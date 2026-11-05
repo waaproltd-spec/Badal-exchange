@@ -322,3 +322,9 @@ FROM public.broadcast_schedules s WHERE s.deleted_at IS NULL ORDER BY s.updated_
 SELECT r.channel, r.status, r.total, r.sent, r.failed, r.skipped,
        r.is_test, to_char(r.started_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS started_somalia, to_char(r.finished_at AT TIME ZONE 'Africa/Mogadishu', 'HH24:MI:SS') AS finished_somalia
 FROM public.broadcast_runs r ORDER BY r.started_at DESC LIMIT 8;
+
+\echo
+\echo '== 27. Sahal connection log (read-only): sign-ins, codes entered, automatic reconnects (no codes, no ids) =='
+SELECT to_char(e.at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS at_somalia, e.event, e.detail::text AS detail
+FROM private.merchant_feed_events e WHERE e.provider = 'golis' AND e.event IN ('sign_in', 'code_sent', 'session_lost', 'auto_reconnect', 'auto_reconnect_held', 'read_session_ended')
+ORDER BY e.id DESC LIMIT 15;

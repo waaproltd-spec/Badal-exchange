@@ -1222,3 +1222,49 @@ test('Sahal balance: read with the feed about once a minute and recorded as read
   assert.equal(String(rows[0].balance_cents), '123456');
   assert.equal((await status()).state, 'ok', 'a balance problem is not a feed problem');
 });
+
+// ---- It signs in again by itself (migrations/*_sahal_auto_reconnect.sql) ----
+
+async function phoneReadingSms(on) {
+  const agent = (await db.query(`SELECT id FROM users WHERE phone = '252610000002'`)).rows[0].id;
+  await db.query(`UPDATE agent_devices SET sms_listening_at = NULL`);
+  if (on) {
+    await db.query(`INSERT INTO agent_devices (agent_id, device_id, sms_listening_at) VALUES ($1, 'auto-reconnect-phone', now())
+                    ON CONFLICT (agent_id, device_id) DO UPDATE SET sms_listening_at = now(), status = 'active'`, [agent]);
+  }
+}
+
+test('a stopped feed signs in again by itself while a phone reads SMS, and goes on reading', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await phoneReadingSms(true);
+  try {
+    await db.query(`UPDATE merchant_feed_status SET state = 'stopped', result_code = '2007', message = 'Sign-in refused' WHERE provider = 'golis'`);
+    portal.rows = [];
+    await run();
+    const s = await status();
+    assert.equal(s.state, 'ok', 'signed in again without anyone pressing Sign in');
+    assert.equal(calls('/api/account/login'), 1);
+    const ev = (await db.query(`SELECT event FROM private.merchant_feed_events WHERE provider = 'golis' AND event = 'auto_reconnect'`)).rows;
+    assert.equal(ev.length, 1, 'logged');
+  } finally {
+    await phoneReadingSms(false);
+  }
+});
+
+test('no phone reading SMS, or a refused password: it stays stopped and the merchant phone is not texted', async (t) => {
+  if (!served) return t.skip('golis-merchant is not served');
+  await phoneReadingSms(false);
+  await db.query(`UPDATE merchant_feed_status SET state = 'stopped', result_code = '2007', message = 'Sign-in refused' WHERE provider = 'golis'`);
+  await run();
+  assert.equal(calls('/api/account/login'), 0, 'nobody could enter the code');
+  assert.equal((await status()).state, 'stopped');
+  await phoneReadingSms(true);
+  try {
+    await db.query(`UPDATE merchant_feed_status SET state = 'stopped', result_code = '4001', message = 'Invalid username or password' WHERE provider = 'golis'`);
+    await run();
+    assert.equal(calls('/api/account/login'), 0, 'a wrong password is never tried again by itself');
+    assert.equal((await status()).state, 'stopped');
+  } finally {
+    await phoneReadingSms(false);
+  }
+});

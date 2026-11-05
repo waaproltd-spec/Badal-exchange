@@ -21,9 +21,10 @@ import android.util.Log
  * list. Dart (lib/sms/payment_sms_parsers.dart) decides what is a payment
  * SMS and drops everything else without sending it anywhere.
  *
- * When the app process isn't running there is no Dart listener; the SMS is
- * then picked up by the inbox rescan (MainActivity `scanInbox`) the next
- * time the app starts, exactly like Dalab's SmsInboxScanner.
+ * When the app is not on screen there is no Dart listener: an SMS that looks like
+ * money or like Sahal's access code is then read by a headless engine
+ * ([BackgroundSms]); the rest is picked up by the inbox rescan (MainActivity
+ * `scanInbox`) the next time the app starts, like Dalab's SmsInboxScanner.
  *
  * Never aborts the broadcast and never logs the SMS body.
  */
@@ -86,7 +87,35 @@ class SmsReceiver : BroadcastReceiver() {
 
         val currentListener = listener
         if (currentListener == null) {
-            Log.d(TAG, "SMS received with no active listener; the inbox rescan will pick it up.")
+            // The app is closed: an SMS that looks like money or like Sahal's access code is read by a small
+            // headless engine (BackgroundSms); anything else is left alone, as before.
+            if (!BackgroundSms.worthIt(body)) {
+                Log.d(TAG, "SMS received with no active listener; the inbox rescan will pick it up.")
+                return
+            }
+            val held = goAsync()
+            Thread {
+                try {
+                    val simSlot = resolveSimSlot(context.applicationContext, intent)
+                    val payload = mapOf(
+                        "sender" to sender,
+                        "body" to body,
+                        "timestampMillis" to timestampMillis,
+                        "simSlot" to simSlot,
+                    )
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        try {
+                            BackgroundSms.handle(context.applicationContext, payload, held)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Background read failed: ${e.javaClass.simpleName}")
+                            held.finish()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed forwarding SMS: ${e.message}")
+                    held.finish()
+                }
+            }.start()
             return
         }
 
