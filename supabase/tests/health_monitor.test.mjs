@@ -39,17 +39,30 @@ async function inTx(fn, claims = { role: 'service_role' }) {
 const asManager = (fn) => inTx(fn, { sub: managerId, role: 'authenticated', aud: 'authenticated' });
 
 const scan = (tx) => tx.call(`private.health_scan()`);
+/** The CI database may hold incidents from the real once-a-minute scan and conditions other tests left: start clean (all of it is rolled back). */
+const cleanSlate = (tx) => tx.query(`DELETE FROM private.health_incidents`);
 const incident = async (tx, key, status = 'open') =>
   (await tx.query(`SELECT * FROM private.health_incidents WHERE key = $1 AND status = $2 ORDER BY id DESC LIMIT 1`, [key, status])).rows[0];
 
-/** A wallet that has ledger entries, so that its balance can be made to disagree with them. */
-async function walletWithLedger(tx) {
-  const w = (await tx.query(`SELECT w.id FROM public.wallets w WHERE EXISTS (SELECT 1 FROM public.ledger_entries l WHERE l.wallet_id = w.id) LIMIT 1`)).rows[0];
+/** A wallet whose balance agrees with its ledger, so that it can be made to disagree (other tests may leave others that do not). */
+async function consistentWalletWithLedger(tx) {
+  const w = (await tx.query(
+    `SELECT w.id FROM public.wallets w
+       JOIN LATERAL (SELECT l.balance_after_cents FROM public.ledger_entries l WHERE l.wallet_id = w.id
+                      ORDER BY l.created_at DESC, l.id DESC LIMIT 1) last ON true
+      WHERE last.balance_after_cents = w.available_cents LIMIT 1`)).rows[0];
   return w?.id;
 }
+const mismatches = async (tx) => Number((await tx.query(
+  `SELECT count(*) AS n FROM public.wallets w
+     JOIN LATERAL (SELECT l.balance_after_cents FROM public.ledger_entries l WHERE l.wallet_id = w.id
+                    ORDER BY l.created_at DESC, l.id DESC LIMIT 1) last ON true
+    WHERE last.balance_after_cents <> w.available_cents`)).rows[0].n);
 
 test('one incident per problem: a second scan only counts it; when the condition is gone it is resolved', async () => {
   await inTx(async (tx) => {
+    await cleanSlate(tx);
+    await tx.query(`UPDATE public.sms_logs SET match_status = 'ignored' WHERE match_status = 'unmatched' AND match_failure_reason LIKE 'Rejected by the wallet phone/SIM check%'`);
     await tx.query(`INSERT INTO public.sms_logs (device_id, sender, body, parsed_provider, parsed_amount, parsed_phone, received_at, match_status, match_failure_reason)
                     VALUES ('hm-phone', '192', $1, 'Hormuud', 1.00, '252610000099', now(), 'unmatched', 'Rejected by the wallet phone/SIM check: expects another phone')`, [randomUUID()]);
     await scan(tx);
@@ -70,10 +83,12 @@ test('one incident per problem: a second scan only counts it; when the condition
   });
 });
 
-test('a wallet that disagrees with its ledger, a negative balance: critical and NOT repaired by the monitor', async () => {
+test('a wallet that disagrees with its ledger: critical and NOT repaired by the monitor; a negative balance cannot even be written', async () => {
   await inTx(async (tx) => {
-    const wallet = await walletWithLedger(tx);
+    await cleanSlate(tx);
+    const wallet = await consistentWalletWithLedger(tx);
     if (!wallet) return;
+    const base = await mismatches(tx);
     const before = (await tx.query(`SELECT available_cents FROM public.wallets WHERE id = $1`, [wallet])).rows[0].available_cents;
     await tx.query(`UPDATE public.wallets SET available_cents = available_cents + 1 WHERE id = $1`, [wallet]);
     await scan(tx);
@@ -82,6 +97,7 @@ test('a wallet that disagrees with its ledger, a negative balance: critical and 
     assert.equal(mismatch.severity, 'critical');
     assert.equal(mismatch.needs_developer, true);
     assert.equal(mismatch.repairs, 0, 'the monitor never repairs money');
+    assert.equal(mismatch.detail.wallets, base + 1);
     await scan(tx);
     const now = (await tx.query(`SELECT available_cents FROM public.wallets WHERE id = $1`, [wallet])).rows[0].available_cents;
     assert.equal(Number(now), Number(before) + 1, 'the balance was left exactly as it was found');
@@ -91,12 +107,16 @@ test('a wallet that disagrees with its ledger, a negative balance: critical and 
     await tx.query(`ROLLBACK TO neg`);
     await tx.query(`UPDATE public.wallets SET available_cents = $2 WHERE id = $1`, [wallet, before]);
     await scan(tx);
-    assert.equal(await incident(tx, 'ledger_wallet_mismatch'), undefined, 'resolved once the data is consistent again');
+    const left = await incident(tx, 'ledger_wallet_mismatch');
+    if (base === 0) assert.equal(left, undefined, 'resolved once the data is consistent again');
+    else assert.equal(left.detail.wallets, base, 'only the wallets other tests left inconsistent remain');
   });
 });
 
 test('self-healing: scheduled messages stuck in "sending" go back to the queue, and the next scan confirms it worked', async () => {
   await inTx(async (tx) => {
+    await cleanSlate(tx);
+    await tx.query(`UPDATE public.broadcast_deliveries SET status = 'sent' WHERE status = 'sending'`);
     const run = (await tx.query(`INSERT INTO public.broadcast_runs (message, channel, is_test) VALUES ('hm', 'telegram', true) RETURNING id`)).rows[0].id;
     await tx.query(`INSERT INTO public.broadcast_deliveries (run_id, chat_id, status, claimed_at) VALUES ($1, 111222333, 'sending', now() - interval '20 minutes')`, [run]);
     await scan(tx);
@@ -133,6 +153,7 @@ test('a repair is tried at most 3 times, 5 minutes apart; then the developer is 
 
 test('the owner is told once, after 2 minutes, again after 6 hours when critical (24 for a warning), once when resolved; never for info', async () => {
   await inTx(async (tx) => {
+    await cleanSlate(tx);
     const claim = async () => (await tx.call(`public.health_alert_claim()`)).filter((a) => a.key.startsWith('hm_'));
     await tx.call(`private.health_raise('hm_crit', 'critical', 'Critical', '{}', 'sabab', true, true)`);
     await tx.call(`private.health_raise('hm_warn', 'warning', 'Warning', '{}')`);
@@ -159,6 +180,7 @@ test('the owner is told once, after 2 minutes, again after 6 hours when critical
 
 test('a cash register integration that stops answering is an incident of its own, cleared when it answers again', async () => {
   await inTx(async (tx) => {
+    await cleanSlate(tx);
     await tx.query(`INSERT INTO public.cashdesk_balances (method, ok, error, checked_at) VALUES ('melbet', false, 'invalid or missing sign signature', now())`);
     await scan(tx);
     const inc = await incident(tx, 'integration:melbet');
