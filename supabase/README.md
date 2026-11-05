@@ -226,6 +226,9 @@ that brand's own CashdeskBot cash register:
 | --- | --- | --- | --- | --- |
 | @Badal888starzbot | 888starz | `/telegram-bot` | `TELEGRAM_BOT_TOKEN` | `CASHDESKBOT_*` |
 | @Badal1xbetbot | 1xBet | `/telegram-bot/1xbet` | `TELEGRAM_BOT_TOKEN_1XBET` | `CASHDESKBOT_1XBET_*` |
+| @Badalgoldparibot | GoldPari | `/telegram-bot/goldpari` | `TELEGRAM_BOT_TOKEN_GOLDPARI` | the login saved in the Agent App (Betting platforms) |
+| @Badalluckyparibot | LuckyPari | `/telegram-bot/luckypari` | `TELEGRAM_BOT_TOKEN_LUCKYPARI` | the login saved in the Agent App (Betting platforms) |
+| @BadalbetAndYoubot | BetAndYou | `/telegram-bot/betandyou` | `TELEGRAM_BOT_TOKEN_BETANDYOU` | the login saved in the Agent App (Betting platforms) |
 
 The cash register secrets are `LOGIN`, `CASHIERPASS`, `HASH` and
 `CASHDESKID`, under each brand's prefix (for example

@@ -340,6 +340,9 @@ const telegramBots = [
   ('BetJam', 'Badalbetjambot'),
   ('BetOnGame', 'Badalbetongamebot'),
   ('MELBET', 'Badalmelbetbot'),
+  ('GoldPari', 'Badalgoldparibot'),
+  ('LuckyPari', 'Badalluckyparibot'),
+  ('BetAndYou', 'BadalbetAndYoubot'),
 ];
 
 /// Links this manager's Telegram account to the Telegram cashier bots
