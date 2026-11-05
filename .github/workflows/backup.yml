@@ -1,0 +1,111 @@
+name: Database backup and restore test
+
+# Every night (and on demand): a full dump of the application schemas, a RESTORE of that dump into a scratch
+# database with the row counts compared to the source, and only then the encrypted dump is kept as a
+# workflow artifact (90 days). A backup that does not restore fails this job, so it is seen the same day.
+#
+# Repository secrets: SUPABASE_DATABASE_URL (session pooler connection string, as the deploy uses) and
+# BACKUP_PASSPHRASE (a long passphrase kept in the owner's password manager: without it the dump cannot be
+# opened, and an unencrypted dump is never uploaded). Customer data is inside: the artifact is encrypted.
+#
+# Procedure to restore for real: docs/DISASTER_RECOVERY.md. Supabase's own daily backups (and point-in-time
+# recovery, when the plan has it) are separate and are the first choice; this is the independent copy.
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PGIMAGE: postgres:17
+      TABLES: users wallets orders ledger_entries sms_logs merchant_transactions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          DB: ${{ secrets.SUPABASE_DATABASE_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ -z "$DB" ] && { echo "::error::Add the SUPABASE_DATABASE_URL repository secret."; exit 1; }
+          [ -z "$PASS" ] && { echo "::error::Add the BACKUP_PASSPHRASE repository secret (the dump is never kept unencrypted)."; exit 1; }
+          echo ok
+
+      - name: Row counts before the dump
+        env:
+          DB: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          set +x
+          for t in $TABLES; do
+            n=$(docker run --rm -e DB "$PGIMAGE" sh -c "psql \"\$DB\" -Atc 'select count(*) from public.$t'")
+            echo "$t $n" >> counts_before.txt
+          done
+          cat counts_before.txt
+
+      - name: Dump (public and private schemas)
+        env:
+          DB: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          set +x
+          docker run --rm -e DB "$PGIMAGE" sh -c 'pg_dump "$DB" --format=custom --no-owner --no-privileges --schema=public --schema=private' > backup.dump
+          ls -l backup.dump
+          test "$(stat -c %s backup.dump)" -gt 100000 || { echo "::error::The dump is too small"; exit 1; }
+
+      - name: Row counts after the dump
+        env:
+          DB: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          set +x
+          for t in $TABLES; do
+            n=$(docker run --rm -e DB "$PGIMAGE" sh -c "psql \"\$DB\" -Atc 'select count(*) from public.$t'")
+            echo "$t $n" >> counts_after.txt
+          done
+
+      - name: Restore into a scratch database and compare
+        run: |
+          set -e
+          docker run -d --name restore-pg -e POSTGRES_PASSWORD=scratch -p 55432:5432 "$PGIMAGE" >/dev/null
+          for i in $(seq 1 30); do docker exec restore-pg pg_isready -U postgres >/dev/null 2>&1 && break; sleep 2; done
+          # the dump creates the public schema itself: start without it, then the Supabase stand-ins
+          docker exec restore-pg psql -U postgres -v ON_ERROR_STOP=1 -q -c 'DROP SCHEMA public CASCADE'
+          cat supabase/ci/restore-bootstrap.sql | docker exec -i restore-pg psql -U postgres -v ON_ERROR_STOP=1 -q >/dev/null
+          echo "archive entries: $(docker run --rm -i "$PGIMAGE" pg_restore --list < backup.dump | wc -l)"
+          # function bodies are checked when they run, not when they are created (Supabase's own helpers are not here)
+          docker exec -i -e PGOPTIONS='-c check_function_bodies=off' restore-pg pg_restore -U postgres -d postgres --no-owner --no-privileges --no-comments < backup.dump 2> restore.err || true
+          errors=$(grep -c "^pg_restore: error" restore.err || true)
+          echo "restore errors: $errors"
+          [ "$errors" -gt 0 ] && { grep "^pg_restore: error" restore.err | head -20; }
+          fail=0
+          while read -r t before; do
+            after=$(grep "^$t " counts_after.txt | cut -d' ' -f2)
+            restored=$(docker exec restore-pg psql -U postgres -Atc "select count(*) from public.$t")
+            echo "$t: before=$before restored=$restored after=$after"
+            # the restore is a snapshot taken between the two counts: never fewer than before, never more than after
+            if [ "$restored" -lt "$before" ] || [ "$restored" -gt "$after" ]; then echo "::error::$t does not match"; fail=1; fi
+          done < counts_before.txt
+          docker exec restore-pg psql -U postgres -Atc "select 'wallets whose balance is not the last ledger balance: ' || count(*) from public.wallets w join lateral (select l.balance_after_cents from public.ledger_entries l where l.wallet_id = w.id order by l.created_at desc, l.id desc limit 1) last on true where last.balance_after_cents <> w.available_cents"
+          [ "$errors" -gt 0 ] && fail=1
+          exit $fail
+
+      - name: Encrypt and keep
+        env:
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set +x
+          gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 --passphrase "$PASS" -o backup.dump.gpg backup.dump
+          rm -f backup.dump
+          sha256sum backup.dump.gpg
+          ls -l backup.dump.gpg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup.dump.gpg
+          retention-days: 90
+          if-no-files-found: error
