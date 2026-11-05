@@ -33,10 +33,10 @@ async function inTx(fn) {
 
 const feed = (tx, state, { code = null, message = null } = {}) => tx.query(
   `UPDATE public.merchant_feed_status SET state = $1, result_code = $2, message = $3, checked_at = now() WHERE provider = 'golis'`, [state, code, message]);
-const phoneReading = (tx, reading = true) => tx.query(
+const phoneReading = (tx, reading = true, hoursAgo = 0) => tx.query(
   `INSERT INTO public.agent_devices (agent_id, device_id, sms_listening_at) VALUES ($1, 'auto-reconnect-phone', $2)
    ON CONFLICT (agent_id, device_id) DO UPDATE SET sms_listening_at = EXCLUDED.sms_listening_at, status = 'active'`,
-  [agentId, reading ? new Date() : null]).then(() => tx.query(`UPDATE public.agent_devices SET sms_listening_at = NULL WHERE device_id <> 'auto-reconnect-phone'`));
+  [agentId, reading ? new Date(Date.now() - hoursAgo * 3600_000) : null]).then(() => tx.query(`UPDATE public.agent_devices SET sms_listening_at = NULL WHERE device_id <> 'auto-reconnect-phone'`));
 const recover = (tx) => tx.call(`public.merchant_feed_auto_recover('golis')`);
 const state = async (tx) => (await tx.query(`SELECT state FROM public.merchant_feed_status WHERE provider = 'golis'`)).rows[0].state;
 const events = async (tx, event) => (await tx.query(`SELECT count(*)::int AS n FROM private.merchant_feed_events WHERE provider = 'golis' AND event = $1`, [event])).rows[0].n;
@@ -49,6 +49,18 @@ test('a stopped feed signs in again by itself while a phone reads SMS', async ()
     assert.equal(await state(tx), 'ready', 'the normal run signs in now');
     assert.equal(await events(tx, 'auto_reconnect'), 1, 'logged');
     assert.equal((await recover(tx)).why, 'running', 'once: it is signing in already');
+  });
+});
+
+test('the app is closed (Sahal ends its session then): a phone seen reading SMS within 24 hours is enough, one not seen for longer is not', async () => {
+  await inTx(async (tx) => {
+    await feed(tx, 'stopped', { code: '2007' });
+    await phoneReading(tx, true, 5);
+    assert.equal(await tx.call(`private.merchant_feed_recover_block('golis')`), null, 'seen 5 hours ago');
+    await phoneReading(tx, true, 30);
+    assert.equal(await tx.call(`private.merchant_feed_recover_block('golis')`), 'no_phone_reading_sms', 'seen 30 hours ago');
+    // the Dashboard card is stricter: it says what reads right now
+    assert.equal(await tx.call(`private.agent_sim_up()`), false);
   });
 });
 

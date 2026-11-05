@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/agent_api.dart';
 import '../api/api_client.dart';
@@ -30,13 +31,19 @@ Future<void> smsBackgroundMain() async {
   WidgetsFlutterBinding.ensureInitialized();
   var handled = 0;
   try {
-    await ApiClient.initialize();
+    await BackgroundSmsLog.add('engine started');
+    await ApiClient.initialize(background: true);
     final payloads = (await _channel.invokeMethod<List<dynamic>>('take')) ?? const [];
     final deviceId = await DeviceIdentity.instance.getOrCreateDeviceId();
-    handled = await SmsBackground.process(payloads, api: AgentApi(), deviceId: deviceId);
+    final api = AgentApi();
+    handled = await SmsBackground.process(payloads, api: api, deviceId: deviceId);
+    await BackgroundSmsLog.add('read ${payloads.length} SMS, handled $handled');
+    // Says the phone is reading SMS (the Agent SIM fallback and the automatic reconnect count on it).
+    if (handled > 0) await api.smsHeartbeat(deviceId).catchError((Object _) {});
   } catch (e) {
     // Never the SMS text; only that it went wrong.
     debugPrint('smsBackgroundMain: ${e.runtimeType}');
+    await BackgroundSmsLog.add('error: ${e.runtimeType}');
   } finally {
     try {
       await _channel.invokeMethod('done', handled);
@@ -98,5 +105,40 @@ class SmsBackground {
         errorMessage: message,
       ));
     } catch (_) {}
+  }
+}
+
+/// A short trail of what the background read did (written here and by the Android receiver, never an SMS text),
+/// shown on the Sahal sign-in screen so a failure can be seen on the phone itself.
+class BackgroundSmsLog {
+  BackgroundSmsLog._();
+
+  /// The Android side writes the same key with the "flutter." prefix shared_preferences uses.
+  static const key = 'baari_bg_sms_log';
+  static const keep = 12;
+
+  static String _stamp() {
+    final n = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(n.month)}-${two(n.day)} ${two(n.hour)}:${two(n.minute)}:${two(n.second)}';
+  }
+
+  static Future<void> add(String line) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final lines = (prefs.getString(key) ?? '').split('\n').where((l) => l.isNotEmpty).toList()..add('${_stamp()} $line');
+      await prefs.setString(key, lines.sublist(lines.length > keep ? lines.length - keep : 0).join('\n'));
+    } catch (_) {}
+  }
+
+  static Future<List<String>> lines() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      return (prefs.getString(key) ?? '').split('\n').where((l) => l.isNotEmpty).toList();
+    } catch (_) {
+      return const [];
+    }
   }
 }

@@ -25,6 +25,8 @@
          and keep the screen on while its reply dialog is read. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Asked once, from the Sahal sign-in screen: the phone then lets the app read the Sahal access code in the background. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:label="Badal Exchange Agent"

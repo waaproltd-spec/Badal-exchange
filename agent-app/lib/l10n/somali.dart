@@ -1321,4 +1321,10 @@ const Map<String, String> somaliTexts = {
   'Sahal is not answering and no Agent phone is reading SMS. Open the Agent App on the phone with the Sahal SIM.': 'Sahal ma jawaabayo, mana jiro telefoon Agent ah oo SMS akhrinaya. Fur Agent App-ka telefoonka ay ku jirto SIM-ka Sahal.',
   'Credited from SMS today: {0} · waiting: {1}': 'Maanta laga dhigay SMS: {0} · sugaya: {1}',
   'Could not read an SMS in the background: sign in to the Agent App again.': 'Ma awoodin inaan SMS ka akhriyo background-ka: mar kale gal Agent App-ka.',
+  'Reading the code while the app is closed': 'Akhrinta code-ka marka app-ku xidhan yahay',
+  'SMS permission allowed': 'Ogolaanshaha SMS waa la bixiyay',
+  'No battery restriction for this app': 'App-ka battery-ga lagama xaddidin',
+  'Allow': 'Ogolow',
+  'Last background reads': 'Akhrisyadii ugu dambeeyay ee background-ka',
+  'Nothing yet: it shows here when an SMS arrives while the app is closed.': 'Weli waxba: halkan ayuu ka muuqanayaa marka SMS yimaado app-ku xidhan yahay.',
 };

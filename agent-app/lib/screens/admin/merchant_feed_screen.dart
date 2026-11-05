@@ -9,6 +9,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import 'background_sms_card.dart';
 import 'sahal_account_screen.dart';
 import 'sahal_forwarder_card.dart';
 import '../../l10n/tr.dart';
@@ -180,6 +181,8 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedPayouts(v)),
                   ),
                 ),
+                const BackgroundSmsCard(),
+                const SizedBox(height: 12),
                 const SahalForwarderCard(),
                 const SizedBox(height: 16),
                 Tx(
