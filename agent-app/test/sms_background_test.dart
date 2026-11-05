@@ -12,14 +12,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Client extends ApiClient {
-  _Client(this.signedIn);
+  _Client(this.signedIn, {this.after});
   final bool signedIn;
+  /// The saved login is found only after this long (the engine is still starting).
+  final Duration? after;
+  final _born = DateTime.now();
   @override
-  bool get hasSession => signedIn;
+  bool get hasSession => signedIn || (after != null && DateTime.now().difference(_born) >= after!);
 }
 
 class _Api extends AgentApi {
-  _Api({bool signedIn = true}) : super(client: _Client(signedIn));
+  _Api({bool signedIn = true, Duration? after}) : super(client: _Client(signedIn, after: after));
 
   final codes = <Map<String, Object?>>[];
   final payments = <Map<String, Object?>>[];
@@ -99,10 +102,27 @@ void main() {
 
   test('nothing is sent without a signed-in agent', () async {
     final api = _Api(signedIn: false);
-    final n = await SmsBackground.process([_sms('898', _code), _sms('898', _paid)], api: api, deviceId: 'phone-1', bridge: _bridge(api));
+    final n = await SmsBackground.process([_sms('898', _code), _sms('898', _paid)],
+        api: api, deviceId: 'phone-1', bridge: _bridge(api), sessionWait: const Duration(milliseconds: 300));
     expect(n, 0);
     expect(api.codes, isEmpty);
     expect(api.payments, isEmpty);
+  });
+
+  test('the saved login that is found a moment later is waited for', () async {
+    final api = _Api(signedIn: false, after: const Duration(milliseconds: 500));
+    final n = await SmsBackground.process([_sms('898', _code)], api: api, deviceId: 'phone-1', bridge: _bridge(api));
+    expect(n, 1);
+    expect(api.codes, hasLength(1));
+  });
+
+  test('not signed in: the read is noted in SMS Transactions (never the SMS itself)', () async {
+    final api = _Api(signedIn: false);
+    await SmsBackground.process([_sms('898', _code)], api: api, deviceId: 'phone-1', bridge: _bridge(api), sessionWait: Duration.zero);
+    final log = await SmsLogStore.instance.loadAll();
+    expect(log, hasLength(1));
+    expect(log.single.errorMessage, isNotNull);
+    expect(log.single.errorMessage!.contains('654321'), isFalse);
   });
 
   test('one SMS that fails does not stop the next one', () async {

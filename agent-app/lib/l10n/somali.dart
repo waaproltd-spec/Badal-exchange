@@ -1320,4 +1320,5 @@ const Map<String, String> somaliTexts = {
   'Sahal is not answering: payments are read from SMS 898 on the Agent SIM. Sahal takes over again by itself.': 'Sahal ma jawaabayo: lacagaha waxaa laga akhriyaa SMS 898 ee Agent SIM. Sahal marka uu soo noqdo si toos ah ayuu dib u qaadanayaa.',
   'Sahal is not answering and no Agent phone is reading SMS. Open the Agent App on the phone with the Sahal SIM.': 'Sahal ma jawaabayo, mana jiro telefoon Agent ah oo SMS akhrinaya. Fur Agent App-ka telefoonka ay ku jirto SIM-ka Sahal.',
   'Credited from SMS today: {0} · waiting: {1}': 'Maanta laga dhigay SMS: {0} · sugaya: {1}',
+  'Could not read an SMS in the background: sign in to the Agent App again.': 'Ma awoodin inaan SMS ka akhriyo background-ka: mar kale gal Agent App-ka.',
 };
