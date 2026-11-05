@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import '../manage_screens.dart';
+import '../../l10n/tr.dart';
 
 /// Audit log: every management change and money-moving action, newest first.
 class AuditLogsScreen extends StatefulWidget {
@@ -46,14 +47,14 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
           controller: controller,
           padding: const EdgeInsets.all(20),
           children: [
-            Text(l.action, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            Tx(l.action, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            InfoRow('When', formatDateTime(l.createdAt)),
-            InfoRow('By', '${l.actorRole ?? 'system'} ${l.actorId ?? ''}'.trim()),
-            InfoRow('Entity', '${l.entityType} ${l.entityId ?? ''}'.trim()),
-            const GroupLabel('Before'),
+            InfoRow(tr('When'), formatDateTime(l.createdAt)),
+            InfoRow(tr('By'), '${l.actorRole ?? 'system'} ${l.actorId ?? ''}'.trim()),
+            InfoRow(tr('Entity'), '${l.entityType} ${l.entityId ?? ''}'.trim()),
+            GroupLabel(tr('Before')),
             SelectableText(pretty(l.before), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
-            const GroupLabel('After'),
+            GroupLabel(tr('After')),
             SelectableText(pretty(l.after), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
           ],
         ),
@@ -65,7 +66,7 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
   Widget build(BuildContext context) {
     final q = _search.text.trim().toLowerCase();
     return Scaffold(
-      appBar: AppBar(title: const Text('Audit Logs')),
+      appBar: AppBar(title: const Tx('Audit Logs')),
       body: body(
         builder: (logs) {
           final shown = q.isEmpty
@@ -76,9 +77,9 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              SearchField(hint: 'Filter by action or entity', controller: _search, onSubmitted: (_) => setState(() {})),
+              SearchField(hint: tr('Filter by action or entity'), controller: _search, onSubmitted: (_) => setState(() {})),
               const SizedBox(height: 12),
-              Text('Latest ${logs.length} entries', style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+              Text(trp('Latest {0} entries', [logs.length]), style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
               const SizedBox(height: 8),
               for (final l in shown) ...[
                 ConsoleCard(
@@ -96,10 +97,10 @@ class _AuditLogsScreenState extends ListScreenState<AuditLogsScreen, AuditLog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(l.action, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Tx(l.action, style: const TextStyle(fontWeight: FontWeight.w700)),
                             Text(
                               '${l.actorRole ?? 'system'} • ${l.entityType} • ${formatDateTime(l.createdAt)}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                             ),
                           ],
                         ),
@@ -145,7 +146,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     final t = (v ?? '').trim();
     if (t.isEmpty) return null;
     final uri = Uri.tryParse(t);
-    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? 'Enter a full link starting with https://' : null;
+    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? tr('Enter a full link starting with https://') : null;
   }
 
   Future<void> _save() async {
@@ -158,52 +159,52 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
             telegram: _telegram.text.trim(),
           ));
       if (!mounted) return;
-      showSnack(context, 'Settings saved.');
+      showSnack(context, tr('Settings saved.'));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not save settings.'));
+      showSnack(context, errorText(e, tr('Could not save settings.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Customer & App Settings')),
+      appBar: AppBar(title: const Tx('Customer & App Settings')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const GroupLabel('Support contact links'),
-            const Text(
+            GroupLabel(tr('Support contact links')),
+            Tx(
               'Shown on the Account tab here and available to the Customer App. Leave empty to hide.',
               style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _whatsapp,
-              decoration: const InputDecoration(labelText: 'WhatsApp', hintText: 'https://wa.me/2526...'),
+              decoration: InputDecoration(labelText: tr('WhatsApp'), hintText: tr('https://wa.me/2526...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _facebook,
-              decoration: const InputDecoration(labelText: 'Facebook', hintText: 'https://facebook.com/...'),
+              decoration: InputDecoration(labelText: tr('Facebook'), hintText: tr('https://facebook.com/...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _telegram,
-              decoration: const InputDecoration(labelText: 'Telegram', hintText: 'https://t.me/...'),
+              decoration: InputDecoration(labelText: tr('Telegram'), hintText: tr('https://t.me/...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
           ],
         ),
       ),
@@ -228,13 +229,13 @@ class _CustomerLedgerScreenState extends ListScreenState<CustomerLedgerScreen, L
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.name} • Wallet')),
+      appBar: AppBar(title: Text(trp('{0} • Wallet', [widget.name]))),
       body: body(
         builder: (entries) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
             if (entries.isEmpty)
-              const ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary))),
+              ConsoleCard(child: Tx('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary))),
             for (final e in entries) ...[
               ConsoleCard(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -244,10 +245,10 @@ class _CustomerLedgerScreenState extends ListScreenState<CustomerLedgerScreen, L
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(e.description, style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Tx(e.description, style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text(
                             '${e.type} • ${formatDateTime(e.createdAt)}',
-                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
                       ),
@@ -256,7 +257,7 @@ class _CustomerLedgerScreenState extends ListScreenState<CustomerLedgerScreen, L
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text('\$${e.amount}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                        Text('Bal. \$${e.balanceAfter}', style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                        Text(trp('Bal. \${0}', [e.balanceAfter]), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                       ],
                     ),
                   ],
@@ -286,13 +287,13 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Wallet Transactions')),
+      appBar: AppBar(title: const Tx('Wallet Transactions')),
       body: body(
         builder: (entries) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Latest ${entries.length} entries, all customers',
-                style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+            Text(trp('Latest {0} entries, all customers', [entries.length]),
+                style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
             const SizedBox(height: 8),
             for (final e in entries) ...[
               ConsoleCard(
@@ -303,9 +304,9 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(e.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Tx(e.reason, style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text('${e.type} • ${formatDateTime(e.createdAt)}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],
                       ),
                     ),
@@ -313,7 +314,7 @@ class _AllWalletTransactionsScreenState extends ListScreenState<AllWalletTransac
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text('\$${e.amount}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                        Text('Bal. \$${e.balanceAfter}', style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                        Text(trp('Bal. \${0}', [e.balanceAfter]), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                       ],
                     ),
                   ],
@@ -339,6 +340,9 @@ const telegramBots = [
   ('BetJam', 'Badalbetjambot'),
   ('BetOnGame', 'Badalbetongamebot'),
   ('MELBET', 'Badalmelbetbot'),
+  ('GoldPari', 'Badalgoldparibot'),
+  ('LuckyPari', 'Badalluckyparibot'),
+  ('BetAndYou', 'BadalbetAndYoubot'),
 ];
 
 /// Links this manager's Telegram account to the Telegram cashier bots
@@ -369,7 +373,7 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
       final link = await context.read<Session>().api.getTelegramLink();
       if (mounted) setState(() => _link = link);
     } catch (e) {
-      if (mounted) setState(() => _error = errorText(e, 'Could not load the Telegram link.'));
+      if (mounted) setState(() => _error = errorText(e, tr('Could not load the Telegram link.')));
     }
   }
 
@@ -387,26 +391,26 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
   Future<void> _newCode() => _run(() async {
         final code = await context.read<Session>().api.createTelegramLinkCode();
         if (mounted) setState(() => _code = code);
-      }, 'Could not create a link code.');
+      }, tr('Could not create a link code.'));
 
   // The bot reads `/start CODE` from this link as `/link CODE`.
   Future<void> _openBot(String bot, String code) async {
     final ok = await launchUrl(Uri.parse('https://t.me/$bot?start=$code'),
         mode: LaunchMode.externalApplication);
-    if (!ok && mounted) showSnack(context, 'Could not open Telegram.');
+    if (!ok && mounted) showSnack(context, tr('Could not open Telegram.'));
   }
 
   Future<void> _unlink() => _run(() async {
         final link = await context.read<Session>().api.unlinkTelegram();
         if (mounted) setState(() => _link = link);
-      }, 'Could not unlink.');
+      }, tr('Could not unlink.'));
 
   @override
   Widget build(BuildContext context) {
     final link = _link;
     final code = _code;
     return Scaffold(
-      appBar: AppBar(title: const Text('Telegram Bot')),
+      appBar: AppBar(title: const Tx('Telegram Bot')),
       body: _error != null
           ? ErrorStateView(message: _error!, onRetry: _load)
           : link == null
@@ -416,45 +420,45 @@ class _TelegramBotScreenState extends State<TelegramBotScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      const Text(
+                      Tx(
                         'The Telegram bots (888starz, 1xBet, WinWin, Betwinner, DBbet, BetJam and BetOnGame) check their cash register balance, find players, and '
                         'make deposits and payouts. They act as you, and stop working for you if you lose '
                         'access to Admin features. Linking once works with every bot.',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
-                      const GroupLabel('Status'),
-                      InfoRow('Linked', link.linked ? 'Yes' : 'No'),
-                      if (link.telegramUsername != null) InfoRow('Telegram', '@${link.telegramUsername}'),
-                      if (link.linkedAt != null) InfoRow('Since', formatDateTime(link.linkedAt!)),
-                      const GroupLabel('Link your Telegram account'),
+                      GroupLabel(tr('Status')),
+                      InfoRow(tr('Linked'), link.linked ? tr('Yes') : tr('No')),
+                      if (link.telegramUsername != null) InfoRow(tr('Telegram'), '@${link.telegramUsername}'),
+                      if (link.linkedAt != null) InfoRow(tr('Since'), formatDateTime(link.linkedAt!)),
+                      GroupLabel(tr('Link your Telegram account')),
                       if (code != null) ...[
                         for (final (brand, bot) in telegramBots) ...[
                           ElevatedButton.icon(
                             onPressed: () => _openBot(bot, code.code),
                             icon: const Icon(Icons.send_rounded),
-                            label: Text('Open @$bot ($brand)'),
+                            label: Text(trp('Open @{0} ({1})', [bot, brand])),
                           ),
                           const SizedBox(height: 8),
                         ],
                         const SizedBox(height: 4),
-                        const Text('Or send this message to either bot in Telegram:'),
+                        const Tx('Or send this message to either bot in Telegram:'),
                         const SizedBox(height: 8),
                         SelectableText('/link ${code.code}',
                             style: const TextStyle(fontFamily: 'monospace', fontSize: 20, fontWeight: FontWeight.w800)),
                         if (code.expiresAt != null) ...[
                           const SizedBox(height: 4),
-                          Text('Valid until ${formatDateTime(code.expiresAt!)}, once.',
-                              style: const TextStyle(color: AppColors.textSecondary)),
+                          Text(trp('Valid until {0}, once.', [formatDateTime(code.expiresAt!)]),
+                              style: TextStyle(color: AppColors.textSecondary)),
                         ],
                         const SizedBox(height: 12),
                       ],
                       ElevatedButton(
                         onPressed: _busy ? null : _newCode,
-                        child: Text(code == null ? 'Get link code' : 'Get a new code'),
+                        child: Tx(code == null ? tr('Get link code') : tr('Get a new code')),
                       ),
                       if (link.linked) ...[
                         const SizedBox(height: 12),
-                        OutlinedButton(onPressed: _busy ? null : _unlink, child: const Text('Unlink Telegram')),
+                        OutlinedButton(onPressed: _busy ? null : _unlink, child: const Tx('Unlink Telegram')),
                       ],
                     ],
                   ),
@@ -505,7 +509,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = errorText(e, 'Could not load the promo code.');
+          _error = errorText(e, tr('Could not load the promo code.'));
           _loading = false;
         });
       }
@@ -518,9 +522,9 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
       final saved = await context.read<Session>().api.setPromoCode(_code.text);
       if (!mounted) return;
       _code.text = saved ?? '';
-      showSnack(context, saved == null ? 'Promo code removed.' : 'Promo code saved: $saved');
+      showSnack(context, saved == null ? tr('Promo code removed.') : trp('Promo code saved: {0}', [saved]));
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Could not save the promo code.'));
+      if (mounted) showSnack(context, errorText(e, tr('Could not save the promo code.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -529,7 +533,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Promo Code')),
+      appBar: AppBar(title: const Tx('Promo Code')),
       body: _loading
           ? const LoadingView()
           : _error != null
@@ -537,7 +541,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    const Text(
+                    Tx(
                       'Shown to every customer on the wallet card in the Customer App, with a copy button. '
                       'Letters, digits, - and _ only. Leave empty for no promo code.',
                       style: TextStyle(color: AppColors.textSecondary),
@@ -547,10 +551,10 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                       controller: _code,
                       textCapitalization: TextCapitalization.characters,
                       maxLength: 32,
-                      decoration: const InputDecoration(labelText: 'Promo code', hintText: 'e.g. RAMADAN26'),
+                      decoration: InputDecoration(labelText: tr('Promo code'), hintText: tr('e.g. RAMADAN26')),
                     ),
                     const SizedBox(height: 12),
-                    ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+                    ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
                   ],
                 ),
     );

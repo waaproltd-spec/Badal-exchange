@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/api_exception.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
+import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -18,7 +19,8 @@ void main() {
   SupabaseClient newClient() => SupabaseClient(url!, key!, authOptions: const AuthClientOptions(autoRefreshToken: false));
 
   test('customer flow: register, login, deposit, live update, orders', () async {
-    final phone = '2527${(DateTime.now().millisecondsSinceEpoch % 100000000).toString().padLeft(8, '0')}';
+    AppLanguage.current.value = AppLanguage.english; // the messages below are checked in English
+    final phone = '25277${(DateTime.now().millisecondsSinceEpoch % 10000000).toString().padLeft(7, '0')}'; // 77: an approved prefix
     final client = ApiClient(supabase: newClient());
     final api = CustomerApi(client);
 
@@ -96,11 +98,11 @@ void main() {
 
     await expectLater(
       api.login(phone: phone, password: 'wrong-password'),
-      throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Invalid credentials')),
+      throwsA(isA<ApiException>().having((e) => e.message, 'message', AppStrings.invalidLogin)),
     );
     await expectLater(
       api.login(phone: '252610000002', password: 'ChangeMe123!'), // an agent, not a customer
-      throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Invalid credentials')),
+      throwsA(isA<ApiException>().having((e) => e.message, 'message', AppStrings.invalidLogin)),
     );
     await api.login(phone: phone, password: 'Flutter-Pass-1');
     expect(await api.verifySession(), isTrue);

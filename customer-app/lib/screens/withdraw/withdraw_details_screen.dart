@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../widgets/withdrawal_approval_sheet.dart';
 
 import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
+import '../../models/withdraw_limits.dart';
+import '../../models/withdrawal_access.dart';
 import '../../theme/colors.dart';
+import '../../utils/payment_errors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/flow_header.dart';
+import '../../models/payment_numbers.dart';
+import '../../widgets/pay_number_box.dart';
 import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/primary_button.dart';
 import 'withdraw_confirm_screen.dart';
@@ -45,6 +52,92 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
   bool _submitting = false;
   String? _error;
 
+  /// Null until known (and when it cannot be read: the server decides anyway).
+  WithdrawalAccess? _access;
+
+  /// KYC status and daily / monthly limits. Null until known or when it
+  /// cannot be read: the server enforces them on every withdrawal anyway.
+  WithdrawLimits? _limits;
+
+  bool get _blocked => _access != null && !_access!.allowed;
+
+  /// The available balance is known and is not above $0.00: nothing to withdraw, so the approval popup (which
+  /// sends the customer to the administration) is not shown; the balance message is.
+  bool get _noBalance {
+    final b = double.tryParse(widget.availableBalance ?? '');
+    return b != null && b <= 0;
+  }
+
+  /// Another number an admin lets this customer use (loaded once), and the
+  /// 9 digits chosen: the registered number unless the customer changes it.
+  PaymentNumbers _numbers = PaymentNumbers.none;
+  final TextEditingController _phoneController = TextEditingController();
+
+  /// The 9 digits typed in the number box; the registered number while the box
+  /// is empty; null while the typing is not complete.
+  String? get _phoneLocal {
+    final typed = _phoneController.text;
+    if (typed.isEmpty) return _ownLocal;
+    return typed.length == 9 ? typed : null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAccess();
+    _loadLimits();
+    if (!_info.isPlatform) _loadNumbers();
+  }
+
+  Future<void> _loadNumbers() async {
+    final n = await context.read<CustomerApi>().getPaymentNumbers();
+    if (mounted) setState(() => _numbers = n);
+  }
+
+  Future<void> _loadLimits() async {
+    final limits = await context.read<CustomerApi>().getWithdrawLimits();
+    if (mounted) setState(() => _limits = limits);
+  }
+
+  /// Why [amount] cannot be withdrawn now, or null (the server decides anyway).
+  String? _limitProblem(double amount) {
+    final l = _limits;
+    if (l == null || !l.enabled) return null;
+    if (l.reached || !l.canWithdraw) {
+      return l.warning == 'monthly_reached' ? PaymentErrors.limitMonthlyReached : PaymentErrors.limitDailyReached;
+    }
+    if (amount > l.availableValue + 0.0001) return PaymentErrors.limitExceeds(l.availableNow);
+    return null;
+  }
+
+  /// Before the first withdrawal an admin approves the account.
+  Future<void> _checkAccess() async {
+    final access = await context.read<CustomerApi>().getWithdrawalAccess();
+    if (mounted) setState(() => _access = access);
+  }
+
+  Uri? get _whatsappLink => _access?.whatsappLink(
+        platform: _info.isPlatform ? _info.label : null,
+        platformAccountId: _info.isPlatform ? _identifierController.text.trim() : null,
+      );
+
+  /// First withdrawal, account not approved: WhatsApp opens with the
+  /// message for the admin, and the sheet says why. Nothing is created and
+  /// nothing is taken (the server refuses it anyway).
+  Future<void> _askForApproval() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => WithdrawalApprovalSheet(
+        whatsappLink: _whatsappLink,
+        customerId: _access?.accountId,
+        reason: _access?.reason,
+      ),
+    );
+  }
+
   PaymentMethodInfo get _info => methodInfo(widget.method);
 
   /// Last 9 digits of the registered number.
@@ -55,15 +148,45 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
 
   @override
   void dispose() {
+    _phoneController.dispose();
     _identifierController.dispose();
     _amountController.dispose();
     super.dispose();
   }
 
+  /// The whole available balance, or the method's maximum when that is less.
+  /// Nothing is sent: it only fills the amount, which is checked as always.
+  void _fillAll() {
+    final balance = double.tryParse(widget.availableBalance ?? '');
+    if (balance == null || balance <= 0) return;
+    var all = balance;
+    final room = _limits;
+    if (room != null && room.enabled && room.availableValue < all) all = room.availableValue;
+    final cap = double.tryParse(widget.option?.maxWithdraw ?? '');
+    if (cap != null && cap < all) all = cap;
+    // Down to the cent, never above the balance.
+    final text = ((all * 100).floor() / 100).toStringAsFixed(2);
+    _amountController.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    if (_error != null) setState(() => _error = null);
+  }
+
   Future<void> _continue() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_info.isPlatform && _ownLocal == null) {
-      setState(() => _error = AppStrings.noRegisteredNumber);
+    if (_blocked) {
+      if (_noBalance) {
+        setState(() => _error = AppStrings.insufficientBalance);
+        return;
+      }
+      await _askForApproval();
+      return;
+    }
+    if (!_info.isPlatform && _phoneLocal == null) {
+      setState(() => _error = _ownLocal == null ? AppStrings.noRegisteredNumber : AppStrings.enterNineDigits);
+      return;
+    }
+    final problem = _limitProblem(double.tryParse(_amountController.text.trim()) ?? 0);
+    if (problem != null) {
+      setState(() => _error = problem);
       return;
     }
     setState(() {
@@ -81,22 +204,36 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
         MaterialPageRoute(
           builder: (_) => WithdrawConfirmScreen(
             quote: quote,
-            phoneNumber: _info.isPlatform ? null : '252$_ownLocal',
+            phoneNumber: _info.isPlatform ? null : '252$_phoneLocal',
             accountId: _info.isPlatform ? _identifierController.text.trim() : null,
           ),
         ),
       );
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    } catch (_) {
-      setState(() => _error = AppStrings.somethingWentWrong);
+      if (e.code == 'WITHDRAWAL_VERIFICATION_REQUIRED') {
+        await _checkAccess();
+        if (mounted && _blocked) {
+          if (_noBalance) {
+            setState(() => _error = AppStrings.insufficientBalance);
+          } else {
+            await _askForApproval();
+          }
+        }
+        return;
+      }
+      if ((e.code.startsWith('WITHDRAWAL_') && e.code.endsWith('_LIMIT')) || e.code == 'WITHDRAWAL_KYC_REQUIRED') _loadLimits();
+      setState(() => _error = PaymentErrors.handle(context.read<CustomerApi>(), e,
+          isDeposit: false, method: widget.method, amount: _amountController.text.trim()));
+    } catch (e) {
+      setState(() => _error = PaymentErrors.handle(context.read<CustomerApi>(), e,
+          isDeposit: false, method: widget.method, amount: _amountController.text.trim()));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
   Future<void> _change() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw, ownPhone: widget.ownPhone);
     if (option == null || !mounted || option.info.id == widget.method) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => WithdrawDetailsScreen(
@@ -184,27 +321,35 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
                     Expanded(flex: 2, child: amount),
                   ],
                 )
-              else ...[
-                Container(
-                  key: const Key('withdraw-own-number'),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryTint,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.verified_user_outlined, color: AppColors.primary),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text(AppStrings.receiveToOwnNumber, style: AppTextStyles.muted)),
-                      Text(_ownLocal == null ? '—' : '+252 $_ownLocal',
-                          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-                    ],
+              else
+                // The registered number (locked) beside the amount, as on Deposit.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: PayNumberBox(
+                        fieldKey: const Key('withdraw-own-number'),
+                        method: widget.method,
+                        ownLocal: _ownLocal,
+                        numbers: _numbers,
+                        controller: _phoneController,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 2, child: amount),
+                  ],
+                ),
+              if ((double.tryParse(widget.availableBalance ?? '') ?? 0) > 0)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton(
+                    key: const Key('withdraw-all'),
+                    onPressed: _fillAll,
+                    child: Text(AppStrings.withdrawAll,
+                        style: AppTextStyles.body.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
                   ),
                 ),
-                const SizedBox(height: 16),
-                amount,
-              ],
               if (min != null && max != null) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -219,6 +364,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
               ],
               const SizedBox(height: 24),
               PrimaryButton(
+                key: const Key('withdraw-continue'),
                 label: AppStrings.continueLabel,
                 trailingIcon: Icons.arrow_forward_rounded,
                 onPressed: _continue,

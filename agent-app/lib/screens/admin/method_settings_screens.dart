@@ -7,6 +7,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../manage_screens.dart';
+import '../../l10n/tr.dart';
 
 /// Payment method management: ON/OFF switches and withdrawal limits, for
 /// mobile money and betting platforms alike. There are no rates or fees:
@@ -36,8 +37,8 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
               for (final m in methods)
                 SwitchListTile(
                   secondary: MethodLogo(method: m.method, width: 84),
-                  title: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(m.enabled ? 'ON — customers can use it' : 'OFF — hidden from customers'),
+                  title: Tx(m.label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Tx(m.enabled ? tr('ON — customers can use it') : tr('OFF — hidden from customers')),
                   value: m.enabled,
                   onChanged: (v) => run(
                     () => api.setMethodEnabled(m.method, v),
@@ -54,21 +55,21 @@ class _ManageMethodsScreenState extends ListScreenState<ManageMethodsScreen, Met
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Platforms')),
+      appBar: AppBar(title: const Tx('Manage Platforms')),
       body: body(
         builder: (methods) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text(
+              child: Tx(
                 'A platform turned OFF is hidden from customers and refuses new orders. '
                 'Orders already in progress still complete.',
                 style: TextStyle(color: AppColors.textSecondary),
               ),
             ),
-            _group('Mobile money', methods.where((m) => !m.isPlatform).toList()),
-            _group('Betting platforms', methods.where((m) => m.isPlatform).toList()),
+            _group(tr('Mobile money'), methods.where((m) => !m.isPlatform).toList()),
+            _group(tr('Betting platforms'), methods.where((m) => m.isPlatform).toList()),
           ],
         ),
       ),
@@ -100,7 +101,7 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
   }
 
   List<String> _summary(MethodSettings m) =>
-      ['Withdraw limits: \$${m.minWithdraw ?? '—'} – \$${m.maxWithdraw ?? '—'}'];
+      [trp('Withdraw limits: \${0} – \${1}', [m.minWithdraw ?? '—', m.maxWithdraw ?? '—'])];
 
   Future<void> _open(MethodSettings m) async {
     final changed = await Navigator.of(context).push<bool>(
@@ -112,7 +113,7 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(title: Tx(widget.title)),
       body: body(
         builder: (methods) => ListView(
           padding: const EdgeInsets.all(16),
@@ -132,18 +133,18 @@ class _MethodSettingsListScreenState extends ListScreenState<MethodSettingsListS
                           Row(
                             children: [
                               Expanded(
-                                child: Text(m.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                                child: Tx(m.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                               ),
                               StatusPill(m.enabled ? 'active' : 'off'),
                             ],
                           ),
                           const SizedBox(height: 4),
                           for (final line in _summary(m))
-                            Text(line, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                            Tx(line, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
                   ],
                 ),
               ),
@@ -189,12 +190,12 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
 
   String? _positive(String? v) {
     final n = double.tryParse((v ?? '').trim());
-    return (n == null || n <= 0) ? 'Enter a number above 0' : null;
+    return (n == null || n <= 0) ? tr('Enter a number above 0') : null;
   }
 
   String? _nonNegative(String? v) {
     final n = double.tryParse((v ?? '').trim());
-    return (n == null || n < 0) ? 'Enter 0 or more' : null;
+    return (n == null || n < 0) ? tr('Enter 0 or more') : null;
   }
 
   Future<void> _save() async {
@@ -206,7 +207,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
 
     final min = d(_min), max = d(_max);
     if (min > max) {
-      showSnack(context, 'Minimum must not be more than maximum.');
+      showSnack(context, tr('Minimum must not be more than maximum.'));
       return;
     }
 
@@ -230,7 +231,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not save all settings. Pull to refresh and check.'));
+      showSnack(context, errorText(e, tr('Could not save all settings. Pull to refresh and check.')));
     }
   }
 
@@ -238,7 +239,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
   Widget build(BuildContext context) {
     final s = widget.settings;
     return Scaffold(
-      appBar: AppBar(title: Text(s.label)),
+      appBar: AppBar(title: Tx(s.label)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -248,7 +249,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: SwitchListTile(
                 secondary: MethodLogo(method: s.method, width: 84),
-                title: Text(s.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                title: Tx(s.label, style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text(
                   '${s.isPlatform ? 'Betting platform' : 'Mobile money'} • ${_enabled ? 'ON' : 'OFF'}',
                 ),
@@ -256,14 +257,14 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                 onChanged: (v) => setState(() => _enabled = v),
               ),
             ),
-            const GroupLabel('Withdrawal limits'),
+            GroupLabel(tr('Withdrawal limits')),
             ConsoleCard(
               child: Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _min,
-                      decoration: const InputDecoration(labelText: 'Minimum (\$)'),
+                      decoration: InputDecoration(labelText: tr('Minimum (\$)')),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: _nonNegative,
                     ),
@@ -272,7 +273,7 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _max,
-                      decoration: const InputDecoration(labelText: 'Maximum (\$)'),
+                      decoration: InputDecoration(labelText: tr('Maximum (\$)')),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: _positive,
                     ),
@@ -281,28 +282,28 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               ),
             ),
             if (!s.isPlatform) ...[
-              const GroupLabel('Merchant code'),
+              GroupLabel(tr('Merchant code')),
               ConsoleCard(
                 child: Column(
                   children: [
                     TextFormField(
                       key: const Key('merchant-ussd'),
                       controller: _merchant,
-                      decoration: const InputDecoration(
-                        labelText: 'Code to dial',
-                        hintText: '*789*090353102*{amount}#',
+                      decoration: InputDecoration(
+                        labelText: tr('Code to dial'),
+                        hintText: tr('*789*090353102*{amount}#'),
                         prefixIcon: Icon(Icons.dialpad_rounded),
                       ),
                       validator: (v) {
                         final t = (v ?? '').replaceAll(RegExp(r'\s'), '');
-                        if (t.isEmpty) return _merchantOn ? 'Enter the code before switching it on' : null;
-                        return _merchantPattern.hasMatch(t) ? null : 'Write it like *789*090353102*{amount}#';
+                        if (t.isEmpty) return _merchantOn ? tr('Enter the code before switching it on') : null;
+                        return _merchantPattern.hasMatch(t) ? null : tr('Write it like *789*090353102*{amount}#');
                       },
                     ),
                     SwitchListTile(
                       key: const Key('merchant-ussd-on'),
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Show customers this code'),
+                      title: const Tx('Show customers this code'),
                       value: _merchantOn,
                       onChanged: (v) => setState(() => _merchantOn = v),
                     ),
@@ -311,49 +312,46 @@ class _MethodSettingsScreenState extends State<MethodSettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Off: customers send money to the deposit number as before'
-                '${s.method == 'evc_plus' ? ' (*712*, confirmed automatically from the SMS)' : ''}. '
-                'On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms '
-                'each deposit from the merchant account; they wait up to 24 hours.',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                trp('Off: customers send money to the deposit number as before{0}. On: Complete Deposit shows this code. Merchant payments send no SMS, so an agent confirms each deposit from the merchant account; they wait up to 24 hours.', [s.method == 'evc_plus' ? tr(' (*712*, confirmed automatically from the SMS)') : '']),
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
             ],
             if (s.hasPaymentLocation) ...[
-              const GroupLabel('Payment Location'),
+              GroupLabel(tr('Payment Location')),
               ConsoleCard(
                 child: Column(
                   children: [
                     TextFormField(
                       key: const Key('payment-city'),
                       controller: _city,
-                      decoration: const InputDecoration(labelText: 'City', prefixIcon: Icon(Icons.location_city_rounded)),
+                      decoration: InputDecoration(labelText: tr('City'), prefixIcon: Icon(Icons.location_city_rounded)),
                       textCapitalization: TextCapitalization.words,
-                      validator: (v) => (v ?? '').trim().length > 60 ? 'At most 60 characters' : null,
+                      validator: (v) => (v ?? '').trim().length > 60 ? tr('At most 60 characters') : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       key: const Key('payment-street'),
                       controller: _street,
-                      decoration: const InputDecoration(labelText: 'Street', prefixIcon: Icon(Icons.add_road_rounded)),
+                      decoration: InputDecoration(labelText: tr('Street'), prefixIcon: Icon(Icons.add_road_rounded)),
                       textCapitalization: TextCapitalization.characters,
-                      validator: (v) => (v ?? '').trim().length > 80 ? 'At most 80 characters' : null,
+                      validator: (v) => (v ?? '').trim().length > 80 ? tr('At most 80 characters') : null,
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Shown to customers on ${s.label} Complete Deposit, with a Copy button each. Leave both empty to hide it.',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                trp('Shown to customers on {0} Complete Deposit, with a Copy button each. Leave both empty to hide it.', [s.label]),
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
               ),
             ],
             const SizedBox(height: 12),
-            const Text(
+            Tx(
               'Deposits and withdrawals are 1:1 with no fee: the customer gets exactly the amount sent.',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
           ],
         ),
       ),

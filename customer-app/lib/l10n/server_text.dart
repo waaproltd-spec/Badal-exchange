@@ -5,6 +5,13 @@ import 'strings.dart';
 /// known here is shown as the server wrote it (e.g. a note an agent typed).
 String serverText(String text, {String? code}) {
   if (!AppLanguage.isSomali || text.isEmpty) return text;
+  return somaliServerText(text, code: code);
+}
+
+/// The Somali wording whatever the app language (deposit / withdrawal errors
+/// are always Somali). Text with no Somali version is returned unchanged.
+String somaliServerText(String text, {String? code}) {
+  if (text.isEmpty) return text;
   final byCode = _byCode[code];
   if (byCode != null) return byCode;
   for (final (pattern, somali) in _patterns) {
@@ -20,12 +27,18 @@ const _byCode = <String, String>{
   'DUPLICATE_WITHDRAWAL': 'Codsi lacag-bixin oo isku mid ah ayaa horay u socda.',
   'REQUEST_IN_PROGRESS': 'Codsigan horay ayaa loo wadaa.',
   'IDEMPOTENCY_KEY_REUSED': 'Codsigan horay ayaa loo isticmaalay. Mar kale isku day.',
+  'INVALID_PHONE_PREFIX':
+      'Lambarka taleefanku waa inuu ku bilowdaa 61 ama 77 (EVC Plus), 90 (Golis), 63 (ZAAD) ama 62 (eDahab).',
   'PHONE_TAKEN': 'Lambarkan taleefanka horay ayaa loo diiwaangeliyay.',
   'RATE_LIMITED': 'Isku day badan ayaa la sameeyay. Wax yar sug, kadibna mar kale isku day.',
   'INVALID_PASSWORD': 'Erayga sirta ee hadda waa khalad.',
   'SESSION_REPLACED': 'Akoonkan taleefan kale ayaa laga galay. Dib u gal.',
   'NOT_AVAILABLE': 'Adeeggan hadda lama heli karo.',
   'PLAYER_LOOKUP_UNAVAILABLE': 'Ciyaaryahanka hadda lama hubin karo. Mar kale isku day.',
+  'TIP_NOT_FOUND': 'Taladan hadda lama heli karo.',
+  'TIP_IS_FREE': 'Taladan waa bilaash: wax lacag ah looma baahna.',
+  'PRICE_CHANGED': 'Qiimaha talada waa isbeddelay. Fadlan hubi oo mar kale xaqiiji.',
+  'INSUFFICIENT_FUNDS': 'Haraaga boorsadaadu kuma filna taladan.',
   'PENDING_NOT_FOUND': 'Codsigan horay ayaa loo dhammeeyay ama wuu dhacay.',
 };
 

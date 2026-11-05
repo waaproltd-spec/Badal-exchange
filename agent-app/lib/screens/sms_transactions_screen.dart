@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/match_result.dart';
@@ -10,6 +9,8 @@ import '../services/sms_log_store.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/state_views.dart';
+import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// A log of SMS-derived (and manual WinWin) submissions this device has
 /// made, with the match status the backend returned for each. There is no
@@ -60,12 +61,12 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
       onRefresh: _load,
       child: _entries.isEmpty
           ? ListView(
-              children: const [
+              children: [
                 SizedBox(height: 120),
                 EmptyStateView(
                   icon: Icons.sms_rounded,
-                  title: 'No SMS submissions yet',
-                  message: 'Matched, unmatched, and duplicate submissions from this device will appear here.',
+                  title: tr('No SMS submissions yet'),
+                  message: tr('Matched, unmatched, and duplicate submissions from this device will appear here.'),
                 ),
               ],
             )
@@ -83,7 +84,7 @@ class _SmsLogTile extends StatelessWidget {
 
   const _SmsLogTile({required this.entry});
 
-  static final _dateFormat = DateFormat('MMM d, HH:mm:ss');
+  static final _dateFormat = AppDateFormat('MMM d, HH:mm:ss');
 
   String get _statusLabel {
     switch (entry.status) {
@@ -115,9 +116,9 @@ class _SmsLogTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(
-                    entry.isManualWinwin ? 'Manual WinWin confirmation' : 'EVC Plus SMS (${entry.provider})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                  child: Tx(
+                    entry.isManualWinwin ? tr('Manual WinWin confirmation') : trp('EVC Plus SMS ({0})', [entry.provider]),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                   ),
                 ),
                 StatusBadge(status: _statusLabel),
@@ -131,25 +132,25 @@ class _SmsLogTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (entry.sender != null)
-                        Text(entry.sender!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                      Text('Ref: ${entry.transactionRef}', style: const TextStyle(fontSize: 12, color: AppColors.textFaint)),
+                        Tx(entry.sender!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      Text(trp('Ref: {0}', [entry.transactionRef]), style: TextStyle(fontSize: 12, color: AppColors.textFaint)),
                     ],
                   ),
                 ),
                 Text(
                   '\$${entry.amount}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Submitted ${_dateFormat.format(entry.submittedAt.toLocal())}',
-              style: const TextStyle(fontSize: 11, color: AppColors.textFaint),
+              trp('Submitted {0}', [_dateFormat.format(entry.submittedAt.toLocal())]),
+              style: TextStyle(fontSize: 11, color: AppColors.textFaint),
             ),
             if (entry.status == MatchStatus.error && entry.errorMessage != null) ...[
               const SizedBox(height: 6),
-              Text(
+              Tx(
                 entry.errorMessage!,
                 style: const TextStyle(fontSize: 12, color: AppColors.statusFailed),
               ),

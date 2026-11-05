@@ -29,7 +29,7 @@ Map<String, dynamic> _company(String method, String label, String status,
       'lastSuccessAt': balance == null ? null : '2026-10-21T20:30:00Z',
       'lastCheckedAt': connected ? '2026-10-21T20:30:00Z' : null,
       'lastError': error,
-      'lowThreshold': '50.00',
+      'lowThreshold': '5.00',
       'waitingWithdrawals': waiting,
       'waitingAmount': waiting > 0 ? '25.00' : '0.00',
       'topUpNeeded': topUp,
@@ -128,12 +128,18 @@ String _text(WidgetTester tester, String key) => tester.widget<Text>(find.byKey(
 
 void main() {
   testWidgets('verified total, each company with its status; low shows what to top up', (tester) async {
-    await _phone(tester);
+    await _phone(tester, const Size(393, 1500));
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
-    expect(_text(tester, 'total-amount'), '\$955.00');
-    expect(_text(tester, 'total-limit'), 'Limit \$10.29 · 1 not reported');
-    expect(_text(tester, 'total-note'), 'Verified balances of 2 companies');
+    expect(_text(tester, 'total-limit'), '\$10.29');
+    expect(_text(tester, 'total-limit-note'), '1 company not reported (not included)');
+    expect(find.byKey(const Key('updated-at')), findsOneWidget, reason: 'when the figures were read');
+    // The Total Balance card is gone: Total Limit first, then the summary cards, then the companies.
+    expect(find.byKey(const Key('total-balance')), findsNothing);
+    expect(find.byKey(const Key('total-amount')), findsNothing);
+    final limitY = tester.getTopLeft(find.byKey(const Key('total-limit-card'))).dy;
+    final cardsY = tester.getTopLeft(find.text('Open withdrawals')).dy;
+    expect(limitY < cardsY, isTrue, reason: 'limit, then the summary cards');
     expect(_text(tester, 'company-amount-onexbet'), '\$850.00');
     expect(_text(tester, 'company-limit-onexbet'), 'Limit Not reported', reason: 'never invented');
     expect(find.byKey(const Key('company-status-available')), findsOneWidget);
@@ -167,7 +173,6 @@ void main() {
     await tester.scrollUntilVisible(find.byKey(const Key('company-status-stale')), 100,
         scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('not updated since'), findsOneWidget);
-    expect(_text(tester, 'total-note'), 'Verified balances of 0 companies · 2 not included (offline or not updated)');
     expect(_api.calls, ['load', 'refresh']);
   });
 
@@ -179,7 +184,7 @@ void main() {
     await tester.pump(const Duration(seconds: 31));
     await tester.pumpAndSettle();
     expect(_api.calls, ['load', 'load']);
-    expect(_text(tester, 'total-amount'), '\$955.00');
+    expect(_text(tester, 'total-limit'), '\$10.29');
     await tester.scrollUntilVisible(find.byKey(const Key('balances-error')), -100,
         scrollable: find.byType(Scrollable).first);
     expect(find.text('Could not refresh: No connection.'), findsOneWidget);
@@ -195,11 +200,11 @@ void main() {
             statusCode: 403, code: 'FORBIDDEN', message: 'You are not allowed to see company balances')));
     await tester.pumpAndSettle();
     expect(find.text('You are not allowed to see company balances'), findsOneWidget);
-    expect(find.byKey(const Key('total-amount')), findsNothing);
+    expect(find.byKey(const Key('total-limit')), findsNothing);
   });
 
   testWidgets('company details: balance, checks, period and transaction filters', (tester) async {
-    await _phone(tester);
+    await _phone(tester, const Size(393, 1500));
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('company-888starz')));

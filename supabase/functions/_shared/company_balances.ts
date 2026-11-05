@@ -3,7 +3,7 @@
 // none -- with the database's company_balance_record (service role). Used
 // by the company-balances function (Agent App) and the platform-orders
 // worker (every 5 minutes, and after a withdrawal waits for a top-up).
-import { brandForMethod, cashdeskBalance, getCredentials } from './cashdeskbot.ts';
+import { brandFor, cashdeskBalance, credentialsFor } from './cashdeskbot.ts';
 
 export type ServiceRpc = (fn: string, args: Record<string, unknown>) => Promise<unknown>;
 
@@ -11,7 +11,7 @@ const num = (v: unknown) => (v === null || v === undefined || v === '' || !Numbe
 
 export async function refreshCompanyBalances(rpc: ServiceRpc, methods: string[], requestedBy: string | null = null) {
   await Promise.all(methods.map(async (method) => {
-    const brand = brandForMethod(method);
+    const brand = await brandFor(method);
     let balance: number | null = null;
     let limit: number | null = null;
     let error: string | null = null;
@@ -19,7 +19,7 @@ export async function refreshCompanyBalances(rpc: ServiceRpc, methods: string[],
       error = `No cash register for ${method}`;
     } else {
       try {
-        const r = await cashdeskBalance(getCredentials(brand), new Date());
+        const r = await cashdeskBalance(await credentialsFor(brand), new Date());
         balance = num(r.balance);
         limit = num(r.limit);
         if (balance === null) error = `${brand.label} did not return a balance`;

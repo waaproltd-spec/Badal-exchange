@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/account_blocked_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/api_exception.dart';
 import '../../api/customer_api.dart';
+import '../../services/blocked_memory.dart';
 import '../../utils/support_links.dart';
 import '../../l10n/strings.dart';
 import '../../state/auth_provider.dart';
@@ -13,6 +16,7 @@ import '../../widgets/auth_fields.dart';
 import '../../widgets/brand/baari_logo.dart';
 import '../../widgets/primary_button.dart';
 import '../root/root_shell.dart';
+import 'account_unblocked_screen.dart';
 import 'register_screen.dart';
 
 /// Log In: +252 phone (9 digits typed) and password, Remember me, Forgot
@@ -21,7 +25,10 @@ class LoginScreen extends StatefulWidget {
   /// Shown above the form, e.g. why the app came back here.
   final String? message;
 
-  const LoginScreen({super.key, this.message});
+  /// Opens with the Account Blocked card (the customer was signed out because the account was blocked).
+  final bool blocked;
+
+  const LoginScreen({super.key, this.message, this.blocked = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -34,6 +41,17 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = true;
   bool _submitting = false;
   late String? _error = widget.message;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.blocked) {
+      BlockedMemory.mark();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showAccountBlocked(context);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -57,12 +75,39 @@ class _LoginScreenState extends State<LoginScreen> {
             rememberMe: _rememberMe,
           );
       if (!mounted) return;
+      // The account was blocked before and the server accepts this login: it was unblocked. Say so, once.
+      final wasBlocked = await BlockedMemory.wasBlocked();
+      if (!mounted) return;
+      if (wasBlocked) {
+        await BlockedMemory.clear();
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (ctx) => AccountUnblockedScreen(
+              onLogin: () => Navigator.of(ctx).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const RootShell()), (route) => false),
+            ),
+          ),
+          (route) => false,
+        );
+        return;
+      }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const RootShell()),
         (route) => false,
       );
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.status == 401 ? AppStrings.invalidLogin : e.message);
+      if (!mounted) return;
+      if (e.code == 'ACCOUNT_BLOCKED') {
+        // A blocked account can not log in: the same Account Blocked card, nothing else.
+        await BlockedMemory.mark();
+        setState(() {
+          _error = null;
+          _submitting = false; // no spinner behind the card
+        });
+        await showAccountBlocked(context);
+        return;
+      }
+      setState(() => _error = e.status == 401 ? AppStrings.invalidLogin : e.message);
     } catch (_) {
       if (mounted) setState(() => _error = AppStrings.somethingWentWrong);
     } finally {

@@ -31,11 +31,13 @@
 //   TELEGRAM_BOT_TOKEN (888starz), TELEGRAM_BOT_TOKEN_1XBET (1xBet), TELEGRAM_BOT_TOKEN_WINWIN (WinWin),
 //   TELEGRAM_BOT_TOKEN_BETWINNER (Betwinner), TELEGRAM_BOT_TOKEN_DBBET (DBbet),
 //   TELEGRAM_BOT_TOKEN_BETJAM (BetJam), TELEGRAM_BOT_TOKEN_BETONGAME (BetOnGame), TELEGRAM_BOT_TOKEN_MELBET (MELBET),
+//   TELEGRAM_BOT_TOKEN_GOLDPARI, TELEGRAM_BOT_TOKEN_LUCKYPARI, TELEGRAM_BOT_TOKEN_BETANDYOU (these three use the login saved in
+//   the Agent App, Betting platforms; no CASHDESKBOT_* secrets),
 //   TELEGRAM_WEBHOOK_SECRET (shared), [TELEGRAM_BOT_LNG=en]
 // plus each brand's CashdeskBot secrets (../_shared/cashdeskbot.ts). Then
 // register each bot's webhook and command menu once:
 //   curl -X POST -H "X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET" \
-//     https://<project>.supabase.co/functions/v1/telegram-bot[/1xbet|/winwin|/betwinner|/dbbet|/betjam|/betongame|/melbet]/setup
+//     https://<project>.supabase.co/functions/v1/telegram-bot[/1xbet|/winwin|/betwinner|/dbbet|/betjam|/betongame|/melbet|/goldpari|/luckypari|/betandyou]/setup
 import {
   ApiError,
   BRANDS,
@@ -45,7 +47,9 @@ import {
   findPlayer,
   getCredentials,
   payoutToPlayer,
+  type Creds,
   type Player,
+  savedCredentials,
 } from '../_shared/cashdeskbot.ts';
 
 const LNG = Deno.env.get('TELEGRAM_BOT_LNG') || 'en';
@@ -58,6 +62,26 @@ interface Bot {
   tokenEnv: string;
 }
 
+/**
+ * Brands whose cash register login is saved in the Agent App (Betting platforms), with no CASHDESKBOT_* secrets of
+ * their own. Kept here (not in the shared BRANDS) so the other functions do not change.
+ */
+const APP_BRANDS: Record<string, Brand> = {
+  goldpari: { key: 'goldpari', label: 'GoldPari', method: 'goldpari', envPrefix: '' },
+  luckypari: { key: 'luckypari', label: 'LuckyPari', method: 'luckypari', envPrefix: '' },
+  betandyou: { key: 'betandyou', label: 'BetAndYou', method: 'betandyou', envPrefix: '' },
+};
+
+/** The cash register login of a brand: the Edge Function secrets of the original brands, the Agent App's saved login for the others. */
+async function credsOf(brand: Brand): Promise<Creds> {
+  if (!(brand.key in APP_BRANDS)) return getCredentials(brand);
+  const saved = await savedCredentials(brand.method).catch(() => null);
+  if (!saved) {
+    throw new ApiError(400, 'CASHDESKBOT_NOT_CONFIGURED', `The ${brand.label} cash register is not set up in the Agent App (Betting platforms).`);
+  }
+  return saved;
+}
+
 const BOTS: Bot[] = [
   { brand: BRANDS['888starz'], path: '', tokenEnv: 'TELEGRAM_BOT_TOKEN' },
   { brand: BRANDS['1xbet'], path: '/1xbet', tokenEnv: 'TELEGRAM_BOT_TOKEN_1XBET' },
@@ -67,6 +91,9 @@ const BOTS: Bot[] = [
   { brand: BRANDS.betjam, path: '/betjam', tokenEnv: 'TELEGRAM_BOT_TOKEN_BETJAM' },
   { brand: BRANDS.betongame, path: '/betongame', tokenEnv: 'TELEGRAM_BOT_TOKEN_BETONGAME' },
   { brand: BRANDS.melbet, path: '/melbet', tokenEnv: 'TELEGRAM_BOT_TOKEN_MELBET' },
+  { brand: APP_BRANDS.goldpari, path: '/goldpari', tokenEnv: 'TELEGRAM_BOT_TOKEN_GOLDPARI' },
+  { brand: APP_BRANDS.luckypari, path: '/luckypari', tokenEnv: 'TELEGRAM_BOT_TOKEN_LUCKYPARI' },
+  { brand: APP_BRANDS.betandyou, path: '/betandyou', tokenEnv: 'TELEGRAM_BOT_TOKEN_BETANDYOU' },
 ];
 
 const COMMANDS = [
@@ -178,7 +205,7 @@ const confirmButtons = (pendingId: string) => ({
 });
 
 async function onCommand(bot: Bot, chatId: number, from: From, text: string) {
-  const creds = () => getCredentials(bot.brand);
+  const creds = () => credsOf(bot.brand);
   const [rawCommand, ...args] = text.trim().split(/\s+/);
   const command = rawCommand.toLowerCase().replace(/@.*$/, '');
 
@@ -214,7 +241,7 @@ async function onCommand(bot: Bot, chatId: number, from: From, text: string) {
       return send(bot, chatId, `Hi ${escape(me.name)}.\n\n${help(bot)}`);
 
     case '/balance': {
-      const b = await cashdeskBalance(creds(), new Date());
+      const b = await cashdeskBalance(await creds(), new Date());
       return send(bot, chatId, `<b>Cash register</b>\nBalance: <b>${escape(b.balance ?? '—')}</b>\nLimit: ${escape(b.limit ?? '—')}`);
     }
 
@@ -222,7 +249,7 @@ async function onCommand(bot: Bot, chatId: number, from: From, text: string) {
     case '/user': {
       const [id] = args;
       if (!id || !PLAYER_ID.test(id)) return send(bot, chatId, 'Usage: <code>/player ID</code>');
-      const player = await findPlayer(creds(), id);
+      const player = await findPlayer(await creds(), id);
       return send(bot, chatId, player.found ? playerLine(player, id) : notFound(bot, id));
     }
 
@@ -231,7 +258,7 @@ async function onCommand(bot: Bot, chatId: number, from: From, text: string) {
       if (!id || !PLAYER_ID.test(id) || !amount || !AMOUNT.test(amount) || !(Number(amount) > 0)) {
         return send(bot, chatId, 'Usage: <code>/deposit ID AMOUNT</code>, for example <code>/deposit 76 100</code>');
       }
-      const player = await findPlayer(creds(), id);
+      const player = await findPlayer(await creds(), id);
       if (!player.found) return send(bot, chatId, notFound(bot, id));
       const summa = Number(amount);
       const pendingId = await rpc('telegram_prepare', {
@@ -247,7 +274,7 @@ async function onCommand(bot: Bot, chatId: number, from: From, text: string) {
       if (!id || !PLAYER_ID.test(id) || !code || !PAYOUT_CODE.test(code)) {
         return send(bot, chatId, 'Usage: <code>/payout ID CODE</code>');
       }
-      const player = await findPlayer(creds(), id);
+      const player = await findPlayer(await creds(), id);
       if (!player.found) return send(bot, chatId, notFound(bot, id));
       const pendingId = await rpc('telegram_prepare', {
         p_telegram_user_id: from.id,
@@ -288,7 +315,10 @@ async function onButton(bot: Bot, chatId: number, messageId: number, from: From,
 
   let response;
   try {
-    const c = getCredentials(BRANDS[payload.brand ?? '888starz']);
+    // The brand this pending action was made for (never another cash register).
+    const brand = BOTS.find((b) => b.brand.key === (payload.brand ?? '888starz'))?.brand;
+    if (!brand) throw new ApiError(400, 'CASHDESKBOT_NOT_CONFIGURED', 'Unknown cash register for this action.');
+    const c = await credsOf(brand);
     response = action === 'deposit'
       ? await depositToPlayer(c, payload.userId, payload.lng, payload.summa)
       : await payoutToPlayer(c, payload.userId, payload.lng, payload.code);
@@ -379,7 +409,51 @@ async function onUpdate(bot: Bot, update: any) {
   }
 }
 
+/** Health: every cashier bot that has a token must have its webhook registered; a lost one is registered again and reported. */
+async function webhookHealth() {
+  const results: Record<string, string> = {};
+  const secret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
+  for (const bot of BOTS) {
+    if (!Deno.env.get(bot.tokenEnv)) continue; // not set up (yet): nothing to watch
+    const key = bot.brand.key;
+    const want = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot${bot.path}`;
+    try {
+      const info = await telegram(bot, 'getWebhookInfo', {});
+      if (!info?.ok) {
+        await rpc('health_report_external', { p_key: `telegram_cashier_token:${key}`, p_ok: false, p_severity: 'warning',
+          p_title: `Bot-ka ${bot.brand.label} ma jawaabayo (token?)`, p_detail: { bot: bot.brand.label },
+          p_cause: 'token-ka waa la beddelay ama bot-ka waa la tirtiray' });
+        results[key] = 'token problem';
+        continue;
+      }
+      await rpc('health_report_external', { p_key: `telegram_cashier_token:${key}`, p_ok: true });
+      if (info.result?.url !== want) {
+        const set = await telegram(bot, 'setWebhook', { url: want, secret_token: secret, allowed_updates: ['message', 'callback_query'], drop_pending_updates: false });
+        await rpc('health_report_external', { p_key: `webhook:cashier:${key}`, p_ok: false, p_severity: 'warning',
+          p_title: `Webhook-ka bot-ka ${bot.brand.label} wuu maqnaa`, p_detail: { bot: bot.brand.label, pending: info.result?.pending_update_count ?? 0 },
+          p_cause: 'Telegram ma uu haysan webhook-ka saxda ah', p_repair: 'setWebhook (dib loo diiwaangeliyay)', p_repair_result: set?.ok ? 'ok' : 'failed' });
+        results[key] = set?.ok ? 'repaired' : 'repair failed';
+      } else {
+        await rpc('health_report_external', { p_key: `webhook:cashier:${key}`, p_ok: true });
+        results[key] = 'ok';
+      }
+    } catch (err) {
+      results[key] = `error: ${(err as Error).message}`.slice(0, 80);
+    }
+  }
+  return results;
+}
+
 Deno.serve(async (req) => {
+  // The health monitor's route: only the database's timer (the platform worker secret) may call it.
+  if (new URL(req.url).pathname.replace(/\/$/, '').endsWith('/health')) {
+    const worker = req.headers.get('x-worker-secret');
+    if (req.method !== 'POST' || !worker || (await rpc('platform_worker_check', { p_secret: worker }).catch(() => false)) !== true) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    return new Response(JSON.stringify({ ok: true, webhooks: await webhookHealth() }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
   if (req.method !== 'POST' || !secretMatches(req.headers.get('X-Telegram-Bot-Api-Secret-Token'))) {
     return new Response('Forbidden', { status: 403 });
   }

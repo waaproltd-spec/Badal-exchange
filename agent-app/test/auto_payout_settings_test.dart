@@ -38,6 +38,10 @@ class _FakeApi extends AgentApi {
   @override
   Future<List<AutoPayoutSettings>> getAutoPayouts() async => [evc];
 
+  /// No Sahal payouts on this server: only the EVC card shows.
+  @override
+  Future<SahalPayoutSettings> getSahalPayouts() async => throw Exception('not on this server');
+
   @override
   Future<AutoPayoutSettings> setAutoPayout(String method, {String? mode, double? dailyLimit, double? minBalance}) async {
     calls.add('set $method ${mode ?? '-'} ${dailyLimit ?? '-'} ${minBalance ?? '-'}');

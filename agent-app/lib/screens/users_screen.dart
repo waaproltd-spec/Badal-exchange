@@ -6,11 +6,15 @@ import '../models/console.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
+import '../widgets/page_banner.dart';
 import '../widgets/state_views.dart';
 import 'customer_info_screen.dart';
+import '../l10n/tr.dart';
 
-/// Users = Customer App customers (not agents). Searchable by name or phone,
-/// filterable by status. Tapping a customer opens read-only Customer Info.
+/// Users = Customer App customers (not agents). Customer counts (total,
+/// active, blocked, and new in the chosen period), then the list: searchable
+/// by name or phone, filterable by status. Tapping a customer opens
+/// read-only Customer Info.
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
 
@@ -28,11 +32,70 @@ class _UsersScreenState extends State<UsersScreen> {
   bool _loadingMore = false;
   bool _hasMore = false;
   String? _error;
+  CustomerOverview? _overview;
+
+  /// The period "New Customers" counts: a preset, or a custom range.
+  String _period = 'today';
+  DateTimeRange? _custom;
+
+  static List<(String, String)> get _periods => [
+    ('today', tr('Today')),
+    ('yesterday', tr('Yesterday')),
+    ('month', tr('This Month')),
+    ('last_month', tr('Last Month')),
+    ('last_3m', tr('Last 3 Months')),
+    ('custom', tr('Custom Date Range')),
+  ];
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadOverview();
+  }
+
+  DateTimeRange _range() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    return switch (_period) {
+      'yesterday' => DateTimeRange(start: yesterday, end: yesterday),
+      // Whole calendar months (day 0 of the next month is the last day of this one); they roll over by themselves.
+      'month' => DateTimeRange(start: DateTime(today.year, today.month, 1), end: DateTime(today.year, today.month + 1, 0)),
+      'last_month' => DateTimeRange(start: DateTime(today.year, today.month - 1, 1), end: DateTime(today.year, today.month, 0)),
+      'last_3m' => DateTimeRange(start: DateTime(today.year, today.month - 3, 1), end: DateTime(today.year, today.month, 0)),
+      'custom' => _custom ?? DateTimeRange(start: today, end: today),
+      _ => DateTimeRange(start: today, end: today),
+    };
+  }
+
+  /// The counts; their failure (or an older server) never hides the list.
+  Future<void> _loadOverview() async {
+    final r = _range();
+    try {
+      final o = await context.read<Session>().api.getCustomerOverview(from: r.start, to: r.end);
+      if (mounted) setState(() => _overview = o);
+    } catch (_) {}
+  }
+
+  Future<void> _choosePeriod(String p) async {
+    if (p == 'custom') {
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2026, 1, 1),
+        lastDate: DateTime.now(),
+        initialDateRange: _custom,
+      );
+      if (picked == null || !mounted) return;
+      _custom = picked;
+    }
+    setState(() => _period = p);
+    _loadOverview();
+  }
+
+  Future<void> _refresh() async {
+    _loadOverview();
+    await _load();
   }
 
   @override
@@ -67,22 +130,91 @@ class _UsersScreenState extends State<UsersScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load customers.';
+        _error = e is ApiException ? e.message : tr('Failed to load customers.');
         _loading = false;
         _loadingMore = false;
       });
     }
   }
 
+  void _setStatus(String v) {
+    setState(() => _status = v);
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
+    final o = _overview;
+    String count(int? n) => n == null ? '' : ' ($n)';
+    return Column(children: [
+      const PageBanner(icon: Icons.groups_rounded, title: 'Users', subtitle: 'Manage your customers'),
+      Expanded(
+        child: RefreshIndicator(
+      onRefresh: _refresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
+          SingleChildScrollView(
+            key: const Key('users-periods'),
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final (id, label) in _periods)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    key: Key('users-period-$id'),
+                    avatar: Icon(Icons.calendar_month_rounded,
+                        size: 18, color: _period == id ? AppColors.onPrimary : AppColors.textSecondary),
+                    label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    selected: _period == id,
+                    showCheckmark: false,
+                    selectedColor: AppColors.primaryDark,
+                    labelStyle: TextStyle(color: _period == id ? AppColors.onPrimary : AppColors.textPrimary),
+                    onSelected: (_) => _choosePeriod(id),
+                  ),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          if (o != null) ...[
+            TwoColumnGrid(children: [
+              StatCard(
+                icon: Icons.groups_rounded,
+                color: AppColors.purple,
+                value: '${o.total}',
+                label: tr('Total Customers'),
+                caption: tr('Wadarta Macaamiisha'),
+                onTap: () => _setStatus('all'),
+              ),
+              StatCard(
+                icon: Icons.person_rounded,
+                color: AppColors.statusCompleted,
+                value: '${o.active}',
+                label: tr('Active Customers'),
+                caption: tr('Macaamiisha Firfircoon'),
+                onTap: () => _setStatus('active'),
+              ),
+              StatCard(
+                icon: Icons.block_rounded,
+                color: AppColors.statusFailed,
+                value: '${o.blocked}',
+                label: tr('Blocked Customers'),
+                caption: tr('Macaamiisha La Xannibay'),
+                onTap: () => _setStatus('blocked'),
+              ),
+              StatCard(
+                key: const Key('users-new'),
+                icon: Icons.person_add_alt_1_rounded,
+                color: AppColors.statusProcessing,
+                value: '${o.joined}',
+                label: tr('New Customers'),
+                caption: _periods.firstWhere((p) => p.$1 == _period).$2,
+              ),
+            ]),
+            const SizedBox(height: 12),
+          ],
           SearchField(
-            hint: 'Search by name or phone number',
+            hint: tr('Search by name or phone number'),
             controller: _search,
             onSubmitted: (_) => _load(),
           ),
@@ -91,16 +223,17 @@ class _UsersScreenState extends State<UsersScreen> {
             children: [
               Expanded(
                 child: ChoiceChipsRow<String>(
-                  options: const [('all', 'All'), ('active', 'Active'), ('blocked', 'Blocked')],
+                  options: [
+                    ('all', trp('All{0}', [count(o?.total)])),
+                    ('active', trp('Active{0}', [count(o?.active)])),
+                    ('blocked', trp('Blocked{0}', [count(o?.blocked)])),
+                  ],
                   selected: _status,
-                  onSelected: (v) {
-                    setState(() => _status = v);
-                    _load();
-                  },
+                  onSelected: _setStatus,
                 ),
               ),
               PopupMenuButton<String>(
-                tooltip: 'Sort',
+                tooltip: tr('Sort'),
                 initialValue: _sort,
                 icon: const Icon(Icons.sort_rounded),
                 onSelected: (v) {
@@ -108,10 +241,10 @@ class _UsersScreenState extends State<UsersScreen> {
                   _load();
                 },
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'newest', child: Text('Newest first')),
-                  PopupMenuItem(value: 'oldest', child: Text('Oldest first')),
-                  PopupMenuItem(value: 'balance', child: Text('Highest balance')),
-                  PopupMenuItem(value: 'name', child: Text('Name A–Z')),
+                  PopupMenuItem(value: 'newest', child: Tx('Newest first')),
+                  PopupMenuItem(value: 'oldest', child: Tx('Oldest first')),
+                  PopupMenuItem(value: 'balance', child: Tx('Highest balance')),
+                  PopupMenuItem(value: 'name', child: Tx('Name A–Z')),
                 ],
               ),
             ],
@@ -122,17 +255,21 @@ class _UsersScreenState extends State<UsersScreen> {
           else if (_error != null && _customers.isEmpty)
             ErrorStateView(message: _error!, onRetry: _load)
           else if (_customers.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 60),
-              child: EmptyStateView(icon: Icons.people_outline_rounded, title: 'No customers found'),
+              child: EmptyStateView(icon: Icons.people_outline_rounded, title: tr('No customers found')),
             )
           else ...[
             for (final c in _customers) ...[
               _CustomerTile(
                 customer: c,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => CustomerInfoScreen(customerId: c.id, name: c.name)),
-                ),
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => CustomerInfoScreen(customerId: c.id, name: c.name)),
+                  );
+                  // Blocked or unblocked there: the list and the counters follow.
+                  if (mounted) _refresh();
+                },
               ),
               const SizedBox(height: 8),
             ],
@@ -140,13 +277,14 @@ class _UsersScreenState extends State<UsersScreen> {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Text(_loadingMore ? 'Loading…' : 'Load more'),
+                  child: Tx(_loadingMore ? tr('Loading…') : tr('Load more')),
                 ),
               ),
           ],
         ],
       ),
-    );
+    )),
+    ]);
   }
 }
 
@@ -169,25 +307,26 @@ class _CustomerTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                Tx(
                   customer.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
-                Text(customer.phone, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                Tx(customer.phone, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                 if (customer.registeredAt != null)
                   Text(
-                    'Joined ${formatDate(customer.registeredAt!)}',
-                    style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint),
+                    trp('Joined {0}', [formatDate(customer.registeredAt!)]),
+                    style: TextStyle(fontSize: 11.5, color: AppColors.textFaint),
                   ),
-                const SizedBox(height: 4),
-                Text(
-                  '${customer.orders} orders • ${customer.deposits} deposits • '
-                  '${customer.withdrawals} withdrawals • ${customer.transactions} transactions',
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-                ),
+                const SizedBox(height: 6),
+                Wrap(spacing: 12, runSpacing: 2, children: [
+                  _Count(Icons.receipt_long_outlined, trp('{0} orders', [customer.orders])),
+                  _Count(Icons.south_rounded, trp('{0} deposits', [customer.deposits])),
+                  _Count(Icons.north_rounded, trp('{0} withdrawals', [customer.withdrawals])),
+                  _Count(Icons.history_rounded, trp('{0} transactions', [customer.transactions])),
+                ]),
               ],
             ),
           ),
@@ -203,9 +342,26 @@ class _CustomerTile extends StatelessWidget {
             ],
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
         ],
       ),
     );
+  }
+}
+
+/// A small icon and a count under a customer's name.
+class _Count extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _Count(this.icon, this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 13, color: AppColors.textFaint),
+      const SizedBox(width: 3),
+      Tx(text, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+    ]);
   }
 }

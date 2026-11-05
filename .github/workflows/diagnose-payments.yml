@@ -1,0 +1,28 @@
+name: Diagnose payments (read-only)
+
+# Manual-only, read-only look at the production deposits and withdrawals:
+# how long they take, which are stuck and why, what Sahal / the payout
+# phones / the merchant feed answered, failed Edge Function calls and cron
+# runs, and whether wallets, ledger and orders agree. The session is read
+# only (default_transaction_read_only); order codes only, phone numbers masked, no names.
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'How far back to look (hours)'
+        required: false
+        default: '48'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Report
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          HOURS: ${{ github.event.inputs.hours || '48' }}
+        run: |
+          if ! [[ "$HOURS" =~ ^[0-9]{1,4}$ ]]; then echo "hours must be a number"; exit 1; fi
+          # Each section on its own: one failing query does not hide the rest.
+          psql "$SUPABASE_DATABASE_URL" -P pager=off -v hours="$HOURS" -f supabase/diagnostics/payments.sql

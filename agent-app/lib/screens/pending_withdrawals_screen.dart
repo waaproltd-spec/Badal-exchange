@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../widgets/order_card.dart';
 import '../widgets/state_views.dart';
 import '../widgets/withdrawal_action_sheets.dart';
+import '../l10n/tr.dart';
 
 /// Pending Withdrawals: pending/processing withdrawal orders. The agent
 /// moves each one through: Start Processing -> (agent actually sends the
@@ -50,7 +51,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load pending withdrawals.';
+        _error = e is ApiException ? e.message : tr('Failed to load pending withdrawals.');
         _loading = false;
       });
     }
@@ -59,7 +60,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
   void _showSnack(String message, {Color? color}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
+      SnackBar(content: Tx(message), backgroundColor: color),
     );
   }
 
@@ -70,7 +71,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
       await _load();
     } catch (e) {
       _showSnack(
-        e is ApiException ? e.message : 'Action failed. Please try again.',
+        e is ApiException ? e.message : tr('Action failed. Please try again.'),
         color: AppColors.statusFailed,
       );
     } finally {
@@ -81,7 +82,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
   Future<void> _startProcessing(Order order) async {
     await _runAction(order.id, () async {
       await context.read<Session>().api.startWithdrawal(order.id);
-      _showSnack('Marked as processing.', color: AppColors.statusProcessing);
+      _showSnack(tr('Marked as processing.'), color: AppColors.statusProcessing);
     });
   }
 
@@ -90,7 +91,7 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
     if (ref == null || ref.isEmpty || !mounted) return;
     await _runAction(order.id, () async {
       await context.read<Session>().api.completeWithdrawal(order.id, transactionRef: ref);
-      _showSnack('Withdrawal completed.', color: AppColors.statusCompleted);
+      _showSnack(tr('Withdrawal completed.'), color: AppColors.statusCompleted);
     });
   }
 
@@ -106,11 +107,11 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
         // the agent checked the payout wallet.
         if (e.code != 'CONFIRM_NOT_PAID' || !mounted) rethrow;
         final sure = await confirmNotPaid(context,
-            amount: order.netAmount, phone: order.phoneNumber ?? '', action: 'It was not sent — refund');
+            amount: order.netAmount, phone: order.phoneNumber ?? '', action: tr('It was not sent — refund'));
         if (!sure) return;
         await api.failWithdrawal(order.id, reason: reason, confirmedNotPaid: true);
       }
-      _showSnack('Withdrawal marked failed. Balance released to customer.', color: AppColors.statusFailed);
+      _showSnack(tr('Withdrawal marked failed. Balance released to customer.'), color: AppColors.statusFailed);
     });
   }
 
@@ -130,16 +131,16 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
     }
     if (order.status == 'pending') {
       return [
-        ElevatedButton(onPressed: () => _startProcessing(order), child: const Text('Start Processing')),
+        ElevatedButton(onPressed: () => _startProcessing(order), child: const Tx('Start Processing')),
       ];
     }
     if (order.status == 'processing') {
       return [
-        ElevatedButton(onPressed: () => _complete(order), child: const Text('Complete')),
+        ElevatedButton(onPressed: () => _complete(order), child: const Tx('Complete')),
         OutlinedButton(
           onPressed: () => _fail(order),
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.statusFailed),
-          child: const Text('Mark Failed'),
+          child: const Tx('Mark Failed'),
         ),
       ];
     }
@@ -156,11 +157,11 @@ class _PendingWithdrawalsScreenState extends State<PendingWithdrawalsScreen> wit
               ? ErrorStateView(message: _error!, onRetry: _load)
               : (_orders!.isEmpty
                   ? ListView(
-                      children: const [
+                      children: [
                         SizedBox(height: 120),
                         EmptyStateView(
                           icon: Icons.arrow_circle_up_rounded,
-                          title: 'No pending withdrawals',
+                          title: tr('No pending withdrawals'),
                         ),
                       ],
                     )

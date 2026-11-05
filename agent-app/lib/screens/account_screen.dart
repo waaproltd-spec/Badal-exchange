@@ -7,17 +7,29 @@ import '../l10n/wallet_strings.dart';
 import '../models/console.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_settings_panel.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'admin/agents_screens.dart';
+import 'admin/betting_platforms_screen.dart';
+import 'admin/broadcast_screens.dart';
+import 'admin/system_health_screen.dart';
+import 'admin/tips_screens.dart';
+import 'admin/bonus_settings_screen.dart';
 import 'admin/payout_screens.dart';
 import 'admin/integrations_screens.dart';
 import 'admin/merchant_feed_screen.dart';
 import 'admin/method_settings_screens.dart';
 import 'admin/system_screens.dart';
+import 'admin/kyc_screens.dart';
+import 'admin/payment_numbers_screens.dart';
+import 'admin/withdraw_limits_screens.dart';
+import 'admin/unconfirmed_deposits_screen.dart';
+import 'admin/withdrawal_verification_screen.dart';
 import 'manage_screens.dart';
 import 'wallet/wallet_history_screen.dart';
+import '../l10n/tr.dart';
 
 /// Account: profile, admin features (everything the old admin dashboard
 /// managed; only for agents granted 'manage_settings'), contact links and
@@ -46,11 +58,11 @@ class _AccountScreenState extends State<AccountScreen> {
       final account = await context.read<Session>().api.getAccount();
       if (mounted) setState(() => _account = account);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Failed to load account.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Failed to load account.'));
     }
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Tx(text)));
 
   Future<void> _open(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
@@ -60,24 +72,24 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _openLink(String label, String url) async {
     final uri = Uri.tryParse(url);
     if (url.isEmpty || uri == null || !uri.hasScheme) {
-      _snack('No $label link set yet.');
+      _snack(trp('No {0} link set yet.', [label]));
       return;
     }
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && mounted) _snack('Could not open $label.');
+    if (!ok && mounted) _snack(trp('Could not open {0}.', [label]));
   }
 
   Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('Automatic SMS matching stops on this device until you log in again.'),
+        title: const Tx('Log out?'),
+        content: const Tx('Automatic SMS matching stops on this device until you log in again.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log out', style: TextStyle(color: AppColors.statusFailed)),
+            child: const Tx('Log out', style: TextStyle(color: AppColors.statusFailed)),
           ),
         ],
       ),
@@ -104,90 +116,161 @@ class _AccountScreenState extends State<AccountScreen> {
         children: [
           _ProfileCard(account: account),
 
-          const GroupLabel('Admin features'),
+          GroupLabel(tr('Settings')),
+          const AppSettingsPanel(),
+
+          GroupLabel(tr('TIPS')),
+          _NavRow(
+            icon: Icons.receipt_long_rounded,
+            color: AppColors.statusCompleted,
+            label: tr('Tips purchases'),
+            onTap: () => _open(const TipPurchasesScreen(manager: false)),
+          ),
+
+          GroupLabel(tr('Admin features')),
           if (!canManage)
             const _LockedNote()
           else ...[
-            const _SubLabel('Payments'),
+            _SubLabel(tr('Payments')),
             _NavRow(
               icon: Icons.toggle_on_rounded,
               color: AppColors.purple,
-              label: 'Manage Platforms (ON/OFF)',
+              label: tr('Manage Platforms (ON/OFF)'),
               onTap: () => _open(const ManageMethodsScreen()),
             ),
             _NavRow(
               icon: Icons.account_balance_wallet_rounded,
               color: AppColors.statusCompleted,
-              label: 'Payment Methods',
-              onTap: () => _open(const MethodSettingsListScreen(title: 'Payment Methods', kind: 'mobile_money')),
+              label: tr('Payment Methods'),
+              onTap: () => _open(MethodSettingsListScreen(title: tr('Payment Methods'), kind: 'mobile_money')),
             ),
             _NavRow(
               icon: Icons.sports_soccer_rounded,
               color: AppColors.accentOrange,
-              label: 'Bet Payment Methods',
-              onTap: () => _open(const MethodSettingsListScreen(title: 'Bet Payment Methods', kind: 'platform')),
+              label: tr('Bet Payment Methods'),
+              onTap: () => _open(MethodSettingsListScreen(title: tr('Bet Payment Methods'), kind: 'platform')),
             ),
             _NavRow(
               icon: Icons.straighten_rounded,
               color: AppColors.statusPending,
-              label: 'Minimum & Maximum Limits',
-              onTap: () => _open(const MethodSettingsListScreen(title: 'Withdrawal Limits', focus: MethodFocus.limits)),
+              label: tr('Minimum & Maximum Limits'),
+              onTap: () => _open(MethodSettingsListScreen(title: tr('Withdrawal Limits'), focus: MethodFocus.limits)),
+            ),
+            _NavRow(
+              icon: Icons.speed_rounded,
+              color: AppColors.purple,
+              label: tr('Customer Withdrawal Limits (KYC)'),
+              onTap: () => _open(const WithdrawLimitsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sim_card_rounded,
+              color: AppColors.statusCompleted,
+              label: tr('Customer Payment Numbers'),
+              onTap: () => _open(const PaymentNumbersScreen()),
+            ),
+            _NavRow(
+              icon: Icons.badge_rounded,
+              color: AppColors.statusProcessing,
+              label: tr('KYC Management'),
+              onTap: () => _open(const KycManagementScreen()),
+            ),
+            _NavRow(
+              icon: Icons.verified_user_rounded,
+              color: AppColors.statusFailed,
+              label: tr('Withdrawal Verification'),
+              onTap: () => _open(const WithdrawalVerificationScreen()),
+            ),
+            _NavRow(
+              icon: Icons.hourglass_top_rounded,
+              color: AppColors.statusPending,
+              label: tr('Unconfirmed Deposits'),
+              onTap: () => _open(const UnconfirmedDepositsScreen()),
             ),
             _NavRow(
               icon: Icons.phone_in_talk_rounded,
               color: AppColors.statusCompleted,
-              label: 'Manage Deposit Numbers',
+              label: tr('Manage Deposit Numbers'),
               onTap: () => _open(const ManageDepositNumbersScreen()),
             ),
             _NavRow(
               icon: Icons.hub_rounded,
               color: AppColors.statusProcessing,
-              label: 'Payment Integrations',
+              label: tr('Payment Integrations'),
               onTap: () => _open(const IntegrationsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.sports_soccer_rounded,
+              color: AppColors.accentOrange,
+              label: tr('Betting Platforms'),
+              onTap: () => _open(const BettingPlatformsScreen()),
             ),
             _NavRow(
               icon: Icons.storefront_rounded,
               color: AppColors.statusCompleted,
-              label: 'Sahal Merchant Sign-in',
+              label: tr('Sahal Merchant Sign-in'),
               onTap: () => _open(const MerchantFeedScreen()),
             ),
-            const _SubLabel('Automatic deposits & withdrawals'),
+            _SubLabel(tr('Automatic deposits & withdrawals')),
             _NavRow(
               icon: Icons.send_to_mobile_rounded,
               color: AppColors.purple,
-              label: 'Automatic Payouts',
+              label: tr('Automatic Payouts'),
               onTap: () => _open(const PayoutsScreen()),
             ),
             _NavRow(
               icon: Icons.sms_rounded,
               color: AppColors.statusPending,
-              label: 'Payment SMS Review',
+              label: tr('Payment SMS Review'),
               onTap: () => _open(const PaymentSmsReviewScreen()),
             ),
             _NavRow(
               icon: Icons.sim_card_rounded,
               color: AppColors.statusProcessing,
-              label: 'Wallets & Auto Payout (PIN, SIM)',
+              label: tr('Wallets & Auto Payout (PIN, SIM)'),
               onTap: () => _open(const PayoutSettingsScreen()),
             ),
-            const _SubLabel('Customer App'),
+            _SubLabel(tr('Customer App')),
             _NavRow(
               icon: Icons.campaign_rounded,
               color: AppColors.accentOrange,
-              label: 'Manage Home Ads',
+              label: tr('Manage Home Ads'),
               onTap: () => _open(const ManageHomeAdsScreen()),
             ),
             _NavRow(
               icon: Icons.notifications_active_rounded,
               color: AppColors.statusProcessing,
-              label: 'Send Notifications',
+              label: tr('Send Notifications'),
               onTap: () => _open(const SendNotificationScreen()),
             ),
             _NavRow(
               icon: Icons.card_giftcard_rounded,
               color: AppColors.accentOrange,
-              label: 'Promo Code',
+              label: tr('Promo Code'),
               onTap: () => _open(const PromoCodeScreen()),
+            ),
+            _NavRow(
+              icon: Icons.redeem_rounded,
+              color: AppColors.statusCompleted,
+              label: tr('Bonus'),
+              onTap: () => _open(const BonusSettingsScreen()),
+            ),
+            _NavRow(
+              icon: Icons.monitor_heart_rounded,
+              color: AppColors.statusCompleted,
+              label: tr('System Health'),
+              onTap: () => _open(const SystemHealthScreen()),
+            ),
+            _NavRow(
+              icon: Icons.schedule_send_rounded,
+              color: const Color(0xFF229ED9),
+              label: tr('Scheduled Messages'),
+              onTap: () => _open(const BroadcastScreen()),
+            ),
+            _NavRow(
+              icon: Icons.tips_and_updates_rounded,
+              color: AppColors.statusCompleted,
+              label: tr('TIPS Management'),
+              onTap: () => _open(const TipsManagementScreen()),
             ),
             _NavRow(
               icon: Icons.account_balance_wallet_rounded,
@@ -198,64 +281,64 @@ class _AccountScreenState extends State<AccountScreen> {
             _NavRow(
               icon: Icons.settings_rounded,
               color: AppColors.textSecondary,
-              label: 'Customer & App Settings',
+              label: tr('Customer & App Settings'),
               onTap: () => _open(AppSettingsScreen(contacts: account.contacts)),
             ),
             _NavRow(
               icon: Icons.send_rounded,
               color: const Color(0xFF229ED9),
-              label: 'Telegram Bot',
+              label: tr('Telegram Bot'),
               onTap: () => _open(const TelegramBotScreen()),
             ),
-            const _SubLabel('Team & system'),
+            _SubLabel(tr('Team & system')),
             _NavRow(
               icon: Icons.groups_rounded,
               color: AppColors.purple,
-              label: 'Agents',
+              label: tr('Agents'),
               onTap: () => _open(const AgentsScreen()),
             ),
             _NavRow(
               icon: Icons.receipt_long_rounded,
               color: AppColors.statusCompleted,
-              label: 'Wallet Transactions',
+              label: tr('Wallet Transactions'),
               onTap: () => _open(const AllWalletTransactionsScreen()),
             ),
             _NavRow(
               icon: Icons.fact_check_rounded,
               color: AppColors.textSecondary,
-              label: 'Audit Logs',
+              label: tr('Audit Logs'),
               onTap: () => _open(const AuditLogsScreen()),
             ),
           ],
 
-          const GroupLabel('Contact'),
+          GroupLabel(tr('Contact')),
           _NavRow(
             icon: Icons.chat_rounded,
             color: const Color(0xFF25D366),
-            label: 'WhatsApp',
+            label: tr('WhatsApp'),
             trailing: Icons.open_in_new_rounded,
             onTap: () => _openLink('WhatsApp', account.contacts.whatsapp),
           ),
           _NavRow(
             icon: Icons.facebook_rounded,
             color: const Color(0xFF1877F2),
-            label: 'Facebook',
+            label: tr('Facebook'),
             trailing: Icons.open_in_new_rounded,
             onTap: () => _openLink('Facebook', account.contacts.facebook),
           ),
           _NavRow(
             icon: Icons.send_rounded,
             color: const Color(0xFF229ED9),
-            label: 'Telegram',
+            label: tr('Telegram'),
             trailing: Icons.open_in_new_rounded,
             onTap: () => _openLink('Telegram', account.contacts.telegram),
           ),
 
-          const GroupLabel('Security'),
+          GroupLabel(tr('Security')),
           _NavRow(
             icon: Icons.lock_rounded,
             color: AppColors.purple,
-            label: 'Change Password',
+            label: tr('Change Password'),
             onTap: () => _open(const ChangePasswordScreen()),
           ),
           const SizedBox(height: 4),
@@ -269,7 +352,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.logout_rounded, color: AppColors.statusFailed),
                 const SizedBox(width: 14),
-                const Text('Logout', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.statusFailed)),
+                const Tx('Logout', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.statusFailed)),
               ],
             ),
           ),
@@ -294,14 +377,14 @@ class _ProfileCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                Tx(
                   account.name,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
-                Text(
+                Tx(
                   account.email ?? account.phone ?? '—',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -312,7 +395,7 @@ class _ProfileCard extends StatelessWidget {
                         color: AppColors.lightGold,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
+                      child: const Tx(
                         'Agent',
                         style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.purpleDark),
                       ),
@@ -356,7 +439,7 @@ class _NavRow extends StatelessWidget {
           children: [
             TintedIcon(icon: icon, color: color, size: 36),
             const SizedBox(width: 14),
-            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
+            Expanded(child: Tx(label, style: const TextStyle(fontWeight: FontWeight.w700))),
             Icon(trailing, color: AppColors.textFaint, size: 20),
           ],
         ),
@@ -370,13 +453,13 @@ class _LockedNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ConsoleCard(
+    return ConsoleCard(
       child: Row(
         children: [
           Icon(Icons.lock_outline_rounded, color: AppColors.textFaint),
           SizedBox(width: 12),
           Expanded(
-            child: Text(
+            child: Tx(
               'Your account does not have access to these settings. Ask an admin to grant the '
               '"manage_settings" responsibility.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
@@ -396,7 +479,7 @@ class _SubLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-      child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.purple)),
+      child: Tx(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.purple)),
     );
   }
 }

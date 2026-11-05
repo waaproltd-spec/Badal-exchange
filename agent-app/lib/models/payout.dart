@@ -115,8 +115,9 @@ class PayoutAttempt {
       );
 }
 
-/// Result of agent_payout_start_dial. [pin] is present only for a new
-/// attempt; an unfinished earlier attempt comes back without it.
+/// Result of agent_payout_start_dial. [pin] (and, for EVC's *736, [code])
+/// is present only for a new attempt; an unfinished earlier attempt comes
+/// back without it.
 class PayoutDialStart {
   final String attemptId;
   final String ussd;
@@ -124,7 +125,14 @@ class PayoutDialStart {
   final bool isNew;
   final String? pin;
 
-  const PayoutDialStart({required this.attemptId, required this.ussd, required this.simSlot, required this.isNew, this.pin});
+  /// Fills the {CODE} placeholder of EVC's *736*number*amount*{CODE}#.
+  final String? code;
+
+  const PayoutDialStart(
+      {required this.attemptId, required this.ussd, required this.simSlot, required this.isNew, this.pin, this.code});
+
+  /// What the phone dials: the server's string with the *736 code filled in.
+  String get dialString => code == null ? ussd : ussd.replaceAll('{CODE}', code!);
 
   factory PayoutDialStart.fromJson(Map<String, dynamic> j) => PayoutDialStart(
         attemptId: j['id'] as String,
@@ -132,6 +140,7 @@ class PayoutDialStart {
         simSlot: j['simSlot'] as int? ?? 1,
         isNew: j['isNew'] as bool? ?? false,
         pin: j['pin'] as String?,
+        code: j['code'] as String?,
       );
 }
 
@@ -144,6 +153,9 @@ class PayoutWallet {
   final int? simSlot;
   final bool hasPin;
 
+  /// The *736 code of an EVC Plus wallet is set.
+  final bool hasCode;
+
   /// This is the wallet the method's withdrawals are paid from.
   final bool paysWithdrawals;
 
@@ -154,6 +166,7 @@ class PayoutWallet {
     this.deviceId,
     this.simSlot,
     required this.hasPin,
+    this.hasCode = false,
     this.paysWithdrawals = false,
   });
 
@@ -166,6 +179,7 @@ class PayoutWallet {
         deviceId: j['deviceId'] as String?,
         simSlot: j['simSlot'] as int?,
         hasPin: j['hasPin'] as bool? ?? false,
+        hasCode: j['hasCode'] as bool? ?? false,
         paysWithdrawals: j['paysWithdrawals'] as bool? ?? false,
       );
 }
@@ -279,4 +293,102 @@ class PaymentSmsLog {
         orderCode: j['orderCode'] as String?,
         reason: j['reason'] as String?,
       );
+}
+
+/// Golis / ZAAD / EVC Plus withdrawals sent automatically from Sahal (manage_sahal_payouts).
+class SahalPayoutSettings {
+  /// off | test | live
+  final String mode;
+  final String dailyLimit;
+  final String testAmount;
+  final String paidToday;
+  final bool testPassed;
+  final int waiting;
+
+  /// Transfers with no clear answer from Sahal: check them in Sahal.
+  final int unclear;
+  final List<SahalPayoutAttempt> recent;
+
+  /// Sahal's balance when last read before a transfer; null when never read.
+  final String? balance;
+  final DateTime? balanceSeenAt;
+
+  /// Withdrawals waiting because Sahal's balance is too low.
+  final int needsBalance;
+
+  const SahalPayoutSettings({
+    required this.mode,
+    required this.dailyLimit,
+    required this.testAmount,
+    required this.paidToday,
+    required this.testPassed,
+    required this.waiting,
+    required this.unclear,
+    required this.recent,
+    this.balance,
+    this.balanceSeenAt,
+    this.needsBalance = 0,
+  });
+
+  factory SahalPayoutSettings.fromJson(Map<String, dynamic> j) => SahalPayoutSettings(
+        mode: j['mode'] as String? ?? 'off',
+        dailyLimit: j['dailyLimit'] as String? ?? '0.00',
+        testAmount: j['testAmount'] as String? ?? '0.10',
+        paidToday: j['paidToday'] as String? ?? '0.00',
+        testPassed: j['testPassed'] as bool? ?? false,
+        waiting: (j['waiting'] as num?)?.toInt() ?? 0,
+        unclear: (j['unclear'] as num?)?.toInt() ?? 0,
+        recent: ((j['recent'] as List?) ?? const [])
+            .map((e) => SahalPayoutAttempt.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        balance: j['balance'] as String?,
+        balanceSeenAt: DateTime.tryParse(j['balanceSeenAt'] as String? ?? '')?.toLocal(),
+        needsBalance: (j['needsBalance'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class SahalPayoutAttempt {
+  final String? orderId;
+  final String orderCode;
+
+  /// The withdrawal's own status (pending, processing, completed, ...).
+  final String? orderStatus;
+
+  /// pending | success | failed | ambiguous
+  final String status;
+  final String receiver;
+  final String? receiverName;
+  final String amount;
+  final String? transferId;
+  final String? reply;
+  final DateTime? createdAt;
+
+  const SahalPayoutAttempt({
+    this.orderId,
+    required this.orderCode,
+    this.orderStatus,
+    required this.status,
+    required this.receiver,
+    this.receiverName,
+    required this.amount,
+    this.transferId,
+    this.reply,
+    this.createdAt,
+  });
+
+  factory SahalPayoutAttempt.fromJson(Map<String, dynamic> j) => SahalPayoutAttempt(
+        orderId: j['orderId'] as String?,
+        orderCode: j['orderCode'] as String? ?? '',
+        orderStatus: j['orderStatus'] as String?,
+        status: j['status'] as String? ?? '',
+        receiver: j['receiver'] as String? ?? '',
+        receiverName: j['receiverName'] as String?,
+        amount: j['amount'] as String? ?? '',
+        transferId: j['transferId'] as String?,
+        reply: j['reply'] as String?,
+        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '')?.toLocal(),
+      );
+
+  /// Refused (nothing was sent) and the withdrawal still waits: it may go again.
+  bool get canRetry => status == 'failed' && orderStatus == 'pending' && orderId != null;
 }

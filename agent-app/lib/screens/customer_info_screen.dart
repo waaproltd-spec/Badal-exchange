@@ -3,15 +3,18 @@ import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
 import '../models/console.dart';
+import '../models/customer_block.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
+import '../widgets/customer_bonus_card.dart';
 import '../widgets/state_views.dart';
 import '../l10n/wallet_strings.dart';
 import '../models/wallet_adjustment.dart';
 import 'admin/system_screens.dart';
 import 'wallet/wallet_adjust_screen.dart';
 import 'wallet/wallet_history_screen.dart';
+import '../l10n/tr.dart';
 
 /// One customer: profile, wallet, totals, recent orders and recent wallet
 /// transactions. The only change made here is a password reset, for
@@ -20,7 +23,8 @@ class CustomerInfoScreen extends StatefulWidget {
   final String customerId;
   final String name;
 
-  const CustomerInfoScreen({super.key, required this.customerId, required this.name});
+  const CustomerInfoScreen(
+      {super.key, required this.customerId, required this.name});
 
   @override
   State<CustomerInfoScreen> createState() => _CustomerInfoScreenState();
@@ -29,6 +33,10 @@ class CustomerInfoScreen extends StatefulWidget {
 class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   CustomerDetail? _detail;
   String? _error;
+
+  /// Managers only (the server refuses everyone else): blocked or not, why, and the history.
+  CustomerBlockInfo? _block;
+  bool _blocking = false;
 
   @override
   void initState() {
@@ -39,10 +47,24 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   Future<void> _load() async {
     setState(() => _error = null);
     try {
-      final detail = await context.read<Session>().api.getCustomer(widget.customerId);
-      if (mounted) setState(() => _detail = detail);
+      final api = context.read<Session>().api;
+      final detail = await api.getCustomer(widget.customerId);
+      CustomerBlockInfo? block;
+      try {
+        block = await api.getCustomerBlockInfo(widget.customerId);
+      } catch (_) {
+        block = null; // not a manager: no Block button
+      }
+      if (mounted) {
+        setState(() {
+          _detail = detail;
+          _block = block;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Failed to load customer.');
+      if (mounted)
+        setState(() => _error =
+            e is ApiException ? e.message : tr('Failed to load customer.'));
     }
   }
 
@@ -54,23 +76,70 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     if (password == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await context.read<Session>().api.resetCustomerPassword(widget.customerId, password);
-      messenger.showSnackBar(const SnackBar(content: Text('Password reset. Tell the customer their new password.')));
+      await context
+          .read<Session>()
+          .api
+          .resetCustomerPassword(widget.customerId, password);
+      messenger.showSnackBar(const SnackBar(
+          content:
+              Tx('Password reset. Tell the customer their new password.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Could not reset the password.')));
+      messenger.showSnackBar(SnackBar(
+          content: Tx(e is ApiException
+              ? e.message
+              : tr('Could not reset the password.'))));
+    }
+  }
+
+  /// Asks first (and for the reason when blocking), then blocks or unblocks.
+  Future<void> _toggleBlock(CustomerSummary c) async {
+    final block = !(_block?.blocked ?? !c.isActive);
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => _BlockDialog(name: c.name, phone: c.phone, block: block),
+    );
+    if (reason == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _blocking = true);
+    try {
+      final info = await context.read<Session>().api.setCustomerBlocked(c.id,
+          blocked: block, reason: reason.isEmpty ? null : reason);
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+          content:
+              Tx(block ? tr('Customer blocked.') : tr('Customer unblocked.'))));
+      setState(() => _block = info);
+      _load();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Tx(e is ApiException
+              ? e.message
+              : tr('Could not change the customer.'))));
+    } finally {
+      if (mounted) setState(() => _blocking = false);
     }
   }
 
   Future<void> _adjust(CustomerSummary c, bool add) async {
-    final done = await Navigator.of(context).push<WalletAdjustment>(MaterialPageRoute(
-      builder: (_) => WalletAdjustScreen(customerId: c.id, name: c.name, phone: c.phone, balance: c.walletBalance, add: add),
+    final done =
+        await Navigator.of(context).push<WalletAdjustment>(MaterialPageRoute(
+      builder: (_) => WalletAdjustScreen(
+          customerId: c.id,
+          name: c.name,
+          phone: c.phone,
+          balance: c.walletBalance,
+          add: add),
     ));
     if (done != null && mounted) _load();
   }
 
   void _openHistory(CustomerSummary c) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => WalletHistoryScreen(customerId: c.id, name: c.name, phone: c.phone, balance: c.walletBalance),
+      builder: (_) => WalletHistoryScreen(
+          customerId: c.id,
+          name: c.name,
+          phone: c.phone,
+          balance: c.walletBalance),
     ));
   }
 
@@ -78,24 +147,27 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customer Info'),
+        title: const Tx('Customer Info'),
         actions: [
           IconButton(
             key: const Key('wallet-history'),
             tooltip: WalletStrings.walletHistory,
             icon: const Icon(Icons.manage_history_rounded),
-            onPressed: _detail == null ? null : () => _openHistory(_detail!.summary),
+            onPressed:
+                _detail == null ? null : () => _openHistory(_detail!.summary),
           ),
           IconButton(
             key: const Key('reset-customer-password'),
-            tooltip: 'Reset password',
+            tooltip: tr('Reset password'),
             icon: const Icon(Icons.lock_reset_rounded),
             onPressed: _detail == null ? null : _resetPassword,
           ),
         ],
       ),
       body: _detail == null
-          ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
+          ? (_error != null
+              ? ErrorStateView(message: _error!, onRetry: _load)
+              : const LoadingView())
           : RefreshIndicator(onRefresh: _load, child: _body(_detail!)),
     );
   }
@@ -108,18 +180,25 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         ConsoleCard(
           child: Row(
             children: [
-              const TintedIcon(icon: Icons.person_rounded, color: AppColors.purple, size: 56),
+              const TintedIcon(
+                  icon: Icons.person_rounded,
+                  color: AppColors.purple,
+                  size: 56),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    Tx(
                       c.name,
-                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                      style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: 2),
-                    SelectableText(c.phone, style: const TextStyle(color: AppColors.textSecondary)),
+                    SelectableText(c.phone,
+                        style: TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 6),
                     StatusPill(c.status),
                   ],
@@ -132,21 +211,30 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         ConsoleCard(
           child: Row(
             children: [
-              const TintedIcon(icon: Icons.account_balance_wallet_rounded, color: AppColors.purple, size: 44),
+              const TintedIcon(
+                  icon: Icons.account_balance_wallet_rounded,
+                  color: AppColors.purple,
+                  size: 44),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Wallet Balance', style: TextStyle(color: AppColors.textSecondary)),
+                    Tx('Wallet Balance',
+                        style: TextStyle(color: AppColors.textSecondary)),
                     Text(
                       '\$${c.walletBalance}',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                      style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary),
                     ),
                     if (d.pendingBalance != '0.00')
                       Text(
-                        '\$${d.pendingBalance} held for pending withdrawals',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                        trp('\${0} held for pending withdrawals',
+                            [d.pendingBalance]),
+                        style:
+                            TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                   ],
                 ),
@@ -179,40 +267,73 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ],
         ),
         const SizedBox(height: 12),
+        CustomerBonusCard(api: context.read<Session>().api, customerId: c.id),
         TwoColumnGrid(children: [
-          StatCard(icon: Icons.shopping_bag_rounded, color: AppColors.purple, value: '${d.totalOrders}', label: 'Total Orders'),
-          StatCard(icon: Icons.south_rounded, color: AppColors.statusCompleted, value: '\$${d.totalDeposits}', label: 'Total Deposits'),
-          StatCard(icon: Icons.north_rounded, color: AppColors.accentOrange, value: '\$${d.totalWithdrawals}', label: 'Total Withdrawals'),
-          StatCard(icon: Icons.list_alt_rounded, color: AppColors.statusProcessing, value: '${d.totalTransactions}', label: 'Total Transactions'),
+          StatCard(
+              icon: Icons.shopping_bag_rounded,
+              color: AppColors.purple,
+              value: '${d.totalOrders}',
+              label: tr('Total Orders')),
+          StatCard(
+              icon: Icons.south_rounded,
+              color: AppColors.statusCompleted,
+              value: '\$${d.totalDeposits}',
+              label: tr('Total Deposits')),
+          StatCard(
+              icon: Icons.north_rounded,
+              color: AppColors.accentOrange,
+              value: '\$${d.totalWithdrawals}',
+              label: tr('Total Withdrawals')),
+          StatCard(
+              icon: Icons.list_alt_rounded,
+              color: AppColors.statusProcessing,
+              value: '${d.totalTransactions}',
+              label: tr('Total Transactions')),
         ]),
         const SizedBox(height: 12),
         ConsoleCard(
           child: Column(
             children: [
-              InfoRow('Registration date', c.registeredAt != null ? formatDate(c.registeredAt!) : '—'),
-              InfoRow('Account status', c.isActive ? 'Active' : 'Blocked'),
+              InfoRow(tr('Registration date'),
+                  c.registeredAt != null ? formatDate(c.registeredAt!) : '—'),
+              InfoRow(tr('Account status'),
+                  c.isActive ? tr('Active') : tr('Blocked')),
             ],
           ),
         ),
+        if (_block != null) ...[
+          const SizedBox(height: 12),
+          _BlockSection(
+              info: _block!, busy: _blocking, onToggle: () => _toggleBlock(c)),
+        ],
         const SizedBox(height: 8),
-        const SectionHeader(title: 'Recent Orders'),
+        SectionHeader(title: tr('Recent Orders')),
         if (d.recentOrders.isEmpty)
-          const ConsoleCard(child: Text('No orders yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(
+              child: Tx('No orders yet.',
+                  style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final o in d.recentOrders) ...[
-            ActivityTile(item: o, showCustomer: false, onTap: () => showActivityDetails(context, o)),
+            ActivityTile(
+                item: o,
+                showCustomer: false,
+                onTap: () => showActivityDetails(context, o)),
             const SizedBox(height: 8),
           ],
         const SizedBox(height: 8),
         SectionHeader(
-          title: 'Recent Transactions',
-          actionLabel: 'View all',
+          title: tr('Recent Transactions'),
+          actionLabel: tr('View all'),
           onAction: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => CustomerLedgerScreen(customerId: c.id, name: c.name)),
+            MaterialPageRoute(
+                builder: (_) =>
+                    CustomerLedgerScreen(customerId: c.id, name: c.name)),
           ),
         ),
         if (d.recentTransactions.isEmpty)
-          const ConsoleCard(child: Text('No wallet transactions yet.', style: TextStyle(color: AppColors.textSecondary)))
+          ConsoleCard(
+              child: Tx('No wallet transactions yet.',
+                  style: TextStyle(color: AppColors.textSecondary)))
         else
           for (final t in d.recentTransactions) ...[
             _LedgerTile(entry: t),
@@ -230,11 +351,33 @@ class _LedgerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // credit adds to the balance; debit/reserve take from it; release returns it.
-    final (String label, IconData icon, Color color, String sign) = switch (entry.type) {
-      'credit' => ('Deposit', Icons.south_rounded, AppColors.statusCompleted, '+'),
-      'release' => ('Released', Icons.undo_rounded, AppColors.statusCompleted, '+'),
-      'reserve' => ('Held for withdrawal', Icons.lock_clock_rounded, AppColors.statusPending, '-'),
-      _ => ('Withdrawal', Icons.north_rounded, AppColors.accentOrange, '-'),
+    final (String label, IconData icon, Color color, String sign) =
+        switch (entry.type) {
+      'credit' when entry.description == 'Bonus moved to main wallet' => (
+          tr('Bonus moved in'),
+          Icons.redeem_rounded,
+          AppColors.statusCompleted,
+          '+'
+        ),
+      'credit' => (
+          tr('Deposit'),
+          Icons.south_rounded,
+          AppColors.statusCompleted,
+          '+'
+        ),
+      'release' => (
+          tr('Released'),
+          Icons.undo_rounded,
+          AppColors.statusCompleted,
+          '+'
+        ),
+      'reserve' => (
+          tr('Held for withdrawal'),
+          Icons.lock_clock_rounded,
+          AppColors.statusPending,
+          '-'
+        ),
+      _ => (tr('Withdrawal'), Icons.north_rounded, AppColors.accentOrange, '-'),
     };
     return ConsoleCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -246,10 +389,14 @@ class _LedgerTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                Text(
+                Tx(label,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+                Tx(
                   formatDateTime(entry.createdAt),
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -257,8 +404,10 @@ class _LedgerTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('$sign\$${entry.amount}', style: TextStyle(fontWeight: FontWeight.w800, color: color)),
-              Text('Bal. \$${entry.balanceAfter}', style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+              Text('$sign\$${entry.amount}',
+                  style: TextStyle(fontWeight: FontWeight.w800, color: color)),
+              Text(trp('Bal. \${0}', [entry.balanceAfter]),
+                  style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
             ],
           ),
         ],
@@ -292,42 +441,48 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Reset password'),
+      title: const Tx('Reset password'),
       content: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Only do this when ${widget.name} asked for it from their registered number. '
-              'They are signed out everywhere.',
-              style: const TextStyle(color: AppColors.textSecondary),
+              trp('Only do this when {0} asked for it from their registered number. They are signed out everywhere.',
+                  [widget.name]),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             TextFormField(
               key: const Key('new-password'),
               controller: _password,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'New password'),
-              validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+              decoration: InputDecoration(labelText: tr('New password')),
+              validator: (v) =>
+                  (v ?? '').length < 8 ? tr('At least 8 characters') : null,
             ),
             TextFormField(
               key: const Key('confirm-new-password'),
               controller: _confirm,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm new password'),
-              validator: (v) => v != _password.text ? 'Passwords do not match' : null,
+              decoration:
+                  InputDecoration(labelText: tr('Confirm new password')),
+              validator: (v) =>
+                  v != _password.text ? tr('Passwords do not match') : null,
             ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Tx('Cancel')),
         FilledButton(
           onPressed: () {
-            if (_formKey.currentState!.validate()) Navigator.of(context).pop(_password.text);
+            if (_formKey.currentState!.validate())
+              Navigator.of(context).pop(_password.text);
           },
-          child: const Text('Reset'),
+          child: const Tx('Reset'),
         ),
       ],
     );
@@ -341,7 +496,12 @@ class _WalletButton extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
 
-  const _WalletButton({super.key, required this.color, required this.icon, required this.title, required this.onTap});
+  const _WalletButton(
+      {super.key,
+      required this.color,
+      required this.icon,
+      required this.title,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +517,8 @@ class _WalletButton extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                    color: Colors.white, shape: BoxShape.circle),
                 child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(width: 10),
@@ -365,9 +526,286 @@ class _WalletButton extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                  child: Tx(title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16)),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Block / Unblock button, why the customer is blocked, and the history of blocks.
+class _BlockSection extends StatelessWidget {
+  const _BlockSection(
+      {required this.info, required this.busy, required this.onToggle});
+
+  final CustomerBlockInfo info;
+  final bool busy;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final blocked = info.blocked;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (blocked)
+          ConsoleCard(
+            key: const Key('block-notice'),
+            color: AppColors.statusFailed.withOpacity(0.06),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.block_rounded, color: AppColors.statusFailed),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Tx('This customer is blocked',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.statusFailed)),
+                      if ((info.reason ?? '').isNotEmpty)
+                        Text(info.reason!, key: const Key('block-reason')),
+                      if (info.blockedAt != null)
+                        Text(formatDateTime(info.blockedAt!),
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.textFaint)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (blocked) const SizedBox(height: 10),
+        blocked
+            ? FilledButton.icon(
+                key: const Key('unblock-customer'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: AppColors.statusCompleted,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: busy ? null : onToggle,
+                icon: busy
+                    ? const _ButtonSpinner()
+                    : const Icon(Icons.lock_open_rounded),
+                label: const Tx('Unblock Customer',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+              )
+            : OutlinedButton.icon(
+                key: const Key('block-customer'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: AppColors.statusFailed.withOpacity(0.08),
+                  foregroundColor: AppColors.statusFailed,
+                  side: const BorderSide(
+                      color: AppColors.statusFailed, width: 1.4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: busy ? null : onToggle,
+                icon: busy
+                    ? const _ButtonSpinner()
+                    : const Icon(Icons.lock_rounded),
+                label: const Tx('Block Customer',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+        if (info.history.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SectionHeader(title: tr('Block history')),
+          for (final (i, h) in info.history.indexed) ...[
+            ConsoleCard(
+              key: Key('block-history-entry-$i'),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TintedIcon(
+                    icon: h.isBlock
+                        ? Icons.block_rounded
+                        : Icons.lock_open_rounded,
+                    color: h.isBlock
+                        ? AppColors.statusFailed
+                        : AppColors.statusCompleted,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Tx(h.isBlock ? 'Blocked' : 'Unblocked',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w800)),
+                        if ((h.reason ?? '').isNotEmpty) Text(h.reason!),
+                        Text(
+                          [
+                            if ((h.by ?? '').isNotEmpty) trp('By {0}', [h.by!]),
+                            if (h.at != null) formatDateTime(h.at!),
+                          ].join(' • '),
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+/// A small spinner in the colour of the button it is in.
+class _ButtonSpinner extends StatelessWidget {
+  const _ButtonSpinner();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+      key: Key('block-busy'),
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2.4));
+}
+
+/// Confirms a block or an unblock: the customer's name and number, an optional reason, Cancel and the
+/// action. Pops with the reason (empty when none was typed), or null when cancelled.
+class _BlockDialog extends StatefulWidget {
+  const _BlockDialog(
+      {required this.name, required this.phone, required this.block});
+
+  final String name;
+  final String phone;
+  final bool block;
+
+  @override
+  State<_BlockDialog> createState() => _BlockDialogState();
+}
+
+class _BlockDialogState extends State<_BlockDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final block = widget.block;
+    final color = block ? AppColors.statusFailed : AppColors.statusCompleted;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      icon: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+            color: color.withOpacity(0.14), shape: BoxShape.circle),
+        child: Icon(block ? Icons.lock_rounded : Icons.lock_open_rounded,
+            color: color, size: 28),
+      ),
+      title: Tx(block ? 'Block this customer?' : 'Unblock this customer?',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w900)),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text.rich(
+                key: const Key('block-who'),
+                textAlign: TextAlign.center,
+                TextSpan(children: [
+                  TextSpan(
+                      text: tr(block
+                          ? 'Are you sure you want to block'
+                          : 'Are you sure you want to unblock')),
+                  const TextSpan(text: '\n'),
+                  TextSpan(
+                      text: widget.name,
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                  TextSpan(
+                      text: ' (${widget.phone})?',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                ]),
+                style: TextStyle(color: AppColors.textSecondary, height: 1.35),
+              ),
+              if (block)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Tx(
+                    'They are signed out everywhere and can not log in or use any service until you unblock them. Their balance and history are not touched.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: AppColors.textFaint),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              TextField(
+                key: const Key('block-reason-field'),
+                controller: _reason,
+                maxLength: 300,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: tr('Reason (Optional)'),
+                  hintText: block
+                      ? tr('e.g. Suspected abuse, Invalid activity')
+                      : null,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const Key('block-cancel'),
+                    style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14))),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Tx('Cancel',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    key: const Key('block-confirm'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: color,
+                      foregroundColor: AppColors.onPrimary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_reason.text.trim()),
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Tx(block ? 'Block Customer' : 'Unblock Customer',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w800))),
+                  ),
+                ),
+              ]),
             ],
           ),
         ),

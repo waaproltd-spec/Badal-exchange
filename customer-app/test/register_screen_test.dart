@@ -151,6 +151,47 @@ void main() {
     expect(_auth.calls, isEmpty);
   });
 
+  testWidgets('the five approved prefixes (61, 77, 90, 63, 62) are accepted and sent as 252 + 9 digits', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(_app(const RegisterScreen()));
+    // The backend refuses (so the form stays): here only what the app lets through is looked at.
+    _auth.result = () async => throw const ApiException(status: 409, code: 'PHONE_TAKEN', message: 'taken');
+    for (final prefix in ['61', '77', '90', '63', '62']) {
+      await _fill(tester, phone: '${prefix}2345678');
+      await _tapSubmit(tester);
+      await tester.pumpAndSettle();
+      expect(find.text(AppStrings.phonePrefixes), findsNothing, reason: prefix);
+      expect(_auth.calls.last['phone'], '252${prefix}2345678', reason: prefix);
+    }
+    expect(_auth.calls, hasLength(5));
+  });
+
+  testWidgets('any other prefix is refused before sending, saying which are accepted', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(_app(const RegisterScreen()));
+    for (final prefix in ['60', '64', '65', '66', '67', '68', '69', '70', '71', '76', '78', '91', '99', '12']) {
+      await _fill(tester, phone: '${prefix}2345678');
+      await _tapSubmit(tester);
+      await tester.pump();
+      expect(find.text('Phone number must start with 61 or 77 (EVC Plus), 90 (Golis), 63 (ZAAD) or 62 (eDahab)'),
+          findsOneWidget,
+          reason: prefix);
+    }
+    expect(_auth.calls, isEmpty);
+  });
+
+  testWidgets('the refusal is in Somali too', (tester) async {
+    await _phone(tester);
+    AppLanguage.current.value = AppLanguage.somali;
+    await tester.pumpWidget(_app(const RegisterScreen()));
+    await _fill(tester, phone: '712345678');
+    await _tapSubmit(tester);
+    await tester.pump();
+    expect(find.text('Lambarka taleefanku waa inuu ku bilowdaa 61 ama 77 (EVC Plus), 90 (Golis), 63 (ZAAD) ama 62 (eDahab)'),
+        findsOneWidget);
+    expect(_auth.calls, isEmpty);
+  });
+
   testWidgets('both password fields have their own show/hide eye, hidden by default', (tester) async {
     await _phone(tester);
     await tester.pumpWidget(_app(const RegisterScreen()));

@@ -23,6 +23,7 @@ class Order {
     this.amountPending = false,
     this.balanceBefore,
     this.balanceAfter,
+    this.delay,
   });
 
   final String id;
@@ -51,6 +52,58 @@ class Order {
   final String? balanceBefore;
   final String? balanceAfter;
 
+  /// Why a withdrawal still waits after 30 seconds (provider_unavailable,
+  /// provider_balance, confirming, manual, waiting); null when it is not late.
+  final String? delay;
+
+  /// The server has given its last word: completed, or a definitive failure
+  /// (failed, cancelled, expired). Anything else -- pending, processing, or a
+  /// status this app does not know -- is still being verified: the customer is
+  /// never shown "Pending", and is never told "Failed" without the server's say.
+  bool get isFinal => const {'completed', 'failed', 'cancelled', 'expired'}.contains(status);
+  bool get isFailedFinal => const {'failed', 'cancelled', 'expired'}.contains(status);
+
+  /// How long a mobile-money deposit may wait for its payment before the
+  /// customer is told it failed. Only what is shown: the server still
+  /// credits a payment that arrives later, and the order then reads
+  /// Completed.
+  static const unpaidAfter = Duration(seconds: 30);
+
+  /// The clock for [shown]; replaced in tests.
+  static DateTime Function() clock = DateTime.now;
+
+  /// This order as the customer sees it. A mobile-money deposit still
+  /// unpaid [unpaidAfter] (30 seconds) after it was made reads Failed ("no payment
+  /// received") instead of waiting; everything else is as the server says.
+  /// [isFinal] stays the server's word, so the app keeps asking and a late
+  /// payment turns it into Completed.
+  Order get shown {
+    if (isFinal || !isDeposit || methodInfo.isPlatform) return this;
+    if (clock().difference(createdAt) < unpaidAfter) return this;
+    return Order(
+      id: id,
+      orderCode: orderCode,
+      direction: direction,
+      method: method,
+      status: 'failed',
+      statusMessage: statusMessage,
+      phoneNumber: phoneNumber,
+      accountId: accountId,
+      depositCode: depositCode,
+      amount: amount,
+      fee: fee,
+      netAmount: netAmount,
+      transactionRef: transactionRef,
+      failureReason: 'No payment received in time',
+      createdAt: createdAt,
+      completedAt: completedAt,
+      amountPending: amountPending,
+      balanceBefore: balanceBefore,
+      balanceAfter: balanceAfter,
+      delay: delay,
+    );
+  }
+
   bool get isDeposit => direction == 'deposit';
   pm.PaymentMethodInfo get methodInfo => pm.methodInfo(method);
   String get methodLabel => methodInfo.label;
@@ -78,6 +131,7 @@ class Order {
       amountPending: json['amountPending'] as bool? ?? false,
       balanceBefore: json['balanceBefore'] as String?,
       balanceAfter: json['balanceAfter'] as String?,
+      delay: json['delay'] as String?,
     );
   }
 }

@@ -1,3 +1,4 @@
+import '../../widgets/network_problem_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -60,6 +61,12 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
           const SizedBox(height: 160),
           Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
+      );
+    }
+    if (state.networkProblem && state.orders.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 20),
+        children: [NetworkProblemView(onRetry: () => context.read<OrdersProvider>().load())],
       );
     }
     if (state.error != null && state.orders.isEmpty) {
@@ -144,13 +151,17 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // What the customer sees (an unpaid deposit reads Failed after 30 seconds);
+    // the details sheet gets the server's order and keeps it up to date.
+    final real = this.order;
+    final order = real.shown;
     final isDeposit = order.isDeposit;
     final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-      onTap: () => showTransactionDetails(context, order),
+      onTap: () => showTransactionDetails(context, real),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -175,6 +186,7 @@ class _OrderTile extends StatelessWidget {
                     Formatters.dateTime(order.createdAt),
                     style: AppTextStyles.muted.copyWith(fontSize: 12),
                   ),
+                  if (!order.isFinal) ...[const SizedBox(height: 4), const VerifyingNote()],
                 ],
               ),
             ),
@@ -189,7 +201,7 @@ class _OrderTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                StatusBadge(status: order.status),
+                OrderStatusSlot(order: order),
               ],
             ),
           ],

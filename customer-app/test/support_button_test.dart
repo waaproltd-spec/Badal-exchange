@@ -162,7 +162,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('support-telegram')));
     await tester.pumpAndSettle();
-    expect(_launcher.opened.last, 'https://t.me/BaariSupport externalApplication');
+    expect(_launcher.opened.last, 'https://t.me/Badalaisupportbot externalApplication');
   });
 
   testWidgets('when it can not be opened, the customer is told where to reach support', (tester) async {
@@ -175,7 +175,7 @@ void main() {
     expect(find.text('Could not open WhatsApp. Contact us at https://wa.me/252612345678'), findsOneWidget);
   });
 
-  testWidgets('only what admins set is offered; nothing set: no made-up links', (tester) async {
+  testWidgets('WhatsApp is what admins set; Telegram is always the support bot; nothing at all if the contacts did not load', (tester) async {
     await _open(tester, contacts: {'whatsapp': '', 'telegram': '@BaariSupport'});
     await tester.tap(find.byKey(const Key('support-button')));
     await tester.pumpAndSettle();
@@ -187,8 +187,7 @@ void main() {
     await tester.tap(find.byKey(const Key('support-button')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('support-whatsapp')), findsNothing);
-    expect(find.byKey(const Key('support-telegram')), findsNothing);
-    expect(find.text('Support chat is not set up yet. Please try again later.'), findsOneWidget);
+    expect(find.byKey(const Key('support-telegram')), findsOneWidget, reason: 'the support bot, whatever the admins set');
 
     await tester.pumpWidget(const SizedBox());
     await _open(tester, contacts: null); // request failed
@@ -205,7 +204,7 @@ void main() {
         AppLanguage.current.value = somali ? AppLanguage.somali : AppLanguage.english;
         await _open(tester, size: size);
         final button = tester.getRect(find.byKey(const Key('support-button')));
-        final nav = tester.getRect(find.byType(NavigationBar));
+        final nav = tester.getRect(find.byKey(const Key('floating-nav')));
         expect(button.bottom, lessThanOrEqualTo(nav.top));
         expect(button.right, lessThanOrEqualTo(size.width - 16));
         // Scrolled to the end, the last order ends above the button.

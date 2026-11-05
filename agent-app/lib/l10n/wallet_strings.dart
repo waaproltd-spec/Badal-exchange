@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'language.dart';
 
 /// Strings of the wallet Add Money / Deduct Money screens, in Somali when the
 /// phone is set to Somali and English otherwise.
@@ -8,7 +8,7 @@ class WalletStrings {
   /// Overridable in tests; defaults to the phone's language.
   static bool? somaliOverride;
 
-  static bool get isSomali => somaliOverride ?? PlatformDispatcher.instance.locale.languageCode == 'so';
+  static bool get isSomali => somaliOverride ?? AppLanguage.isSomali;
 
   static String _t(String en, String so) => isSomali ? so : en;
 

@@ -22,11 +22,13 @@
 import {
   ApiError,
   type Brand,
+  brandFor,
   brandForMethod,
   depositToPlayer,
   findPlayer,
-  getCredentials,
+  credentialsFor,
   payoutToPlayer,
+  recordOrderAccount,
 } from '../_shared/cashdeskbot.ts';
 import { refreshCompanyBalances } from '../_shared/company_balances.ts';
 
@@ -77,14 +79,17 @@ const registerShort = (message: string | null) =>
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
 async function run(job: Job): Promise<Outcome> {
-  const brand = brandForMethod(job.method);
+  const brand = await brandFor(job.method);
   if (!brand) return { outcome: 'not_sent', message: `No cash register for ${job.method}` };
   let c;
   try {
-    c = getCredentials(brand);
+    c = await credentialsFor(brand);
   } catch (err) {
     return { outcome: 'not_sent', message: (err as Error).message };
   }
+  // Which account handles this order, noted before any money moves (the
+  // selected account when the server's secrets are used).
+  await recordOrderAccount(job.orderId, c.accountRowId ?? null).catch((err) => console.error('order account', (err as Error).message));
 
   if (!/^\d{1,15}$/.test(job.accountId)) {
     return { outcome: 'refused', message: `"${job.accountId}" is not a ${brand.label} account ID` };
@@ -175,8 +180,10 @@ Deno.serve(async (req) => {
       });
       results.push({ order: job.orderCode, ...result, ...finished });
       if (result.outcome === 'low_funds') shortRegisters.add(job.method);
-      if (finished?.alertTelegramUserIds) {
-        await alertManagers(brandForMethod(job.method)!, finished.alertTelegramUserIds, result.message ?? '');
+      // Platforms added in the Agent App have no Telegram bot of their own.
+      const bot = brandForMethod(job.method);
+      if (finished?.alertTelegramUserIds && bot) {
+        await alertManagers(bot, finished.alertTelegramUserIds, result.message ?? '');
       }
     } catch (err) {
       // The order stays claimed; after 10 minutes it goes to an agent.

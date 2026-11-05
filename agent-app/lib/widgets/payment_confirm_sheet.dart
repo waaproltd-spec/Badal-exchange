@@ -10,6 +10,7 @@ import '../models/sms_transaction_log.dart';
 import '../services/sms_log_store.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
 
 /// Lets an agent confirm a deposit payment they personally verified as real
 /// and completed: a mobile-money payment that arrived (EVC Plus, Golis,
@@ -34,12 +35,12 @@ Future<MatchResult?> showPaymentConfirmSheet(BuildContext context, {Order? order
 /// Shows the standard snack bar for a confirmation result.
 void showMatchResultSnackBar(BuildContext context, MatchResult result) {
   final (String text, Color color) = switch (result.status) {
-    MatchStatus.matched => ('Matched — the deposit order has been completed.', AppColors.statusCompleted),
-    MatchStatus.unmatched => ('No pending order matched these details. Double-check and try again.', AppColors.statusUnmatched),
-    MatchStatus.duplicate => ('This transaction was already submitted.', AppColors.statusDuplicate),
-    MatchStatus.error => (result.errorMessage ?? 'Something went wrong.', AppColors.statusFailed),
+    MatchStatus.matched => (tr('Matched — the deposit order has been completed.'), AppColors.statusCompleted),
+    MatchStatus.unmatched => (tr('No pending order matched these details. Double-check and try again.'), AppColors.statusUnmatched),
+    MatchStatus.duplicate => (tr('This transaction was already submitted.'), AppColors.statusDuplicate),
+    MatchStatus.error => (result.errorMessage ?? tr('Something went wrong.'), AppColors.statusFailed),
   };
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Tx(text), backgroundColor: color));
 }
 
 class _PaymentConfirmForm extends StatefulWidget {
@@ -108,7 +109,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
               occurredAt: occurredAt,
             );
     } catch (e) {
-      result = MatchResult.error(e is ApiException ? e.message : 'Failed to submit confirmation.');
+      result = MatchResult.error(e is ApiException ? e.message : tr('Failed to submit confirmation.'));
     }
 
     // Keep this device's local submission log (SMS Transactions screen).
@@ -142,21 +143,21 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Tx(
                 'Confirm payment',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 6),
-              Text(
+              Tx(
                 isPlatform
-                    ? 'Only enter a top-up you personally confirmed as completed in the ${_info.label} cashier tools.'
-                    : 'Only enter a ${_info.label} payment you personally saw arrive.',
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ? trp('Only enter a top-up you personally confirmed as completed in the {0} cashier tools.', [_info.label])
+                    : trp('Only enter a {0} payment you personally saw arrive.', [_info.label]),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _method,
-                decoration: const InputDecoration(labelText: 'Payment method'),
+                decoration: InputDecoration(labelText: tr('Payment method')),
                 items: [
                   for (final m in paymentMethods)
                     DropdownMenuItem(
@@ -169,36 +170,36 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
               const SizedBox(height: 14),
               TextFormField(
                 controller: _counterparty,
-                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} account ID' : 'Sender phone number'),
+                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} account ID' : tr('Sender phone number')),
                 keyboardType: isPlatform ? TextInputType.text : TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                validator: (v) => (v == null || v.trim().length < (isPlatform ? 3 : 4)) ? 'Required' : null,
+                validator: (v) => (v == null || v.trim().length < (isPlatform ? 3 : 4)) ? tr('Required') : null,
               ),
               if (isPlatform) ...[
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _depositCode,
-                  decoration: const InputDecoration(labelText: 'Deposit code (optional)'),
+                  decoration: InputDecoration(labelText: tr('Deposit code (optional)')),
                   textInputAction: TextInputAction.next,
                 ),
               ],
               const SizedBox(height: 14),
               TextFormField(
                 controller: _amount,
-                decoration: const InputDecoration(labelText: 'Amount'),
+                decoration: InputDecoration(labelText: tr('Amount')),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 textInputAction: TextInputAction.next,
                 validator: (v) {
                   final n = double.tryParse((v ?? '').trim());
-                  return (n == null || n <= 0) ? 'Enter a valid amount' : null;
+                  return (n == null || n <= 0) ? tr('Enter a valid amount') : null;
                 },
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _reference,
-                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} reference' : 'Transaction ID'),
+                decoration: InputDecoration(labelText: isPlatform ? '${_info.label} reference' : tr('Transaction ID')),
                 textInputAction: TextInputAction.done,
-                validator: (v) => (v == null || v.trim().length < 3) ? 'At least 3 characters' : null,
+                validator: (v) => (v == null || v.trim().length < 3) ? tr('At least 3 characters') : null,
                 onFieldSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 20),
@@ -206,7 +207,7 @@ class _PaymentConfirmFormState extends State<_PaymentConfirmForm> {
                 onPressed: _submitting ? null : _submit,
                 child: _submitting
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Submit confirmation'),
+                    : const Tx('Submit confirmation'),
               ),
             ],
           ),

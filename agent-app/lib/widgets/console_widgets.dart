@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../models/console.dart';
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// Shared building blocks for the Dashboard / Users / Reports / History /
 /// Account tabs, so all five read as one card-based design.
 
-final _shortDateTime = DateFormat('MMM d, yyyy • HH:mm');
-final _shortDate = DateFormat('MMM d, yyyy');
+final _shortDateTime = AppDateFormat('MMM d, yyyy • HH:mm');
+final _shortDate = AppDateFormat('MMM d, yyyy');
 
 String formatDateTime(DateTime d) => _shortDateTime.format(d.toLocal());
 String formatDate(DateTime d) => _shortDate.format(d.toLocal());
@@ -19,8 +20,9 @@ class ConsoleCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final Color? color;
+  final Color? borderColor;
 
-  const ConsoleCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.color});
+  const ConsoleCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.color, this.borderColor});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +36,7 @@ class ConsoleCard extends StatelessWidget {
           padding: padding,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: borderColor ?? AppColors.border),
           ),
           child: child,
         ),
@@ -58,13 +60,13 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
+            child: Tx(
               title,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
             ),
           ),
           if (actionLabel != null)
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            TextButton(onPressed: onAction, child: Tx(actionLabel!)),
         ],
       ),
     );
@@ -80,9 +82,9 @@ class GroupLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-      child: Text(
+      child: Tx(
         text.toUpperCase(),
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: AppColors.textSecondary),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: AppColors.textSecondary),
       ),
     );
   }
@@ -131,7 +133,8 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ConsoleCard(
       onTap: onTap,
-      color: Color.alphaBlend(color.withOpacity(0.05), AppColors.surface),
+      color: Color.alphaBlend(color.withOpacity(0.06), AppColors.surface),
+      borderColor: color.withOpacity(0.28),
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,19 +147,19 @@ class StatCard extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
+                  child: Tx(
                     value,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          if (caption != null) ...[
+          Tx(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          if (caption != null && tr(caption!) != tr(label)) ...[
             const SizedBox(height: 2),
-            Text(caption!, style: const TextStyle(fontSize: 11, color: AppColors.textFaint)),
+            Tx(caption!, style: TextStyle(fontSize: 11, color: AppColors.textFaint)),
           ],
         ],
       ),
@@ -207,13 +210,13 @@ class ChoiceChipsRow<T> extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(label),
+                label: Tx(label),
                 selected: value == selected,
                 onSelected: (_) => onSelected(value),
                 showCheckmark: false,
-                selectedColor: AppColors.purpleDark,
+                selectedColor: AppColors.selected,
                 backgroundColor: AppColors.surface,
-                side: BorderSide(color: value == selected ? AppColors.purpleDark : AppColors.border),
+                side: BorderSide(color: value == selected ? AppColors.selected : AppColors.border),
                 labelStyle: TextStyle(
                   color: value == selected ? AppColors.onHeader : AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -294,7 +297,11 @@ class StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(color: color.withOpacity(0.13), borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (status == 'completed') ...[Icon(Icons.check_circle_rounded, size: 14, color: color), const SizedBox(width: 4)],
+        if (status == 'blocked') ...[Icon(Icons.lock_rounded, size: 13, color: color), const SizedBox(width: 4)],
+        Flexible(child: Tx(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700))),
+      ]),
     );
   }
 }
@@ -324,9 +331,26 @@ class ActivityTile extends StatelessWidget {
         : (item.counterparty ?? '—');
 
     return ConsoleCard(
+      key: Key('activity-${item.id}'),
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
+      padding: EdgeInsets.zero,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The coloured edge: green for money in, orange for money out, red for a failure.
+            Container(
+              key: const Key('activity-stripe'),
+              width: 5,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
         children: [
           TintedIcon(icon: icon, color: color),
           const SizedBox(width: 12),
@@ -334,18 +358,18 @@ class ActivityTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                Tx(
                   item.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '$who • ${formatDateTime(item.createdAt)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -369,6 +393,11 @@ class ActivityTile extends StatelessWidget {
           ),
         ],
       ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -388,12 +417,12 @@ class InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            child: Tx(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           ),
           Expanded(
             child: SelectableText(
               value,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
           ),
         ],
@@ -417,22 +446,22 @@ Future<void> showActivityDetails(BuildContext context, HistoryItem item) {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: Tx(
                   item.title,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
               ),
               StatusPill(item.status),
             ],
           ),
           const SizedBox(height: 12),
-          InfoRow('Amount', '\$${item.amount}'),
-          if (item.orderCode != null) InfoRow('Order code', item.orderCode!),
-          InfoRow('Payment method', item.methodLabel),
-          InfoRow(item.isConfirmation ? 'Sender / account' : 'Phone / account', item.counterparty ?? '—'),
-          InfoRow('Customer', [item.customerName, item.customerPhone].whereType<String>().join(' • ').ifEmpty('—')),
-          InfoRow('Reference', item.reference ?? '—'),
-          InfoRow('Date', formatDateTime(item.createdAt)),
+          InfoRow(tr('Amount'), '\$${item.amount}'),
+          if (item.orderCode != null) InfoRow(tr('Order code'), item.orderCode!),
+          InfoRow(tr('Payment method'), item.methodLabel),
+          InfoRow(item.isConfirmation ? tr('Sender / account') : tr('Phone / account'), item.counterparty ?? '—'),
+          InfoRow(tr('Customer'), [item.customerName, item.customerPhone].whereType<String>().join(' • ').ifEmpty('—')),
+          InfoRow(tr('Reference'), item.reference ?? '—'),
+          InfoRow(tr('Date'), formatDateTime(item.createdAt)),
         ],
       ),
     ),

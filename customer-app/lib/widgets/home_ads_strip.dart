@@ -44,7 +44,15 @@ class HomeAdsStrip extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if ((ad.imageUrl ?? '').isNotEmpty)
+                      if (ad.image != null)
+                        Image.memory(
+                          ad.image!,
+                          key: Key('home-ad-image-${ad.id}'),
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        )
+                      else if ((ad.imageUrl ?? '').isNotEmpty)
                         Image.network(
                           ad.imageUrl!,
                           fit: BoxFit.cover,

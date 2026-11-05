@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api/agent_api.dart';
 import '../api/api_exception.dart';
 import '../models/payout.dart';
+import '../l10n/tr.dart';
 
 /// What the phone's own USSD automation can do right now.
 class PayoutDeviceStatus {
@@ -169,15 +170,15 @@ class PayoutRunner {
   /// Pays one withdrawal from this phone.
   Future<PayoutOutcome> payOrder(PayoutOrder order, {required String deviceId}) async {
     if (!_inFlight.add(order.id)) {
-      return const PayoutOutcome(false, 'This payout is already running on this phone.');
+      return PayoutOutcome(false, tr('This payout is already running on this phone.'));
     }
     try {
       final status = await device.status();
       if (!status.accessibilityEnabled) {
-        return const PayoutOutcome(false, 'Automatic payout is not enabled on this phone. Turn on "Badal Exchange payouts" in Accessibility settings.');
+        return PayoutOutcome(false, tr('Automatic payout is not enabled on this phone. Turn on "Badal Exchange payouts" in Accessibility settings.'));
       }
       if (!status.permissionsGranted) {
-        return const PayoutOutcome(false, 'Phone and call permissions are needed to send payouts.');
+        return PayoutOutcome(false, tr('Phone and call permissions are needed to send payouts.'));
       }
 
       final PayoutDialStart start;
@@ -188,19 +189,19 @@ class PayoutRunner {
       }
       final pin = start.pin;
       if (!start.isNew || pin == null) {
-        return const PayoutOutcome(false,
-            'An earlier payout attempt for this withdrawal has not reported its result yet. It is not dialed again; '
-            'if the phone never reports, it goes to manager review after 10 minutes.');
+        return PayoutOutcome(false,
+            tr('An earlier payout attempt for this withdrawal has not reported its result yet. It is not dialed again; '
+            'if the phone never reports, it goes to manager review after 10 minutes.'));
       }
 
       UssdPayoutResult result;
       try {
-        result = await device.runPayout(simSlot: start.simSlot, ussd: start.ussd, pin: pin);
+        result = await device.runPayout(simSlot: start.simSlot, ussd: start.dialString, pin: pin);
       } catch (e) {
         // Unknown whether the PIN reached the carrier: unclear, so a retry
         // needs a manager to confirm the money did not go out.
-        await _report(start.attemptId, 2, 'ambiguous', 'The app failed during the payout: $e');
-        return const PayoutOutcome(false, 'The payout was interrupted. Check the payout wallet before retrying.');
+        await _report(start.attemptId, 2, 'ambiguous', trp('The app failed during the payout: {0}', [e]));
+        return PayoutOutcome(false, tr('The payout was interrupted. Check the payout wallet before retrying.'));
       }
 
       await _report(start.attemptId, 1, result.step1Status, result.step1Text);
@@ -208,7 +209,7 @@ class PayoutRunner {
         await _report(start.attemptId, 2, result.step2Status!, result.step2Text);
       }
       final ok = result.step2Status == 'success';
-      return PayoutOutcome(ok, ok ? 'Payout sent.' : (result.step2Text ?? result.step1Text ?? result.outcome));
+      return PayoutOutcome(ok, ok ? tr('Payout sent.') : (result.step2Text ?? result.step1Text ?? result.outcome));
     } finally {
       _inFlight.remove(order.id);
     }

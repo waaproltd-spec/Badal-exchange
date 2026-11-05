@@ -1,10 +1,17 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:ui' show FontFeature;
 
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../api/customer_api.dart';
 import '../l10n/strings.dart';
 import '../models/order.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
+import '../services/success_sound.dart';
 import '../utils/formatters.dart';
+import '../utils/payment_errors.dart';
 import 'method_icon.dart';
 import '../l10n/server_text.dart';
 
@@ -24,8 +31,7 @@ String _signedAmount(Order order) => order.amountPending
 Color _statusColor(String status) => switch (status) {
       'completed' => AppColors.statusCompleted,
       'failed' || 'cancelled' || 'expired' => AppColors.statusFailed,
-      'processing' => AppColors.statusProcessing,
-      _ => AppColors.statusPending,
+      _ => AppColors.statusProcessing,
     };
 
 /// "Deposit Confirmed" / "Withdrawal Confirmed" once completed; otherwise
@@ -34,14 +40,11 @@ String orderStatusText(Order order) {
   if (order.status == 'completed') {
     return order.isDeposit ? AppStrings.depositConfirmed : AppStrings.withdrawalConfirmed;
   }
-  if (order.status == 'pending' && order.isDeposit && !order.methodInfo.isPlatform) return AppStrings.waitingForPayment;
-  if (order.status == 'pending' || order.status == 'processing') return AppStrings.inProgress;
-  return switch (order.status) {
-    'failed' => AppStrings.statusFailed,
-    'cancelled' => AppStrings.statusCancelled,
-    'expired' => AppStrings.statusExpired,
-    _ => serverText(order.statusMessage.isNotEmpty ? order.statusMessage : order.status),
-  };
+  // Cancelled and expired are definitive too: the customer reads "Failed",
+  // with the reason on the details. Everything not final yet (pending,
+  // processing, or a status this app does not know) is "being verified".
+  if (order.isFailedFinal) return AppStrings.statusFailed;
+  return AppStrings.verifying;
 }
 
 class StatusPill extends StatelessWidget {
@@ -182,17 +185,33 @@ class DetailsCard extends StatelessWidget {
 }
 
 /// Submitting a deposit or withdrawal: the method's icon inside a spinning
-/// ring, the amount, and a progress bar.
+/// ring, the amount, and a progress bar. With [step] (a withdrawal being
+/// sent), the three steps show instead of the "hang tight" line: checking
+/// the balance, sending the money, confirming it went through; [step] is
+/// the one in progress (0-2), 3 when all are done.
 class ProcessingView extends StatelessWidget {
-  const ProcessingView({super.key, required this.method, required this.amount, required this.deposit});
+  const ProcessingView({super.key, required this.method, required this.amount, required this.deposit, this.step});
 
   final String? method;
   final String? amount;
   final bool deposit;
+  final int? step;
 
   @override
   Widget build(BuildContext context) {
     final title = deposit ? AppStrings.confirmingOrder : AppStrings.confirmingWithdrawal;
+    // Scrolls on a short phone (the three steps are tall); fills the screen otherwise.
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight),
+          child: IntrinsicHeight(child: _column(title)),
+        ),
+      ),
+    );
+  }
+
+  Widget _column(String title) {
     return Column(
       children: [
         const Spacer(flex: 3),
@@ -227,8 +246,11 @@ class ProcessingView extends StatelessWidget {
         const SizedBox(height: 10),
         Text(title, style: AppTextStyles.title.copyWith(fontSize: 18), textAlign: TextAlign.center),
         const SizedBox(height: 6),
-        Text(deposit ? AppStrings.hangTightDeposit : AppStrings.hangTightWithdraw,
-            style: AppTextStyles.muted, textAlign: TextAlign.center),
+        if (step == null)
+          Text(deposit ? AppStrings.hangTightDeposit : AppStrings.hangTightWithdraw,
+              style: AppTextStyles.muted, textAlign: TextAlign.center)
+        else
+          _Steps(step: step!),
         const Spacer(flex: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
@@ -246,6 +268,152 @@ class ProcessingView extends StatelessWidget {
   }
 }
 
+/// The withdrawal's three steps, each done, in progress or waiting.
+class _Steps extends StatelessWidget {
+  const _Steps({required this.step, this.labels, this.keyPrefix = 'withdraw'});
+
+  final int step;
+
+  /// The three step names; the withdrawal's own when null.
+  final List<String>? labels;
+  final String keyPrefix;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = this.labels ?? [AppStrings.stepCheckFunds, AppStrings.stepSendMoney, AppStrings.stepConfirmSent];
+    return Container(
+      key: Key('$keyPrefix-steps'),
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == labels.length - 1 ? 0 : 12),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: i < step
+                        ? CircleAvatar(
+                            backgroundColor: AppColors.primary,
+                            child: const Icon(Icons.check_rounded, size: 18, color: Colors.white))
+                        : i == step
+                            ? CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3)
+                            : CircleAvatar(
+                                backgroundColor: AppColors.primaryTint,
+                                child: Text('${i + 1}', style: AppTextStyles.muted.copyWith(fontSize: 13))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels[i],
+                            style: AppTextStyles.body.copyWith(
+                                fontWeight: i == step ? FontWeight.w700 : FontWeight.w500,
+                                color: i > step ? AppColors.textMuted : AppColors.textPrimary)),
+                        Text(i < step ? AppStrings.stepDone : (i == step ? AppStrings.stepActive : AppStrings.stepWaiting),
+                            key: Key('$keyPrefix-step-$i'),
+                            style: AppTextStyles.muted.copyWith(fontSize: 11, letterSpacing: 0.6)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Keeps an order that is not final yet up to date: asks the server for it
+/// every few seconds (a little slower after each failed try) until the server
+/// says completed or failed, and shows the latest with [builder]. A slow or
+/// failed answer is not a result: it never marks the order failed, it only
+/// asks again. A final order is never replaced by a non-final one.
+class FollowOrder extends StatefulWidget {
+  const FollowOrder({
+    super.key,
+    required this.order,
+    required this.builder,
+    this.pollEvery = const Duration(seconds: 3),
+    this.slowestEvery = const Duration(seconds: 10),
+  });
+
+  final Order order;
+  final Widget Function(BuildContext context, Order order) builder;
+  final Duration pollEvery;
+  final Duration slowestEvery;
+
+  @override
+  State<FollowOrder> createState() => _FollowOrderState();
+}
+
+class _FollowOrderState extends State<FollowOrder> {
+  late Order _order = widget.order;
+  Timer? _timer;
+  int _misses = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_order.isFinal) _schedule();
+  }
+
+  @override
+  void didUpdateWidget(FollowOrder old) {
+    super.didUpdateWidget(old);
+    if (old.order.id != widget.order.id) {
+      _order = widget.order;
+      _misses = 0;
+      _timer?.cancel();
+      if (!_order.isFinal) _schedule();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _schedule() {
+    final wait = widget.pollEvery * (1 + _misses);
+    _timer = Timer(wait > widget.slowestEvery ? widget.slowestEvery : wait, _check);
+  }
+
+  Future<void> _check() async {
+    final CustomerApi api;
+    try {
+      api = context.read<CustomerApi>();
+    } catch (_) {
+      return; // nothing to ask (no signed-in session here)
+    }
+    try {
+      final latest = await api.getOrder(_order.id);
+      _misses = 0;
+      if (!mounted) return;
+      // The server's word on it. Only a final order is never taken back.
+      if (latest.id == _order.id && !(_order.isFinal && !latest.isFinal)) setState(() => _order = latest);
+      SuccessSound.instance.observe([latest]);
+    } catch (_) {
+      _misses++; // not a result: ask again
+    }
+    if (mounted && !_order.isFinal) _schedule();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _order.shown);
+}
+
 /// After submitting: the method with a badge, the amount, the status, and
 /// the order's details. [extra] goes between the details and the button
 /// (e.g. a betting platform's deposit code).
@@ -257,7 +425,7 @@ class TransactionResultView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final failed = const {'failed', 'cancelled', 'expired'}.contains(order.status);
+    final failed = order.isFailedFinal;
     final done = order.status == 'completed';
     final color = failed ? AppColors.statusFailed : (order.isDeposit ? AppColors.statusCompleted : AppColors.statusFailed);
     return ListView(
@@ -268,7 +436,7 @@ class TransactionResultView extends StatelessWidget {
             method: order.method,
             size: 72,
             badge: failed ? Icons.close_rounded : (done ? Icons.check_rounded : Icons.schedule_rounded),
-            badgeColor: failed ? AppColors.statusFailed : (done ? AppColors.statusCompleted : AppColors.statusPending),
+            badgeColor: failed ? AppColors.statusFailed : (done ? AppColors.statusCompleted : AppColors.statusProcessing),
           ),
         ),
         const SizedBox(height: 18),
@@ -288,6 +456,7 @@ class TransactionResultView extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Center(child: StatusPill.forOrder(order, key: const Key('result-status'))),
+        if (order.delay != null) ...[const SizedBox(height: 16), DelayNotice(code: order.delay!)],
         const SizedBox(height: 22),
         DetailsCard(
           header: Padding(
@@ -338,6 +507,8 @@ class TransactionResultView extends StatelessWidget {
   }
 }
 
+// The carrier's / Sahal's transfer number is for agents only (Agent App):
+// customers see their Transaction ID.
 List<Widget> _rows(Order order, {required bool includeType}) => [
       DetailRow(label: AppStrings.transactionId, value: order.orderCode, mono: true),
       if (includeType)
@@ -350,8 +521,6 @@ List<Widget> _rows(Order order, {required bool includeType}) => [
           value: _signedAmount(order),
           valueColor: order.isDeposit ? AppColors.statusCompleted : AppColors.textPrimary,
         ),
-      if (order.transactionRef != null && order.transactionRef!.isNotEmpty)
-        DetailRow(label: AppStrings.transferId, value: order.transactionRef!, mono: true),
       if (order.balanceBefore != null)
         DetailRow(label: AppStrings.balanceBefore, value: Formatters.money(order.balanceBefore!), strong: true),
       if (order.balanceAfter != null)
@@ -362,10 +531,47 @@ List<Widget> _rows(Order order, {required bool includeType}) => [
           valueColor: AppColors.statusCompleted,
           strong: true,
         ),
-      if (order.failureReason != null && order.failureReason!.isNotEmpty)
-        DetailRow(label: AppStrings.status, value: serverText(order.failureReason!), valueColor: AppColors.statusFailed),
+      if (PaymentErrors.failureText(order) != null)
+        DetailRow(label: AppStrings.status, value: PaymentErrors.failureText(order)!, valueColor: AppColors.statusFailed),
       DetailRow(label: AppStrings.dateTime, value: Formatters.dateTime(order.createdAt)),
     ];
+
+/// Why a withdrawal still waits (Order.delay), in plain words.
+class DelayNotice extends StatelessWidget {
+  const DelayNotice({super.key, required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('delay-notice'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.statusPending.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.statusPending.withOpacity(0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: AppColors.statusPending, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppStrings.delayTitle, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text(AppStrings.delayReason(code), style: AppTextStyles.muted.copyWith(fontSize: 13.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Transaction Details as a bottom sheet over the list.
 Future<void> showTransactionDetails(BuildContext context, Order order) {
@@ -383,8 +589,11 @@ class TransactionDetailsSheet extends StatelessWidget {
 
   final Order order;
 
+  // An order still being verified updates here by itself.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => FollowOrder(order: order, builder: _sheet);
+
+  Widget _sheet(BuildContext context, Order order) {
     final media = MediaQuery.of(context);
     return Container(
       constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
@@ -437,6 +646,7 @@ class TransactionDetailsSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Center(child: StatusPill.forOrder(order)),
+                if (order.delay != null) ...[const SizedBox(height: 14), DelayNotice(code: order.delay!)],
                 const SizedBox(height: 16),
                 DetailsCard(rows: _rows(order, includeType: true)),
               ],
@@ -444,6 +654,115 @@ class TransactionDetailsSheet extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// A deposit the server has not decided yet, shown after Send Money Now:
+/// the elapsed time, "Your payment is being verified…" and three steps.
+/// Only the first is ever done here (the request exists); the others are
+/// in progress / waiting until the server says completed or failed, when
+/// [DepositResultScreen] swaps in the result. Nothing is claimed as paid.
+class DepositVerifyingView extends StatefulWidget {
+  const DepositVerifyingView({super.key, required this.order, this.extra, this.now});
+
+  final Order order;
+  final Widget? extra;
+
+  /// The clock; replaced in tests.
+  final DateTime Function()? now;
+
+  @override
+  State<DepositVerifyingView> createState() => _DepositVerifyingViewState();
+}
+
+class _DepositVerifyingViewState extends State<DepositVerifyingView> {
+  Timer? _tick;
+
+  DateTime _now() => (widget.now ?? DateTime.now)();
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  /// HH:MM:SS since the deposit was made (never negative on a skewed clock).
+  String get elapsed {
+    var seconds = _now().difference(widget.order.createdAt).inSeconds;
+    if (seconds < 0) seconds = 0;
+    if (seconds > 99 * 3600 + 3599) seconds = 99 * 3600 + 3599;
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(seconds ~/ 3600)}:${two(seconds % 3600 ~/ 60)}:${two(seconds % 60)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    return ListView(
+      key: const Key('deposit-verifying'),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+      children: [
+        Center(child: MethodIcon(method: order.method, size: 84)),
+        const SizedBox(height: 22),
+        Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              order.amountPending ? AppStrings.amountPending : Formatters.money(order.amount),
+              key: const Key('result-amount'),
+              style: AppTextStyles.amountLarge.copyWith(fontSize: 40),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(AppStrings.verifyingTitle,
+            key: const Key('verifying-title'), style: AppTextStyles.title.copyWith(fontSize: 24), textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Text(elapsed,
+                key: const Key('verifying-clock'),
+                style: AppTextStyles.amountLarge.copyWith(fontSize: 34, letterSpacing: 3, fontFeatures: const [FontFeature.tabularFigures()])),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(AppStrings.verifying, style: AppTextStyles.muted, textAlign: TextAlign.center),
+        const SizedBox(height: 20),
+        _Steps(
+          step: 1,
+          keyPrefix: 'verify',
+          labels: [AppStrings.verifyStepReceived, AppStrings.verifyStepChecking, AppStrings.verifyStepCrediting],
+        ),
+        if (widget.extra != null) ...[const SizedBox(height: 20), widget.extra!],
+        const SizedBox(height: 22),
+        OutlinedButton(
+          key: const Key('back-to-home'),
+          onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(54),
+            side: BorderSide(color: AppColors.primaryDark, width: 1.4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+          child: Text(AppStrings.backToHome,
+              style: AppTextStyles.body.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
+        ),
+      ],
     );
   }
 }
