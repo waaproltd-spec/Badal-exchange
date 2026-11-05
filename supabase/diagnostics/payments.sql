@@ -336,3 +336,57 @@ SELECT left(d.device_id, 8) AS device, d.device_label, d.status,
        to_char(d.sms_listening_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS sms_reader_somalia,
        d.sms_listening_at > now() - interval '3 minutes' AS reading_now
 FROM public.agent_devices d ORDER BY greatest(d.last_seen_at, d.sms_listening_at) DESC NULLS LAST LIMIT 8;
+
+\echo
+\echo '== 29. Database health (read-only): size, connections, long queries, locks, cache, biggest tables =='
+SELECT pg_size_pretty(pg_database_size(current_database())) AS database_size,
+       (SELECT count(*) FROM pg_stat_activity) AS connections, current_setting('max_connections') AS max_connections,
+       (SELECT count(*) FROM pg_stat_activity WHERE state = 'active' AND backend_type = 'client backend' AND pid <> pg_backend_pid() AND now() - query_start > interval '1 minute') AS queries_over_1min,
+       (SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock') AS waiting_on_locks,
+       (SELECT round(100.0 * sum(blks_hit) / NULLIF(sum(blks_hit) + sum(blks_read), 0), 2) FROM pg_stat_database WHERE datname = current_database()) AS cache_hit_percent;
+SELECT relname AS table_name, pg_size_pretty(pg_total_relation_size(relid)) AS total_size, n_live_tup AS live_rows, n_dead_tup AS dead_rows,
+       to_char(last_autovacuum AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS last_autovacuum
+FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 12;
+\echo '-- tables without a primary key'
+SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid AND i.indisprimary);
+\echo '-- foreign keys with no index starting with their column (a slow join or delete)'
+SELECT c.conrelid::regclass AS table_name, a.attname AS column_name, c.confrelid::regclass AS references_table
+FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+WHERE c.contype = 'f' AND c.connamespace = 'public'::regnamespace
+  AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1])
+  AND (SELECT n_live_tup FROM pg_stat_user_tables t WHERE t.relid = c.conrelid) > 1000
+ORDER BY 1, 2 LIMIT 20;
+\echo '-- indexes never used since the statistics began, bigger than 1 MB'
+SELECT s.relname AS table_name, s.indexrelname AS index_name, pg_size_pretty(pg_relation_size(s.indexrelid)) AS size, s.idx_scan
+FROM pg_stat_user_indexes s JOIN pg_index i ON i.indexrelid = s.indexrelid
+WHERE s.idx_scan = 0 AND NOT i.indisunique AND NOT i.indisprimary AND pg_relation_size(s.indexrelid) > 1048576
+ORDER BY pg_relation_size(s.indexrelid) DESC LIMIT 10;
+
+\echo
+\echo '== 30. Financial integrity (read-only): everything here should be 0 =='
+SELECT 'completed deposits with no transaction reference: ' || count(*) FROM public.orders WHERE direction = 'deposit' AND status = 'completed' AND COALESCE(btrim(transaction_ref), '') = '' AND created_at > now() - interval '30 days';
+SELECT 'orders with the same idempotency key twice for one customer: ' || count(*) FROM (
+  SELECT customer_id, idempotency_key FROM public.orders WHERE idempotency_key IS NOT NULL GROUP BY 1, 2 HAVING count(*) > 1) x;
+SELECT 'payment SMS credited to two orders: ' || count(*) FROM (SELECT matched_order_id FROM public.sms_logs WHERE matched_order_id IS NOT NULL GROUP BY 1 HAVING count(*) > 1) x;
+SELECT 'orders whose wallet delta is zero but are completed: ' || count(*) FROM public.orders WHERE status = 'completed' AND wallet_delta_cents = 0 AND created_at > now() - interval '30 days';
+SELECT 'ledger entries that belong to no order (wallet adjustments, tips, bonuses are expected): ' || count(*) FROM public.ledger_entries WHERE order_id IS NULL AND created_at > now() - interval '7 days';
+
+\echo
+\echo '== 31. Security posture (read-only) =='
+SELECT 'public tables without row level security: ' || count(*) || COALESCE(' (' || string_agg(c.relname, ', ') || ')', '')
+FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity;
+SELECT 'SECURITY DEFINER functions without a fixed search_path: ' || count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname IN ('public', 'private') AND p.prosecdef AND p.proconfig IS NULL;
+SELECT 'tables the anon or authenticated role can read or write directly: ' || count(*) || COALESCE(' (' || string_agg(DISTINCT table_name, ', ') || ')', '')
+FROM information_schema.role_table_grants WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated');
+\echo '-- functions the anonymous (not signed in) role may run'
+SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.prokind = 'f' AND has_function_privilege('anon', p.oid, 'EXECUTE') ORDER BY 1;
+SELECT 'private functions the signed-in role may run (only the small helper set is expected): ' || count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'private' AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
+
+\echo
+\echo '== 32. Health monitor: the last scans and the open incidents =='
+SELECT to_char(at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS scan_somalia, checks, errors, open, ms FROM private.health_scans ORDER BY id DESC LIMIT 5;
+SELECT severity, key, left(title, 60) AS title, occurrences, repairs, needs_developer FROM private.health_incidents WHERE status = 'open' ORDER BY severity, key;

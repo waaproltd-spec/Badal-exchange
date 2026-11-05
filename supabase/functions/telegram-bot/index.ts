@@ -409,7 +409,51 @@ async function onUpdate(bot: Bot, update: any) {
   }
 }
 
+/** Health: every cashier bot that has a token must have its webhook registered; a lost one is registered again and reported. */
+async function webhookHealth() {
+  const results: Record<string, string> = {};
+  const secret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
+  for (const bot of BOTS) {
+    if (!Deno.env.get(bot.tokenEnv)) continue; // not set up (yet): nothing to watch
+    const key = bot.brand.key;
+    const want = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot${bot.path}`;
+    try {
+      const info = await telegram(bot, 'getWebhookInfo', {});
+      if (!info?.ok) {
+        await rpc('health_report_external', { p_key: `telegram_cashier_token:${key}`, p_ok: false, p_severity: 'warning',
+          p_title: `Bot-ka ${bot.brand.label} ma jawaabayo (token?)`, p_detail: { bot: bot.brand.label },
+          p_cause: 'token-ka waa la beddelay ama bot-ka waa la tirtiray' });
+        results[key] = 'token problem';
+        continue;
+      }
+      await rpc('health_report_external', { p_key: `telegram_cashier_token:${key}`, p_ok: true });
+      if (info.result?.url !== want) {
+        const set = await telegram(bot, 'setWebhook', { url: want, secret_token: secret, allowed_updates: ['message', 'callback_query'], drop_pending_updates: false });
+        await rpc('health_report_external', { p_key: `webhook:cashier:${key}`, p_ok: false, p_severity: 'warning',
+          p_title: `Webhook-ka bot-ka ${bot.brand.label} wuu maqnaa`, p_detail: { bot: bot.brand.label, pending: info.result?.pending_update_count ?? 0 },
+          p_cause: 'Telegram ma uu haysan webhook-ka saxda ah', p_repair: 'setWebhook (dib loo diiwaangeliyay)', p_repair_result: set?.ok ? 'ok' : 'failed' });
+        results[key] = set?.ok ? 'repaired' : 'repair failed';
+      } else {
+        await rpc('health_report_external', { p_key: `webhook:cashier:${key}`, p_ok: true });
+        results[key] = 'ok';
+      }
+    } catch (err) {
+      results[key] = `error: ${(err as Error).message}`.slice(0, 80);
+    }
+  }
+  return results;
+}
+
 Deno.serve(async (req) => {
+  // The health monitor's route: only the database's timer (the platform worker secret) may call it.
+  if (new URL(req.url).pathname.replace(/\/$/, '').endsWith('/health')) {
+    const worker = req.headers.get('x-worker-secret');
+    if (req.method !== 'POST' || !worker || (await rpc('platform_worker_check', { p_secret: worker }).catch(() => false)) !== true) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    return new Response(JSON.stringify({ ok: true, webhooks: await webhookHealth() }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
   if (req.method !== 'POST' || !secretMatches(req.headers.get('X-Telegram-Bot-Api-Secret-Token'))) {
     return new Response('Forbidden', { status: 403 });
   }

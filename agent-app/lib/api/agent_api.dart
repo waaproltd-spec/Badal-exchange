@@ -650,6 +650,9 @@ class AgentApi {
   Future<MerchantFeedStatus> getMerchantFeedStatus() async =>
       MerchantFeedStatus.fromJson(await _map('manage_merchant_feed_status', {'p_provider': 'golis'}));
 
+  /// The platform's health monitor: open problems, solved ones, the last scan.
+  Future<SystemHealth> getSystemHealth() async => SystemHealth.fromJson(await _map('manage_system_health'));
+
   /// Sahal Active / Agent SIM Fallback Active / Both Sources Unavailable.
   Future<PaymentSource> getPaymentSource() async => PaymentSource.fromJson(await _map('manage_payment_source'));
 

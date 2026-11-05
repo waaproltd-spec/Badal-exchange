@@ -1,0 +1,28 @@
+-- A stand-in for the Supabase parts the migrations rely on.
+CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;
+CREATE ROLE authenticator NOLOGIN NOINHERIT; CREATE ROLE supabase_admin NOLOGIN SUPERUSER; CREATE ROLE dashboard_user NOLOGIN;
+GRANT anon, authenticated, service_role TO authenticator;
+CREATE SCHEMA IF NOT EXISTS extensions; CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+CREATE SCHEMA auth;
+CREATE TABLE auth.users (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), email text, encrypted_password text, raw_user_meta_data jsonb, raw_app_meta_data jsonb DEFAULT '{}', created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(), email_confirmed_at timestamptz, aud text, role text, instance_id uuid, last_sign_in_at timestamptz, confirmation_token text DEFAULT '', recovery_token text DEFAULT '', email_change_token_new text DEFAULT '', email_change text DEFAULT '', phone text, is_sso_user boolean DEFAULT false, banned_until timestamptz, deleted_at timestamptz);
+CREATE TABLE auth.identities (id uuid DEFAULT gen_random_uuid(), user_id uuid, identity_data jsonb, provider text, provider_id text, last_sign_in_at timestamptz, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
+CREATE TABLE auth.sessions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(), not_after timestamptz, refreshed_at timestamp, user_agent text, ip inet, factor_id uuid, aal text);
+CREATE TABLE auth.refresh_tokens (id bigserial PRIMARY KEY, token text, user_id text, revoked boolean DEFAULT false, session_id uuid, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(), parent text, instance_id uuid);
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid $$;
+CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT coalesce(current_setting('request.jwt.claims', true)::jsonb ->> 'role', 'anon') $$;
+GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
+CREATE SCHEMA vault;
+CREATE TABLE vault.secrets (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text UNIQUE, description text DEFAULT '', secret text, key_id uuid, nonce bytea, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
+CREATE VIEW vault.decrypted_secrets AS SELECT id, name, description, secret, secret AS decrypted_secret, key_id, nonce, created_at, updated_at FROM vault.secrets;
+CREATE FUNCTION vault.create_secret(new_secret text, new_name text DEFAULT NULL, new_description text DEFAULT '', new_key_id uuid DEFAULT NULL) RETURNS uuid LANGUAGE plpgsql AS $$ DECLARE v uuid; BEGIN INSERT INTO vault.secrets (secret, name, description) VALUES (new_secret, new_name, new_description) RETURNING id INTO v; RETURN v; END $$;
+CREATE FUNCTION vault.update_secret(secret_id uuid, new_secret text DEFAULT NULL, new_name text DEFAULT NULL, new_description text DEFAULT NULL, new_key_id uuid DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $$ BEGIN UPDATE vault.secrets SET secret = coalesce(new_secret, secret), name = coalesce(new_name, name), updated_at = now() WHERE id = secret_id; END $$;
+CREATE SCHEMA net;
+CREATE FUNCTION net.http_post(url text, body jsonb DEFAULT '{}', params jsonb DEFAULT '{}', headers jsonb DEFAULT '{}', timeout_milliseconds int DEFAULT 5000) RETURNS bigint LANGUAGE sql AS $$ SELECT 1::bigint $$;
+CREATE SCHEMA cron;
+CREATE FUNCTION cron.schedule(job_name text, schedule text, command text) RETURNS bigint LANGUAGE sql AS $$ SELECT 1::bigint $$;
+CREATE FUNCTION cron.schedule(schedule text, command text) RETURNS bigint LANGUAGE sql AS $$ SELECT 1::bigint $$;
+CREATE FUNCTION cron.unschedule(job_name text) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
+CREATE PUBLICATION supabase_realtime;
+CREATE SCHEMA storage;

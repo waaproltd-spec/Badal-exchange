@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 import '../api/api_exception.dart';
 import '../models/company_balance.dart';
 import '../models/console.dart';
-import '../models/management.dart' show PaymentSource;
+import '../models/management.dart' show PaymentSource, SystemHealth;
+import 'admin/system_health_screen.dart';
 import '../state/history_filter.dart';
 import '../state/live_updates.dart';
 import '../state/session.dart';
@@ -47,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
   bool _smsBusy = false;
   CompanyBalancesOverview? _companies;
   PaymentSource? _source;
+  SystemHealth? _health;
   DashboardStats? _stats;
 
   /// The day the chart and top lists end on; null is today.
@@ -70,6 +72,7 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
       if (session.canViewCompanyBalances) {
         _loadCompanies(session);
         _loadSource(session);
+        _loadHealth(session);
       }
       _loadStats(session);
       if (!mounted) return;
@@ -100,6 +103,14 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
     try {
       final c = await session.api.getPaymentSource();
       if (mounted) setState(() => _source = c);
+    } catch (_) {}
+  }
+
+  /// The platform's health monitor; its failure (or an older server) never hides the dashboard.
+  Future<void> _loadHealth(Session session) async {
+    try {
+      final h = await session.api.getSystemHealth();
+      if (mounted) setState(() => _health = h);
     } catch (_) {}
   }
 
@@ -202,6 +213,15 @@ class _DashboardScreenState extends State<DashboardScreen> with LiveRefresh {
           if (session.canViewCompanyBalances) ...[
             _CompanyBalancesCard(data: _companies, onTap: _openCompanies),
             const SizedBox(height: 12),
+            if (_health != null) ...[
+              SystemHealthSummary(
+                health: _health!,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SystemHealthScreen())).then((_) {
+                  if (mounted) _loadHealth(context.read<Session>());
+                }),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_source != null) ...[
               PaymentSourceCard(data: _source!),
               const SizedBox(height: 12),

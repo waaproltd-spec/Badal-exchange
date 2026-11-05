@@ -829,3 +829,85 @@ class PaymentSource {
         waitingToday: (j['waitingToday'] as num?)?.toInt() ?? 0,
       );
 }
+
+/// One problem the platform's health monitor found (see supabase/migrations/*_health_monitor.sql).
+class HealthIncident {
+  final String key;
+  final String severity; // info | warning | critical
+  final String title;
+  final String? cause;
+  final DateTime? firstSeen;
+  final DateTime? lastSeen;
+  final DateTime? resolvedAt;
+  final int occurrences;
+  final String? repair;
+  final String? repairResult;
+  final bool financial;
+  final bool customers;
+  final bool developer;
+
+  const HealthIncident({
+    required this.key,
+    required this.severity,
+    required this.title,
+    this.cause,
+    this.firstSeen,
+    this.lastSeen,
+    this.resolvedAt,
+    this.occurrences = 1,
+    this.repair,
+    this.repairResult,
+    this.financial = false,
+    this.customers = false,
+    this.developer = false,
+  });
+
+  bool get critical => severity == 'critical';
+
+  factory HealthIncident.fromJson(Map<String, dynamic> j) => HealthIncident(
+        key: j['key'] as String? ?? '',
+        severity: j['severity'] as String? ?? 'warning',
+        title: j['title'] as String? ?? '',
+        cause: j['cause'] as String?,
+        firstSeen: _date(j['firstSeen']),
+        lastSeen: _date(j['lastSeen']),
+        resolvedAt: _date(j['resolvedAt']),
+        occurrences: (j['occurrences'] as num?)?.toInt() ?? 1,
+        repair: j['repair'] as String?,
+        repairResult: j['repairResult'] as String?,
+        financial: j['financial'] == true,
+        customers: j['customers'] == true,
+        developer: j['developer'] == true,
+      );
+}
+
+/// The platform's health: open problems, the ones solved in the last two days, and the last scan.
+class SystemHealth {
+  final DateTime? scannedAt;
+  final int checks;
+  final bool ownerChatLinked;
+  final List<HealthIncident> open;
+  final List<HealthIncident> resolved;
+
+  const SystemHealth({this.scannedAt, this.checks = 0, this.ownerChatLinked = true, this.open = const [], this.resolved = const []});
+
+  /// Info items are listed but are not problems.
+  int get problems => open.where((i) => i.severity != 'info').length;
+  int get critical => open.where((i) => i.critical).length;
+
+  /// A scan that has not run for 5 minutes is itself a problem: nobody is watching.
+  bool get stale => scannedAt == null || DateTime.now().difference(scannedAt!) > const Duration(minutes: 5);
+
+  factory SystemHealth.fromJson(Map<String, dynamic> j) {
+    final last = j['lastScan'] as Map<String, dynamic>?;
+    List<HealthIncident> list(dynamic v) =>
+        ((v as List<dynamic>?) ?? const []).map((e) => HealthIncident.fromJson(e as Map<String, dynamic>)).toList();
+    return SystemHealth(
+      scannedAt: last == null ? null : _date(last['at']),
+      checks: (last?['checks'] as num?)?.toInt() ?? 0,
+      ownerChatLinked: j['ownerChatLinked'] != false,
+      open: list(j['open']),
+      resolved: list(j['resolved']),
+    );
+  }
+}

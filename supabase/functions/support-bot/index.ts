@@ -395,6 +395,111 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * then sends the waiting messages, about 25 a second (Telegram allows ~30), and waits out Telegram's own
  * "retry after". The messages are plain text, as the administrator wrote them.
  */
+// ------------------------------------------------------------------ health: alerts to the owner, webhook check
+
+const SYSTEM_OF: [RegExp, string][] = [
+  [/^sahal/, 'Sahal'], [/^cron/, 'Cron-ka database-ka'], [/^edge/, 'Edge Functions'], [/^withdrawals/, 'Bixinnada'],
+  [/^sms/, 'SMS-ka lacagta'], [/^ledger/, 'Lacagta (wallet/ledger)'], [/^db_/, 'Database-ka'], [/^push/, 'Push-ka'],
+  [/^broadcast/, 'Fariimaha jadwalka'], [/^integration/, 'Cash register-ka (CashdeskBot)'], [/^webhook|^telegram/, 'Telegram'],
+  [/^security/, 'Amniga'], [/^owner|^withdrawal_alerts/, 'Digniinaha'], [/^health_check_error/, 'Hubinta nidaamka'],
+];
+const systemOf = (key: string) => SYSTEM_OF.find(([re]) => re.test(key))?.[1] ?? 'Nidaamka';
+
+function detailLines(detail: Record<string, unknown> | null): string {
+  return Object.entries(detail ?? {}).slice(0, 5)
+    .map(([k, v]) => `   • ${esc(k)}: ${esc(typeof v === 'object' ? JSON.stringify(v) : v).slice(0, 90)}`).join('\n');
+}
+
+/** The owner's alert, in Somali: what, where, why, what was repaired, whether customers or money were touched. */
+export function healthText(a: Record<string, any>): string {
+  const icon = a.severity === 'critical' ? '🚨' : '⚠️';
+  if (a.kind === 'resolved') {
+    return [`✅ <b>LA XALIYAY: ${esc(a.title)}</b>`, `Nidaamka: ${esc(systemOf(a.key))}`,
+      `Hagaajin: ${esc(a.repair ?? 'ma jirin (is-xalay)')}`, `Natiijada: ${esc(a.repairResult ?? 'xaaladdu way dhammaatay')}`].join('\n');
+  }
+  const lines = [
+    `${a.kind === 'repeat' ? '⏰ <b>MAR KALE (weli furan)</b>\n' : ''}${icon} <b>${a.severity === 'critical' ? 'DIGNIIN WEYN' : 'DIGNIIN'}: ${esc(a.title)}</b>`,
+    `Nidaamka: ${esc(systemOf(a.key))}`,
+    `Faahfaahin:\n${detailLines(a.detail) || '   —'}`,
+    `Sababta: ${esc(a.cause ?? 'weli lama garanin')}`,
+    `Hagaajin la isku dayay: ${esc(a.repair ?? 'midna (looma baahna ama ma ammaan ahan)')}`,
+    `Natiijada hagaajinta: ${esc(a.repairResult ?? '—')}`,
+    `Macaamiisha: ${a.customers ? '<b>haa, waa la saameeyay</b>' : 'maya'}`,
+    `Lacagta: ${a.financial ? '<b>HAA: waa la hubinayaa, ha la taaban gacan ahaan</b>' : 'maya'}`,
+    `Horumariye: ${a.developer ? '<b>HAA, loo baahan yahay</b>' : 'maya'}`,
+  ];
+  return lines.join('\n');
+}
+
+/** Registers the webhook again when Telegram has lost it, and tells the health monitor what it found. */
+async function checkWebhook(): Promise<Record<string, unknown>> {
+  const expected = Deno.env.get('SUPPORT_BOT_WEBHOOK_SECRET');
+  const want = `${Deno.env.get('SUPABASE_URL')}/functions/v1/support-bot`;
+  try {
+    await tg('getMe', {});
+  } catch (err) {
+    await rpc('health_report_external', { p_key: 'telegram_support_bot_token', p_ok: false, p_severity: 'critical',
+      p_title: 'Token-ka bot-ka support-ka ma shaqeynayo', p_detail: { error: safe(err).slice(0, 150) },
+      p_cause: 'token-ka waa la beddelay ama bot-ka waa la tirtiray' });
+    return { webhook: 'token problem' };
+  }
+  await rpc('health_report_external', { p_key: 'telegram_support_bot_token', p_ok: true });
+  let info: any;
+  try {
+    info = await tg('getWebhookInfo', {});
+  } catch (err) {
+    return { webhook: `getWebhookInfo failed: ${safe(err)}` };
+  }
+  const lastErr = info?.last_error_date && Date.now() / 1000 - Number(info.last_error_date) < 600;
+  if (info?.url !== want) {
+    let result = 'ok';
+    try {
+      if (!expected) throw new Error('SUPPORT_BOT_WEBHOOK_SECRET not set');
+      await tg('setWebhook', { url: want, secret_token: expected, allowed_updates: ['message', 'callback_query'], drop_pending_updates: false });
+    } catch (err) {
+      result = `failed: ${safe(err).slice(0, 120)}`;
+    }
+    await rpc('health_report_external', { p_key: 'webhook:support-bot', p_ok: false, p_severity: 'critical',
+      p_title: 'Webhook-ka bot-ka support-ka wuu maqnaa ama khalad ayuu ahaa',
+      p_detail: { registered: info?.url ? 'url kale' : 'midna', pending: info?.pending_update_count ?? 0 },
+      p_cause: 'Telegram ma uu haysan webhook-ka saxda ah', p_repair: 'setWebhook (dib loo diiwaangeliyay)', p_repair_result: result });
+    return { webhook: 'repaired', result };
+  }
+  if (lastErr && Number(info.pending_update_count ?? 0) > 20) {
+    await rpc('health_report_external', { p_key: 'webhook:support-bot', p_ok: false, p_severity: 'warning',
+      p_title: 'Telegram wuxuu soo sheegayaa khalad webhook-ka ah', p_detail: { pending: info.pending_update_count, error: String(info.last_error_message ?? '').slice(0, 100) },
+      p_cause: 'function-ku wuu jawaabi waayay' });
+    return { webhook: 'errors' };
+  }
+  await rpc('health_report_external', { p_key: 'webhook:support-bot', p_ok: true });
+  return { webhook: 'ok' };
+}
+
+async function healthWorker(): Promise<Response> {
+  const out: Record<string, unknown> = {};
+  try {
+    Object.assign(out, await checkWebhook());
+  } catch (err) {
+    out.webhookError = safe(err);
+  }
+  // The owner's alerts: one message each, marked as sent only when Telegram took it.
+  const chat = await rpc('support_admin_chat', {});
+  const alerts: any[] = (await rpc('health_alert_claim', {})) ?? [];
+  const done: { id: number; kind: string }[] = [];
+  if (chat) {
+    for (const a of alerts) {
+      try {
+        await say(Number(chat), healthText(a));
+        done.push({ id: a.id, kind: a.kind });
+      } catch (err) {
+        console.error('support-bot health alert', safe(err));
+      }
+    }
+  }
+  if (done.length) await rpc('health_alert_done', { p_done: done });
+  return json({ ok: true, ...out, alerts: alerts.length, sent: done.length, ownerChat: Boolean(chat) });
+}
+
 async function broadcastWorker(): Promise<Response> {
   await rpc('broadcast_tick', {});
   const started = Date.now();
@@ -472,6 +577,20 @@ Deno.serve(async (req) => {
     }
   }
 
+  // The health monitor's route: the owner's alerts and the webhook check; only the database's timer may call it.
+  if (path.endsWith('/health')) {
+    if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
+    const worker = req.headers.get('x-worker-secret');
+    if (!worker || (await rpc('platform_worker_check', { p_secret: worker }).catch(() => false)) !== true) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    try {
+      return await healthWorker();
+    } catch (err) {
+      console.error('support-bot health', safe(err));
+      return json({ ok: false, error: safe(err) }, 500);
+    }
+  }
   // The scheduled messages' worker: only the database's timer (the platform worker secret) may call it.
   if (path.endsWith('/broadcast')) {
     if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
