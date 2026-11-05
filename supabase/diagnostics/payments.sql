@@ -383,10 +383,12 @@ FROM information_schema.role_table_grants WHERE table_schema = 'public' AND gran
 \echo '-- functions the anonymous (not signed in) role may run'
 SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public' AND p.prokind = 'f' AND has_function_privilege('anon', p.oid, 'EXECUTE') ORDER BY 1;
-SELECT 'private functions the signed-in role may run (only the small helper set is expected): ' || count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+SELECT 'private functions the signed-in role may run (the helpers the row level security policies call): ' || count(*) || ' (' || COALESCE(string_agg(p.proname, ', ' ORDER BY p.proname), '') || ')' FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'private' AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
 
 \echo
 \echo '== 32. Health monitor: the last scans and the open incidents =='
 SELECT to_char(at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS scan_somalia, checks, errors, open, ms FROM private.health_scans ORDER BY id DESC LIMIT 5;
-SELECT severity, key, left(title, 60) AS title, occurrences, repairs, needs_developer FROM private.health_incidents WHERE status = 'open' ORDER BY severity, key;
+SELECT severity, key, left(title, 60) AS title, occurrences, repairs, needs_developer, alert_count,
+       to_char(alerted_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS alerted_somalia
+FROM private.health_incidents WHERE status = 'open' ORDER BY severity, key;

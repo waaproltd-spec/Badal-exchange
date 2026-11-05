@@ -284,3 +284,10 @@ test('the /health route: only the platform secret wakes it; the owner gets each 
     telegram.close();
   }
 });
+
+test('housekeeping prunes only the scheduler history and never throws; the foreign key has its index', async () => {
+  const r = await db.query(`SELECT private.housekeeping() AS r`);
+  assert.equal(typeof r.rows[0].r.cronRowsDeleted, 'number');
+  const idx = await db.query(`SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_cashdesk_balances_requested_by'`);
+  assert.equal(idx.rowCount, 1);
+});
