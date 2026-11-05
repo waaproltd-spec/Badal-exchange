@@ -328,3 +328,11 @@ FROM public.broadcast_runs r ORDER BY r.started_at DESC LIMIT 8;
 SELECT to_char(e.at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS at_somalia, e.event, e.detail::text AS detail
 FROM private.merchant_feed_events e WHERE e.provider = 'golis' AND e.event IN ('sign_in', 'code_sent', 'session_lost', 'auto_reconnect', 'auto_reconnect_held', 'read_session_ended')
 ORDER BY e.id DESC LIMIT 15;
+
+\echo
+\echo '== 28. Agent phones: last seen and last SMS-reader heartbeat (ids shortened) =='
+SELECT left(d.device_id, 8) AS device, d.device_label, d.status,
+       to_char(d.last_seen_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS last_seen_somalia,
+       to_char(d.sms_listening_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS sms_reader_somalia,
+       d.sms_listening_at > now() - interval '3 minutes' AS reading_now
+FROM public.agent_devices d ORDER BY greatest(d.last_seen_at, d.sms_listening_at) DESC NULLS LAST LIMIT 8;
