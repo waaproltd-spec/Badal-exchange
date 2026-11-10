@@ -1,0 +1,174 @@
+name: Developer Bot agent
+
+# Started ONLY by the Developer Bot (functions/dev-bot) from a request the owner sent on Telegram. A coding agent
+# (Claude Code, headless) works on a new branch and this job opens a PULL REQUEST: it never merges, never
+# deploys, never touches production, and is not given the GitHub token or any production secret while it works.
+#
+# Repository secrets: ANTHROPIC_API_KEY, DEVBOT_REPORT_URL (https://<project>.supabase.co/functions/v1/dev-bot/report),
+#                     DEVBOT_REPORT_SECRET (the same value as the Edge Function secret of that name).
+# Repository setting: Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+on:
+  workflow_dispatch:
+    inputs:
+      task_id: { description: 'Task id', required: true }
+      number: { description: 'Task number', required: true }
+      title: { description: 'Task title', required: true }
+      request: { description: 'What the owner asked for', required: true }
+      risk: { description: 'low | medium | high', required: false, default: 'medium' }
+      context: { description: 'Project memory', required: false, default: '' }
+      base: { description: 'Branch the work starts from and the PR goes to', required: true }
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: dev-agent
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TASK_ID: ${{ inputs.task_id }}
+      NUMBER: ${{ inputs.number }}
+      TITLE: ${{ inputs.title }}
+      RISK: ${{ inputs.risk }}
+      BASE: ${{ inputs.base }}
+      REPORT_URL: ${{ secrets.DEVBOT_REPORT_URL }}
+      REPORT_SECRET: ${{ secrets.DEVBOT_REPORT_SECRET }}
+    steps:
+      - name: Check inputs and secrets
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -e
+          [[ "$TASK_ID" =~ ^[0-9a-f-]{36}$ ]] || { echo "::error::bad task id"; exit 1; }
+          [[ "$NUMBER" =~ ^[0-9]{1,9}$ ]] || { echo "::error::bad number"; exit 1; }
+          [[ "$BASE" =~ ^[A-Za-z0-9._/-]{1,100}$ ]] || { echo "::error::bad base branch"; exit 1; }
+          [ -n "$KEY" ] || { echo "::error::Add the ANTHROPIC_API_KEY repository secret."; exit 1; }
+          [ -n "$REPORT_URL" ] && [ -n "$REPORT_SECRET" ] || { echo "::error::Add DEVBOT_REPORT_URL and DEVBOT_REPORT_SECRET."; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base }}
+          fetch-depth: 0
+          persist-credentials: false   # the agent can not push: no credentials stay in the checkout
+
+      - name: Tell the owner the agent started
+        run: |
+          source .github/scripts/devbot-report.sh
+          devbot_report progress "agent started (run ${{ github.run_id }})"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+          cache: true
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Prepare the branch and the prompt
+        env:
+          REQUEST: ${{ inputs.request }}
+          CONTEXT: ${{ inputs.context }}
+        run: |
+          set -e
+          slug=$(printf '%s' "$TITLE" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed 's/--*/-/g; s/^-//; s/-$//' | cut -c1-40)
+          echo "BRANCH=devbot/${NUMBER}-${slug:-task}" >> "$GITHUB_ENV"
+          git checkout -b "devbot/${NUMBER}-${slug:-task}"
+          mkdir -p .devbot && echo ".devbot/" >> .git/info/exclude
+          {
+            echo "You are the BADAL EXCHANGE AI Developer working on task #${NUMBER}: ${TITLE}"
+            echo
+            echo "## The owner's request"
+            printf '%s\n' "$REQUEST"
+            echo
+            echo "## Rules (non-negotiable)"
+            echo "- First read CLAUDE.md if present, docs/AI_DEVELOPER_CONTEXT.md, docs/OPERATIONS.md and the code you will change. Understand before editing."
+            echo "- Work only inside this repository. You have no network and no secrets: never invent keys, URLs or credentials; never write a secret anywhere."
+            echo "- Never change a balance, a ledger entry or an order by hand; never delete or rewrite financial data; migrations are NEW files, idempotent, never edit an applied migration; every SECURITY DEFINER function sets search_path and is revoked from anon/PUBLIC; every table has row level security."
+            echo "- Do not touch .github/workflows or any file that holds secrets. You can not merge or deploy: your work becomes a pull request that a human reviews."
+            echo "- Customer-facing texts are Somali; the Agent App uses tr()/Tx with a Somali entry in lib/l10n/somali.dart for every new text (translations_test checks it)."
+            echo "- Add or update automated tests for what you change. Run what you can: flutter analyze and flutter test in the app you changed; node --check on test files. Fix what fails. Never skip, disable or weaken a test to make it pass."
+            echo "- Keep the change focused and as small as the request allows. If the request is too large, do the safest first stage and say what remains."
+            echo "- If something essential is missing or the request is unsafe, change nothing and explain why in the summary."
+            echo "- When done, write .devbot/summary.md: what you changed and why (max 15 lines), then a line 'Tests:' saying exactly which checks you ran and their result, then a line 'Remaining:' with what is not done."
+            echo
+            echo "## Project memory (what is already known)"
+            printf '%s\n' "$CONTEXT"
+          } > .devbot/prompt.md
+
+      - name: Run the coding agent (no GitHub token, no production secret)
+        id: agent
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat .devbot/prompt.md)" \
+            --permission-mode acceptEdits \
+            --max-turns 80 \
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(flutter analyze:*),Bash(flutter test:*),Bash(flutter pub get:*),Bash(dart format:*),Bash(node --check:*),Bash(cd:*)" \
+            --disallowedTools "WebFetch,WebSearch,Bash(curl:*),Bash(wget:*),Bash(git push:*),Bash(git remote:*),Bash(gh:*),Bash(ssh:*),Bash(rm -rf:*)" \
+            --output-format json > .devbot/agent-out.json
+          echo "agent finished"
+
+      - name: Guard, commit, push and open the pull request
+        id: pr
+        if: ${{ steps.agent.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source .github/scripts/devbot-report.sh
+          set -uo pipefail
+          # Never from the agent: workflow files and anything that looks like a secret file.
+          git checkout -- .github 2>/dev/null || true
+          git clean -fdq -- .github 2>/dev/null || true
+          git ls-files --others --exclude-standard | grep -E '(^|/)(\.env[^/]*|.*\.pem|.*\.jks|.*\.keystore|key\.properties|google-services\.json)$' | xargs -r rm -f
+          git add -A
+          git reset -q -- .devbot 2>/dev/null || true
+          files=$(git diff --cached --name-only)
+          if [ -z "$files" ]; then
+            msg=$(head -c 1500 .devbot/summary.md 2>/dev/null || echo "The agent made no change.")
+            devbot_report noop "no change" "$(jq -nc --arg s "$msg" '{summary:$s}')"
+            echo "pr_done=noop" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          n=$(printf '%s\n' "$files" | wc -l)
+          lines=$(git diff --cached --numstat | awk '{a+=$1+$2} END {print a+0}')
+          if [ "$n" -gt 120 ] || [ "$lines" -gt 10000 ]; then
+            devbot_report failed "too large: $n files, $lines lines; ask for smaller stages" "$(jq -nc --arg s "The change is too large to review safely ($n files, $lines lines). Split the request into stages." '{summary:$s}')"
+            echo "pr_done=failed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # A secret in the diff stops everything.
+          if git diff --cached -U0 | grep -E '^\+' | grep -E 'sk-ant-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|[0-9]{8,10}:[A-Za-z0-9_-]{35}|eyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{30,}\.' >/dev/null; then
+            devbot_report failed "a secret-looking value was in the change: nothing was pushed" "$(jq -nc '{summary:"The change contained something that looks like a secret. Nothing was pushed."}')"
+            echo "pr_done=failed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          risk="$RISK"
+          if printf '%s\n' "$files" | grep -qE '^supabase/(migrations|functions)/|wallet|ledger|payment|payout|withdraw|deposit|commission|auth'; then risk=high; fi
+          git config user.name "Badal AI Developer"
+          git config user.email "devbot@users.noreply.github.com"
+          git commit -q -m "Task #${NUMBER}: ${TITLE}" -m "Written by the BADAL EXCHANGE AI Developer (Developer Bot task #${NUMBER}). Review before merging."
+          git push -q "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "HEAD:refs/heads/${BRANCH}"
+          summary=$(head -c 3000 .devbot/summary.md 2>/dev/null || echo "(the agent wrote no summary)")
+          printf '%s\n' "## Task #${NUMBER}: ${TITLE}" "" "Risk: **${risk}**" "" "${summary}" "" "---" "Opened by the Developer Bot. Nothing is merged or deployed automatically." > .devbot/pr-body.md
+          url=$(gh pr create --base "$BASE" --head "$BRANCH" --title "Task #${NUMBER}: ${TITLE}" --body-file .devbot/pr-body.md) || { devbot_report failed "the branch was pushed but the pull request could not be opened (is 'Allow GitHub Actions to create pull requests' on?)" "$(jq -nc --arg b "$BRANCH" '{branch:$b, summary:"Branch pushed, PR not opened."}')"; echo "pr_done=failed" >> "$GITHUB_OUTPUT"; exit 0; }
+          prn=$(basename "$url")
+          gh workflow run supabase-test.yml --ref "$BRANCH" || true
+          tests=$(grep -i '^Tests:' .devbot/summary.md | head -1 | cut -c1-300)
+          fl=$(printf '%s\n' "$files" | head -60 | jq -R . | jq -sc .)
+          devbot_report done "pull request opened" "$(jq -nc --arg b "$BRANCH" --arg u "$url" --argjson p "${prn:-0}" --arg s "$summary" --arg r "$risk" --arg t "$tests" --argjson f "$fl" '{branch:$b, prUrl:$u, prNumber:$p, summary:$s, risk:$r, tests:$t, files:$f}')"
+          echo "pr_done=done" >> "$GITHUB_OUTPUT"
+
+      - name: Report a failed run
+        if: ${{ failure() || cancelled() || steps.agent.outcome == 'failure' || (steps.agent.outcome == 'success' && steps.pr.outputs.pr_done == '') }}
+        run: |
+          source .github/scripts/devbot-report.sh
+          devbot_report failed "the agent run did not finish" "$(jq -nc --arg s "The agent run failed or was cancelled: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" '{summary:$s}')"

@@ -102,6 +102,7 @@ jobs:
           supabase functions deploy sahal-sms-hook --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           # Verifies a new Sahal merchant login saved in the Admin Dashboard; woken by the database with the worker secret.
           supabase functions deploy sahal-account-verify --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy dev-bot --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
 
       - name: Point the database at the Edge Functions
         env:
