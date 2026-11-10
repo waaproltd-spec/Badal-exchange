@@ -6,7 +6,8 @@
 // button; a deployment is always preceded by a verified backup and by green Backend + Customer tests; every
 // important action is in the audit log (public.dev_audit).
 //
-// Only Telegram accounts that are linked to a platform ADMINISTRATOR and listed by the owner can talk to it
+// Only Telegram accounts that are linked to a platform MANAGER (an administrator, or an agent with the manage_settings
+// responsibility) and listed by the owner can talk to it
 // (functions in supabase/migrations/*_dev_bot.sql). Somali and English: the bot answers in the language it is written in.
 //
 // Routes (Telegram calls the webhook; the rest are for the platform only):
@@ -326,7 +327,7 @@ async function onText(chat: number, from: any, text: string, auth: any) {
       if (!Number.isSafeInteger(id) || id <= 0) return void (await say(chat, lang === 'so' ? 'Isticmaal /authorize TELEGRAM_ID' : 'Use /authorize TELEGRAM_ID'));
       const r = await rpc('dev_user_set', { p_actor: from.id, p_tg: id, p_name: arg.split(/\s+/).slice(1).join(' ') || null, p_grant: cmd === '/authorize' });
       const msg: Record<string, string> = {
-        ok: '✅ OK', not_owner: '⛔ Owner only', not_admin: lang === 'so' ? '⛔ Qofkaas waa inuu noqdaa maamule (admin) Telegram-kiisa ku xiray Agent App.' : '⛔ That person must be a platform administrator with Telegram linked in the Agent App.', self: '—',
+        ok: '✅ OK', not_owner: '⛔ Owner only', not_admin: lang === 'so' ? '⛔ Qofkaas waa inuu noqdaa maamule (admin ama agent leh manage_settings) Telegram-kiisa ku xiray Agent App.' : '⛔ That person must be a platform manager (an administrator, or an agent with the settings responsibility) with Telegram linked in the Agent App.', self: '—',
       };
       return void (await say(chat, msg[r] ?? r));
     }

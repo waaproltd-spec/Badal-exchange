@@ -31,10 +31,10 @@ Telegram  ->  dev-bot (Edge Function)  ->  Claude (plans, asks the one missing q
 
 ## Access
 
-Only Telegram accounts that are **linked to a platform administrator** (Agent App > Account > Telegram Bot) **and** listed by
-the owner can use it. The first administrator who sends `/start` (while there is no owner) becomes the **owner**. The owner adds
-people with `/authorize TELEGRAM_ID` (the person must be a platform administrator with Telegram linked) and removes them with
-`/revoke TELEGRAM_ID`. Everyone else gets a refusal, and the attempt is audited.
+Only Telegram accounts that are **linked to a platform manager** (an administrator, or an agent with the `manage_settings`
+responsibility; link it in Agent App > Account > Telegram Bot with `/link CODE` in any cashier bot) **and** listed by the owner can
+use it. The first manager who sends `/start` (while there is no owner) becomes the **owner**. The owner adds people with
+`/authorize TELEGRAM_ID` (the person must be a platform manager with Telegram linked) and removes them with `/revoke TELEGRAM_ID`. Everyone else gets a refusal, and the attempt is audited.
 
 ## Commands
 

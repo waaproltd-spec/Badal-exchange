@@ -14,6 +14,7 @@ const OWNER = 7_100_000_000 + seed;
 const DEV = OWNER + 1;
 const STRANGER = OWNER + 2;
 const NON_ADMIN = OWNER + 3;
+const MANAGER_AGENT = OWNER + 4;
 
 before(async () => {
   adminId = (await db.query(`SELECT id FROM users WHERE phone = '252610000001'`)).rows[0].id;
@@ -49,16 +50,21 @@ async function fresh(tx) {
   // One Telegram account per platform user: OWNER is the seeded admin, DEV a second administrator made here, NON_ADMIN an agent.
   const admin2 = (await tx.query(`INSERT INTO public.users (role, phone, name, password_hash, status) VALUES ('admin', $1, 'Second Admin', private.hash_password('ChangeMe123!'), 'active') RETURNING id`,
     [`2526${String(seed).padStart(8, '0').slice(-8)}`])).rows[0].id;
-  await tx.query(`DELETE FROM public.telegram_operators WHERE user_id IN ($1, $2, $3)`, [adminId, admin2, agentId]);
-  await tx.query(`INSERT INTO public.telegram_operators (telegram_user_id, user_id) VALUES ($1, $2), ($3, $4), ($5, $6)`,
-    [OWNER, adminId, DEV, admin2, NON_ADMIN, agentId]);
+  // MANAGER_AGENT is the seeded agent with the settings responsibility (how the real owner's account is); PLAIN is an agent without it.
+  const plain = (await tx.query(`INSERT INTO public.users (role, phone, name, password_hash, status) VALUES ('agent', $1, 'Plain Agent', private.hash_password('ChangeMe123!'), 'active') RETURNING id`,
+    [`2527${String(seed).padStart(8, '0').slice(-8)}`])).rows[0].id;
+  await tx.query(`DELETE FROM public.telegram_operators WHERE user_id IN ($1, $2, $3, $4)`, [adminId, admin2, agentId, plain]);
+  await tx.query(`INSERT INTO public.telegram_operators (telegram_user_id, user_id) VALUES ($1, $2), ($3, $4), ($5, $6), ($7, $8)`,
+    [OWNER, adminId, DEV, admin2, NON_ADMIN, plain, MANAGER_AGENT, agentId]);
 }
 
-test('the first start makes a linked ADMIN the owner; a stranger, a non-admin manager and a second claim get nothing', async () => {
+test('the first start makes a linked MANAGER the owner (an administrator, or an agent with the settings responsibility); a stranger, a plain agent and a second claim get nothing', async () => {
   await inTx(async (tx) => {
     await fresh(tx);
     assert.equal(await tx.call(`public.dev_claim_owner($1, 'x')`, [STRANGER]), false, 'not linked to the platform');
-    assert.equal(await tx.call(`public.dev_claim_owner($1, 'x')`, [NON_ADMIN]), false, 'a manager who is not an administrator');
+    assert.equal(await tx.call(`public.dev_claim_owner($1, 'x')`, [NON_ADMIN]), false, 'a plain agent is not a manager');
+    assert.equal(await tx.call(`public.dev_claim_owner($1, 'Owner')`, [MANAGER_AGENT]), true, 'an agent with the settings responsibility is: this is the real owner\'s kind of account');
+    await tx.query(`DELETE FROM public.dev_bot_users`);
     assert.equal((await tx.call(`public.dev_auth($1)`, [OWNER])).authorized, false, 'listed nowhere yet');
     assert.equal(await tx.call(`public.dev_claim_owner($1, 'Owner')`, [OWNER]), true);
     const a = await tx.call(`public.dev_auth($1)`, [OWNER]);
@@ -74,7 +80,7 @@ test('the owner authorizes another linked administrator and can take the access 
     await tx.call(`public.dev_claim_owner($1, 'Owner')`, [OWNER]);
     assert.equal(await tx.call(`public.dev_user_set($1, $2, 'Dev', true)`, [DEV, STRANGER]), 'not_owner', 'a stranger can not add anyone');
     assert.equal(await tx.call(`public.dev_user_set($1, $2, 'S', true)`, [OWNER, STRANGER]), 'not_admin', 'only a linked platform administrator');
-    assert.equal(await tx.call(`public.dev_user_set($1, $2, 'N', true)`, [OWNER, NON_ADMIN]), 'not_admin');
+    assert.equal(await tx.call(`public.dev_user_set($1, $2, 'N', true)`, [OWNER, NON_ADMIN]), 'not_admin', 'a plain agent is refused');
     assert.equal(await tx.call(`public.dev_user_set($1, $2, 'Dev', true)`, [OWNER, DEV]), 'ok');
     assert.equal((await tx.call(`public.dev_auth($1)`, [DEV])).role, 'developer');
     assert.equal(await tx.call(`public.dev_user_set($1, $2, 'x', false)`, [DEV, OWNER]), 'not_owner', 'a developer can not remove the owner');
