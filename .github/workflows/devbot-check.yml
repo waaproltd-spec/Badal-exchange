@@ -1,0 +1,65 @@
+name: Developer Bot check (read-only)
+
+# Says whether the Developer Bot is set up: which secrets exist (names only, never values) in Supabase and in GitHub,
+# whether the function answers, and, only if asked, registers the Telegram webhook once.
+# Needs: SUPABASE_ACCESS_TOKEN (already used by the deploy). For "setup" also the repository secrets
+# DEVBOT_WEBHOOK_SECRET (the same value as in Supabase). Nothing here prints a secret.
+on:
+  workflow_dispatch:
+    inputs:
+      setup:
+        description: 'true: register the Telegram webhook and the command menu (needs DEVBOT_WEBHOOK_SECRET in GitHub secrets too)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      REF: onbezsojnpsrtuxzwsjr
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Supabase secrets (names only)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::warning::SUPABASE_ACCESS_TOKEN is not set: cannot list the Supabase secrets"; exit 0; }
+          names=$(supabase secrets list --project-ref "$REF" 2>/dev/null | awk -F'|' 'NR>2 {gsub(/ /,"",$1); print $1}' | sort -u)
+          for n in DEVBOT_TELEGRAM_TOKEN DEVBOT_WEBHOOK_SECRET DEVBOT_REPORT_SECRET DEVBOT_GITHUB_TOKEN DEVBOT_BASE_BRANCH DEVBOT_REPO ANTHROPIC_API_KEY; do
+            if printf '%s\n' "$names" | grep -qx "$n"; then echo "Supabase  $n: set"; else echo "Supabase  $n: MISSING$( [ "$n" = DEVBOT_REPO ] && echo ' (optional: default waaproltd-spec/Badal-exchange)')"; fi
+          done
+
+      - name: GitHub Actions secrets (present or not)
+        env:
+          A: ${{ secrets.ANTHROPIC_API_KEY }}
+          U: ${{ secrets.DEVBOT_REPORT_URL }}
+          S: ${{ secrets.DEVBOT_REPORT_SECRET }}
+          W: ${{ secrets.DEVBOT_WEBHOOK_SECRET }}
+          B: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          for pair in "ANTHROPIC_API_KEY:$A" "DEVBOT_REPORT_URL:$U" "DEVBOT_REPORT_SECRET:$S" "BACKUP_PASSPHRASE:$B" "DEVBOT_WEBHOOK_SECRET:$W"; do
+            n=${pair%%:*}; v=${pair#*:}
+            if [ -n "$v" ]; then echo "GitHub    $n: set"; else echo "GitHub    $n: MISSING$( [ "$n" = DEVBOT_WEBHOOK_SECRET ] && echo ' (only needed to register the webhook from here)')"; fi
+          done
+          case "$U" in https://*/functions/v1/dev-bot/report) echo "GitHub    DEVBOT_REPORT_URL looks right";; "") ;; *) echo "::warning::DEVBOT_REPORT_URL should end with /functions/v1/dev-bot/report";; esac
+
+      - name: Does the function answer?
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 -X POST "https://$REF.supabase.co/functions/v1/dev-bot" -H 'x-telegram-bot-api-secret-token: wrong')
+          echo "dev-bot without the right secret answers: HTTP $code (403 = deployed and protected)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 -X POST "https://$REF.supabase.co/functions/v1/dev-bot/report" -d '{}' -H 'x-devbot-signature: sha256=00')
+          echo "dev-bot /report with a wrong signature: HTTP $code (403 = protected)"
+
+      - name: Register the Telegram webhook (only when asked)
+        if: ${{ inputs.setup == 'true' }}
+        env:
+          W: ${{ secrets.DEVBOT_WEBHOOK_SECRET }}
+        run: |
+          [ -n "$W" ] || { echo "::error::Add DEVBOT_WEBHOOK_SECRET to the GitHub Actions secrets (same value as in Supabase)"; exit 1; }
+          curl -sS -m 30 -X POST "https://$REF.supabase.co/functions/v1/dev-bot/setup" -H "x-telegram-bot-api-secret-token: $W" | sed 's/[0-9]\{6,\}:[A-Za-z0-9_-]\{30,\}/[token]/g'
