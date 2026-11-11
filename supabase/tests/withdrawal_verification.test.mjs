@@ -80,7 +80,10 @@ test('first withdrawal of an unverified account: refused with the message and th
   assert.equal(access.status, 'pending');
   assert.equal(access.whatsapp, '+252612345678');
   assert.equal(access.phone, cu.phone);
-  assert.match(access.accountId, /^BX[0-9A-F]{8}$/);
+  const wallet = (await db.query(`SELECT wallet_code FROM wallets WHERE customer_id = $1`, [cu.id])).rows[0].wallet_code;
+  assert.match(access.accountId, /^BE\d{6}$/);
+  assert.equal(access.accountId, wallet, 'the Customer ID is the wallet ID the customer sees in the app');
+  assert.equal(typeof access.name, 'string', 'the name for the message to the admin');
   assert.match(access.message, /^Si aad lacag ula baxdo markii ugu horreysay, fadlan la xiriir maamulka/);
   const message = await rejects(withdraw(cu), 'WITHDRAWAL_VERIFICATION_REQUIRED');
   assert.match(message, /WhatsApp-ka maamulka: \+252612345678/);
@@ -119,7 +122,7 @@ test('the admin sees the request with the history, approves; who and when is kep
   const req = list.requests.find((r) => r.customerId === cu.id);
   assert.ok(req, 'listed as pending');
   assert.deepEqual([req.phone, req.status, req.balance], [cu.phone, 'pending', '50.00']);
-  assert.match(req.accountId, /^BX/);
+  assert.equal(req.accountId, (await db.query(`SELECT wallet_code FROM wallets WHERE customer_id = $1`, [cu.id])).rows[0].wallet_code);
   assert.ok(req.requestedAt);
   assert.equal(req.deposits.count, 0);
 

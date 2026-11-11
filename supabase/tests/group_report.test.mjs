@@ -266,3 +266,21 @@ test('/movehere: the person whose private chat gets the alerts can move them to 
     assert.equal(await t.call(`public.withdrawal_alerts_move(123456789, -1008888, 'Other')`), false);    // the old owner chat no longer matches
     assert.equal(await audits(), before + 1);                                                              // one move, one audit row
   }));
+
+test('the Customer ID is the wallet ID the customer sees in the app, everywhere; the old derived code only finds the customer', () =>
+  inTx(async (t) => {
+    const u = (await t.query(`SELECT u.id, w.wallet_code FROM public.users u JOIN public.wallets w ON w.customer_id = u.id WHERE u.role = 'customer' LIMIT 1`)).rows[0];
+    assert.match(u.wallet_code, /^BE\d{6}$/);
+    assert.equal(await t.call(`private.account_code($1::uuid)`, [u.id]), u.wallet_code);
+    assert.match(await t.call(`private.legacy_account_code($1::uuid)`, [u.id]), /^BX[0-9A-F]{8}$/);
+    // the lookup by Telegram link: the wallet ID and the old code find the same customer; an unknown one finds nobody
+    const byWallet = await t.call(`public.support_approval_request(900001, $1)`, [u.wallet_code]);
+    assert.equal(byWallet.ok, true);
+    assert.equal(byWallet.accountId, u.wallet_code);
+    const legacy = await t.call(`private.legacy_account_code($1::uuid)`, [u.id]);
+    const byOld = await t.call(`public.support_approval_request(900002, $1)`, [legacy]);
+    assert.equal(byOld.ok, true);
+    assert.equal(byOld.accountId, u.wallet_code, 'the answer always carries the wallet ID');
+    assert.equal((await t.call(`public.support_approval_request(900003, 'BE000000')`)).ok, false);
+    assert.equal((await t.call(`public.support_approval_request(900004, 'XX123')`)).ok, false);
+  }));

@@ -75,11 +75,12 @@ Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN
   groupLinked: '✅ Kooxdan waa la xaqiijiyay. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaa lagu soo diri doonaa; xubnaha kooxdu waxay fasaxi/diidi karaan.',
   groupAnonymous: '⚠️ Fariintan waxaa loo diray sidii <b>maamule qarsoon</b> (anonymous), sidaas darteed ma garan karo yaad tahay. Fadlan ka damiso <b>Remain anonymous</b> (Group → Administrators → magacaaga), kadibna mar kale qor /linkgroup.',
   groupNotAllowed: '⛔ Kaliya maamulaha la ogol yahay ayaa kooxda xiri kara.',
-  btnApprove: '✅ Fasax',
-  btnReject: '❌ Diid',
+  btnApprove: '✅ Confirm',
+  btnReject: '❌ Reject',
   adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
-  adminRequest: (name: string, id: string, phone: string, username: string) =>
-    `🔔 <b>CODSI CUSUB OO LOO BAAHAN YAHAY FASAXA BIXINTA</b>\n\n👤 Macmiil: <b>${name || '—'}</b>\n🆔 Customer ID: <b>${id}</b>\n📱 Telefoon: ${phone ? '+' + phone : '—'}${username ? `\n💬 Telegram: @${username}` : ''}\n\n🟡 <b>PENDING – WELI SUGAYA</b>\n\n⚠️ Fadlan dib u eeg codsiga oo ka go'aan gaar.`,
+  // The approval request in the group: the customer's name, Customer ID (the wallet ID the customer sees in the app) and number only.
+  adminRequest: (name: string, id: string, phone: string, _username: string) =>
+    `🔔 <b>Codsi Lacag Bixin (Withdrawal)</b>\n\n👤 Macmiil: <b>${name || '—'}</b>\n🪪 Customer ID: <b>${id}</b>\n📱 Number: ${phone ? '+' + phone : '—'}\n\n🟡 <b>PENDING – Weli Sugaya</b>`,
   unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
   voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor su’aashaada qoraal ahaan.',
   otherRefused: '🚫 Bot-kan wuxuu aqbalaa <b>qoraal</b> kaliya. Sawirada (screenshots), codka iyo faylasha kale lama aqbalo. Fadlan qor su’aashaada.',
@@ -258,7 +259,7 @@ async function onMessage(m: any, from: any) {
     return void (await say(chat, T.adminLinked));
   }
   // Customer App, Withdraw: https://t.me/<bot>?start=fasax_<Customer ID> asks the administrator to approve the account.
-  const ask = /^\/start\s+fasax_([A-Za-z0-9]{10})$/.exec(text);
+  const ask = /^\/start\s+fasax_([A-Za-z0-9]{8,10})$/.exec(text);
   if (ask) return approvalRequest(chat, ask[1], from);
 
   const s = await rpc('support_session', { p_chat: chat });

@@ -103,12 +103,12 @@ void main() {
 
   testWidgets('Telegram opens the bot with the start code carrying the Customer ID', (tester) async {
     final opened = <Uri>[];
-    await _pump(tester, id: 'BX45495228', opened: opened);
+    await _pump(tester, id: 'BE592850', opened: opened);
     await tester.tap(find.byKey(const Key('contact-admin-telegram')));
     await tester.pump();
     expect(opened.map((u) => u.toString()), [
-      'tg://resolve?domain=Badalaisupportbot&start=fasax_BX45495228',
-      'https://t.me/Badalaisupportbot?start=fasax_BX45495228',
+      'tg://resolve?domain=Badalaisupportbot&start=fasax_BE592850',
+      'https://t.me/Badalaisupportbot?start=fasax_BE592850',
     ]);
   });
 }

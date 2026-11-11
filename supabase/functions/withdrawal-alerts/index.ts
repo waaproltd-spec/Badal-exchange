@@ -114,7 +114,7 @@ const whyText = (code: unknown, raw: unknown) => {
 
 type Order = {
   orderId: string; orderCode: string; method: string; status: string; payout: string; amount: string;
-  phone: string | null; customerName: string | null; customerPhone: string | null; reference: string | null;
+  phone: string | null; customerName: string | null; customerPhone: string | null; customerId?: string | null; reference: string | null;
   reason: string | null; review: boolean; messageId?: number; createdAt?: string;
   delay?: { code: string; note: string | null; seconds: number } | null;
 };
@@ -157,6 +157,7 @@ function orderText(o: Order) {
   const lines = [
     head,
     `Magaca macmiilka: ${esc(o.customerName ?? '—')}`,
+    `Customer ID: <code>${esc(o.customerId ?? '—')}</code>`,
     `Lambarka telefoonka: <code>${esc(o.customerPhone ?? '—')}</code>`,
     `Lambarka macaamilka: <code>${esc(o.orderCode)}</code>`,
     `Lacagta: <b>$${esc(o.payout)}</b>`,
@@ -200,7 +201,7 @@ function reportParts(day: string, d: any, saved = true): string[] {
   const people =
     `👑 <b>Top 5 macaamiil</b> (tirada lacagta)\n` +
     (top.length === 0 ? 'Macaamil dhammaystiray ma jiro.' : top.map((c, i) =>
-      `${i + 1}. ${esc(c.name)} <code>${esc(c.phone ?? '—')}</code>\n    Dhigasho ${usd(c.deposits)} · Bixin ${usd(c.withdrawals)} · Wadar <b>${usd(c.volume)}</b> · ${c.count} macaamil`).join('\n')) +
+      `${i + 1}. ${esc(c.name)} <code>${esc(c.customerId ?? '—')}</code> <code>${esc(c.phone ?? '—')}</code>\n    Dhigasho ${usd(c.deposits)} · Bixin ${usd(c.withdrawals)} · Wadar <b>${usd(c.volume)}</b> · ${c.count} macaamil`).join('\n')) +
     `\n\n🧑‍💼 <b>Wakiilada</b> (dakhli)\n` +
     ((d.agents ?? []).length === 0 ? 'Commission lama diiwaangelin.' : (d.agents as any[]).map((a, i) =>
       `${i + 1}. ${esc(a.name)}: ${usd(a.earned)} · ${a.orders} macaamil · ${usd(a.volume)}`).join('\n'));
@@ -334,6 +335,7 @@ async function run() {
     await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
       text: `${icon} <b>${i.direction === 'deposit' ? 'Dhigasho' : 'Lacag-bixin'} — ${what}</b>\n` +
         `Magaca macmiilka: ${esc(i.customerName ?? '—')}\n` +
+        `Customer ID: <code>${esc(i.customerId ?? '—')}</code>\n` +
         `Lambarka telefoonka: <code>${esc(i.customerPhone ?? '—')}</code>\n` +
         `Lambarka macaamilka: <code>${esc(i.orderCode ?? 'dalab lama sameynin')}</code>\n` +
         `Lacagta: $${esc(i.amount ?? '—')}\n` +
@@ -392,7 +394,7 @@ async function run() {
     for (const d of (g.deposits ?? []) as any[]) {
       await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML',
         text: `💰 <b>Dhigasho guuleystay</b>
-Macmiilka: ${esc(d.customer)} <code>${esc(d.phone ?? '—')}</code>
+Macmiilka: ${esc(d.customer)}\nCustomer ID: <code>${esc(d.customerId ?? '—')}</code> · <code>${esc(d.phone ?? '—')}</code>
 Lacagta: <b>${usd(d.amount)}</b>
 ` +
           `Shirkadda: ${esc(METHOD[d.method] ?? d.method)}
@@ -405,7 +407,7 @@ Waqtiga: ${esc(when(d.at))}` });
     for (const f of (g.failed ?? []) as any[]) {
       await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML',
         text: `❌ <b>${f.direction === 'deposit' ? 'Dhigasho' : 'Lacag-bixin'} fashilmay</b>
-Macmiilka: ${esc(f.customer)} <code>${esc(f.phone ?? '—')}</code>
+Macmiilka: ${esc(f.customer)}\nCustomer ID: <code>${esc(f.customerId ?? '—')}</code> · <code>${esc(f.phone ?? '—')}</code>
 Lacagta: ${usd(f.amount)}
 ` +
           `Shirkadda: ${esc(METHOD[f.method] ?? f.method)}

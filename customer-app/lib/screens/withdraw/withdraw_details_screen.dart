@@ -116,10 +116,7 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     if (mounted) setState(() => _access = access);
   }
 
-  Uri? get _whatsappLink => _access?.whatsappLink(
-        platform: _info.isPlatform ? _info.label : null,
-        platformAccountId: _info.isPlatform ? _identifierController.text.trim() : null,
-      );
+  Uri? get _whatsappLink => _access?.whatsappLink();
 
   /// First withdrawal, account not approved: WhatsApp opens with the
   /// message for the admin, and the sheet says why. Nothing is created and

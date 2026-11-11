@@ -10,6 +10,7 @@ class WithdrawalAccess {
     this.whatsapp,
     this.accountId,
     this.phone,
+    this.name,
   });
 
   final bool allowed;
@@ -26,6 +27,9 @@ class WithdrawalAccess {
   final String? accountId;
   final String? phone;
 
+  /// The customer's name, for the message to the admin.
+  final String? name;
+
   factory WithdrawalAccess.fromJson(Map<String, dynamic> j) => WithdrawalAccess(
         allowed: j['allowed'] as bool? ?? true,
         status: j['status'] as String? ?? 'approved',
@@ -34,26 +38,26 @@ class WithdrawalAccess {
         whatsapp: j['whatsapp'] as String?,
         accountId: j['accountId'] as String?,
         phone: j['phone'] as String?,
+        name: j['name'] as String?,
       );
 
-  /// The message to the admin (WhatsApp, and Telegram once pasted): customer ID, registered number and,
-  /// for a betting platform, its name and the account ID -- never a password, PIN or code.
-  String prefilled({String? platform, String? platformAccountId}) => [
-        'Asc Maamule, fadlan ii fasax akoonkayga Withdrawal-ka.',
+  /// The message to the admin (WhatsApp, and Telegram once pasted): the customer's name, Customer ID (the wallet ID shown in the app)
+  /// and registered number only -- never a platform, an account ID, an amount, a password, PIN or code.
+  String prefilled() => [
+        '🔔 Codsi Lacag Bixin (Withdrawal)',
         '',
-        'Customer ID: ${accountId ?? '-'}',
-        'Phone: ${phone == null ? '-' : '+${phone!.replaceAll('+', '')}'}',
-        if (platform != null) 'Platform: $platform',
-        if (platformAccountId != null && platformAccountId.isNotEmpty) 'Account ID: $platformAccountId',
+        '👤 Macmiil: ${(name ?? '').trim().isEmpty ? '-' : name!.trim()}',
+        '🪪 Customer ID: ${accountId ?? '-'}',
+        '📱 Number: ${phone == null ? '-' : '+${phone!.replaceAll('+', '')}'}',
         '',
-        'Mahadsanid maamulka.',
+        '🟡 PENDING – Weli Sugaya',
       ].join('\n');
 
   /// wa.me link with the message, or null without a usable number.
-  Uri? whatsappLink({String? platform, String? platformAccountId}) {
+  Uri? whatsappLink() {
     final digits = (whatsapp ?? '').replaceAll(RegExp(r'\D'), '');
     if (digits.length < 8) return null;
-    final text = prefilled(platform: platform, platformAccountId: platformAccountId);
+    final text = prefilled();
     return Uri.parse('https://wa.me/$digits?text=${Uri.encodeComponent(text)}');
   }
 }

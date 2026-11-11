@@ -123,6 +123,8 @@ test('the closed day is sent as a report in parts under the limit, escaped, with
   assert.ok(about(/WARBIXINTA MAALINTA/)[0].body.text.includes('00:00 → 23:59:59'));
   assert.equal(about(/Dhigasho guuleystay/).filter((c) => /GRF1/.test(c.body.text) && /25\.00/.test(c.body.text)).length, 1);
   assert.equal(about(/fashilmay/).filter((c) => /GRF2/.test(c.body.text) && /balance too low/.test(c.body.text)).length, 1);
+  const wallet = (await db.query(`SELECT wallet_code FROM public.wallets WHERE customer_id = $1`, [customer])).rows[0].wallet_code;
+  assert.ok(about(/GRF1/)[0].body.text.includes(`Customer ID: <code>${wallet}</code>`), 'the notices carry the wallet ID as the Customer ID');
   assert.ok(!sent().some((c) => /<b>&|&<b/.test(c.body.text)), 'the text of the records is escaped');
   assert.ok(sent().every((c) => c.body.chat_id === CHAT));
   const row = (await db.query(`SELECT sent_at, parts_sent FROM public.daily_reports WHERE day = $1`, [yesterday])).rows[0];

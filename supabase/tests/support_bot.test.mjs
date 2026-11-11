@@ -115,6 +115,10 @@ after(async () => {
   await db.end();
 });
 
+// The Customer ID is the wallet's permanent ID (BE592850), the one the customer sees in the app.
+const walletCode = async (customerId) => (await db.query(`SELECT wallet_code FROM public.wallets WHERE customer_id = $1`, [customerId])).rows[0].wallet_code;
+const legacyCode = (customerId) => `BX${customerId.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+
 test('only Telegram (the webhook secret) can call it', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   assert.equal((await send({}, 'wrong')).status, 403);
@@ -380,7 +384,7 @@ test('no voice, audio or image code exists in the bot', async () => {
 test('withdrawal approval from the Customer App: /start fasax_<Customer ID> reaches the administrator; nothing but a count is stored', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const c = await customer();
-  const code = `BX${c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const code = await walletCode(c.id);
   const adminChat = nextChat();
   // The administrator's Telegram account starts the bot once.
   const linkedAdmin = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: adminChat, type: 'private' }, from: { id: adminChat, username: 'Badalexchangeadmin' }, text: '/start' } });
@@ -401,16 +405,25 @@ test('withdrawal approval from the Customer App: /start fasax_<Customer ID> reac
   assert.match(texts(r).find((x) => /loo gudbiyey maamulka/.test(x)) ?? '', /loo gudbiyey maamulka/);
   const toAdmin = r.calls.find((x) => x.method === 'sendMessage' && x.body.chat_id === adminChat);
   assert.ok(toAdmin, 'the administrator got the request');
-  assert.match(toAdmin.body.text, /CODSI CUSUB OO LOO BAAHAN YAHAY FASAXA BIXINTA/);
-  assert.ok(toAdmin.body.text.includes(code));
+  assert.match(toAdmin.body.text, /Codsi Lacag Bixin \(Withdrawal\)/);
+  assert.ok(toAdmin.body.text.includes(`Customer ID: <b>${code}</b>`), 'the wallet ID the customer sees in the app');
+  assert.match(code, /^BE\d{6}$/);
+  assert.ok(!toAdmin.body.text.includes(legacyCode(c.id)), 'never the derived code');
   assert.ok(toAdmin.body.text.includes(`+${c.phone}`));
-  assert.ok(toAdmin.body.text.includes('@macaamiil1'));
+  assert.match(toAdmin.body.text, /PENDING – Weli Sugaya/);
+  assert.ok(!/Platform|Account ID|Amount|Telegram:|@macaamiil1|Wallet ID/i.test(toAdmin.body.text), 'only the name, Customer ID and number');
+  assert.deepEqual(toAdmin.body.reply_markup.inline_keyboard[0].map((b) => b.text), ['✅ Confirm', '❌ Reject']);
   assert.doesNotMatch(toAdmin.body.text, /pin|password/i);
 
   // An unknown ID: nothing reaches the administrator.
   const bad = await send(message(nextChat(), { text: '/start fasax_BX00000000' }));
   assert.match(texts(bad).join('\n'), /lama helin/);
   assert.equal(bad.calls.filter((x) => x.body?.chat_id === adminChat).length, 0);
+  const badWallet = await send(message(nextChat(), { text: '/start fasax_BE000000' }));
+  assert.match(texts(badWallet).join('\n'), /lama helin/);
+  // A link made by an older app (the derived code) still finds the customer.
+  const old = await send(message(nextChat(), { text: `/start fasax_${legacyCode(c.id)}` }));
+  assert.doesNotMatch(texts(old).join('\n'), /lama helin/);
 
   // Five an hour a chat.
   const spam = nextChat();
@@ -426,7 +439,7 @@ async function waitingRequest() {
   const adminChat = nextChat();
   await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: adminChat, type: 'private' }, from: { id: adminChat, username: 'Badalexchangeadmin' }, text: '/start' } });
   const c = await customer();
-  const code = `BX${c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const code = await walletCode(c.id);
   const chat = nextChat();
   if (verificationWas === undefined) verificationWas = (await db.query(`SELECT value FROM app_settings WHERE key = 'withdrawal_verification'`)).rows[0]?.value ?? null;
   await db.query(`INSERT INTO app_settings (key, value) VALUES ('withdrawal_verification', 'on') ON CONFLICT (key) DO UPDATE SET value = 'on'`);
@@ -518,7 +531,7 @@ test('only the linked administrator can decide: anybody else is refused and noth
 test('asking twice sends the administrator one request, not two', async (t) => {
   if (!served) return t.skip('support-bot is not served');
   const w = await waitingRequest();
-  const code = `BX${w.c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const code = await walletCode(w.c.id);
   const again = await send({ update_id: updateId++, message: { message_id: updateId, chat: { id: w.chat, type: 'private' }, from: { id: w.chat }, text: `/start fasax_${code}` } });
   assert.equal(again.calls.filter((x) => x.body?.chat_id === w.adminChat).length, 0);
   assert.match(texts(again).join('\n'), /sug jawaabtiisa/);
@@ -549,7 +562,7 @@ test('a group of administrators: /linkgroup by the administrator; requests go to
 
   // A customer's request goes to the group, with the two buttons.
   const c = await customer();
-  const code = `BX${c.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const code = await walletCode(c.id);
   const was = (await db.query(`SELECT value FROM app_settings WHERE key = 'withdrawal_verification'`)).rows[0]?.value;
   if (verificationWas === undefined) verificationWas = was ?? null;
   await db.query(`INSERT INTO app_settings (key, value) VALUES ('withdrawal_verification', 'on') ON CONFLICT (key) DO UPDATE SET value = 'on'`);
