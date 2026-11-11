@@ -149,32 +149,15 @@ class WalletCard extends StatelessWidget {
               Expanded(
                 child: _CodeTile(
                   key: const Key('wallet-id'),
-                  icon: Icons.account_balance_wallet_rounded,
+                  // Tapping the Wallet ID opens Send Money (the copy button still copies).
+                  icon: onSendTap == null ? Icons.account_balance_wallet_rounded : Icons.send_rounded,
+                  onTap: onSendTap,
                   label: AppStrings.walletId,
                   value: wallet?.walletId,
                 ),
               ),
             ],
           ),
-          if (onSendTap != null) ...[
-            const SizedBox(height: 6),
-            // Send Money lives in the wallet itself: a slim button, not a new card or menu item.
-            SizedBox(
-              width: double.infinity,
-              height: 34,
-              child: OutlinedButton.icon(
-                key: const Key('wallet-send-money'),
-                onPressed: onSendTap,
-                icon: const Icon(Icons.send_rounded, size: 18),
-                label: Text(AppStrings.sendMoney, style: const TextStyle(fontWeight: FontWeight.w800)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withOpacity(0.5)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -191,8 +174,10 @@ class _CodeTile extends StatelessWidget {
     required this.label,
     required this.value,
     this.valueColor = Colors.white,
+    this.onTap,
   });
 
+  final VoidCallback? onTap;
   final IconData icon;
   final String label;
   final String? value;
@@ -204,13 +189,15 @@ class _CodeTile extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final roomy = box.maxWidth >= 190;
-        return Container(
+        return Material(
+          color: AppColors.primaryDeep.withOpacity(0.35),
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: Container(
           height: 48,
           padding: const EdgeInsets.fromLTRB(12, 4, 2, 4),
-          decoration: BoxDecoration(
-            color: AppColors.primaryDeep.withOpacity(0.35),
-            borderRadius: BorderRadius.circular(14),
-          ),
           child: Row(
             children: [
               if (roomy) ...[
@@ -260,6 +247,8 @@ class _CodeTile extends StatelessWidget {
                   },
                 ),
             ],
+          ),
+            ),
           ),
         );
       },
