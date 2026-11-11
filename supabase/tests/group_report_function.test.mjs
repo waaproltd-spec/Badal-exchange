@@ -185,6 +185,18 @@ test('/status is a read-only overview in the linked chat and gets no answer in a
   assert.equal(Number((await db.query(`SELECT count(*) FROM public.wallets`)).rows[0].count), before);
 });
 
+test('Payment Backup: a confirmed change of the payment source is said once in the linked chat', async () => {
+  await db.query(`INSERT INTO public.payment_source_state (source) VALUES ('sahal') ON CONFLICT (id) DO NOTHING`);
+  const { rows: [ev] } = await db.query(`INSERT INTO public.payment_source_events (from_src, to_src) VALUES ('sahal', 'agent_sim') RETURNING id`);
+  tg.calls.length = 0;
+  assert.equal((await run()).status, 200);
+  assert.equal(about(/SMS backup ayaa shaqeynaya/).filter((c) => c.body.chat_id === CHAT).length, 1);
+  assert.equal((await db.query(`SELECT count(*)::int AS n FROM public.group_notified WHERE kind = 'source' AND key = $1`, [String(ev.id)])).rows[0].n, 1);
+  tg.calls.length = 0;
+  assert.equal((await run()).status, 200);
+  assert.equal(about(/SMS backup ayaa shaqeynaya/).length, 0, 'not said again');
+});
+
 test('/movehere in a group by the owner of the linked private chat moves the alerts there; a stranger gets no answer', async () => {
   const OWNER = CHAT;            // the linked chat is the owner's private chat: its id is the owner's id
   const GROUP = -(1_000_000_000_000 + (CHAT % 1_000_000));

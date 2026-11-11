@@ -240,6 +240,18 @@ function reportParts(day: string, d: any, saved = true): string[] {
   return out;
 }
 
+/** The Payment Backup notice: what changed in the way payments are confirmed. Nothing here moves money. */
+function sourceText(e: { from: string; to: string; at: string }): string {
+  const t = `Waqtiga: ${esc(when(e.at))}`;
+  if (e.to === 'sahal') {
+    return `✅ <b>Sahal wuu soo laabtay</b>\nXaqiijinta caadiga ah ayaa dib u bilaabatay. SMS-ka Agent waa kaabe sidii hore.\n${t}`;
+  }
+  if (e.to === 'agent_sim') {
+    return `🟠 <b>Sahal ma shaqeynayo: SMS backup ayaa shaqeynaya</b>\nTelefoonka Agent ayaa hadda xaqiijinaya lacagaha SMS-ka. Lacag laba jeer lama xaqiijinayo, dhammaan hawlahana waa la diiwaangeliyaa.\n${t}`;
+  }
+  return `🔴 <b>Sahal iyo SMS backup labadaba ma shaqeynayaan</b>\nDhigashooyinka lama xaqiijin karo ilaa mid soo laabto. Hubi in telefoonka Agent uu furan yahay oo uu akhriyayo SMS (Agent App), ama Sahal dib ugu gal.\n${t}`;
+}
+
 /** The /status answer: the open incidents, the Sahal feed, what waits. Numbers and titles only. */
 function statusText(st: any): string {
   const icon = (sev: string) => (sev === 'critical' ? '🔴' : sev === 'warning' ? '🟠' : '🔵');
@@ -444,6 +456,12 @@ Sababta: ${esc(f.reason ?? 'sabab lama helin')}` });
 Haraaga: ${usd(g.sahalLow.balance)} · ugu yaraan loo baahan yahay: ${usd(g.sahalLow.min)}
 Lacag-bixinada waa la hakin karaa ilaa la kordhiyo haraaga.` });
       await rpc('group_notified_mark', { p_kind: 'sahal_low', p_keys: [g.sahalLow.key] });
+      sent++;
+    }
+    // Payment Backup: which source confirms payments now (Sahal, the Agent phone's SMS, or none). Only said.
+    for (const e of ((await rpc('payment_source_todo')) ?? []) as any[]) {
+      await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML', text: sourceText(e) });
+      await rpc('group_notified_mark', { p_kind: 'source', p_keys: [String(e.id)] });
       sent++;
     }
   }
