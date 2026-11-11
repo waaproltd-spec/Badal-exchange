@@ -452,6 +452,26 @@ void main() {
     expect(AudioDepositVoice.withdraw().asset, 'sounds/withdraw_instruction.mp3');
   });
 
+  testWidgets('a betting provider the admin adds later: voice and platform form work with no app change', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final fresh = PaymentMethodOption.fromJson({'method': 'newbet9', 'label': 'NewBet9', 'kind': 'platform', 'color': '#123456'});
+    expect(fresh.info.isPlatform, isTrue);
+    final dep = _FakeVoice();
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: fresh, voice: dep)));
+    await tester.pump();
+    expect(dep.played, 1);
+    final wd = _FakeVoice();
+    await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'newbet9', option: fresh, voice: wd)));
+    await tester.pump();
+    expect(wd.played, 1);
+    expect(find.text('NEWBET9'), findsWidgets);
+    expect(api.submitted, isEmpty);
+    // And the recording chosen for any platform is the betting one, for both screens.
+    expect(AudioDepositVoice(platform: fresh.info.isPlatform).asset, AudioDepositVoice.betAsset);
+    expect(AudioDepositVoice.withdraw(platform: fresh.info.isPlatform).asset, AudioDepositVoice.withdrawBetAsset);
+  });
+
   testWidgets('deposit in Somali on a small phone fits', (tester) async {
     await _phone(tester, size: const Size(320, 568));
     AppLanguage.current.value = AppLanguage.somali;

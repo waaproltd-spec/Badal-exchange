@@ -143,7 +143,12 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     );
   }
 
-  PaymentMethodInfo get _info => methodInfo(widget.method);
+  /// The server's own description of the method when the screen has it (a provider an admin added
+  /// after the app's catalog was loaded is still a betting platform); else the catalog.
+  PaymentMethodInfo get _info {
+    final o = widget.option?.info;
+    return o != null && o.id == widget.method ? o : methodInfo(widget.method);
+  }
 
   /// Last 9 digits of the registered number.
   String? get _ownLocal {
