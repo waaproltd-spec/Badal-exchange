@@ -126,7 +126,13 @@ same SMS parsers, the same matching rules, and the same USSD payout.
 1. The amount is reserved when the customer asks.
 2. For EVC Plus and eDahab, the agent phone with Baari's wallet SIM pays it
    out automatically: `agent_payout_start_dial`, then the carrier's USSD with
-   the PIN, then `agent_payout_report_step1`/`step2`.
+   the PIN, then `agent_payout_report_step1`/`step2`. EVC uses the agent
+   withdraw code `*736*number*amount*CODE#` (EVC numbers as `61…`; the
+   phone fills in the wallet's *736 code, then types the PIN when EVC
+   asks); eDahab uses `*110*number*amount#`. Golis and ZAAD withdrawals
+   are sent from Sahal by the `golis-merchant` function instead
+   (`sahal_payout_next` / `sahal_payout_report`; Off / Test / Live in
+   Wallets & Auto Payout; secret `GOLIS_MERCHANT_PIN`).
 3. The wallet is debited only on a confirmed payout: either the carrier's
    success screen, or its "you transferred" SMS
    (`agent_payout_confirmation`).
@@ -220,6 +226,9 @@ that brand's own CashdeskBot cash register:
 | --- | --- | --- | --- | --- |
 | @Badal888starzbot | 888starz | `/telegram-bot` | `TELEGRAM_BOT_TOKEN` | `CASHDESKBOT_*` |
 | @Badal1xbetbot | 1xBet | `/telegram-bot/1xbet` | `TELEGRAM_BOT_TOKEN_1XBET` | `CASHDESKBOT_1XBET_*` |
+| @Badalgoldparibot | GoldPari | `/telegram-bot/goldpari` | `TELEGRAM_BOT_TOKEN_GOLDPARI` | the login saved in the Agent App (Betting platforms) |
+| @Badalluckyparibot | LuckyPari | `/telegram-bot/luckypari` | `TELEGRAM_BOT_TOKEN_LUCKYPARI` | the login saved in the Agent App (Betting platforms) |
+| @BadalbetAndYoubot | BetAndYou | `/telegram-bot/betandyou` | `TELEGRAM_BOT_TOKEN_BETANDYOU` | the login saved in the Agent App (Betting platforms) |
 
 The cash register secrets are `LOGIN`, `CASHIERPASS`, `HASH` and
 `CASHDESKID`, under each brand's prefix (for example

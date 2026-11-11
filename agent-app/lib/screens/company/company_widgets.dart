@@ -4,14 +4,15 @@ import '../../models/company_balance.dart';
 import '../../models/payment_methods.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
+import '../../l10n/tr.dart';
 
 /// How a company's balance status reads and looks.
 (String, Color, IconData) companyStatusLook(String status) => switch (status) {
-      'available' => ('Available', AppColors.statusCompleted, Icons.check_circle_rounded),
-      'low' => ('Low balance', AppColors.statusFailed, Icons.warning_amber_rounded),
-      'stale' => ('Not updated', AppColors.statusPending, Icons.schedule_rounded),
-      'offline' => ('Offline', AppColors.statusDuplicate, Icons.wifi_off_rounded),
-      _ => ('No balance connection', AppColors.statusDuplicate, Icons.link_off_rounded),
+      'available' => (tr('Available'), AppColors.statusCompleted, Icons.check_circle_rounded),
+      'low' => (tr('Low balance'), AppColors.statusFailed, Icons.warning_amber_rounded),
+      'stale' => (tr('Not updated'), AppColors.statusPending, Icons.schedule_rounded),
+      'offline' => (tr('Offline'), AppColors.statusDuplicate, Icons.wifi_off_rounded),
+      _ => (tr('No balance connection'), AppColors.statusDuplicate, Icons.link_off_rounded),
     };
 
 class CompanyStatusPill extends StatelessWidget {
@@ -31,7 +32,7 @@ class CompanyStatusPill extends StatelessWidget {
           Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 6),
           Flexible(
-            child: Text(label,
+            child: Tx(label,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
           ),
@@ -44,25 +45,25 @@ class CompanyStatusPill extends StatelessWidget {
 /// The amount to show for a company: its read balance, or why there is none.
 String companyAmount(CompanyBalance c) => switch (c.status) {
       'not_connected' => '—',
-      'offline' when c.balance == null => 'Unavailable',
-      _ => c.balance == null ? 'Unavailable' : '\$${c.balance}',
+      'offline' when c.balance == null => tr('Unavailable'),
+      _ => c.balance == null ? tr('Unavailable') : '\$${c.balance}',
     };
 
 /// The Limit to show: what the register can still sell, or why it's unknown.
 String companyLimit(CompanyBalance c) => switch (c.status) {
       'not_connected' => '—',
       _ when c.balance == null => '—',
-      _ => c.limit == null ? 'Not reported' : '\$${c.limit}',
+      _ => c.limit == null ? tr('Not reported') : '\$${c.limit}',
     };
 
 /// Where the balance comes from and how old it is.
 String companySource(CompanyBalance c) {
-  if (!c.connected) return 'No balance connection · orders handled by agents';
+  if (!c.connected) return tr('No balance connection · orders handled by agents');
   final at = c.lastSuccessAt;
   return switch (c.status) {
-    'offline' => at == null ? 'Cash register · not read yet' : 'Last known · ${formatDateTime(at)}',
-    'stale' => 'Last read ${formatDateTime(at!)} · not updated since',
-    _ => 'Cash register · ${c.source ?? 'live'} · ${formatDateTime(at!)}',
+    'offline' => at == null ? tr('Cash register · not read yet') : trp('Last known · {0}', [formatDateTime(at)]),
+    'stale' => trp('Last read {0} · not updated since', [formatDateTime(at!)]),
+    _ => trp('Cash register · {0} · {1}', [c.source ?? 'live', formatDateTime(at!)]),
   };
 }
 
@@ -71,11 +72,11 @@ String companySource(CompanyBalance c) {
 String? companyWarning(CompanyBalance c) {
   if (c.waitingWithdrawals > 0) {
     final n = c.waitingWithdrawals;
-    final need = c.topUpNeeded == null ? '' : ' Top up at least \$${c.topUpNeeded}.';
+    final need = c.topUpNeeded == null ? '' : trp(' Top up at least \${0}.', [c.topUpNeeded]);
     return '$n withdrawal${n == 1 ? '' : 's'} (\$${c.waitingAmount}) waiting for a top-up.$need';
   }
-  if (c.status == 'low') return 'Below the low-balance level of \$${c.lowThreshold}.';
-  if (c.status == 'offline' && c.connected) return 'Could not read the balance${c.lastError == null ? '' : ': ${c.lastError}'}';
+  if (c.status == 'low') return trp('Below the low-balance level of \${0}.', [c.lowThreshold]);
+  if (c.status == 'offline' && c.connected) return trp('Could not read the balance{0}', [c.lastError == null ? '' : ': ${c.lastError}']);
   return null;
 }
 
@@ -108,15 +109,15 @@ class CompanyCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(c.label,
+                    Tx(c.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
                     const SizedBox(height: 2),
-                    Text(companySource(c),
+                    Tx(companySource(c),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   ],
                 ),
               ),
@@ -138,9 +139,9 @@ class CompanyCard extends StatelessWidget {
                     if (c.connected && c.balance != null)
                       FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text('Limit ${companyLimit(c)}',
+                        child: Text(trp('Limit {0}', [companyLimit(c)]),
                             key: Key('company-limit-${c.method}'),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 12.5, color: AppColors.textSecondary)),
                       ),
                     const SizedBox(height: 6),
@@ -148,7 +149,7 @@ class CompanyCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+              Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
             ],
           ),
           if (warning != null) ...[

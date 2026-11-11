@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../api/customer_api.dart';
+import '../services/app_lock.dart';
+import '../services/blocked_memory.dart';
 import '../services/push_notifications.dart';
 import '../models/auth_user.dart';
 import '../l10n/strings.dart';
@@ -15,13 +17,16 @@ import '../screens/auth/login_screen.dart';
 /// The session tokens are held by Supabase Auth (in secure storage); this
 /// class never handles a raw token.
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({required this.apiClient, required this.customerApi, this.navigatorKey}) {
+  AuthProvider({required this.apiClient, required this.customerApi, this.navigatorKey, AppLock? appLock})
+      : _appLock = appLock ?? AppLock.instance {
     apiClient.onSessionExpired = _handleSessionExpired;
     apiClient.onSessionReplaced = _handleSessionReplaced;
+    apiClient.onAccountBlocked = _handleAccountBlocked;
   }
 
   final ApiClient apiClient;
   final CustomerApi customerApi;
+  final AppLock _appLock;
 
   /// Used to bounce back to the login screen if a token refresh fails
   /// while the user is deep in some other screen (not just at startup).
@@ -51,6 +56,7 @@ class AuthProvider extends ChangeNotifier {
         _user = AuthUser(phone: phone, name: name ?? '');
         unawaited(apiClient.startLive());
         unawaited(_verifyRestoredSession());
+        _startAccountCheck();
       } else if (apiClient.hasSession) {
         await apiClient.signOut();
       }
@@ -137,10 +143,71 @@ class AuthProvider extends ChangeNotifier {
     await apiClient.secureStorage.write(key: SecureStorageKeys.userName, value: name);
     unawaited(apiClient.startLive());
     _user = AuthUser(phone: phone, name: name);
+    _startAccountCheck();
     notifyListeners();
   }
 
+  /// Signs out and shows the login screen with [message] (verification: too
+  /// many wrong PINs, the password is then the only way in).
+  Future<void> logoutToLogin(String message) async {
+    await logout();
+    navigatorKey?.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginScreen(message: message)),
+      (route) => false,
+    );
+  }
+
+  /// How often a signed-in phone asks the server whether the account is still open (a block is also seen
+  /// at once by any call the app makes, when the wallet changes live, and the moment the app comes back to the
+  /// foreground: root_shell checks then). Once a minute instead of every 20 seconds: a third of the calls.
+  static const _accountCheckEvery = Duration(seconds: 60);
+  Timer? _accountCheck;
+
+  void _startAccountCheck() {
+    _accountCheck?.cancel();
+    _accountCheck = Timer.periodic(_accountCheckEvery, (_) => checkAccount());
+  }
+
+  /// Asks the server; a blocked account signs this phone out through [onAccountBlocked].
+  Future<void> checkAccount() async {
+    if (_user == null) return;
+    try {
+      await customerApi.verifySession();
+    } catch (_) {
+      // Blocked: handled by the api client. Offline or anything else: try again later.
+    }
+  }
+
+  /// For tests: signed in as [user] without a server.
+  @visibleForTesting
+  void debugSignIn(AuthUser user) {
+    _user = user;
+    notifyListeners();
+  }
+
+  /// The administrator blocked this account: this phone is signed out (the server already ended every
+  /// session on every device) and the login screen shows the Account Blocked card. Nothing of the
+  /// customer's data is touched.
+  void _handleAccountBlocked() {
+    if (_user == null) return;
+    unawaited(() async {
+      _accountCheck?.cancel();
+      await BlockedMemory.mark(); // the next accepted login means it was unblocked
+      try {
+        await customerApi.logout();
+      } catch (_) {}
+      await _clearSession();
+      navigatorKey?.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen(blocked: true)),
+        (route) => false,
+      );
+    }());
+  }
+
   Future<void> _clearSession() async {
+    _accountCheck?.cancel();
+    // The PIN and fingerprint choice belong to this sign-in only.
+    await _appLock.disable();
     await apiClient.secureStorage.delete(key: SecureStorageKeys.userPhone);
     await apiClient.secureStorage.delete(key: SecureStorageKeys.userName);
     // Tokens written by app versions that used the old REST backend.

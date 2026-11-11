@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
 
 /// Bottom sheet collecting the payout transaction reference once the agent
 /// has actually sent the withdrawal (via EVC Plus USSD/agent line, or the
@@ -13,11 +14,11 @@ Future<String?> showCompleteWithdrawalSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (context) => const _SingleFieldSheet(
-      title: 'Complete withdrawal',
-      subtitle: 'Enter the transaction reference from the payout you just sent.',
-      label: 'Transaction reference',
-      submitLabel: 'Mark completed',
+    builder: (context) => _SingleFieldSheet(
+      title: tr('Complete withdrawal'),
+      subtitle: tr('Enter the transaction reference from the payout you just sent.'),
+      label: tr('Transaction reference'),
+      submitLabel: tr('Mark completed'),
       minLength: 3,
     ),
   );
@@ -35,11 +36,11 @@ Future<String?> showFailWithdrawalSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (context) => const _SingleFieldSheet(
-      title: 'Mark withdrawal failed',
-      subtitle: 'This releases the customer\'s reserved balance back to available. Explain why.',
-      label: 'Reason',
-      submitLabel: 'Mark failed',
+    builder: (context) => _SingleFieldSheet(
+      title: tr('Mark withdrawal failed'),
+      subtitle: tr('This releases the customer\'s reserved balance back to available. Explain why.'),
+      label: tr('Reason'),
+      submitLabel: tr('Mark failed'),
       minLength: 3,
       maxLines: 3,
       isDestructive: true,
@@ -100,14 +101,14 @@ class _SingleFieldSheetState extends State<_SingleFieldSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            Tx(
               widget.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 6),
-            Text(
+            Tx(
               widget.subtitle,
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
             TextFormField(
@@ -117,7 +118,7 @@ class _SingleFieldSheetState extends State<_SingleFieldSheet> {
               autofocus: true,
               textInputAction: TextInputAction.done,
               validator: (v) =>
-                  (v == null || v.trim().length < widget.minLength) ? 'Required' : null,
+                  (v == null || v.trim().length < widget.minLength) ? tr('Required') : null,
               onFieldSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 20),
@@ -129,7 +130,7 @@ class _SingleFieldSheetState extends State<_SingleFieldSheet> {
                       foregroundColor: Colors.white,
                     )
                   : null,
-              child: Text(widget.submitLabel),
+              child: Tx(widget.submitLabel),
             ),
           ],
         ),

@@ -9,9 +9,9 @@ import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 import '../utils/support_links.dart';
 
-/// Space to leave under scrolling content so the [SupportButton] never
-/// hides its end.
-const double supportButtonClearance = 72;
+/// Height of the band the [SupportButton] keeps under the content: the content ends above it, so the
+/// pill never covers an order or anything else.
+const double supportButtonClearance = 64;
 
 /// A small "Support" pill floating at the bottom-right of [child] (above the
 /// bottom navigation). Tapping it opens WhatsApp / Telegram options built
@@ -64,12 +64,19 @@ class _SupportButtonState extends State<SupportButton> {
   Widget build(BuildContext context) {
     final contacts = _contacts;
     final options = [
-      for (final (kind, label) in const [('whatsapp', 'WhatsApp'), ('telegram', 'Telegram')])
-        if (supportLink(kind, contacts?[kind]) case final uri?) (kind, label, uri),
+      // WhatsApp is the contact the administrators set; Telegram is always the support bot.
+      if (supportLink('whatsapp', contacts?['whatsapp']) case final uri?) ('whatsapp', 'WhatsApp', uri),
+      if (contacts != null) ('telegram', 'Telegram', Uri.parse('https://t.me/Badalaisupportbot')),
     ];
     return Stack(
       children: [
-        widget.child,
+        // The content, then the band of the pill under it: they never overlap.
+        Column(
+          children: [
+            Expanded(child: widget.child),
+            const SizedBox(height: supportButtonClearance),
+          ],
+        ),
         if (_open)
           Positioned.fill(
             child: GestureDetector(
@@ -80,7 +87,7 @@ class _SupportButtonState extends State<SupportButton> {
           ),
         Positioned(
           right: 16,
-          bottom: 12,
+          bottom: 10,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,

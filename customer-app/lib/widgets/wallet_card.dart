@@ -7,21 +7,45 @@ import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 import '../utils/formatters.dart';
 
+/// Show / hide the balances (a privacy switch only: nothing is changed or stored in the wallet). One switch for the wallet balance and the
+/// bonus balance; it is kept while the app stays open, and starts shown.
+class BalancePrivacy {
+  BalancePrivacy._();
+
+  /// true: the amounts are hidden ("••••••").
+  static final ValueNotifier<bool> hidden = ValueNotifier<bool>(false);
+  static void toggle() => hidden.value = !hidden.value;
+  static const String mask = '••••••';
+}
+
 /// The home screen's wallet card, compact: available balance with the bonus
 /// beside it, then the promo code and Wallet ID side by side. Every value comes
 /// from the backend (customer_wallet); nothing is made up on the device.
 class WalletCard extends StatelessWidget {
-  const WalletCard({super.key, required this.wallet, this.loading = false, this.error});
+  const WalletCard({super.key, required this.wallet, this.loading = false, this.error, this.onBonusTap, this.onSendTap});
 
   final Wallet? wallet;
   final bool loading;
   final String? error;
 
+  /// Opens the Bonus wallet.
+  final VoidCallback? onBonusTap;
+
+  /// Opens Send Money (free wallet to wallet transfer), inside the wallet card.
+  final VoidCallback? onSendTap;
+
   @override
   Widget build(BuildContext context) {
     final wallet = this.wallet;
+    return ValueListenableBuilder<bool>(
+      valueListenable: BalancePrivacy.hidden,
+      builder: (context, hidden, _) => _card(context, wallet, hidden),
+    );
+  }
+
+  Widget _card(BuildContext context, Wallet? wallet, bool hidden) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
       decoration: BoxDecoration(
         gradient: AppColors.cardGradient,
         borderRadius: BorderRadius.circular(22),
@@ -58,6 +82,17 @@ class WalletCard extends StatelessWidget {
                             style: AppTextStyles.muted.copyWith(color: Colors.white.withOpacity(0.85), fontSize: 13),
                           ),
                         ),
+                        // One eye for both balances, right beside the wallet balance.
+                        IconButton(
+                          key: const Key('balance-eye'),
+                          tooltip: hidden ? AppStrings.showBalance : AppStrings.hideBalance,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 28),
+                          icon: Icon(hidden ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              size: 20, color: Colors.white.withOpacity(0.9)),
+                          onPressed: BalancePrivacy.toggle,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -80,7 +115,7 @@ class WalletCard extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          Formatters.money(wallet?.availableBalance ?? '0.00'),
+                          hidden ? BalancePrivacy.mask : Formatters.money(wallet?.availableBalance ?? '0.00'),
                           key: const Key('available-balance'),
                           style: AppTextStyles.amountLarge.copyWith(color: Colors.white, fontSize: 32, height: 1.15),
                         ),
@@ -94,10 +129,10 @@ class WalletCard extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 12),
                 color: Colors.white.withOpacity(0.18),
               ),
-              _BonusTile(value: Formatters.money(wallet?.bonusBalance ?? '0.00')),
+              _BonusTile(value: hidden ? BalancePrivacy.mask : Formatters.money(wallet?.bonusBalance ?? '0.00'), onTap: onBonusTap),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -114,7 +149,9 @@ class WalletCard extends StatelessWidget {
               Expanded(
                 child: _CodeTile(
                   key: const Key('wallet-id'),
-                  icon: Icons.account_balance_wallet_rounded,
+                  // Tapping the Wallet ID opens Send Money (the copy button still copies).
+                  icon: onSendTap == null ? Icons.account_balance_wallet_rounded : Icons.send_rounded,
+                  onTap: onSendTap,
                   label: AppStrings.walletId,
                   value: wallet?.walletId,
                 ),
@@ -137,8 +174,10 @@ class _CodeTile extends StatelessWidget {
     required this.label,
     required this.value,
     this.valueColor = Colors.white,
+    this.onTap,
   });
 
+  final VoidCallback? onTap;
   final IconData icon;
   final String label;
   final String? value;
@@ -150,13 +189,15 @@ class _CodeTile extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final roomy = box.maxWidth >= 190;
-        return Container(
-          height: 52,
-          padding: const EdgeInsets.fromLTRB(12, 6, 2, 6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryDeep.withOpacity(0.35),
+        return Material(
+          color: AppColors.primaryDeep.withOpacity(0.35),
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
             borderRadius: BorderRadius.circular(14),
-          ),
+            onTap: onTap,
+            child: Container(
+          height: 48,
+          padding: const EdgeInsets.fromLTRB(12, 4, 2, 4),
           child: Row(
             children: [
               if (roomy) ...[
@@ -207,6 +248,8 @@ class _CodeTile extends StatelessWidget {
                 ),
             ],
           ),
+            ),
+          ),
         );
       },
     );
@@ -215,15 +258,19 @@ class _CodeTile extends StatelessWidget {
 
 /// The bonus balance, compact, beside the available balance.
 class _BonusTile extends StatelessWidget {
-  const _BonusTile({required this.value});
+  const _BonusTile({required this.value, this.onTap});
 
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
+    return InkWell(
       key: const Key('bonus'),
-      constraints: const BoxConstraints(maxWidth: 120),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 130),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -248,7 +295,9 @@ class _BonusTile extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null) Icon(Icons.chevron_right_rounded, size: 18, color: Colors.white.withOpacity(0.7)),
         ],
+      ),
       ),
     );
   }

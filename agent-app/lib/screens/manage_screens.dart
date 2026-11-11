@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,11 +7,13 @@ import '../api/agent_api.dart';
 import '../api/api_exception.dart';
 import '../models/console.dart';
 import '../models/payment_methods.dart';
+import '../services/ad_image_picker.dart';
 import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
+import '../l10n/tr.dart';
 
 /// Screens opened from the Account tab. The admin features need the
 /// 'manage_settings' responsibility; the backend enforces it on every call.
@@ -17,7 +21,7 @@ import 'login_screen.dart';
 String errorText(Object e, String fallback) => e is ApiException ? e.message : fallback;
 
 void showSnack(BuildContext context, String text) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Tx(text)));
 
 /// Loads a list, shows loading/error/empty states, and reloads on demand.
 abstract class ListScreenState<W extends StatefulWidget, T> extends State<W> {
@@ -39,7 +43,7 @@ abstract class ListScreenState<W extends StatefulWidget, T> extends State<W> {
       final result = await fetch();
       if (mounted) setState(() => items = result);
     } catch (e) {
-      if (mounted) setState(() => error = errorText(e, 'Failed to load.'));
+      if (mounted) setState(() => error = errorText(e, tr('Failed to load.')));
     }
   }
 
@@ -49,7 +53,7 @@ abstract class ListScreenState<W extends StatefulWidget, T> extends State<W> {
       await action();
       if (mounted && success != null) showSnack(context, success);
     } catch (e) {
-      if (mounted) showSnack(context, errorText(e, 'Something went wrong.'));
+      if (mounted) showSnack(context, errorText(e, tr('Something went wrong.')));
     }
     if (mounted) load();
   }
@@ -79,33 +83,33 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
 
   Future<void> _edit([HomeAd? ad]) async {
     final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => _HomeAdForm(ad: ad)),
+      MaterialPageRoute(builder: (_) => HomeAdForm(ad: ad)),
     );
     if (saved == true) load();
   }
 
   Future<void> _delete(HomeAd ad) async {
-    final ok = await confirmDialog(context, 'Delete "${ad.title}"?', 'Customers will no longer see this ad.');
-    if (ok) run(() => api.deleteHomeAd(ad.id), success: 'Ad deleted.');
+    final ok = await confirmDialog(context, trp('Delete "{0}"?', [ad.title]), tr('Customers will no longer see this ad.'));
+    if (ok) run(() => api.deleteHomeAd(ad.id), success: tr('Ad deleted.'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Home Ads')),
+      appBar: AppBar(title: const Tx('Manage Home Ads')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add ad'),
+        label: const Tx('Add ad'),
       ),
       body: body(
         builder: (ads) => ads.isEmpty
-            ? ListView(children: const [
+            ? ListView(children: [
                 SizedBox(height: 100),
                 EmptyStateView(
                   icon: Icons.campaign_outlined,
-                  title: 'No home ads yet',
-                  message: 'Ads you add appear on the Customer App home screen.',
+                  title: tr('No home ads yet'),
+                  message: tr('Ads you add appear on the Customer App home screen.'),
                 ),
               ])
             : ListView(
@@ -122,13 +126,13 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(ad.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                Tx(ad.title, style: const TextStyle(fontWeight: FontWeight.w800)),
                                 if ((ad.body ?? '').isNotEmpty)
-                                  Text(
+                                  Tx(
                                     ad.body!,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                                   ),
                               ],
                             ),
@@ -161,27 +165,38 @@ class _ManageHomeAdsScreenState extends ListScreenState<ManageHomeAdsScreen, Hom
   }
 }
 
-class _HomeAdForm extends StatefulWidget {
+/// Add or edit a Home Ad. The picture is chosen from the phone's gallery and
+/// saved together with the ad.
+class HomeAdForm extends StatefulWidget {
   final HomeAd? ad;
-  const _HomeAdForm({this.ad});
+  final AdImagePicker pickImage;
+  const HomeAdForm({super.key, this.ad, this.pickImage = pickAdImageFromGallery});
 
   @override
-  State<_HomeAdForm> createState() => _HomeAdFormState();
+  State<HomeAdForm> createState() => _HomeAdFormState();
 }
 
-class _HomeAdFormState extends State<_HomeAdForm> {
+enum _Upload { idle, uploading, done, failed }
+
+class _HomeAdFormState extends State<HomeAdForm> {
   final _formKey = GlobalKey<FormState>();
   late final _title = TextEditingController(text: widget.ad?.title);
   late final _body = TextEditingController(text: widget.ad?.body);
-  late final _image = TextEditingController(text: widget.ad?.imageUrl);
   late final _link = TextEditingController(text: widget.ad?.linkUrl);
   late final _order = TextEditingController(text: '${widget.ad?.sortOrder ?? 0}');
   late bool _enabled = widget.ad?.enabled ?? true;
   bool _saving = false;
 
+  /// The picture chosen in this form (not saved yet), and whether the ad's
+  /// current picture is to be taken off.
+  Uint8List? _picked;
+  bool _removed = false;
+  _Upload _upload = _Upload.idle;
+  String? _problem;
+
   @override
   void dispose() {
-    for (final c in [_title, _body, _image, _link, _order]) {
+    for (final c in [_title, _body, _link, _order]) {
       c.dispose();
     }
     super.dispose();
@@ -191,35 +206,143 @@ class _HomeAdFormState extends State<_HomeAdForm> {
     final t = (v ?? '').trim();
     if (t.isEmpty) return null;
     final uri = Uri.tryParse(t);
-    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? 'Enter a full link starting with https://' : null;
+    return (uri == null || !uri.hasScheme || !uri.hasAuthority) ? tr('Enter a full link starting with https://') : null;
+  }
+
+  Future<void> _choose() async {
+    Uint8List? bytes;
+    try {
+      bytes = await widget.pickImage();
+    } catch (_) {
+      if (mounted) setState(() => _problem = tr('Could not open the gallery.'));
+      return;
+    }
+    if (bytes == null || !mounted) return;
+    final why = adImageProblem(bytes);
+    setState(() {
+      if (why != null) {
+        _problem = why;
+      } else {
+        _picked = bytes;
+        _removed = false;
+        _problem = null;
+        _upload = _Upload.idle;
+      }
+    });
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+    final withImage = _picked != null;
+    setState(() {
+      _saving = true;
+      _problem = null;
+      _upload = withImage ? _Upload.uploading : _Upload.idle;
+    });
     String? orNull(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
     try {
       await context.read<Session>().api.saveHomeAd(
             id: widget.ad?.id,
             title: _title.text.trim(),
             body: orNull(_body),
-            imageUrl: orNull(_image),
+            imageUrl: _removed ? null : widget.ad?.imageUrl,
             linkUrl: orNull(_link),
             enabled: _enabled,
             sortOrder: int.tryParse(_order.text.trim()) ?? 0,
+            image: _picked,
+            removeImage: _removed && _picked == null,
           );
+      if (!mounted) return;
+      if (withImage) {
+        setState(() => _upload = _Upload.done);
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not save the ad.'));
+      setState(() {
+        _saving = false;
+        _upload = withImage ? _Upload.failed : _Upload.idle;
+        _problem = errorText(e, tr('Could not save the ad.'));
+      });
+      if (!withImage) showSnack(context, _problem!);
     }
+  }
+
+  Widget _imageCard() {
+    final shown = _picked ?? (_removed ? null : widget.ad?.image);
+    final link = _picked == null && !_removed ? (widget.ad?.imageUrl ?? '') : '';
+    Widget? preview;
+    if (shown != null) {
+      preview = Image.memory(shown, key: const Key('ad-image-preview'), fit: BoxFit.cover);
+    } else if (link.isNotEmpty) {
+      preview = Image.network(link,
+          key: const Key('ad-image-preview'), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink());
+    }
+    final status = switch (_upload) {
+      _Upload.uploading => (tr('Uploading…'), AppColors.textSecondary),
+      _Upload.done => (tr('Upload successful'), AppColors.statusCompleted),
+      _Upload.failed => (trp('Upload failed{0}. The ad and its previous picture are unchanged.', [_problem == null ? '' : ': $_problem']), AppColors.statusFailed),
+      _Upload.idle => null,
+    };
+    return Column(
+      key: const Key('ad-image-card'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Tx('Image (optional)', style: TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        if (preview != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(height: 132, width: double.infinity, child: preview),
+          ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            OutlinedButton.icon(
+              key: const Key('ad-image-choose'),
+              onPressed: _saving ? null : _choose,
+              icon: const Icon(Icons.photo_library_outlined),
+              label: Tx(preview == null ? tr('Choose Image') : tr('Change Image')),
+            ),
+            if (preview != null)
+              TextButton(
+                key: const Key('ad-image-remove'),
+                onPressed: _saving
+                    ? null
+                    : () => setState(() {
+                          _picked = null;
+                          _removed = true;
+                          _upload = _Upload.idle;
+                        }),
+                child: const Tx('Remove'),
+              ),
+          ],
+        ),
+        if (_picked != null && _upload == _Upload.idle)
+          Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Tx('Saved when you tap Save.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          ),
+        if (status != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(status.$1, key: const Key('ad-image-status'), style: TextStyle(color: status.$2, fontWeight: FontWeight.w700)),
+          ),
+        if (_problem != null && _upload != _Upload.failed)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(_problem!, key: const Key('ad-image-problem'), style: const TextStyle(color: AppColors.statusFailed)),
+          ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.ad == null ? 'Add Home Ad' : 'Edit Home Ad')),
+      appBar: AppBar(title: Tx(widget.ad == null ? tr('Add Home Ad') : tr('Edit Home Ad'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -227,44 +350,39 @@ class _HomeAdFormState extends State<_HomeAdForm> {
           children: [
             TextFormField(
               controller: _title,
-              decoration: const InputDecoration(labelText: 'Title'),
+              decoration: InputDecoration(labelText: tr('Title')),
               maxLength: 120,
-              validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+              validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
             ),
             TextFormField(
               controller: _body,
-              decoration: const InputDecoration(labelText: 'Text (optional)'),
+              decoration: InputDecoration(labelText: tr('Text (optional)')),
               maxLength: 500,
               maxLines: 3,
             ),
-            TextFormField(
-              controller: _image,
-              decoration: const InputDecoration(labelText: 'Image link (optional)', hintText: 'https://...'),
-              keyboardType: TextInputType.url,
-              validator: _url,
-            ),
+            _imageCard(),
             const SizedBox(height: 14),
             TextFormField(
               controller: _link,
-              decoration: const InputDecoration(labelText: 'Opens link when tapped (optional)', hintText: 'https://...'),
+              decoration: InputDecoration(labelText: tr('Opens link when tapped (optional)'), hintText: tr('https://...')),
               keyboardType: TextInputType.url,
               validator: _url,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _order,
-              decoration: const InputDecoration(labelText: 'Position (0 shows first)'),
+              decoration: InputDecoration(labelText: tr('Position (0 shows first)')),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 8),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Show to customers'),
+              title: const Tx('Show to customers'),
               value: _enabled,
               onChanged: (v) => setState(() => _enabled = v),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+            ElevatedButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
           ],
         ),
       ),
@@ -293,27 +411,27 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
   }
 
   Future<void> _delete(DepositNumber n) async {
-    final ok = await confirmDialog(context, 'Remove ${n.number}?', 'Customers will no longer see this number.');
-    if (ok) run(() => api.deleteDepositNumber(n.id), success: 'Number removed.');
+    final ok = await confirmDialog(context, trp('Remove {0}?', [n.number]), tr('Customers will no longer see this number.'));
+    if (ok) run(() => api.deleteDepositNumber(n.id), success: tr('Number removed.'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Deposit Numbers')),
+      appBar: AppBar(title: const Tx('Manage Deposit Numbers')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add number'),
+        label: const Tx('Add number'),
       ),
       body: body(
         builder: (numbers) => numbers.isEmpty
-            ? ListView(children: const [
+            ? ListView(children: [
                 SizedBox(height: 100),
                 EmptyStateView(
                   icon: Icons.phone_in_talk_outlined,
-                  title: 'No deposit numbers yet',
-                  message: 'Customers see these numbers/accounts when they deposit with that method.',
+                  title: tr('No deposit numbers yet'),
+                  message: tr('Customers see these numbers/accounts when they deposit with that method.'),
                 ),
               ])
             : ListView(
@@ -330,10 +448,10 @@ class _ManageDepositNumbersScreenState extends ListScreenState<ManageDepositNumb
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(n.number, style: const TextStyle(fontWeight: FontWeight.w800)),
-                                Text(
+                                Tx(n.number, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                Tx(
                                   [methodInfo(n.method).label, if ((n.label ?? '').isNotEmpty) n.label!].join(' • '),
-                                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                                 ),
                               ],
                             ),
@@ -402,7 +520,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not save the number.'));
+      showSnack(context, errorText(e, tr('Could not save the number.')));
     }
   }
 
@@ -410,7 +528,7 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
   Widget build(BuildContext context) {
     final isPlatform = methodInfo(_method).isPlatform;
     return AlertDialog(
-      title: Text(widget.number == null ? 'Add deposit number' : 'Edit deposit number'),
+      title: Tx(widget.number == null ? tr('Add deposit number') : tr('Edit deposit number')),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -419,25 +537,25 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
             children: [
               DropdownButtonFormField<String>(
                 value: _method,
-                decoration: const InputDecoration(labelText: 'Payment method'),
-                items: [for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Text(m.label))],
+                decoration: InputDecoration(labelText: tr('Payment method')),
+                items: [for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Tx(m.label))],
                 onChanged: (v) => setState(() => _method = v ?? _method),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _number,
-                decoration: InputDecoration(labelText: isPlatform ? 'Cashier / account ID' : 'Phone number'),
+                decoration: InputDecoration(labelText: isPlatform ? tr('Cashier / account ID') : tr('Phone number')),
                 keyboardType: isPlatform ? TextInputType.text : TextInputType.phone,
-                validator: (v) => (v ?? '').trim().length < 3 ? 'Required' : null,
+                validator: (v) => (v ?? '').trim().length < 3 ? tr('Required') : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _label,
-                decoration: const InputDecoration(labelText: 'Label (optional)', hintText: 'e.g. Main number'),
+                decoration: InputDecoration(labelText: tr('Label (optional)'), hintText: tr('e.g. Main number')),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Show to customers'),
+                title: const Tx('Show to customers'),
                 value: _enabled,
                 onChanged: (v) => setState(() => _enabled = v),
               ),
@@ -446,8 +564,8 @@ class _DepositNumberDialogState extends State<_DepositNumberDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save')),
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
+        TextButton(onPressed: _saving ? null : _save, child: Tx(_saving ? tr('Saving…') : tr('Save'))),
       ],
     );
   }
@@ -482,10 +600,10 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
 
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await confirmDialog(context, 'Send to all customers?', 'Every Customer App user will see this message.');
+    final ok = await confirmDialog(context, tr('Send to all customers?'), tr('Every Customer App user will see this message.'));
     if (!ok) return;
     setState(() => _sending = true);
-    await run(() => api.sendNotification(title: _title.text.trim(), body: _body.text.trim()), success: 'Notification sent.');
+    await run(() => api.sendNotification(title: _title.text.trim(), body: _body.text.trim()), success: tr('Notification sent.'));
     if (!mounted) return;
     _title.clear();
     _body.clear();
@@ -495,7 +613,7 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Send Notification')),
+      appBar: AppBar(title: const Tx('Send Notification')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -507,43 +625,43 @@ class _SendNotificationScreenState extends ListScreenState<SendNotificationScree
                 children: [
                   TextFormField(
                     controller: _title,
-                    decoration: const InputDecoration(labelText: 'Title'),
+                    decoration: InputDecoration(labelText: tr('Title')),
                     maxLength: 120,
-                    validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
                   ),
                   TextFormField(
                     controller: _body,
-                    decoration: const InputDecoration(labelText: 'Message'),
+                    decoration: InputDecoration(labelText: tr('Message')),
                     maxLength: 1000,
                     maxLines: 4,
-                    validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty ? tr('Required') : null,
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(
                     onPressed: _sending ? null : _send,
                     icon: const Icon(Icons.send_rounded),
-                    label: Text(_sending ? 'Sending…' : 'Send to all customers'),
+                    label: Tx(_sending ? tr('Sending…') : tr('Send to all customers')),
                   ),
                 ],
               ),
             ),
           ),
-          const SectionHeader(title: 'Sent notifications'),
+          SectionHeader(title: tr('Sent notifications')),
           if (items == null)
             (error != null ? ErrorStateView(message: error!, onRetry: load) : const LoadingView())
           else if (items!.isEmpty)
-            const Text('Nothing sent yet.', style: TextStyle(color: AppColors.textSecondary))
+            Tx('Nothing sent yet.', style: TextStyle(color: AppColors.textSecondary))
           else
             for (final n in items!) ...[
               ConsoleCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(n.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Tx(n.title, style: const TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
-                    Text(n.body, style: const TextStyle(color: AppColors.textSecondary)),
+                    Tx(n.body, style: TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 6),
-                    Text(formatDateTime(n.createdAt), style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
+                    Tx(formatDateTime(n.createdAt), style: TextStyle(fontSize: 11.5, color: AppColors.textFaint)),
                   ],
                 ),
               ),
@@ -590,7 +708,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showSnack(context, errorText(e, 'Could not change the password.'));
+      showSnack(context, errorText(e, tr('Could not change the password.')));
       return;
     }
     // Every session was signed out on the server; log in with the new password.
@@ -599,9 +717,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Password changed'),
-        content: const Text('Please log in again with your new password.'),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+        title: const Tx('Password changed'),
+        content: const Tx('Please log in again with your new password.'),
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Tx('OK'))],
       ),
     );
     if (!mounted) return;
@@ -611,7 +729,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password')),
+      appBar: AppBar(title: const Tx('Change Password')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -620,27 +738,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             TextFormField(
               controller: _current,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Current password'),
-              validator: (v) => (v ?? '').isEmpty ? 'Required' : null,
+              decoration: InputDecoration(labelText: tr('Current password')),
+              validator: (v) => (v ?? '').isEmpty ? tr('Required') : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _next,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'New password (at least 8 characters)'),
-              validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+              decoration: InputDecoration(labelText: tr('New password (at least 8 characters)')),
+              validator: (v) => (v ?? '').length < 8 ? tr('At least 8 characters') : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _confirmNext,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm new password'),
-              validator: (v) => v != _next.text ? 'Passwords do not match' : null,
+              decoration: InputDecoration(labelText: tr('Confirm new password')),
+              validator: (v) => v != _next.text ? tr('Passwords do not match') : null,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _saving ? null : _save,
-              child: Text(_saving ? 'Saving…' : 'Change password'),
+              child: Tx(_saving ? tr('Saving…') : tr('Change password')),
             ),
           ],
         ),
@@ -653,11 +771,11 @@ Future<bool> confirmDialog(BuildContext context, String title, String message) a
   final ok = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
+      title: Tx(title),
+      content: Tx(message),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('OK')),
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Tx('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Tx('OK')),
       ],
     ),
   );

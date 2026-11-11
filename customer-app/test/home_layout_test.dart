@@ -2,9 +2,13 @@ import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/models/app_content.dart';
+import 'package:badal_exchange_customer/models/auth_user.dart';
 import 'package:badal_exchange_customer/models/order.dart';
+import 'package:badal_exchange_customer/models/tip.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
 import 'package:badal_exchange_customer/screens/root/root_shell.dart';
+import 'package:badal_exchange_customer/widgets/floating_nav_bar.dart';
+import 'package:badal_exchange_customer/widgets/wallet_card.dart';
 import 'package:badal_exchange_customer/state/auth_provider.dart';
 import 'package:badal_exchange_customer/state/orders_provider.dart';
 import 'package:badal_exchange_customer/state/wallet_provider.dart';
@@ -40,6 +44,11 @@ class _FakeApi extends CustomerApi {
 
   @override
   Future<List<HomeAd>> getHomeAds() async => const [];
+
+  @override
+  Future<List<Tip>> getTips([String filter = 'all']) async => [
+        Tip.fromJson({'id': 'f1', 'title': 'Free pick', 'sport': 'football', 'teamCount': 3, 'isPaid': false, 'oddsCode': 'FREE-123'}),
+      ];
 
   static Order _order(String id, String direction, String method, String amount, DateTime at) => Order(
         id: id,
@@ -88,23 +97,42 @@ const _phones = {
 void main() {
   setUp(() => AppLanguage.current.value = AppLanguage.english);
 
+  testWidgets('the bottom bar is Home, Orders, TIPS, Profile; Home has no TIPS card; the TIPS tab opens the tips', (tester) async {
+    await _phone(tester, _phones.values.first);
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('home-tips')), findsNothing, reason: 'TIPS is a tab, not a Home card');
+    final bar = find.byType(FloatingNavBar);
+    for (final label in [AppStrings.home, AppStrings.orders, AppStrings.tips, AppStrings.profile]) {
+      expect(find.descendant(of: bar, matching: find.text(label)), findsOneWidget, reason: label);
+    }
+    expect(tester.widget<FloatingNavBar>(bar).tabs.length, 4);
+    await tester.tap(find.descendant(of: bar, matching: find.text(AppStrings.tips)));
+    await tester.pumpAndSettle();
+    expect(find.text('FREE-123'), findsOneWidget);
+    expect(find.text(AppStrings.tipsAll), findsOneWidget);
+    // Profile is still the last tab.
+    await tester.tap(find.descendant(of: bar, matching: find.text(AppStrings.profile)));
+    await tester.pumpAndSettle();
+    expect(find.text('FREE-123'), findsNothing);
+  });
+
   for (final MapEntry(key: name, value: size) in _phones.entries) {
-    testWidgets('$name: two recent orders show above the bottom bar, nothing overflows', (tester) async {
+    testWidgets('$name: the recent order shows above the bottom bar, nothing overflows', (tester) async {
       await _phone(tester, size);
       await tester.pumpWidget(_app());
       await tester.pumpAndSettle();
 
-      final navTop = tester.getRect(find.byType(NavigationBar)).top;
-      for (final id in ['o1', 'o2']) {
+      final navTop = tester.getRect(find.byKey(const Key('floating-nav'))).top;
+      for (final id in ['o1']) {
         final tile = tester.getRect(find.byKey(Key('recent-order-$id')));
         expect(tile.bottom <= navTop, isTrue, reason: 'order $id ends at ${tile.bottom}, bar starts at $navTop');
       }
       // Each order shows its service, amount, date and status.
       expect(find.text('Withdraw · 1XBET'), findsOneWidget);
       expect(find.text('-\$1.50'), findsOneWidget);
-      expect(find.text('Deposit · 1XBET'), findsOneWidget);
-      expect(find.text('+\$5.00'), findsOneWidget);
-      expect(find.byKey(const Key('view-all-orders')), findsOneWidget);
+      expect(find.byKey(const Key('view-all-orders')), findsNothing, reason: 'the Recent Orders heading and View all are removed');
+      expect(find.text('Recent Orders'), findsNothing);
 
       // Deposit and Withdraw are the same size, side by side.
       final deposit = tester.getRect(find.byKey(const Key('home-deposit')));
@@ -125,16 +153,120 @@ void main() {
     await _phone(tester, const Size(320, 640));
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
-    final navTop = tester.getRect(find.byType(NavigationBar)).top;
-    expect(tester.getRect(find.byKey(const Key('recent-order-o2'))).bottom <= navTop, isTrue);
+    final navTop = tester.getRect(find.byKey(const Key('floating-nav'))).top;
+    expect(tester.getRect(find.byKey(const Key('recent-order-o1'))).bottom <= navTop, isTrue);
   });
 
-  testWidgets('View all opens the Orders tab', (tester) async {
+  testWidgets('Deposit and Withdraw: only the word, a download / upload icon and an arrow, the same size, side by side, low', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    for (final size in _phones.values) {
+      await _phone(tester, size);
+      await tester.pumpWidget(_app());
+      await tester.pumpAndSettle();
+      final deposit = tester.getRect(find.byKey(const Key('home-deposit')));
+      final withdraw = tester.getRect(find.byKey(const Key('home-withdraw')));
+      expect(deposit.size, withdraw.size, reason: '$size');
+      expect(deposit.top, withdraw.top);
+      expect(deposit.height <= 56, isTrue, reason: 'low: ${deposit.height}');
+      expect(deposit.right < withdraw.left, isTrue, reason: 'side by side');
+      for (final k in ['home-deposit', 'home-withdraw']) {
+        expect(find.descendant(of: find.byKey(Key(k)), matching: find.byIcon(Icons.chevron_right_rounded)), findsOneWidget);
+      }
+      expect(find.descendant(of: find.byKey(const Key('home-deposit')), matching: find.byIcon(Icons.file_download_rounded)), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('home-withdraw')), matching: find.byIcon(Icons.file_upload_rounded)), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('home-deposit')), matching: find.text('Dhigasho')), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('home-withdraw')), matching: find.text('Bixinta')), findsOneWidget);
+      for (final gone in ['Hadda dhigasho', 'Kuso shub lacag', 'Hadda bixin', 'Kala bax lacagta']) {
+        expect(find.text(gone), findsNothing, reason: gone);
+      }
+    }
+  });
+
+  testWidgets('Dhigasho is green and Bixinta is red; the Caawimaad pill has its own band: it never covers an order, and the nav bar never covers it', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    for (final size in _phones.values) {
+      await _phone(tester, size);
+      await tester.pumpWidget(_app());
+      await tester.pumpAndSettle();
+      Color tint(String k) {
+        final box = tester.widget<DecoratedBox>(find.descendant(of: find.byKey(Key(k)), matching: find.byType(DecoratedBox)).first);
+        return ((box.decoration as BoxDecoration).gradient! as LinearGradient).colors.first;
+      }
+      final g = tint('home-deposit'), r = tint('home-withdraw');
+      expect(g.green > g.red && g.green > g.blue, isTrue, reason: 'green deposit $size');
+      expect(r.red > r.green && r.red > r.blue, isTrue, reason: 'red withdraw $size');
+      final pill = tester.getRect(find.byKey(const Key('support-button')));
+      final list = tester.getRect(find.descendant(of: find.byType(RefreshIndicator), matching: find.byType(ListView)).first);
+      expect(pill.top >= list.bottom - 0.5, isTrue, reason: 'the pill starts under the list: pill ${pill.top} list ${list.bottom} $size');
+      final nav = tester.getRect(find.byType(FloatingNavBar));
+      expect(pill.bottom <= nav.top + 0.5, isTrue, reason: 'above the navigation bar $size');
+      // scrolled to the end, the last order is fully visible above the pill
+      await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '$size');
+    }
+  });
+
+  testWidgets('the header: small company name, "Ku soo dhawoow, <the account\'s name>" in yellow under it, no overlap with the balance card, on every phone size', (tester) async {
+    for (final lang in [AppLanguage.somali, AppLanguage.english]) {
+      AppLanguage.current.value = lang;
+      for (final name in ['Yaasiin Maxamed', 'Abdirahman Mohamed Abdullahi Ahmed Warsame Hussein']) {
+        for (final size in _phones.values) {
+          await _phone(tester, size);
+          await tester.pumpWidget(const SizedBox()); // a fresh tree for each account
+          await tester.pumpWidget(MultiProvider(
+            providers: [
+              Provider<CustomerApi>.value(value: _FakeApi()),
+              ChangeNotifierProvider(create: (_) => AuthProvider(apiClient: ApiClient(), customerApi: _FakeApi())..debugSignIn(AuthUser(phone: '252615000111', name: name))),
+              ChangeNotifierProvider(create: (_) => WalletProvider(customerApi: _FakeApi())),
+              ChangeNotifierProvider(create: (_) => OrdersProvider(customerApi: _FakeApi())),
+            ],
+            child: MaterialApp(theme: AppTheme.current, home: const RootShell()),
+          ));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: '$size $lang $name');
+          final company = tester.widget<Text>(find.byKey(const Key('home-company-name')));
+          expect(company.style!.fontSize! <= 16, isTrue, reason: 'small');
+          final welcome = tester.widget<Text>(find.byKey(const Key('home-welcome')));
+          final spans = (welcome.textSpan! as TextSpan).children!.cast<TextSpan>();
+          expect(spans.first.text, startsWith(lang == AppLanguage.somali ? 'Ku soo dhawoow' : 'Welcome'));
+          expect(spans.last.text, name, reason: 'the name of the signed-in account, not a fixed one');
+          expect(spans.last.style!.color, const Color(0xFFFFC83D), reason: 'yellow');
+          final bell = tester.getRect(find.byTooltip(AppStrings.notifications));
+          final title = tester.getRect(find.byKey(const Key('home-welcome')));
+          expect(title.right <= bell.left, isTrue, reason: 'no overlap with the bell $size');
+          expect(title.bottom < tester.getRect(find.byType(WalletCard)).top, isTrue, reason: 'above the balance card $size');
+        }
+      }
+    }
+    AppLanguage.current.value = AppLanguage.somali;
+  });
+
+  testWidgets('the eye hides and shows the wallet balance and the bonus balance together, and is remembered while the app is open', (tester) async {
+    addTearDown(() => BalancePrivacy.hidden.value = false);
+    BalancePrivacy.hidden.value = false;
     await _phone(tester, const Size(360, 780));
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('view-all-orders')));
+    expect(find.byKey(const Key('balance-eye')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '\$2.73');
+    expect(find.text('\$0.00'), findsOneWidget, reason: 'the bonus');
+    await tester.tap(find.byKey(const Key('balance-eye')));
+    await tester.pump();
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '••••••');
+    expect(find.text('••••••'), findsNWidgets(2), reason: 'the wallet balance and the bonus balance, with one eye');
+    expect(find.text('\$2.73'), findsNothing);
+    expect(find.byIcon(Icons.visibility_off_rounded), findsOneWidget);
+    // the Wallet ID and promo code are not amounts: still shown
+    expect(find.text('BE295683'), findsOneWidget);
+    // remembered while the app stays open: the screen is built again, still hidden
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
-    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 1);
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '••••••');
+    await tester.tap(find.byKey(const Key('balance-eye')));
+    await tester.pump();
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '\$2.73');
+    expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);
   });
 }

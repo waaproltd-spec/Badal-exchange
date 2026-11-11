@@ -62,6 +62,7 @@ class AppStrings {
   static String get haveAccount => _t('Already have an account?', 'Horay akoon ma u lahayd?');
   static String get logout => _t('Log Out', 'Ka Bax');
   static String get logoutConfirm => _t('Are you sure you want to log out?', 'Ma hubtaa inaad ka baxayso?');
+  static String get retry => _t('Try again', 'Mar kale isku day');
   static String get cancel => _t('Cancel', 'Jooji');
   static String get createYourAccount => _t('Create your account', 'Samee akoonkaaga');
   static String get registerSubtitle =>
@@ -71,9 +72,64 @@ class AppStrings {
   static String get passwordHint => _t('At least 8 characters', 'Ugu yaraan 8 xaraf');
   static String get confirmPasswordHint => _t('Re-enter your password', 'Mar kale geli erayga sirta');
   static String get enterFullName => _t('Enter your full name', 'Geli magacaaga oo buuxa');
+  static String get phonePrefixes => _t(
+      'Phone number must start with 61 or 77 (EVC Plus), 90 (Golis), 63 (ZAAD) or 62 (eDahab)',
+      'Lambarka taleefanku waa inuu ku bilowdaa 61 ama 77 (EVC Plus), 90 (Golis), 63 (ZAAD) ama 62 (eDahab)');
   static String get enterPhone9 => _t('Enter the 9 digits after +252', 'Geli 9-ka god ee ka dambeeya +252');
   static String get passwordTooShort =>
       _t('Password must be at least 8 characters', 'Erayga sirtu waa inuu ahaadaa ugu yaraan 8 xaraf');
+  // Customer verification (fingerprint / PIN / password)
+  static String get unlock => _t('Unlock', 'Fur');
+  static String get verifySubtitle =>
+      _t('Enter your PIN or use your fingerprint', 'Geli PIN-kaaga ama isticmaal faraha');
+  static String get verifyPasswordSubtitle =>
+      _t('Enter your account password', 'Geli erayga sirta ee akoonkaaga');
+  static String get useFingerprint => _t('Use fingerprint', 'Isticmaal faraha');
+  static String get fingerprintReason =>
+      _t('Verify your identity to open Badal Exchange', 'Xaqiiji aqoonsigaaga si aad u furto Badal Exchange');
+  static String get fingerprintFailed =>
+      _t('Fingerprint not recognized. Enter your PIN.', 'Faraha lama aqoonsan. Geli PIN-kaaga.');
+  static String get usePasswordInstead => _t('Use password instead', 'Isticmaal erayga sirta');
+  static String get usePinInstead => _t('Use PIN instead', 'Isticmaal PIN-ka');
+  static String get accountPassword => _t('Account password', 'Erayga sirta akoonka');
+  static String get verifyButton => _t('Verify', 'Xaqiiji');
+  static String get wrongPin => _t('Wrong PIN. Try again.', 'PIN-ku waa khalad. Mar kale isku day.');
+  static String pinWait(int seconds) {
+    final m = seconds ~/ 60, s = seconds % 60;
+    final t = m > 0 ? '$m:${s.toString().padLeft(2, '0')}' : '${seconds}s';
+    return _t('Too many wrong tries. Wait $t.', 'Isku day badan oo khalad ah. Sug $t.');
+  }
+
+  static String get tooManyPins =>
+      _t('Too many wrong PINs. Please log in again with your password.',
+          'PIN khalad ah ayaa aad u badan. Fadlan mar kale ku gal erayga sirta.');
+  static String get verificationLock => _t('Verification lock', 'Xaqiijinta amniga');
+  static String get verificationLockOn =>
+      _t('On: PIN and fingerprint when the app opens', 'Shidan: PIN iyo faraha marka app-ka la furo');
+  static String get statusOn => _t('On', 'Shidan');
+  static String get verificationLockOff => _t('Off', 'Damsan');
+  static String get fingerprint => _t('Fingerprint', 'Faraha (Fingerprint)');
+  static String get changePin => _t('Change PIN', 'Beddel PIN-ka');
+  static String get createPin => _t('Create a PIN', 'Samee PIN');
+  static String get createPinHelp => _t('Choose a 6-digit PIN', 'Dooro PIN 6 lambar ah');
+  static String get confirmPinHelp => _t('Enter the PIN again', 'Mar kale geli PIN-ka');
+  static String get pinsDontMatch =>
+      _t('The PINs do not match. Try again.', 'PIN-yadu isma laha. Mar kale isku day.');
+  static String get weakPin =>
+      _t('Choose a PIN that is not repeated or in a row (like 123456).',
+          'Dooro PIN aan la soo celin ama isku xigin (sida 123456).');
+  static String get useFingerprintToo =>
+      _t('Also use your fingerprint to verify?', 'Ma isticmaashaa faraha sidoo kale xaqiijinta?');
+  static String get noFingerprintSet =>
+      _t('No fingerprint is set up on this phone.', 'Taleefankan faraha looma diiwaangelin.');
+  static String get fingerprintPrivacy =>
+      _t('Your fingerprint stays on your phone. It is never sent to our servers.',
+          'Faraha waxay ku hartaa taleefankaaga. Marnaba looma diro server-kayaga.');
+  static String get verificationLockEnabled =>
+      _t('Verification lock is on.', 'Xaqiijinta amniga waa la shiday.');
+  static String get verificationLockDisabled =>
+      _t('Verification lock is off.', 'Xaqiijinta amniga waa la damiyay.');
+  static String get pinChanged => _t('Your PIN was changed.', 'PIN-kaaga waa la beddelay.');
   static String get changePassword => _t('Change Password', 'Beddel Erayga Sirta');
   static String get currentPassword => _t('Current Password', 'Erayga Sirta Hadda');
   static String get currentPasswordHint => _t('The password you log in with', 'Erayga aad hadda ku gasho');
@@ -88,6 +144,7 @@ class AppStrings {
   static String get accountCreated =>
       _t('Account created. Welcome to Badal Exchange!', 'Akoonka waa la sameeyay. Ku soo dhawoow Badal Exchange!');
   static String get or => _t('OR', 'AMA');
+  static String get welcomeHeader => _t('Welcome', 'Ku soo dhawoow');
   static String get welcomeBack => _t('Welcome back', 'Ku soo dhawoow mar kale');
   static String get loginSubtitle => _t('Log in to your Badal Exchange wallet', 'Gal boorsadaada Badal Exchange');
   static String get enterPassword => _t('Enter your password', 'Geli erayga sirta');
@@ -107,6 +164,20 @@ class AppStrings {
       'Wada-hadalka taageerada weli lama diyaarin. Fadlan isku day mar dambe.');
   static String couldNotOpen(String app, String link) =>
       _t('Could not open $app. Contact us at $link', 'Lama furi karo $app. Nagala soo xiriir $link');
+  // ---- Blocked account
+  static String get accountBlockedTitle => _t('Account Blocked', 'Akoonka Waa La Xiray');
+  static String get accountBlockedMessage => _t(
+      'Your account has been blocked by the administrator. You cannot access your account at this time.',
+      'Akoonkaaga waxaa xiray maamulka. Hadda ma geli kartid akoonkaaga.');
+  static String get accountBlockedHint => _t('Please contact customer support for more information.',
+      'Fadlan la xiriir adeegga macaamiisha haddii aad u baahan tahay faahfaahin dheeraad ah.');
+  static String get accountUnblockedTitle => _t('Account Unblocked', 'Akoonka Waa La Fasaxay');
+  static String get accountUnblockedMessage => _t(
+      'Your account has been restored. You can now log in and access your account normally.',
+      'Akoonkaaga dib ayaa loo furay. Hadda waxaad si caadi ah u geli kartaa akoonkaaga.');
+  static String get unblockedLogin => _t('Login', 'Gali (Login)');
+  static String get contactSupport => _t('Contact Support', 'La Xiriir Taageerada');
+  static String get supportNotSet => _t('The support contact is not set yet.', 'Xiriirka taageerada weli lama dejin.');
   static String get openedOnAnotherPhone => _t('This account was opened on another phone. Log in again to use it here.',
       'Akoonkan taleefan kale ayaa laga galay. Dib u gal si aad halkan uga isticmaasho.');
   static String get invalidLogin =>
@@ -116,13 +187,55 @@ class AppStrings {
 
   // Home
   static String get home => _t('Home', 'Hoyga');
-  static String get availableBalance => _t('Available Balance', 'Haraaga la Isticmaali Karo');
+  static String get availableBalance => _t('Available Balance', 'Haraaga la isticmaali karo');
+  // --- Wallet to wallet transfer (Wallet -> Send Money) ---
+  static String get sendMoney => _t('Send Money', 'Send Money');
+  static String get recipientWalletId => _t('Recipient Wallet ID', 'Aqoonsiga Boorsada qofka');
+  static String get verifyRecipient => _t('Verify', 'Hubi');
+  static String get recipientNotFound => _t('Wallet ID not found', 'Wallet ID-gan lama helin');
+  static String get ownWalletId => _t('That is your own Wallet ID', 'Kani waa Wallet ID-gaaga');
+  static String get transferFree => _t('100% free · fee \$0.00', 'Bilaash 100% · khidmad \$0.00');
+  static String get sendButton => _t('Send', 'Dir');
+  static String get sendMoneyAction => _t('Send Money', 'Dir Lacag');
+  /// Somali first with the English in brackets (the look of the Send Money screen); English alone in English.
+  static String bi(String so, String en) => AppLanguage.isSomali ? '$so ($en)' : en;
+  static String get sendMoneyTitle => _t('Send Money', 'Dir Lacag');
+  static String get sendMoneySub => _t('Send to another BADAL wallet', 'Send Money');
+  static String get balanceBi => bi('Haraagaaga', 'Balance');
+  static String get walletIdBi => bi('Aqoonsiga Boorsada qofka', 'Wallet ID');
+  static String get transfersBi => _t('Transfer History', 'Dirisyada (Taariikhda Dirista)');
+  static String get verifiedRecipient => _t('Verified recipient', 'Qofka waa la xaqiijiyay');
+  static String get confirmTransfer => _t('Confirm transfer', 'Xaqiiji dirista');
+  static String get confirmAndSend => _t('Confirm & Send', 'Xaqiiji oo Dir');
+  static String get enterWalletPin => _t('Enter your 4-digit Wallet PIN', 'Geli Wallet PIN-kaaga (4 lambar)');
+  static String get createWalletPin => _t('Create your Wallet PIN', 'Samee Wallet PIN-kaaga');
+  static String get walletPinHelp => _t(
+      'A 4-digit PIN protects every transfer. Choose one nobody can guess, then confirm it with your password.',
+      'PIN 4 lambar ah ayaa ilaaliya dirista kasta. Dooro mid aan la qiyaasi karin, kadibna ku xaqiiji erayga sirta.');
+  static String get walletPinField => _t('Wallet PIN (4 digits)', 'Wallet PIN (4 lambar)');
+  static String get walletPinAgain => _t('Repeat the PIN', 'Ku celi PIN-ka');
+  static String get savePin => _t('Save PIN', 'Kaydi PIN-ka');
+  static String get pinsDoNotMatch => _t('The two PINs are not the same', 'Labada PIN isma mid aha');
+  static String get wrongPassword => _t('Wrong password', 'Erayga sirta waa khalad');
+  static String wrongWalletPin(int left) => _t('Wrong PIN. $left tries left.', 'PIN khalad ah. Waxaa hadhay $left isku-day.');
+  static String get walletPinLocked => _t('Too many wrong PINs: sending is locked for 15 minutes.', 'PIN khalad ah marar badan: dirista waa la xidhay 15 daqiiqo.');
+  static String get notEnoughBalance => _t('Your balance is not enough', 'Haraagaagu kuma filna');
+  static String get transferSent => _t('Money sent', 'Lacagta waa la diray');
+  static String get recentTransfers => _t('Transfers', 'Dirisyada');
+  static String get noTransfers => _t('No transfers yet', 'Weli dirid ma jirto');
+  static String sentTo(String name) => _t('Sent to $name', 'Waxaad u dirtay $name');
+  static String receivedFrom(String name) => _t('Received from $name', 'Waxaa ka helay $name');
+  static String get reference => _t('Reference', 'Tixraac');
+  static String get newBalance => _t('New balance', 'Haraaga cusub');
+  static String get couldNotSend => _t('Could not send. Try again.', 'Lama dirin. Mar kale isku day.');
+  static String get showBalance => _t('Show balances', 'Muuji haraaga');
+  static String get hideBalance => _t('Hide balances', 'Qari haraaga');
   static String get deposit => _t('Deposit', 'Dhigasho');
-  static String get withdraw => _t('Withdraw', 'Bixin');
+  static String get withdraw => _t('Withdraw', 'Bixinta');
   static String get bonus => _t('Bonus', 'Gunno');
   static String get promoCode => _t('Promo Code', 'Koodhka Dallacsiinta');
   static String get walletId => _t('Wallet ID', 'Aqoonsiga Boorsada');
-  static String get recentOrders => _t('Recent Orders', 'Dalabyadii u Dambeeyay');
+  static String get recentOrders => _t('Recent Orders', 'Dalabaadkii u dambeeyay');
   static String get viewAll => _t('View all', 'Dhammaan');
 
   // Method picker
@@ -137,6 +250,20 @@ class AppStrings {
   static String get mobileMoney => _t('Mobile money', 'Lacagta moobilka');
   static String get bettingPlatforms => _t('Betting platforms', 'Goobaha sharadka');
   static String get sendPaymentTo => _t('Send your payment to', 'Lacagta u dir');
+  static String get notifStatusOk => _t('Successful', 'Guulaystay');
+  static String get notifStatusFailed => _t('Failed', 'Fashilmay');
+  static String get notifStatusPending => _t('Pending', 'Sugaya');
+  static String get notifTitleSent => _t('Money sent', 'Lacag ayaad dirtay');
+  static String get notifTitleReceived => _t('Money received', 'Lacag ayaa laguu soo diray');
+  static String get notifTitleWithdraw => _t('Withdrawal successful', 'Lacag-bixinta way guulaysatay');
+  static String get notifTitleDeposit => _t('Deposit successful', 'Dhigashadu way guulaysatay');
+  static String get notifAmount => _t('Amount', 'Lacagta');
+  static String get notifBalance => _t('Balance', 'Haraagaaga');
+  static String get notifProvider => _t('Provider', 'Shirkadda');
+  static String get notifRecipient => _t('Recipient', 'Qofka la siiyay');
+  static String get notifSender => _t('Sender', 'Qofka soo diray');
+  static String get notifWalletId => _t('Wallet ID', 'Aqoonsiga Boorsada');
+  static String get notifLoadingMore => _t('Loading older notifications…', 'Ogeysiisyada hore ayaa soo socda…');
   static String get notifications => _t('Notifications', 'Ogeysiisyo');
   static String get noNotifications => _t('No notifications yet', 'Weli ogeysiis ma jiro');
   static const String evcPlus = 'EVC Plus';
@@ -145,6 +272,40 @@ class AppStrings {
   // Deposit / withdraw shared
   static String get amount => _t('Amount (USD)', 'Lacagta (USD)');
   static String get continueLabel => _t('Continue', 'Sii wad');
+  static String get withdrawAll => _t('Withdraw all', 'Qaado dhammaan');
+
+  // Withdrawal limits (KYC)
+  static String get dailyLimit => _t('Daily Limit', 'Xadka maalinlaha');
+  static String get monthlyLimit => _t('Monthly Limit', 'Xadka bishii');
+  static String get limitUsed => _t('Used', 'La bixiyay');
+  static String get limitRemaining => _t('Remaining', 'Harsan');
+  static String get limitsDetails => _t('View Details', 'Faahfaahin');
+  static String get withdrawLimitsTitle => _t('Withdrawal limits', 'Xadka lacag-bixinta');
+  static String get kycVerified => _t('KYC verified', 'KYC waa la xaqiijiyay');
+  static String get kycNotVerified => _t('Not verified', 'Lama xaqiijin');
+  static String get kycInReview => _t('KYC in review', 'KYC waa la eegayaa');
+  static String get kycRejected => _t('KYC not approved', 'KYC lama oggolaan');
+  static String get limitToday => _t('Today', 'Maanta');
+  static String get limitThisMonth => _t('This month', 'Bishan');
+  static String limitUsedOf(String used, String limit) => _t('\$$used of \$$limit withdrawn', '\$$used laga bixiyay \$$limit');
+  static String limitLeft(String left) => _t('\$$left left', '\$$left ayaa harsan');
+  static String get limitDailyReached => _t(
+      'You reached today\'s withdrawal limit. It starts again at 00:00 (Somalia time).',
+      'Waxaad gaadhay xadka maanta ee lacag-bixinta. Wuxuu dib u bilaabmayaa 00:00 (waqtiga Soomaaliya).');
+  static String get limitMonthlyReached => _t(
+      'You reached this month\'s withdrawal limit. It starts again on the 1st.',
+      'Waxaad gaadhay xadka bishan ee lacag-bixinta. Wuxuu dib u bilaabmayaa 1da bisha.');
+  static String limitNearDaily(String left) => _t(
+      'You are close to today\'s limit: \$$left left today.', 'Waad ku dhawaatay xadka maanta: \$$left ayaa maanta harsan.');
+  static String limitNearMonthly(String left) => _t(
+      'You are close to this month\'s limit: \$$left left.', 'Waad ku dhawaatay xadka bishan: \$$left ayaa harsan.');
+  static String limitExceeds(String left) => _t(
+      'That is more than you can withdraw now (\$$left).', 'Tani way ka badan tahay inta aad hadda bixin karto (\$$left).');
+  static String limitKycPrompt(String daily, String monthly) => _t(
+      'Without KYC you can withdraw up to \$$daily a day. Complete KYC verification to withdraw up to \$$monthly a month and more each day.',
+      'KYC la\'aanteed waxaad bixin kartaa ilaa \$$daily maalintii. Dhammaystir xaqiijinta KYC si aad u bixiso wax ka badan.');
+  static String get completeKyc => _t('Complete KYC verification', 'Dhammaystir xaqiijinta KYC');
+  static String get kycWaitingReview => _t('Your KYC is being reviewed.', 'KYC-gaaga waa la eegayaa.');
   static String get confirm => _t('Confirm', 'Xaqiiji');
   static String get rate => _t('Rate', 'Sarifka');
   static String get fee => _t('Fee', 'Khidmadda');
@@ -160,8 +321,11 @@ class AppStrings {
   static String get done => _t('Done', 'Dhammee');
   static String get tryAgain => _t('Try Again', 'Isku day mar kale');
   static String get back => _t('Back', 'Dib u noqo');
-  static String get networkError => _t('Could not reach the server. Check your internet connection and try again.',
-      'Server-ka lama gaarin. Hubi internet-kaaga, kadibna mar kale isku day.');
+  static String get networkTitle => _t('Your internet is not good', 'Internet-kaagu ma fiicna');
+  static String get networkBody => _t('Please check your internet connection and try again.',
+      'Fadlan hubi xiriirka internet-kaaga oo isku day mar kale.');
+  static String get networkRetry => _t('Try again', 'Mar kale isku day');
+  static String get networkError => networkBody;
   static String get couldNotLoadOrders => _t('Could not load your orders. Check your connection and try again.',
       'Dalabaadkaaga lama soo gelin. Hubi internet-kaaga, kadibna mar kale isku day.');
   static String get couldNotLoadWallet => _t('Could not load your wallet. Check your connection and try again.',
@@ -207,6 +371,9 @@ class AppStrings {
   static String copied(String text) => _t('$text copied', '$text waa la koobiyeeyay');
   static String get payFromOwnNumber => _t('Pay from your registered number', 'Ka dir lambarkaaga diiwaangashan');
   static String get receiveToOwnNumber => _t('Paid to your registered number', 'Waxaa lagu soo dirayaa lambarkaaga diiwaangashan');
+  static String get myNumber => _t('My number', 'Lambarkayga');
+  static String get otherNumberHint => _t('You can use another number', 'Waxaad isticmaali kartaa lambar kale');
+  static String get enterNineDigits => _t('Enter the 9 digits after +252', 'Geli 9-ka lambar ee +252 ka dambeeya');
   static String get noRegisteredNumber =>
       _t('Your registered number could not be read. Log out and in again.', 'Lambarkaaga diiwaangashan lama heli karo. Ka bax oo mar kale gal.');
   static String get depositDetails => _t('Deposit details', 'Faahfaahinta dhigashada');
@@ -255,7 +422,6 @@ class AppStrings {
   // Transaction screens
   static String get transactionDetails => _t('Transaction Details', 'Faahfaahinta Dhaqdhaqaaqa');
   static String get transactionId => _t('Transaction ID', 'Aqoonsiga Dhaqdhaqaaqa');
-  static String get transferId => _t('Transfer ID', 'Aqoonsiga Wareejinta');
   static String get type => _t('Type', 'Nooca');
   static String get account => _t('Account', 'Akoonka');
   static String get balanceBefore => _t('Balance Before', 'Haraaga Ka Hor');
@@ -266,14 +432,62 @@ class AppStrings {
   static String get usdWithdrawn => _t('USD Withdrawn', 'USD la bixiyay');
   static String get depositConfirmed => _t('Deposit Confirmed', 'Dhigashada waa la xaqiijiyay');
   static String get withdrawalConfirmed => _t('Withdrawal Confirmed', 'Bixinta waa la xaqiijiyay');
-  static String get waitingForPayment => _t('Waiting for your payment', 'Waxaa la sugayaa lacag-bixintaada');
-  static String get inProgress => _t('In progress', 'Waa socotaa');
+  /// What a customer sees while the server is still confirming: never "Pending".
+  static String get verifying => _t('Your payment is being verified…', 'Lacag-bixintaada waa la hubinayaa…');
+  static String get verifyingTitle => _t('Verifying...', 'Xaqiijinayaa...');
+  static String get verifyStepReceived => _t('Request received', 'Codsiga waa la helay');
+  static String get verifyStepChecking => _t('Verifying your payment', 'Xaqiijinta lacag-bixintaada');
+  static String get verifyStepCrediting => _t('Adding it to your balance', 'Lacagta waa lagu darayaa haraagaaga');
+  static String get statusCompleted => _t('Completed', 'Waa la dhammeeyay');
   static String get confirmingOrder => _t('Confirming Order...', 'Dalabka waa la xaqiijinayaa...');
   static String get confirmingWithdrawal => _t('Confirming Withdrawal...', 'Bixinta waa la xaqiijinayaa...');
   static String get hangTightDeposit =>
       _t("Hang tight, we're processing your deposit", 'Fadlan sug, dhigashadaada waa la shaqeynayaa');
+  // Why a withdrawal still waits after 30 seconds (Order.delay).
+  static String get delayTitle => _t('Why is it taking longer?', 'Maxay u daahday?');
+  static String delayReason(String code) => switch (code) {
+        'provider_unavailable' => _t(
+            'The payment service (Sahal) is not responding right now. Your money is safe and will be sent automatically as soon as it is back.',
+            'Adeegga lacag-dirista (Sahal) hadda ma shaqaynayo. Lacagtaadu way badbaadsan tahay, si toos ah ayaana loo diri doonaa marka uu soo laabto.'),
+        'provider_balance' => _t(
+            'Your withdrawal is waiting for the payment account to be topped up. It will then be sent automatically.',
+            'Bixintaadu waxay sugaysaa in koontada lacag-bixinta lagu shubo. Kadib si toos ah ayaa loo diri doonaa.'),
+        'confirming' => _t(
+            'We are confirming the transfer with the payment service. It will never be sent twice.',
+            'Waxaan la xaqiijinaynaa adeegga lacag-dirista in lacagta la diray. Marna labo jeer lama diri doono.'),
+        'manual' => _t(
+            'A member of our team is completing your withdrawal. If it cannot be paid, your money is returned to your wallet.',
+            'Shaqaalaheena ayaa dhammaystiraya bixintaada. Haddii aan la bixin karin, lacagtaada waxaa lagu celin doonaa boorsadaada.'),
+        _ => _t('Your withdrawal is in the queue and will be sent shortly.',
+            'Bixintaadu waa safka, dhawaan ayaa la diri doonaa.'),
+      };
   static String get hangTightWithdraw =>
       _t("Hang tight, we're processing your withdrawal", 'Fadlan sug, bixintaada waa la shaqeynayaa');
+  // Withdrawal steps while it is sent
+  static String get stepCheckFunds => _t('Checking your balance', 'Lacagaha ayaan baarayaa');
+  static String get stepSendMoney => _t('Sending the money now', 'Lacagta ayaan dirayaa hadda');
+  static String get stepConfirmSent => _t('Confirming it went through', 'Waa xaqiijinayaa inay ku guuleysatay');
+  static String get stepDone => _t('DONE', 'LA DHAMMEEYAY');
+  static String get stepActive => _t('IN PROGRESS', 'SOCDA');
+  static String get stepWaiting => _t('WAITING', 'SUGAYA');
+  // Before the first withdrawal: the account is approved by an admin.
+  static String get verifyTitle => _t('Account Approval Required', 'Account-ka waa in la fasaxo');
+  static String get verifyBody => _t(
+      'To withdraw your funds, please contact Admin on WhatsApp to have your account approved for withdrawals.',
+      'Haddii aad rabto inaad lacag la baxdo markii ugu horreysay, fadlan la xiriir maamulka si akoonkaaga loo xaqiijiyo loona fasaxo.');
+  static String get insufficientBalance => _t(
+      'Your balance is not enough. You cannot withdraw now. Please deposit into your account first.',
+      'Haraagaaga ma ku filna. Lacag lagama bixi karo hadda. Fadlan marka hore ku shubo akoonkaaga.');
+  static String get approvalTitleLead => _t('Account Must Be ', 'Akoonka Waa In ');
+  static String get approvalTitleHighlight => _t('Approved', 'La Fasaxo');
+  static String get contactAdminWhatsappLabel => _t('Contact Admin (WhatsApp)', 'La Xiriir Maamulka (WhatsApp)');
+  static String get contactAdminTelegramLabel => _t('Contact Admin (Telegram)', 'La Xiriir Maamulka (Telegram)');
+  static String approvalAppMissing(String app) =>
+      _t('Could not open $app. Please install it and try again.', 'Ma furi karo $app. Fadlan ku rakib oo mar kale isku day.');
+  static String get verifyRejected => _t('Not approved', 'Lama fasixin');
+  static String get verifyRestricted => _t('Withdrawals are on hold', 'Bixinta waa la joojiyay');
+  static String get contactAdminWhatsapp => _t('Contact Admin on WhatsApp', 'La xiriir Maamulka (WhatsApp)');
+  static String get adminWhatsapp => _t("Admin's WhatsApp:", 'WhatsApp-ka Maamulka:');
   static String get completeWithdrawal => _t('Complete Withdrawal', 'Dhammaystir Bixinta');
   static String get allHistory => _t('All', 'Dhammaan');
   static String get depositsTab => _t('Deposits', 'Dhigashooyin');
@@ -284,7 +498,7 @@ class AppStrings {
       );
 
   // Orders
-  static String get orders => _t('Orders', 'Dalabyada');
+  static String get orders => _t('Orders', 'Dalabaadka');
   static String get noOrders => _t('No transactions yet', 'Weli dhaqdhaqaaq ma jiro');
   static String get noOrdersHint => _t(
         'Your deposits and withdrawals will show up here.',
@@ -294,9 +508,101 @@ class AppStrings {
   static String get method => _t('Method', 'Habka');
   static String get transactionRef => _t('Transaction Reference', 'Tixraaca Dhaqdhaqaaqa');
   static String get createdAt => _t('Created', 'La sameeyay');
-  static String get completedAt => _t('Completed', 'La dhammeeyay');
+  static String get completedAt => _t('Completed', 'Waa la dhammeeyay');
 
   // Profile
   static String get profile => _t('Profile', 'Xogtayda');
   static String get name => _t('Name', 'Magaca');
+
+  // Bonus wallet
+  static String get bonusWallet => _t('Bonus Wallet', 'Boorsada Gunnada');
+  static String bonusRow(String rate) => _t('Bonus ($rate)', 'Gunno ($rate)');
+  static String get bonusGoesTo => _t('You will get it in your Bonus Wallet', 'Waxaad heli doontaa Bonus Wallet');
+  static String bonusRateInfo(String rate) => _t(
+      'You earn $rate on every completed eligible transaction. Transfer it to your main wallet any time.',
+      'Waxaad heshaa $rate dhaqdhaqaaq kasta oo la oggol yahay oo dhammaada. U wareeji boorsadaada weyn mar kasta.');
+  static String get availableBonus => _t('Available bonus', 'Gunnada diyaarka ah');
+  static String get noBonusToTransfer =>
+      _t('At least \$0.01 is needed to transfer.', 'Ugu yaraan \$0.01 ayaa loo baahan yahay si loo wareejiyo.');
+  static String bonusOnOrder(String amount, String direction, String method) => direction == 'deposit'
+      ? _t('On \$$amount deposit • $method', 'Dhigasho \$$amount • $method')
+      : _t('On \$$amount withdrawal • $method', 'Lacag-bixin \$$amount • $method');
+  /// "Lacag-bixin: $2.00" / "On $2.00 withdrawal": the order a bonus was earned on (the platform has its own chip).
+  static String bonusOrderLine(String amount, String direction) => direction == 'deposit'
+      ? _t('On \$$amount deposit', 'Dhigasho: \$$amount')
+      : _t('On \$$amount withdrawal', 'Lacag-bixin: \$$amount');
+  static String get bonusTotalTitle => _t('Total Bonus', 'Gunnadaada Guud');
+  static String get bonusHistoryTitle => _t('Bonus History', 'Taariikhda Gunnada');
+  static String get bonusFilterEarned => _t('Bonus earned', 'Gunnada la helay');
+  static String get bonusFilterMoved => _t('Bonus transferred', 'Gunnada la wareejiyay');
+  static String get bonusReversedTitle => _t('Bonus reversed', 'Gunno la celiyay');
+  static String get bonusConfirmTitle => _t('Confirm the transfer', 'Xaqiiji wareejinta');
+  static String bonusConfirmBody(String amount) => _t(
+      'Move \$$amount from the Bonus Wallet to your main wallet? This cannot be undone.',
+      'Ma u wareejinaysaa \$$amount Boorsada Gunnada una boorsadaada weyn? Dib looma celin karo.');
+  static String get bonusTransferFailedTitle => _t('Transfer failed', 'Wareejinta way fashilantay');
+  static String get bonusTransferDoneTitle => _t('Transfer done', 'Wareejinta waa guulaysatay');
+  static String get bonusOff => _t('The bonus is off for your account.', 'Gunnadu way ka xiran tahay akoonkaaga.');
+  static String get totalEarned => _t('Total earned', 'Wadarta la helay');
+  static String get moveBonus => _t('Transfer Bonus to Main Wallet', 'U wareeji Gunnada Boorsada Weyn');
+  static String bonusMoved(String amount) =>
+      _t('\$$amount moved to your main wallet', '\$$amount waxaa loo wareejiyay boorsadaada weyn');
+  static String get noBonusYet => _t('No bonus yet', 'Weli gunno ma jirto');
+  static String get bonusEarned => _t('Bonus earned', 'Gunno la helay');
+  static String get bonusMovedTitle => _t('Moved to main wallet', 'Loo wareejiyay boorsada weyn');
+  static String get couldNotLoadBonus => _t('Could not load the bonus', 'Gunnada lama soo rarin');
+
+  // ---- TIPS
+  static String get tips => _t('Football', 'Football');
+  static String get tipsSubtitle => _t('Betting tips and odds codes', 'Talooyin iyo koodhadh ciyaareed');
+  static String get tipsAll => _t('All', 'Dhammaan');
+  static String get tipsFree => _t('Free', 'Bilaash');
+  static String get tipsPaid => _t('Paid', 'Lacag');
+  static String get tipsEmpty => _t('No tips here yet', 'Weli talooyin ma jiraan');
+  static String get tipsCouldNotLoad => _t('Could not load the tips', 'Talooyinka lama soo rarin');
+  static String get oddsCode => _t('Odds Code', 'Koodhka Odds-ka');
+  static String get copyCode => _t('Copy Code', 'Koobiyee Koodhka');
+  static String get codeCopied => _t('Code copied', 'Koodhka waa la koobiyeeyay');
+  static String get tipLocked => _t('Locked', 'Xiran');
+  static String get tipOwned => _t('Purchased', 'La iibsaday');
+  static String get unlockTip => _t('Unlock', 'Fur');
+  static String get tipTeams => _t('teams', 'kooxood');
+  static String get tipTotalOdds => _t('Total odds', 'Odds-ka guud');
+  static String get tipMatches => _t('Matches', 'Ciyaaraha');
+  static String get tipNote => _t('Note', 'Qoraal');
+  static String get tipBuyTitle => _t('Buy this tip?', 'Ma iibsanaysaa taladan?');
+  static String tipBuyMessage(String price, String balance) => _t(
+      '\$$price will be taken from your wallet and the code unlocked at once. Your balance: \$$balance.',
+      '\$$price ayaa laga qaadi doonaa boorsadaada, koodhkana isla markiiba waa furmayaa. Haraagaaga: \$$balance.');
+  static String get tipBuyConfirm => _t('Pay & unlock', 'Bixi oo fur');
+  static String get tipNotEnough => _t('Your balance is not enough for this tip. Deposit first.',
+      'Haraaga boorsadaadu kuma filna taladan. Marka hore lacag dhig.');
+  static String tipUnlocked(String balance) =>
+      _t('Unlocked. Your balance: \$$balance', 'Waa furmay. Haraagaaga: \$$balance');
+  static String get tipAlreadyOwned => _t('You already own this tip. Nothing was charged.',
+      'Taladan horay ayaad u iibsatay. Lacag lagama qaadin.');
+  static String get tipPriceChanged => _t('The price changed. Please check it and try again.',
+      'Qiimaha waa isbeddelay. Fadlan hubi oo mar kale isku day.');
+  static String get tipCouldNotBuy => _t('Could not complete the purchase. You were not charged.',
+      'Iibsiga lama dhammaystirin. Lacag lagama qaadin.');
+  static String sportName(String sport) => switch (sport) {
+        'football' => _t('Football', 'Kubadda Cagta'),
+        'basketball' => _t('Basketball', 'Kubadda Koleyga'),
+        'tennis' => _t('Tennis', 'Tenis'),
+        'volleyball' => _t('Volleyball', 'Fooliibool'),
+        'baseball' => _t('Baseball', 'Beysbool'),
+        'hockey' => _t('Hockey', 'Heeki'),
+        'cricket' => _t('Cricket', 'Kirikit'),
+        'rugby' => _t('Rugby', 'Rugbi'),
+        'boxing' => _t('Boxing', 'Feerka'),
+        _ => _t('Other', 'Kale'),
+      };
+
+  // Receiver name (Golis, ZAAD, EVC Plus)
+  static String get receiverName => _t('Receiver Name', 'Magaca Qaataha');
+
+  /// "Minimum deposit is ", ", maximum is ": the amounts go between, in bold.
+  static (String, String) get depositLimitsParts => AppLanguage.isSomali
+      ? ('Dhigashada ugu yar waa ', ' dhigashada ugu badan waa ')
+      : ('Minimum deposit is ', ', maximum is ');
 }

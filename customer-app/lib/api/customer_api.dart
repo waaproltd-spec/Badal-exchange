@@ -1,9 +1,18 @@
+import 'dart:convert';
+
+import '../models/kyc.dart';
+import '../models/payment_numbers.dart';
+import '../models/withdraw_limits.dart';
+import '../models/withdrawal_access.dart';
 import '../models/app_content.dart';
+import '../models/bonus.dart';
 import '../models/order.dart';
 import '../models/payment_method.dart';
 import '../models/player.dart';
 import '../models/quote.dart';
+import '../models/tip.dart';
 import '../models/wallet.dart';
+import '../models/wallet_transfer.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 import '../l10n/strings.dart';
@@ -55,6 +64,12 @@ class CustomerApi {
 
   /// Changes the password; this phone stays signed in. A wrong
   /// [currentPassword] is INVALID_PASSWORD.
+  /// Checks the account password for the verification screen: only the sign-in
+  /// check (no login record, other phones stay signed in); throws when wrong.
+  Future<void> verifyPassword({required String phone, required String password}) async {
+    await _client.signIn(phone: phone, password: password);
+  }
+
   Future<void> changePassword({required String currentPassword, required String newPassword}) async {
     await _client.rpc('change_password', {'p_current_password': currentPassword, 'p_new_password': newPassword});
   }
@@ -97,6 +112,43 @@ class CustomerApi {
   Future<Wallet> getWallet() async {
     final data = await _client.rpc('customer_wallet') as Map<String, dynamic>;
     return Wallet.fromJson(data);
+  }
+
+  // ---------------------------------------------------------------------
+  // Wallet to wallet transfers (Wallet -> Send Money): free, in the existing wallet
+  // ---------------------------------------------------------------------
+
+  Future<WalletPinStatus> getWalletPinStatus() async =>
+      WalletPinStatus.fromJson(await _client.rpc('customer_wallet_pin_status') as Map<String, dynamic>);
+
+  /// Sets (or changes) the 4-digit Wallet PIN, confirmed with the account password. False: the password was wrong.
+  Future<bool> setWalletPin({required String pin, required String password}) async {
+    final data = await _client.rpc('customer_set_wallet_pin', {'p_pin': pin, 'p_password': password}) as Map<String, dynamic>;
+    return data['ok'] as bool? ?? false;
+  }
+
+  /// Whose Wallet ID is this? Only the name comes back.
+  Future<TransferRecipient> lookupTransferRecipient(String walletId) async =>
+      TransferRecipient.fromJson(await _client.rpc('customer_transfer_lookup', {'p_wallet_id': walletId}) as Map<String, dynamic>);
+
+  /// Sends [amount] to [toWallet]. The same [idempotencyKey] never sends twice. A wrong or locked PIN is an answer, not an exception.
+  Future<TransferOutcome> sendWalletTransfer({
+    required String toWallet,
+    required String amount,
+    required String pin,
+    required String idempotencyKey,
+  }) async =>
+      TransferOutcome.fromJson(await _client.rpc('customer_wallet_transfer', {
+        'p_to_wallet': toWallet,
+        'p_amount': amount,
+        'p_pin': pin,
+        'p_idempotency_key': idempotencyKey,
+      }) as Map<String, dynamic>);
+
+  /// My transfers, sent and received, newest first.
+  Future<List<WalletTransfer>> getWalletTransfers() async {
+    final data = await _client.rpc('customer_wallet_transfers') as List<dynamic>;
+    return data.map((e) => WalletTransfer.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Always call this before showing a confirmation screen -- the app
@@ -188,8 +240,12 @@ class CustomerApi {
     return data.map((e) => HomeAd.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<List<AppNotification>> getNotifications() async {
-    final data = await _client.rpc('customer_notifications') as List<dynamic>;
+  /// A page of notifications, newest first: [before] is the createdAt of the last one already shown (null: the first page).
+  Future<List<AppNotification>> getNotifications({DateTime? before, int limit = 30}) async {
+    final data = await _client.rpc('customer_notifications', {
+      'p_limit': limit,
+      if (before != null) 'p_before': before.toUtc().toIso8601String(),
+    }) as List<dynamic>;
     return data.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -202,14 +258,166 @@ class CustomerApi {
     return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// The totals of the Dalabaadka cards, counted by the database with the same rule as the list.
+  Future<OrderCounts> getOrderCounts() async =>
+      OrderCounts.fromJson(await _client.rpc('customer_order_counts') as Map<String, dynamic>);
+
+  /// One more page of the list, newest first: [direction] is 'deposit', 'withdraw' or null (all).
+  Future<List<Order>> getOrdersPage({String? direction, int offset = 0, int limit = 30}) async {
+    final data = await _client.rpc('customer_orders', {'p_limit': limit, 'p_offset': offset, 'p_direction': direction}) as List<dynamic>;
+    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   /// This device's push notification token, for the signed-in customer.
   Future<void> registerPushToken(String token) =>
       _client.rpc('customer_register_push_token', {'p_token': token, 'p_platform': 'android'});
 
   Future<void> unregisterPushToken(String token) => _client.rpc('customer_unregister_push_token', {'p_token': token});
 
+  /// The customer's KYC.
+  Future<KycStatus> getKycStatus() async =>
+      KycStatus.fromJson(await _client.rpc('customer_kyc_status') as Map<String, dynamic>);
+
+  /// Submits KYC: the server checks it and sends it to Admin Review (or to
+  /// the identity service, when one is set up). Images as JPEG / PNG bytes.
+  Future<KycStatus> submitKyc({
+    required String documentType,
+    required String fullName,
+    required String documentNumber,
+    String? country,
+    String? dateOfBirth,
+    String? expiryDate,
+    required List<int> front,
+    List<int>? back,
+    required List<int> selfie,
+  }) async =>
+      KycStatus.fromJson(await _client.rpc('customer_submit_kyc', {
+        'p_document_type': documentType,
+        'p_full_name': fullName,
+        'p_document_number': documentNumber,
+        'p_country': country,
+        'p_date_of_birth': dateOfBirth,
+        'p_expiry_date': expiryDate,
+        'p_front': base64Encode(front),
+        'p_back': back == null ? null : base64Encode(back),
+        'p_selfie': base64Encode(selfie),
+      }) as Map<String, dynamic>);
+
+  /// May this account withdraw? The first time, it asks the admin to
+  /// approve it. Null when it cannot be read (the server still decides).
+  Future<WithdrawalAccess?> getWithdrawalAccess() async {
+    try {
+      return WithdrawalAccess.fromJson(await _client.rpc('customer_withdrawal_access') as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// KYC status, daily / monthly withdrawal limits, what was withdrawn and
+  /// what is left. Null when it cannot be read (the server still enforces them).
+  Future<WithdrawLimits?> getWithdrawLimits() async {
+    try {
+      return WithdrawLimits.fromJson(await _client.rpc('customer_withdraw_limits') as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether an admin let this customer use another phone number (and the
+  /// numbers saved). Not allowed when it cannot be read: the registered
+  /// number is used, and the server decides anyway.
+  Future<PaymentNumbers> getPaymentNumbers() async {
+    try {
+      return PaymentNumbers.fromJson(await _client.rpc('customer_payment_numbers') as Map<String, dynamic>);
+    } catch (_) {
+      return PaymentNumbers.none;
+    }
+  }
+
+  /// Tells the server a deposit / withdrawal failed or was refused, so the admin
+  /// is told on Telegram. Only a note: no money moves.
+  Future<void> reportPaymentError({
+    required String direction,
+    required String method,
+    required String amount,
+    required String code,
+    String? detail,
+  }) =>
+      _client.rpc('customer_report_payment_error', {
+        'p_direction': direction,
+        'p_method': method,
+        'p_amount': amount,
+        'p_code': code,
+        'p_detail': detail,
+      });
+
+  /// Records the deposit form as the customer fills it in, before
+  /// "Confirm Deposit" (Admin Dashboard -> Unconfirmed Deposits). Only the
+  /// method, amount and account ID: the server takes the registered phone.
+  /// Never fails the form: any error is ignored.
+  Future<void> trackDepositDraft({required String method, String? amount, String? accountId}) async {
+    try {
+      await _client.rpc('customer_track_deposit_draft', {'p_method': method, 'p_amount': amount, 'p_account_id': accountId});
+    } catch (_) {
+      // Monitoring only.
+    }
+  }
+
   Future<Order> getOrder(String id) async {
     final data = await _client.rpc('customer_order', {'p_id': id}) as Map<String, dynamic>;
     return Order.fromJson(data);
+  }
+
+  // ---------------------------------------------------------------------
+  // Tips (Shaxaha)
+  // ---------------------------------------------------------------------
+
+  /// [filter]: all, free or paid. A paid tip that is not bought has no code.
+  Future<List<Tip>> getTips([String filter = 'all']) async {
+    final data = await _client.rpc('customer_tips', {'p_filter': filter}) as Map<String, dynamic>;
+    return [for (final t in (data['tips'] as List? ?? const [])) Tip.fromJson(t as Map<String, dynamic>)];
+  }
+
+  Future<Tip> getTip(String id) async {
+    final data = await _client.rpc('customer_tip', {'p_id': id}) as Map<String, dynamic>;
+    return Tip.fromJson(data);
+  }
+
+  /// Pays for a tip from the wallet and unlocks it, in one step on the server. [expectedPrice] is
+  /// what the confirmation showed: a changed price is PRICE_CHANGED and nothing is charged.
+  /// Asking again for a tip already owned charges nothing.
+  Future<TipPurchase> buyTip(String id, {String? expectedPrice}) async {
+    final data = await _client.rpc('customer_buy_tip', {'p_tip_id': id, 'p_expected_price': expectedPrice})
+        as Map<String, dynamic>;
+    return TipPurchase.fromJson(data);
+  }
+
+  // ---------------------------------------------------------------------
+  // Bonus wallet
+  // ---------------------------------------------------------------------
+
+  Future<BonusInfo> getBonus() async {
+    final data = await _client.rpc('customer_bonus') as Map<String, dynamic>;
+    return BonusInfo.fromJson(data);
+  }
+
+  /// Moves the whole bonus balance to the main wallet. Nothing to move is NO_BONUS.
+  Future<BonusInfo> moveBonus() async {
+    final data = await _client.rpc('customer_move_bonus') as Map<String, dynamic>;
+    return BonusInfo.fromJson(data['bonus'] as Map<String, dynamic>);
+  }
+
+  /// The name Sahal has for the customer's own Golis / ZAAD / EVC Plus number,
+  /// or null when it has none. Throws when Sahal couldn't be asked.
+  Future<String?> getReceiverName(String method, [String? phone]) async {
+    final data = await _client.invoke('receiver-name', {'method': method, if (phone != null) 'phone': phone}) as Map<String, dynamic>;
+    final name = (data['name'] as String?)?.trim();
+    return data['found'] == true && name != null && name.isNotEmpty ? name : null;
+  }
+
+  /// The bonus this withdrawal will earn once paid, or null when it earns none.
+  Future<BonusPreview?> getBonusPreview(String method, String amount) async {
+    final data = await _client.rpc('customer_bonus_preview', {'p_method': method, 'p_amount': amount});
+    return data is Map<String, dynamic> ? BonusPreview.fromJson(data) : null;
   }
 }

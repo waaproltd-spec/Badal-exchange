@@ -9,6 +9,10 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import 'background_sms_card.dart';
+import 'sahal_account_screen.dart';
+import 'sahal_forwarder_card.dart';
+import '../../l10n/tr.dart';
 
 /// Sahal merchant sign-in: Sahal texts an access code to the merchant phone
 /// at every sign-in, so a manager starts it here and types the code in.
@@ -56,7 +60,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
         _error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load the Sahal status.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load the Sahal status.'));
     }
   }
 
@@ -69,7 +73,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
         _error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Something went wrong. Try again.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Something went wrong. Try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -80,7 +84,7 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
   void _sendCode() {
     final code = _code.text.replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^[0-9]{4,8}$').hasMatch(code)) {
-      setState(() => _error = 'Enter the code from the SMS (numbers only).');
+      setState(() => _error = tr('Enter the code from the SMS (numbers only).'));
       return;
     }
     _code.clear();
@@ -91,34 +95,52 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
   Widget build(BuildContext context) {
     final s = _status;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sahal Merchant Sign-in')),
+      appBar: AppBar(title: const Tx('Sahal Merchant Sign-in')),
       body: s == null
           ? (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : const LoadingView())
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 _StatusCard(status: s),
+                const SizedBox(height: 10),
+                ConsoleCard(
+                  key: const Key('feed-open-account'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SahalAccountScreen())),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.manage_accounts_rounded),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Tx('Sahal account & session: login, change account, test connection, reconnect',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                ),
                 if (s.needsCode) ...[
-                  const GroupLabel('Access code'),
+                  GroupLabel(tr('Access code')),
                   ConsoleCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text('Sahal sent an SMS to the merchant phone (252905999914): '
-                            '"-SAHAL SERVICES- Access code is ……". Type that code here within 10 minutes.'),
+                        Text(tr('Sahal sent an SMS to the merchant phone (252905999914): '
+                            '"-SAHAL SERVICES- Access code is ……". The Agent App on that phone enters it by '
+                            'itself when SMS permission is allowed. If it does not, type it here within 10 minutes.'),
+                            key: Key('feed-auto-hint')),
                         const SizedBox(height: 12),
                         TextField(
                           key: const Key('feed-code'),
                           controller: _code,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Access code', prefixIcon: Icon(Icons.key_rounded)),
+                          decoration: InputDecoration(labelText: tr('Access code'), prefixIcon: Icon(Icons.key_rounded)),
                           onSubmitted: (_) => _sendCode(),
                         ),
                         const SizedBox(height: 12),
                         ElevatedButton(
                           key: const Key('feed-send-code'),
                           onPressed: _busy ? null : _sendCode,
-                          child: const Text('Authenticate'),
+                          child: const Tx('Authenticate'),
                         ),
                       ],
                     ),
@@ -134,34 +156,36 @@ class _MerchantFeedScreenState extends State<MerchantFeedScreen> {
                     key: const Key('feed-sign-in'),
                     onPressed: _busy || s.state == 'ready' ? null : _signIn,
                     icon: const Icon(Icons.login_rounded),
-                    label: Text(s.working ? 'Sign in again (new code)' : 'Sign in to Sahal'),
+                    label: Tx(s.working ? tr('Sign in again (new code)') : tr('Sign in to Sahal')),
                   ),
                 ],
-                const GroupLabel('Deposits'),
+                GroupLabel(tr('Deposits')),
                 ConsoleCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: SwitchListTile(
                     key: const Key('feed-credit'),
-                    title: const Text('Credit deposits automatically', style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text('Credited (24 h): ${s.creditedToday} · Not matched: ${s.unmatchedToday}'),
+                    title: const Tx('Credit deposits automatically', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(trp('Credited (24 h): {0} · Not matched: {1}', [s.creditedToday, s.unmatchedToday])),
                     value: s.creditOn,
                     onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedCredit(v)),
                   ),
                 ),
-                const GroupLabel('Withdrawals'),
+                GroupLabel(tr('Withdrawals')),
                 ConsoleCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: SwitchListTile(
                     key: const Key('feed-payouts'),
-                    title: const Text('Complete withdrawals sent from Sahal', style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text('Send each withdrawal in Sahal (Customer Fund Transfer): it is marked completed '
-                        'when the transfer shows in Sahal. Completed (24 h): ${s.payoutsCompletedToday}'),
+                    title: const Tx('Complete withdrawals sent from Sahal', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(trp('Send each withdrawal in Sahal (Customer Fund Transfer): it is marked completed when the transfer shows in Sahal. Completed (24 h): {0}', [s.payoutsCompletedToday])),
                     value: s.payoutsOn,
                     onChanged: _busy ? null : (v) => _do(() => context.read<Session>().api.merchantFeedPayouts(v)),
                   ),
                 ),
+                const BackgroundSmsCard(),
+                const SizedBox(height: 12),
+                const SahalForwarderCard(),
                 const SizedBox(height: 16),
-                const Text(
+                Tx(
                   'Each sign-in makes Sahal text a new code, so sign in only when needed: the server keeps the '
                   'session open by reading every minute. A merchant payment credits a waiting deposit only when it '
                   'comes from the customer\'s own number with the same amount, once. Payments with no matching '
@@ -181,12 +205,12 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color, icon) = switch (status.state) {
-      'ok' => ('Signed in · reading', AppColors.statusCompleted, Icons.check_circle_rounded),
-      'needs_code' => ('Code needed', AppColors.statusPending, Icons.sms_rounded),
-      'code_entered' => ('Checking the code…', AppColors.statusProcessing, Icons.hourglass_top_rounded),
-      'ready' => ('Signing in…', AppColors.statusProcessing, Icons.hourglass_top_rounded),
-      'not_configured' => ('Login not set up', AppColors.statusFailed, Icons.settings_rounded),
-      _ => ('Stopped', AppColors.statusFailed, Icons.pause_circle_rounded),
+      'ok' => (tr('Signed in · reading'), AppColors.statusCompleted, Icons.check_circle_rounded),
+      'needs_code' => (tr('Code needed'), AppColors.statusPending, Icons.sms_rounded),
+      'code_entered' => (tr('Checking the code…'), AppColors.statusProcessing, Icons.hourglass_top_rounded),
+      'ready' => (tr('Signing in…'), AppColors.statusProcessing, Icons.hourglass_top_rounded),
+      'not_configured' => (tr('Login not set up'), AppColors.statusFailed, Icons.settings_rounded),
+      _ => (tr('Stopped'), AppColors.statusFailed, Icons.pause_circle_rounded),
     };
     return ConsoleCard(
       child: Row(
@@ -201,13 +225,12 @@ class _StatusCard extends StatelessWidget {
                 Text(label, key: const Key('feed-state'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: color)),
                 if ((status.message ?? '').isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(status.message!, style: const TextStyle(color: AppColors.textSecondary)),
+                  Tx(status.message!, style: TextStyle(color: AppColors.textSecondary)),
                 ],
                 const SizedBox(height: 6),
                 Text(
-                  'Payments read: ${status.rowsSeen}'
-                  '${status.lastOkAt != null ? ' · last read ${formatDateTime(status.lastOkAt!)}' : ''}',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  trp('Payments read: {0}{1}', [status.rowsSeen, status.lastOkAt != null ? ' · last read ${formatDateTime(status.lastOkAt!)}' : '']),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
               ],
             ),

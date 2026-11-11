@@ -8,6 +8,7 @@ import '../../state/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
+import '../../l10n/tr.dart';
 
 /// Wallet adjustments (Add / Deduct Money), newest first, filterable. For
 /// one customer when [customerId] is set; otherwise every adjustment the
@@ -51,7 +52,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     final items = _items;
     return Scaffold(
       appBar: AppBar(
-          title: Text(widget.customerId == null ? WalletStrings.walletAdjustments : WalletStrings.walletHistory)),
+          title: Tx(widget.customerId == null ? WalletStrings.walletAdjustments : WalletStrings.walletHistory)),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -67,17 +68,17 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(widget.name!,
-                              style: const TextStyle(
+                          Tx(widget.name!,
+                              style: TextStyle(
                                   fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                           if (widget.phone != null)
-                            Text(widget.phone!, style: const TextStyle(color: AppColors.textSecondary)),
+                            Tx(widget.phone!, style: TextStyle(color: AppColors.textSecondary)),
                           if (widget.balance != null) ...[
                             const SizedBox(height: 4),
-                            Text(WalletStrings.walletBalance,
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                            Tx(WalletStrings.walletBalance,
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                             Text('\$${widget.balance}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                           ],
                         ],
@@ -104,14 +105,14 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
               },
             ),
             const SizedBox(height: 6),
-            Text(WalletStrings.privateNote, style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+            Tx(WalletStrings.privateNote, style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
             const SizedBox(height: 10),
             if (_error != null)
               ErrorStateView(message: _error!, onRetry: _load)
             else if (items == null)
               const Padding(padding: EdgeInsets.only(top: 40), child: LoadingView())
             else if (items.isEmpty)
-              ConsoleCard(child: Text(WalletStrings.none, style: const TextStyle(color: AppColors.textSecondary)))
+              ConsoleCard(child: Tx(WalletStrings.none, style: TextStyle(color: AppColors.textSecondary)))
             else
               for (final a in items) ...[
                 _AdjustmentTile(adjustment: a, showCustomer: widget.customerId == null),
@@ -147,18 +148,18 @@ class _AdjustmentTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(a.isAdd ? WalletStrings.addMoney : WalletStrings.deductMoney,
-                    style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                Tx(a.isAdd ? WalletStrings.addMoney : WalletStrings.deductMoney,
+                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                 if (showCustomer)
                   Text('${a.customerName} · ${a.customerPhone}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.textSecondary)),
-                Text(a.reason,
+                      style: TextStyle(color: AppColors.textSecondary)),
+                Tx(a.reason,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textSecondary)),
-                Text(formatDateTime(a.createdAt), style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textSecondary)),
+                Tx(formatDateTime(a.createdAt), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
               ],
             ),
           ),
@@ -172,7 +173,7 @@ class _AdjustmentTile extends StatelessWidget {
                       fontSize: 16,
                       color: a.isAdd ? AppColors.statusCompleted : AppColors.statusFailed)),
               const SizedBox(height: 18),
-              Text('Tx: ${a.reference}', style: const TextStyle(color: AppColors.textFaint, fontSize: 11)),
+              Text(trp('Tx: {0}', [a.reference]), style: TextStyle(color: AppColors.textFaint, fontSize: 11)),
             ],
           ),
         ],
@@ -192,7 +193,7 @@ class _AdjustmentTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(a.isAdd ? WalletStrings.addMoney : WalletStrings.deductMoney,
+              Tx(a.isAdd ? WalletStrings.addMoney : WalletStrings.deductMoney,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               InfoRow(WalletStrings.reference, a.reference),

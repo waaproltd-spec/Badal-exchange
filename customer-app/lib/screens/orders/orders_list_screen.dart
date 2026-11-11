@@ -1,6 +1,8 @@
+import '../../widgets/network_problem_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
 import '../../state/orders_provider.dart';
@@ -22,13 +24,74 @@ enum _Filter { all, deposits, withdrawals }
 
 class _OrdersListScreenState extends State<OrdersListScreen> {
   _Filter _filter = _Filter.all;
+  final ScrollController _scroll = ScrollController();
+
+  /// Orders read beyond the newest ones the provider holds (further pages of the tab being scrolled), by tab.
+  final Map<_Filter, List<Order>> _extra = {for (final f in _Filter.values) f: <Order>[]};
+  bool _loadingMore = false;
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_maybeLoadMore);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<OrdersProvider>().load();
     });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  static String? _direction(_Filter f) => switch (f) { _Filter.all => null, _Filter.deposits => 'deposit', _Filter.withdrawals => 'withdraw' };
+
+  /// What the tab shows: the newest orders the app already holds, then the pages read since; each order once, newest first.
+  List<Order> _shown(OrdersProvider state, _Filter f) {
+    final base = switch (f) {
+      _Filter.all => state.orders,
+      _Filter.deposits => state.orders.where((o) => o.isDeposit).toList(),
+      _Filter.withdrawals => state.orders.where((o) => !o.isDeposit).toList(),
+    };
+    final seen = <String>{};
+    final all = [...base, ..._extra[f]!].where((o) => seen.add(o.id)).toList();
+    all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return all;
+  }
+
+  /// The tab's total as the database counts it; until then (or if it cannot be read) what the app holds.
+  int _countFor(OrdersProvider state, _Filter f) {
+    final c = state.counts;
+    if (c != null) return switch (f) { _Filter.all => c.total, _Filter.deposits => c.deposits, _Filter.withdrawals => c.withdrawals };
+    final held = state.orders;
+    return switch (f) {
+      _Filter.all => held.length,
+      _Filter.deposits => held.where((o) => o.isDeposit).length,
+      _Filter.withdrawals => held.where((o) => !o.isDeposit).length,
+    };
+  }
+
+  void _maybeLoadMore() {
+    if (!_scroll.hasClients || _loadingMore) return;
+    if (_scroll.position.pixels < _scroll.position.maxScrollExtent - 300) return;
+    _loadMore();
+  }
+
+  Future<void> _loadMore() async {
+    final state = context.read<OrdersProvider>();
+    final f = _filter;
+    final have = _shown(state, f).length;
+    if (_loadingMore || have >= _countFor(state, f)) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await context.read<CustomerApi>().getOrdersPage(direction: _direction(f), offset: have, limit: 30);
+      if (mounted) setState(() => _extra[f]!.addAll(page));
+    } catch (_) {
+      // Offline or a hiccup: the next scroll tries again.
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   @override
@@ -41,10 +104,21 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.primary,
-          onRefresh: () => context.read<OrdersProvider>().load(),
+          onRefresh: () async {
+            for (final l in _extra.values) {
+              l.clear();
+            }
+            await context.read<OrdersProvider>().load();
+          },
           child: Column(
             children: [
-              _FilterBar(value: _filter, onChanged: (f) => setState(() => _filter = f)),
+              _SummaryCards(
+                all: _countFor(ordersState, _Filter.all),
+                deposits: _countFor(ordersState, _Filter.deposits),
+                withdrawals: _countFor(ordersState, _Filter.withdrawals),
+                selected: _filter,
+                onPick: (f) => setState(() => _filter = f),
+              ),
               Expanded(child: _buildBody(ordersState)),
             ],
           ),
@@ -62,6 +136,12 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
         ],
       );
     }
+    if (state.networkProblem && state.orders.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 20),
+        children: [NetworkProblemView(onRetry: () => context.read<OrdersProvider>().load())],
+      );
+    }
     if (state.error != null && state.orders.isEmpty) {
       return ListView(
         children: [
@@ -70,11 +150,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
         ],
       );
     }
-    final orders = switch (_filter) {
-      _Filter.all => state.orders,
-      _Filter.deposits => state.orders.where((o) => o.isDeposit).toList(),
-      _Filter.withdrawals => state.orders.where((o) => !o.isDeposit).toList(),
-    };
+    final orders = _shown(state, _filter);
     if (orders.isEmpty) {
       return ListView(
         children: [
@@ -83,57 +159,114 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
         ],
       );
     }
+    final more = orders.length < _countFor(state, _filter);
     return ListView.separated(
+      key: const Key('orders-list'),
+      controller: _scroll,
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-      itemCount: orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => _OrderTile(order: orders[index]),
+      itemCount: orders.length + (more ? 1 : 0),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        if (index >= orders.length) {
+          // Reached the end of what is held and there are more: read the next page.
+          WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.primary))),
+          );
+        }
+        return _OrderTile(order: orders[index]);
+      },
     );
   }
 }
 
-/// All / Deposits / Withdrawals.
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({required this.value, required this.onChanged});
+/// Dhammaan / Dhigashooyin (green) / Bixinno (red): counted by the database; tapping one opens that tab.
+class _SummaryCards extends StatelessWidget {
+  const _SummaryCards({required this.all, required this.deposits, required this.withdrawals, required this.selected, required this.onPick});
 
-  final _Filter value;
-  final ValueChanged<_Filter> onChanged;
+  final _Filter selected;
+  final int all;
+  final int deposits;
+  final int withdrawals;
+  final ValueChanged<_Filter> onPick;
 
   @override
   Widget build(BuildContext context) {
-    final labels = {
-      _Filter.all: AppStrings.allHistory,
-      _Filter.deposits: AppStrings.depositsTab,
-      _Filter.withdrawals: AppStrings.withdrawalsTab,
-    };
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      child: Row(
-        children: [
-          for (final f in _Filter.values) ...[
-            ChoiceChip(
-              key: Key('filter-${f.name}'),
-              label: Text(labels[f]!),
-              selected: value == f,
-              onSelected: (_) => onChanged(f),
-              showCheckmark: false,
-              selectedColor: AppColors.purpleDark,
-              backgroundColor: AppColors.surface,
-              side: BorderSide(color: value == f ? AppColors.primaryDark : AppColors.cardBorder),
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              labelStyle: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                color: value == f ? Colors.white : AppColors.textMuted,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(children: [
+        Expanded(child: _SummaryCard(
+          key: const Key('orders-count-all'),
+          label: AppStrings.allHistory, value: all, icon: Icons.layers_rounded,
+          color: const Color(0xFF9B5DE5), selected: selected == _Filter.all, onTap: () => onPick(_Filter.all))),
+        const SizedBox(width: 10),
+        Expanded(child: _SummaryCard(
+          key: const Key('orders-count-deposits'),
+          label: AppStrings.depositsTab, value: deposits, icon: Icons.arrow_downward_rounded,
+          color: AppColors.statusCompleted, selected: selected == _Filter.deposits, onTap: () => onPick(_Filter.deposits))),
+        const SizedBox(width: 10),
+        Expanded(child: _SummaryCard(
+          key: const Key('orders-count-withdrawals'),
+          label: AppStrings.withdrawalsTab, value: withdrawals, icon: Icons.arrow_upward_rounded,
+          color: AppColors.statusFailed, selected: selected == _Filter.withdrawals, onTap: () => onPick(_Filter.withdrawals))),
+      ]),
     );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({super.key, required this.label, required this.value, required this.icon, required this.color, required this.selected, required this.onTap});
+
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final compact = box.maxWidth < 112; // 320 px phones: a smaller icon and tighter padding, the numbers scale down
+      final icon = compact ? 26.0 : 34.0;
+      return InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.fromLTRB(compact ? 7 : 10, 12, compact ? 5 : 10, 12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(selected ? 0.28 : 0.14),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: selected ? color : color.withOpacity(0.5), width: selected ? 2.2 : 1.4),
+          ),
+          child: Row(children: [
+            Container(
+              width: icon,
+              height: icon,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: Icon(this.icon, color: Colors.white, size: compact ? 16 : 20),
+            ),
+            SizedBox(width: compact ? 5 : 8),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(label, maxLines: 1, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, fontSize: 12.5)),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text('$value', maxLines: 1, style: AppTextStyles.title.copyWith(fontSize: 28, fontWeight: FontWeight.w900, color: color == const Color(0xFF9B5DE5) ? null : color)),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      );
+    });
   }
 }
 
@@ -144,53 +277,87 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // What the customer sees (an unpaid deposit reads Failed after 30 seconds);
+    // the details sheet gets the server's order and keeps it up to date.
+    final real = this.order;
+    final order = real.shown;
     final isDeposit = order.isDeposit;
     final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
+    // Sahal's own payout reference ("Sahal 7559059001") is not shown to the customer.
+    final rawRef = (order.transactionRef ?? '').trim();
+    final ref = RegExp(r'^sahal', caseSensitive: false).hasMatch(rawRef) ? '' : rawRef;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () => showTransactionDetails(context, order),
+      borderRadius: BorderRadius.circular(22),
+      onTap: () => showTransactionDetails(context, real),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.cardBorder, width: 1.5),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.cardBorder, width: 1.4),
         ),
         child: Row(
           children: [
-            MethodIcon(method: order.method, size: 44),
-            const SizedBox(width: 14),
+            MethodIcon(method: order.method, size: 46),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '$typeLabel · $methodLabel',
-                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  // One line each (shrinking just enough), so every order is compact and more fit on the screen.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '$typeLabel · $methodLabel',
+                      maxLines: 1,
+                      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 15.5),
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    Formatters.dateTime(order.createdAt),
-                    style: AppTextStyles.muted.copyWith(fontSize: 12),
+                  const SizedBox(height: 3),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      Formatters.dateTime(order.createdAt),
+                      maxLines: 1,
+                      style: AppTextStyles.muted.copyWith(fontSize: 12.5),
+                    ),
                   ),
+                  if (ref.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text('ID: $ref', key: Key('order-ref-${order.id}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.muted.copyWith(fontSize: 11.5)),
+                  ],
+                  if (!order.isFinal) ...[const SizedBox(height: 4), const VerifyingNote()],
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  order.amountPending ? AppStrings.amountPending : '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: isDeposit ? AppColors.statusCompleted : AppColors.textPrimary,
+            const SizedBox(width: 8),
+            // The amount and the status take at most 40% of the card, so the provider name and the date keep their room on 320 px phones.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: (MediaQuery.of(context).size.width * 0.36).clamp(104.0, 160.0)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      order.amountPending ? AppStrings.amountPending : '${isDeposit ? '+' : '-'}${Formatters.money(order.amount)}',
+                      maxLines: 1,
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16.5,
+                        color: isDeposit ? AppColors.statusCompleted : AppColors.statusFailed,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                StatusBadge(status: order.status),
-              ],
+                  const SizedBox(height: 6),
+                  OrderStatusSlot(order: order),
+                ],
+              ),
             ),
           ],
         ),

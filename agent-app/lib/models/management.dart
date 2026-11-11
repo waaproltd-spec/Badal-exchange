@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import '../l10n/tr.dart';
+
 /// Models for the management screens (Account → Admin features), mirroring
 /// the backend's /admin/* and /agent/manage/* responses.
 
@@ -93,6 +97,10 @@ class AgentListItem {
   final List<String> responsibilities;
   final DateTime? createdAt;
   final DateTime? lastSeenAt;
+  final DateTime? lastLoginAt;
+
+  /// Active with Manage settings (or an admin): can manage everything.
+  final bool fullAdmin;
 
   const AgentListItem({
     required this.id,
@@ -102,6 +110,8 @@ class AgentListItem {
     required this.responsibilities,
     this.createdAt,
     this.lastSeenAt,
+    this.lastLoginAt,
+    this.fullAdmin = false,
   });
 
   bool get isActive => status == 'active';
@@ -115,6 +125,75 @@ class AgentListItem {
         responsibilities: (j['responsibilities'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
         createdAt: _date(j['created_at']),
         lastSeenAt: _date(j['last_seen_at']),
+        lastLoginAt: _date(j['last_login_at']),
+        fullAdmin: j['full_admin'] as bool? ?? false,
+      );
+}
+
+/// A login or a security change of an agent account (admin_login_history).
+class LoginEvent {
+  final String action;
+  final DateTime createdAt;
+  final String? actorName;
+  final String? userName;
+
+  const LoginEvent({required this.action, required this.createdAt, this.actorName, this.userName});
+
+  String get label => switch (action) {
+        'user.login' => tr('Logged in'),
+        'user.change_password' => tr('Changed own password'),
+        'agent.reset_password' => tr('Password reset'),
+        'agent.create' => tr('Account created'),
+        'agent.update' => tr('Details edited'),
+        'agent.enable' => tr('Enabled'),
+        'agent.disable' => tr('Disabled'),
+        'agent.delete' => tr('Deleted'),
+        'agent.update_responsibilities' => tr('Responsibilities changed'),
+        _ => action,
+      };
+
+  factory LoginEvent.fromJson(Map<String, dynamic> j) => LoginEvent(
+        action: j['action'] as String? ?? '',
+        createdAt: _date(j['createdAt']) ?? DateTime.now(),
+        actorName: j['actorName'] as String?,
+        userName: j['userName'] as String?,
+      );
+}
+
+/// One agent's work over a period (admin_agent_performance).
+class AgentPerformance {
+  final String id;
+  final String name;
+  final String status;
+  final int deposits;
+  final String depositAmount;
+  final int withdrawals;
+  final String withdrawalAmount;
+  final int failed;
+  final int adjustments;
+
+  const AgentPerformance({
+    required this.id,
+    required this.name,
+    required this.status,
+    required this.deposits,
+    required this.depositAmount,
+    required this.withdrawals,
+    required this.withdrawalAmount,
+    required this.failed,
+    required this.adjustments,
+  });
+
+  factory AgentPerformance.fromJson(Map<String, dynamic> j) => AgentPerformance(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '—',
+        status: j['status'] as String? ?? 'active',
+        deposits: (j['deposits'] as num?)?.toInt() ?? 0,
+        depositAmount: j['depositAmount'] as String? ?? '0.00',
+        withdrawals: (j['withdrawals'] as num?)?.toInt() ?? 0,
+        withdrawalAmount: j['withdrawalAmount'] as String? ?? '0.00',
+        failed: (j['failed'] as num?)?.toInt() ?? 0,
+        adjustments: (j['adjustments'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -376,4 +455,459 @@ class MerchantFeedStatus {
         payoutsOn: j['payoutsOn'] as bool? ?? false,
         payoutsCompletedToday: (j['payoutsCompletedToday'] as num?)?.toInt() ?? 0,
       );
+}
+
+/// The Sahal merchant account, its connection and its session
+/// (manage_sahal_account_status). It never carries a password, PIN, session
+/// id or code: the server does not send them.
+class SahalAccountStatus {
+  /// connected | authentication_required | disconnected
+  final String connection;
+  final String? feedMessage;
+  final DateTime? lastReadAt;
+
+  /// 'environment' (the server's settings, until an account is activated
+  /// here) or 'database' (an account activated in this app).
+  final String source;
+  final String? activeUsername;
+  final DateTime? activatedAt;
+
+  final SahalPendingAccount? pending;
+
+  final bool sessionActive;
+  final DateTime? sessionStartedAt;
+  final int? sessionAgeSeconds;
+  final DateTime? lastRenewalAt;
+  final DateTime? lastLoginAt;
+
+  final int openDeposits;
+  final int openWithdrawals;
+  final int transfersInFlight;
+  final int transfersHeld;
+  final bool renewIdle;
+
+  const SahalAccountStatus({
+    required this.connection,
+    this.feedMessage,
+    this.lastReadAt,
+    this.source = 'environment',
+    this.activeUsername,
+    this.activatedAt,
+    this.pending,
+    this.sessionActive = false,
+    this.sessionStartedAt,
+    this.sessionAgeSeconds,
+    this.lastRenewalAt,
+    this.lastLoginAt,
+    this.openDeposits = 0,
+    this.openWithdrawals = 0,
+    this.transfersInFlight = 0,
+    this.transfersHeld = 0,
+    this.renewIdle = true,
+  });
+
+  bool get connected => connection == 'connected';
+
+  factory SahalAccountStatus.fromJson(Map<String, dynamic> j) {
+    DateTime? time(Object? v) => DateTime.tryParse(v as String? ?? '')?.toLocal();
+    final active = j['active'] as Map<String, dynamic>?;
+    final session = (j['session'] as Map<String, dynamic>?) ?? const {};
+    final open = (j['open'] as Map<String, dynamic>?) ?? const {};
+    final pending = j['pending'] as Map<String, dynamic>?;
+    return SahalAccountStatus(
+      connection: j['connection'] as String? ?? 'disconnected',
+      feedMessage: j['feedMessage'] as String?,
+      lastReadAt: time(j['lastReadAt']),
+      source: j['source'] as String? ?? 'environment',
+      activeUsername: active?['username'] as String?,
+      activatedAt: time(active?['activatedAt']),
+      pending: pending == null ? null : SahalPendingAccount.fromJson(pending),
+      sessionActive: session['active'] as bool? ?? false,
+      sessionStartedAt: time(session['startedAt']),
+      sessionAgeSeconds: (session['ageSeconds'] as num?)?.toInt(),
+      lastRenewalAt: time(session['lastRenewalAt']),
+      lastLoginAt: time(session['lastLoginAt']),
+      openDeposits: (open['deposits'] as num?)?.toInt() ?? 0,
+      openWithdrawals: (open['withdrawals'] as num?)?.toInt() ?? 0,
+      transfersInFlight: (open['transfersInFlight'] as num?)?.toInt() ?? 0,
+      transfersHeld: (open['transfersHeld'] as num?)?.toInt() ?? 0,
+      renewIdle: j['renewIdle'] as bool? ?? true,
+    );
+  }
+}
+
+/// A new login saved but not yet active.
+class SahalPendingAccount {
+  final String username;
+  final bool hasPin;
+
+  /// draft | testing | logging_in | needs_code | code_entered | verified | failed
+  final String status;
+  final String? message;
+  final DateTime? verifiedAt;
+
+  const SahalPendingAccount({
+    required this.username,
+    this.hasPin = false,
+    required this.status,
+    this.message,
+    this.verifiedAt,
+  });
+
+  bool get verified => status == 'verified';
+  bool get needsCode => status == 'needs_code';
+  bool get busy => const {'testing', 'logging_in', 'code_entered'}.contains(status);
+
+  factory SahalPendingAccount.fromJson(Map<String, dynamic> j) => SahalPendingAccount(
+        username: j['username'] as String? ?? '',
+        hasPin: j['hasPin'] as bool? ?? false,
+        status: j['status'] as String? ?? 'draft',
+        message: j['message'] as String?,
+        verifiedAt: DateTime.tryParse(j['verifiedAt'] as String? ?? '')?.toLocal(),
+      );
+}
+
+/// A field a betting platform's adapter needs (manage_betting_platforms).
+class BettingField {
+  final String key;
+  final String label;
+  final bool required;
+  final bool secret;
+
+  const BettingField({required this.key, required this.label, required this.required, required this.secret});
+
+  factory BettingField.fromJson(Map<String, dynamic> j) => BettingField(
+        key: j['key'] as String,
+        label: j['label'] as String? ?? j['key'] as String,
+        required: j['required'] as bool? ?? false,
+        secret: j['secret'] as bool? ?? false,
+      );
+}
+
+/// An API the server can drive (only these can be automated).
+class BettingAdapter {
+  final String adapter;
+  final String label;
+  final String? defaultApiUrl;
+  final List<BettingField> fields;
+
+  const BettingAdapter({required this.adapter, required this.label, this.defaultApiUrl, required this.fields});
+
+  factory BettingAdapter.fromJson(Map<String, dynamic> j) => BettingAdapter(
+        adapter: j['adapter'] as String,
+        label: j['label'] as String? ?? j['adapter'] as String,
+        defaultApiUrl: j['defaultApiUrl'] as String?,
+        fields: [for (final f in (j['fields'] as List? ?? const [])) BettingField.fromJson(f as Map<String, dynamic>)],
+      );
+}
+
+/// One account (cash desk) of a betting platform: its own credentials, test
+/// and ON / OFF. Secrets never come back: the login masked, and only whether
+/// the others are saved.
+class BettingAccount {
+  /// Null for the one account of a built-in platform that has not been saved yet
+  /// (it uses the server's secrets).
+  final String? id;
+  final String label;
+
+  /// The account customers' deposits and withdrawals go through.
+  final bool selected;
+  final bool enabled;
+
+  /// 'connected', 'error', 'not_tested', 'not_configured', or 'server'.
+  final String status;
+  final String? apiUrl;
+  final String? accountId;
+  final String? login;
+  final bool hasPassword;
+  final bool hasApiSecret;
+  final bool hasApiKey;
+  final DateTime? lastTestAt;
+  final DateTime? lastOkAt;
+  final String? lastMessage;
+  final String? updatedBy;
+
+  /// Orders this account handled.
+  final int orders;
+  final DateTime? lastOrderAt;
+  final bool virtual;
+
+  const BettingAccount({
+    this.id,
+    required this.label,
+    this.selected = false,
+    this.enabled = false,
+    required this.status,
+    this.apiUrl,
+    this.accountId,
+    this.login,
+    this.hasPassword = false,
+    this.hasApiSecret = false,
+    this.hasApiKey = false,
+    this.lastTestAt,
+    this.lastOkAt,
+    this.lastMessage,
+    this.updatedBy,
+    this.orders = 0,
+    this.lastOrderAt,
+    this.virtual = false,
+  });
+
+  bool get connected => status == 'connected';
+
+  String get statusLabel => switch (status) {
+        'connected' => tr('Connected'),
+        'error' => tr('Error'),
+        'not_tested' => tr('Not tested'),
+        'server' => tr('Server secrets'),
+        _ => tr('Not set up'),
+      };
+
+  factory BettingAccount.fromJson(Map<String, dynamic> j) => BettingAccount(
+        id: j['id'] as String?,
+        label: j['label'] as String? ?? 'Account',
+        selected: j['selected'] as bool? ?? false,
+        enabled: j['enabled'] as bool? ?? false,
+        status: j['status'] as String? ?? 'not_configured',
+        apiUrl: j['apiUrl'] as String?,
+        accountId: j['accountId'] as String?,
+        login: j['login'] as String?,
+        hasPassword: j['hasPassword'] as bool? ?? false,
+        hasApiSecret: j['hasApiSecret'] as bool? ?? false,
+        hasApiKey: j['hasApiKey'] as bool? ?? false,
+        lastTestAt: _date(j['lastTestAt']),
+        lastOkAt: _date(j['lastOkAt']),
+        lastMessage: j['lastMessage'] as String?,
+        updatedBy: j['updatedBy'] as String?,
+        orders: (j['orders'] as num?)?.toInt() ?? 0,
+        lastOrderAt: _date(j['lastOrderAt']),
+        virtual: j['virtual'] as bool? ?? false,
+      );
+}
+
+/// A betting platform and its connection. Secrets never come back: only
+/// whether one is saved, and the login masked.
+class BettingPlatform {
+  final String method;
+  final String name;
+  final String adapter;
+  final bool builtIn;
+  final bool active;
+
+  /// 'connected', 'error', 'not_tested', 'not_configured', or 'server'
+  /// (a built-in platform still on its Edge Function secrets).
+  final String status;
+
+  /// What customers get: 'cashdesk' (account ID and a code, checked
+  /// automatically) or 'manual' (account ID and amount, handled by hand until
+  /// the cash desk is connected). Null from an older server.
+  final String? mode;
+  final String? apiUrl;
+  final String? accountId;
+  final String? login;
+  final bool hasPassword;
+  final bool hasApiSecret;
+  final bool hasApiKey;
+  final DateTime? lastTestAt;
+  final DateTime? lastOkAt;
+  final String? lastMessage;
+  final String? updatedBy;
+
+  /// The logo a manager gave this platform (PNG or JPEG), shown in the
+  /// Customer App; null when it has none (initials show there).
+  final Uint8List? logo;
+
+  /// Every account of the platform (an older server sends none). The fields
+  /// above are those of the selected account.
+  final List<BettingAccount> accounts;
+  final String? selectedAccountId;
+
+  const BettingPlatform({
+    required this.method,
+    required this.name,
+    required this.adapter,
+    required this.builtIn,
+    required this.active,
+    required this.status,
+    this.mode,
+    this.apiUrl,
+    this.accountId,
+    this.login,
+    this.hasPassword = false,
+    this.hasApiSecret = false,
+    this.hasApiKey = false,
+    this.lastTestAt,
+    this.lastOkAt,
+    this.lastMessage,
+    this.updatedBy,
+    this.logo,
+    this.accounts = const [],
+    this.selectedAccountId,
+  });
+
+  bool get connected => status == 'connected';
+
+  /// The account in use, or null.
+  BettingAccount? get selectedAccount {
+    for (final a in accounts) {
+      if (a.selected) return a;
+    }
+    return null;
+  }
+
+  /// How customers deposit with this platform right now.
+  String? get modeLabel => switch (mode) {
+        'cashdesk' => tr('Customers: account ID + code (cash desk)'),
+        'manual' => tr('Customers: account ID + amount (manual until connected)'),
+        _ => null,
+      };
+
+  String get statusLabel => switch (status) {
+        'connected' => tr('Connected'),
+        'error' => tr('Error'),
+        'not_tested' => tr('Not tested'),
+        'server' => tr('Server secrets'),
+        _ => tr('Not set up'),
+      };
+
+  factory BettingPlatform.fromJson(Map<String, dynamic> j) => BettingPlatform(
+        method: j['method'] as String,
+        name: j['name'] as String? ?? j['method'] as String,
+        adapter: j['adapter'] as String? ?? 'cashdeskbot',
+        builtIn: j['builtIn'] as bool? ?? false,
+        active: j['active'] as bool? ?? false,
+        status: j['status'] as String? ?? 'not_configured',
+        mode: j['mode'] as String?,
+        apiUrl: j['apiUrl'] as String?,
+        accountId: j['accountId'] as String?,
+        login: j['login'] as String?,
+        hasPassword: j['hasPassword'] as bool? ?? false,
+        hasApiSecret: j['hasApiSecret'] as bool? ?? false,
+        hasApiKey: j['hasApiKey'] as bool? ?? false,
+        lastTestAt: _date(j['lastTestAt']),
+        lastOkAt: _date(j['lastOkAt']),
+        lastMessage: j['lastMessage'] as String?,
+        updatedBy: j['updatedBy'] as String?,
+        logo: _logoBytes(j['logo']),
+        accounts: [for (final a in (j['accounts'] as List? ?? const [])) BettingAccount.fromJson(a as Map<String, dynamic>)],
+        selectedAccountId: j['selectedAccountId'] as String?,
+      );
+}
+
+Uint8List? _logoBytes(Object? v) {
+  if (v is! String || v.isEmpty) return null;
+  try {
+    return base64Decode(v.replaceAll(RegExp(r'\s'), ''));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Which source is carrying deposit payments right now: Sahal (primary), the Agent SIM reading SMS 898
+/// (fallback), or neither.
+class PaymentSource {
+  /// sahal | agent_sim | none
+  final String source;
+  final DateTime? sahalCheckedAt;
+  final DateTime? simSeenAt;
+  final int creditedBySmsToday;
+  final int waitingToday;
+
+  const PaymentSource({
+    required this.source,
+    this.sahalCheckedAt,
+    this.simSeenAt,
+    this.creditedBySmsToday = 0,
+    this.waitingToday = 0,
+  });
+
+  factory PaymentSource.fromJson(Map<String, dynamic> j) => PaymentSource(
+        source: j['source'] as String? ?? 'none',
+        sahalCheckedAt: _date(j['sahalCheckedAt']),
+        simSeenAt: _date(j['simSeenAt']),
+        creditedBySmsToday: (j['creditedBySmsToday'] as num?)?.toInt() ?? 0,
+        waitingToday: (j['waitingToday'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// One problem the platform's health monitor found (see supabase/migrations/*_health_monitor.sql).
+class HealthIncident {
+  final String key;
+  final String severity; // info | warning | critical
+  final String title;
+  final String? cause;
+  final DateTime? firstSeen;
+  final DateTime? lastSeen;
+  final DateTime? resolvedAt;
+  final int occurrences;
+  final String? repair;
+  final String? repairResult;
+  final bool financial;
+  final bool customers;
+  final bool developer;
+
+  const HealthIncident({
+    required this.key,
+    required this.severity,
+    required this.title,
+    this.cause,
+    this.firstSeen,
+    this.lastSeen,
+    this.resolvedAt,
+    this.occurrences = 1,
+    this.repair,
+    this.repairResult,
+    this.financial = false,
+    this.customers = false,
+    this.developer = false,
+  });
+
+  bool get critical => severity == 'critical';
+
+  factory HealthIncident.fromJson(Map<String, dynamic> j) => HealthIncident(
+        key: j['key'] as String? ?? '',
+        severity: j['severity'] as String? ?? 'warning',
+        title: j['title'] as String? ?? '',
+        cause: j['cause'] as String?,
+        firstSeen: _date(j['firstSeen']),
+        lastSeen: _date(j['lastSeen']),
+        resolvedAt: _date(j['resolvedAt']),
+        occurrences: (j['occurrences'] as num?)?.toInt() ?? 1,
+        repair: j['repair'] as String?,
+        repairResult: j['repairResult'] as String?,
+        financial: j['financial'] == true,
+        customers: j['customers'] == true,
+        developer: j['developer'] == true,
+      );
+}
+
+/// The platform's health: open problems, the ones solved in the last two days, and the last scan.
+class SystemHealth {
+  final DateTime? scannedAt;
+  final int checks;
+  final bool ownerChatLinked;
+  final List<HealthIncident> open;
+  final List<HealthIncident> resolved;
+
+  const SystemHealth({this.scannedAt, this.checks = 0, this.ownerChatLinked = true, this.open = const [], this.resolved = const []});
+
+  /// Info items are listed but are not problems.
+  int get problems => open.where((i) => i.severity != 'info').length;
+  int get critical => open.where((i) => i.critical).length;
+
+  /// A scan that has not run for 5 minutes is itself a problem: nobody is watching.
+  bool get stale => scannedAt == null || DateTime.now().difference(scannedAt!) > const Duration(minutes: 5);
+
+  factory SystemHealth.fromJson(Map<String, dynamic> j) {
+    final last = j['lastScan'] as Map<String, dynamic>?;
+    List<HealthIncident> list(dynamic v) =>
+        ((v as List<dynamic>?) ?? const []).map((e) => HealthIncident.fromJson(e as Map<String, dynamic>)).toList();
+    return SystemHealth(
+      scannedAt: last == null ? null : _date(last['at']),
+      checks: (last?['checks'] as num?)?.toInt() ?? 0,
+      ownerChatLinked: j['ownerChatLinked'] != false,
+      open: list(j['open']),
+      resolved: list(j['resolved']),
+    );
+  }
 }

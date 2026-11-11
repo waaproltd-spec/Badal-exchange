@@ -1,6 +1,7 @@
 import 'package:badal_agent_app/api/agent_api.dart';
 import 'package:badal_agent_app/models/management.dart';
 import 'package:badal_agent_app/screens/admin/merchant_feed_screen.dart';
+import 'package:badal_agent_app/screens/admin/sahal_forwarder_card.dart';
 import 'package:badal_agent_app/state/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,23 @@ class _FakeApi extends AgentApi {
 
   @override
   Future<MerchantFeedStatus> getMerchantFeedStatus() async => status;
+
+  bool hookOn = false;
+  @override
+  Future<Map<String, dynamic>> getSahalSmsHook() async => {'configured': hookOn, 'createdAt': null, 'lastUsedAt': null};
+  @override
+  Future<String> rotateSahalSmsHook() async {
+    calls.add('hook-make');
+    hookOn = true;
+    return 'shk_test_token';
+  }
+
+  @override
+  Future<Map<String, dynamic>> revokeSahalSmsHook() async {
+    calls.add('hook-revoke');
+    hookOn = false;
+    return getSahalSmsHook();
+  }
 
   @override
   Future<MerchantFeedStatus> merchantFeedSignIn() async {
@@ -51,6 +69,7 @@ Widget _app(MerchantFeedStatus s) {
 }
 
 void main() {
+  _forwarderTests();
   testWidgets('stopped: Sign in to Sahal, then the SMS code is typed and sent once', (tester) async {
     await tester.pumpWidget(_app(const MerchantFeedStatus(state: 'stopped', message: 'The portal asks for a second sign-in code')));
     await tester.pumpAndSettle();
@@ -61,6 +80,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_api.calls, ['sign-in']);
     expect(find.text('Code needed'), findsOneWidget);
+    expect(find.byKey(const Key('feed-auto-hint')), findsOneWidget, reason: 'says the phone enters it, and that it can be typed');
     expect(find.byKey(const Key('feed-sign-in')), findsNothing, reason: 'no second SMS while one is due');
 
     await tester.enterText(find.byKey(const Key('feed-code')), '32a3');
@@ -113,4 +133,39 @@ void main() {
     expect(_api.calls, ['payouts false']);
   });
 
+}
+
+void _forwarderTests() {
+  test('the forwarder card shows times on Somalia\'s clock (UTC+3)', () {
+    expect(SahalForwarderCard.somaliTime('2026-10-29T00:26:40+00:00'), '2026-10-29 03:26 (Somalia time)');
+    expect(SahalForwarderCard.somaliTime('2026-10-28T22:30:00Z'), '2026-10-29 01:30 (Somalia time)');
+    expect(SahalForwarderCard.somaliTime('not a time'), 'not a time');
+  });
+
+  testWidgets('SMS forwarder: create a token (shown once with the URL), replace it, turn it off', (tester) async {
+    await tester.pumpWidget(_app(const MerchantFeedStatus(state: 'ok', message: 'ok')));
+    await tester.pumpAndSettle();
+    final scroll = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.byKey(const Key('forwarder-make')), 300, scrollable: scroll);
+    expect(find.text('Create token'), findsOneWidget);
+    expect(find.textContaining('Not set up'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('forwarder-make')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('forwarder-make')));
+    await tester.pumpAndSettle();
+    expect(_api.calls, ['hook-make']);
+    expect(find.textContaining('Bearer shk_test_token'), findsOneWidget);
+    expect(find.textContaining('/functions/v1/sahal-sms-hook'), findsOneWidget);
+    expect(find.textContaining('shown once'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.byKey(const Key('forwarder-revoke')), 300, scrollable: scroll);
+    await tester.ensureVisible(find.byKey(const Key('forwarder-revoke')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('forwarder-revoke')));
+    await tester.pumpAndSettle();
+    expect(_api.calls, ['hook-make', 'hook-revoke']);
+    expect(find.textContaining('Bearer shk_test_token'), findsNothing, reason: 'gone once turned off');
+    expect(find.textContaining('Not set up'), findsOneWidget);
+  });
 }

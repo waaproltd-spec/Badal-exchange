@@ -5,6 +5,11 @@
 // that every signed-in Customer App device joins
 // (migrations/*_push_broadcasts.sql).
 //
+// The Agent App's scheduled messages (Account > Scheduled Messages, channel "push") go here too, one
+// notification per active customer, to each of their registered devices
+// (migrations/*_scheduled_push.sql): a customer without a device is counted as "no device", a token FCM
+// says is gone is removed, FCM outages are retried; at most one notification per customer and run.
+//
 // Woken by the database (pg_net right after an order completes, pg_cron
 // every minute while some wait) with the platform worker secret. Each run
 // claims the queued notifications (push_claim), sends one message per
@@ -31,6 +36,15 @@ const MESSAGES: Record<string, { title: string; body: string }> = {
     title: 'Withdrawal-kaagu wuu guulaystay',
     body: 'Lacagtaada si guul leh ayaa loo bixiyey.',
   },
+  // Wallet to wallet transfers: no amount or name on the lock screen (the Notifications list in the app has them).
+  transfer_sent: {
+    title: 'Lacag ayaad dirtay',
+    body: 'Dirista lacagta waa guulaysatay. Fur app-ka si aad u aragto.',
+  },
+  transfer_received: {
+    title: 'Lacag ayaa laguu soo diray',
+    body: 'Lacag ayaa Wallet-kaaga lagu soo shubay. Fur app-ka si aad u aragto.',
+  },
 };
 
 interface ServiceAccount {
@@ -44,6 +58,7 @@ interface Job {
   id: string;
   kind: string;
   orderId?: string;
+  transferId?: string;
   tokens?: string[];
   // broadcasts
   notificationId?: string;
@@ -158,6 +173,56 @@ async function send(sa: ServiceAccount, auth: string, t: Target): Promise<[SendR
   return ['error', message];
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** The scheduled messages with the push channel: starts the due runs, then sends to every customer's devices. */
+async function scheduledPush(sa: ServiceAccount, getAuth: () => Promise<string>) {
+  await rpc('broadcast_tick', {}).catch((err) => console.error('broadcast_tick', (err as Error).message));
+  const started = Date.now();
+  let sent = 0;
+  let failed = 0;
+  let later = 0;
+  while (Date.now() - started < 45_000) {
+    const batch: { id: number; title: string; body: string; tokens: string[] }[] = (await rpc('broadcast_push_claim', { p_limit: 100 })) ?? [];
+    if (!batch.length) break;
+    let auth: string;
+    try {
+      auth = await getAuth();
+    } catch (err) {
+      await rpc('broadcast_push_release', { p_ids: batch.map((b) => b.id) });
+      return { error: (err as Error).message, sent, failed };
+    }
+    const results: { id: number; ok: boolean; devices?: number; error?: string }[] = [];
+    const retry: number[] = [];
+    const invalid: string[] = [];
+    // 20 customers at a time, each customer's devices together.
+    for (let i = 0; i < batch.length; i += 20) {
+      await Promise.all(batch.slice(i, i + 20).map(async (d) => {
+        const outs = await Promise.all(d.tokens.map((token) =>
+          send(sa, auth, { token, title: d.title, body: d.body, data: { type: 'scheduled_message' } })));
+        outs.forEach(([r], k) => { if (r === 'invalid_token') invalid.push(d.tokens[k]); });
+        const ok = outs.filter(([r]) => r === 'sent').length;
+        if (ok > 0) {
+          results.push({ id: d.id, ok: true, devices: ok });
+          sent++;
+        } else if (outs.some(([r]) => r === 'retry')) {
+          retry.push(d.id);
+          later++;
+        } else {
+          results.push({ id: d.id, ok: false, error: outs.every(([r]) => r === 'invalid_token') ? 'invalid_token' : outs.map(([, m]) => m).find(Boolean) ?? 'failed' });
+          failed++;
+        }
+      }));
+    }
+    await rpc('broadcast_push_result', { p_results: results, p_invalid_tokens: invalid });
+    if (retry.length) {
+      await rpc('broadcast_push_release', { p_ids: retry });
+      await sleep(5000);
+    }
+  }
+  return { sent, failed, later };
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
   const secret = req.headers.get('x-worker-secret');
@@ -169,51 +234,56 @@ Deno.serve(async (req) => {
     return Response.json({ skipped: 'FIREBASE_SERVICE_ACCOUNT is not set' });
   }
 
+  let cached: string | null = null;
+  const getAuth = async () => (cached ??= await accessToken(sa));
+
   const jobs: Job[] = await rpc('push_claim', { p_limit: 50 });
-  if (jobs.length === 0) return Response.json({ processed: [] });
-
-  let auth: string;
-  try {
-    auth = await accessToken(sa);
-  } catch (err) {
-    // Nothing was sent: put them back for the next run.
-    const error = (err as Error).message;
-    await Promise.all(jobs.map((j) => rpc('push_finish', { p_id: j.id, p_sent: 0, p_error: error, p_retry: true })));
-    return Response.json({ error }, { status: 502 });
-  }
-
   const processed = [];
-  for (const job of jobs) {
-    if (job.kind === 'broadcast') {
-      // One message to every signed-in customer device.
-      const [r, m] = await send(sa, auth, {
-        topic: job.topic || 'customers',
-        title: job.title ?? '',
-        body: job.body ?? '',
-        data: { type: 'broadcast', notificationId: job.notificationId ?? '' },
-      });
+  if (jobs.length > 0) {
+    let auth: string;
+    try {
+      auth = await getAuth();
+    } catch (err) {
+      // Nothing was sent: put them back for the next run.
+      const error = (err as Error).message;
+      await Promise.all(jobs.map((j) => rpc('push_finish', { p_id: j.id, p_sent: 0, p_error: error, p_retry: true })));
+      return Response.json({ error }, { status: 502 });
+    }
+
+    for (const job of jobs) {
+      if (job.kind === 'broadcast') {
+        // One message to every signed-in customer device.
+        const [r, m] = await send(sa, auth, {
+          topic: job.topic || 'customers',
+          title: job.title ?? '',
+          body: job.body ?? '',
+          data: { type: 'broadcast', notificationId: job.notificationId ?? '' },
+        });
+        const finished = await rpc('push_finish', {
+          p_id: job.id, p_sent: r === 'sent' ? 1 : 0, p_error: r === 'sent' ? null : m ?? r, p_retry: r === 'retry',
+        });
+        processed.push({ id: job.id, kind: job.kind, sent: r === 'sent' ? 1 : 0, ...finished });
+        continue;
+      }
+      const text = MESSAGES[job.kind];
+      const tokens = job.tokens ?? [];
+      if (!text) {
+        await rpc('push_finish', { p_id: job.id, p_sent: 0, p_error: `Unknown kind ${job.kind}` });
+        continue;
+      }
+      const results = await Promise.all(tokens.map((token) =>
+        send(sa, auth, { token, ...text, data: { type: job.kind, orderId: job.orderId ?? '', ...(job.transferId ? { transferId: job.transferId } : {}) } })));
+      const sent = results.filter(([r]) => r === 'sent').length;
+      const invalid = tokens.filter((_, i) => results[i][0] === 'invalid_token');
+      const retry = sent === 0 && results.some(([r]) => r === 'retry');
+      const error = sent === 0 ? results.map(([, m]) => m).find(Boolean) ?? null : null;
       const finished = await rpc('push_finish', {
-        p_id: job.id, p_sent: r === 'sent' ? 1 : 0, p_error: r === 'sent' ? null : m ?? r, p_retry: r === 'retry',
+        p_id: job.id, p_sent: sent, p_error: error, p_invalid_tokens: invalid, p_retry: retry,
       });
-      processed.push({ id: job.id, kind: job.kind, sent: r === 'sent' ? 1 : 0, ...finished });
-      continue;
+      processed.push({ id: job.id, kind: job.kind, devices: tokens.length, sent, ...finished });
     }
-    const text = MESSAGES[job.kind];
-    const tokens = job.tokens ?? [];
-    if (!text) {
-      await rpc('push_finish', { p_id: job.id, p_sent: 0, p_error: `Unknown kind ${job.kind}` });
-      continue;
-    }
-    const results = await Promise.all(tokens.map((token) =>
-      send(sa, auth, { token, ...text, data: { type: job.kind, orderId: job.orderId ?? '' } })));
-    const sent = results.filter(([r]) => r === 'sent').length;
-    const invalid = tokens.filter((_, i) => results[i][0] === 'invalid_token');
-    const retry = sent === 0 && results.some(([r]) => r === 'retry');
-    const error = sent === 0 ? results.map(([, m]) => m).find(Boolean) ?? null : null;
-    const finished = await rpc('push_finish', {
-      p_id: job.id, p_sent: sent, p_error: error, p_invalid_tokens: invalid, p_retry: retry,
-    });
-    processed.push({ id: job.id, kind: job.kind, devices: tokens.length, sent, ...finished });
   }
-  return Response.json({ processed });
+  // The scheduled messages (push channel).
+  const scheduled = await scheduledPush(sa, getAuth).catch((err) => ({ error: (err as Error).message }));
+  return Response.json({ processed, scheduled });
 });

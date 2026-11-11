@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../models/order.dart';
 import '../theme/app_theme.dart';
+import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// A single order (deposit or withdrawal) rendered as a card: order code,
 /// method + counterparty, amount/fee/net, status badge, timestamp, and an
@@ -14,12 +15,12 @@ class OrderCard extends StatelessWidget {
 
   const OrderCard({super.key, required this.order, this.actions = const []});
 
-  static final _dateFormat = DateFormat('MMM d, HH:mm');
+  static final _dateFormat = AppDateFormat('MMM d, HH:mm');
 
   @override
   Widget build(BuildContext context) {
     final methodLabel = order.methodLabel;
-    final directionLabel = order.isDeposit ? 'Deposit' : 'Withdrawal';
+    final directionLabel = order.isDeposit ? tr('Deposit') : tr('Withdrawal');
     final directionIcon = order.isDeposit ? Icons.south_west_rounded : Icons.north_east_rounded;
     final directionColor = order.isDeposit ? AppColors.statusCompleted : AppColors.statusProcessing;
 
@@ -36,7 +37,7 @@ class OrderCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     '$directionLabel · $methodLabel',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textSecondary,
@@ -54,18 +55,18 @@ class OrderCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      Tx(
                         order.counterpartyLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
+                      Tx(
                         order.orderCode.isNotEmpty ? order.orderCode : order.id,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                        style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                     ],
                   ),
@@ -75,7 +76,7 @@ class OrderCard extends StatelessWidget {
                   children: [
                     Text(
                       '\$${order.amount}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
@@ -83,8 +84,8 @@ class OrderCard extends StatelessWidget {
                     ),
                     if (order.fee != '0.00')
                       Text(
-                        'Fee \$${order.fee}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                        trp('Fee \${0}', [order.fee]),
+                        style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                       ),
                   ],
                 ),
@@ -95,17 +96,17 @@ class OrderCard extends StatelessWidget {
               children: [
                 Icon(Icons.schedule, size: 14, color: AppColors.textFaint),
                 const SizedBox(width: 4),
-                Text(
+                Tx(
                   _dateFormat.format(order.createdAt.toLocal()),
-                  style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                  style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                 ),
                 if (order.depositCode != null) ...[
                   const SizedBox(width: 12),
                   Icon(Icons.tag, size: 14, color: AppColors.textFaint),
                   const SizedBox(width: 4),
-                  Text(
+                  Tx(
                     order.depositCode!,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                    style: TextStyle(fontSize: 12, color: AppColors.textFaint),
                   ),
                 ],
               ],

@@ -1,0 +1,619 @@
+// BADAL AI Support Bot (Telegram): customer support for BADAL Exchange.
+//
+// TEXT ONLY, answers in Somali ONLY.
+//   * Voice messages, audio files, video notes, videos, photos, screenshots,
+//     documents and everything else that is not text are refused with a Somali
+//     message: nothing is downloaded or processed, and the bot never sends voice.
+//   * The customer links their chat once: the Wallet ID, then their own Telegram
+//     contact, whose number must be the registered one. The bot reads their
+//     orders; it can't create an order, move money or change an account (see
+//     migrations/*_support_bot.sql).
+//   * "La xiriir Admin" opens a direct Telegram chat with the admin
+//     (@Badalexchangeadmin). No tickets, no complaints and no message text are
+//     stored anywhere.
+//
+// Telegram calls this function as the bot's webhook:
+//   https://<project>.supabase.co/functions/v1/support-bot
+//
+// Secrets (set in Supabase; SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided):
+//   SUPPORT_BOT_TOKEN           the bot's token from @BotFather (never put it in the code or the repo)
+//   SUPPORT_BOT_WEBHOOK_SECRET  a long random string; Telegram sends it back with every update
+//   ANTHROPIC_API_KEY           answers the customers' questions
+//   [SUPPORT_AI_MODEL=claude-sonnet-5-5]
+//   [SUPPORT_TELEGRAM_API_BASE, SUPPORT_AI_API_BASE]   (tests)
+// Then register the webhook and the menu once (open it in a browser):
+//   https://<project>.supabase.co/functions/v1/support-bot/setup?key=<SUPPORT_BOT_WEBHOOK_SECRET>
+const TG_BASE = (Deno.env.get('SUPPORT_TELEGRAM_API_BASE') || 'https://api.telegram.org').replace(/\/$/, '');
+const AI_BASE = (Deno.env.get('SUPPORT_AI_API_BASE') || 'https://api.anthropic.com').replace(/\/$/, '');
+const MODEL = Deno.env.get('SUPPORT_AI_MODEL') || 'claude-sonnet-5-5';
+/** The admin's own Telegram: "La xiriir Admin" opens a direct chat with it. Nothing the customer says is stored. */
+const ADMIN_TG = (Deno.env.get('SUPPORT_ADMIN_TELEGRAM') || 'Badalexchangeadmin').replace(/^@/, '');
+
+// ------------------------------------------------------------------ Somali
+
+const T = {
+  welcome:
+    '👋 Ku soo dhawoow <b>BADAL AI Support Bot</b>.\n\nWaxaan ku caawinaa macaamiisha BADAL Exchange. Fadlan geli <b>Wallet ID</b>-gaaga (tusaale: BE000000) si aan kuu aqoonsado.',
+  askContact:
+    '🔐 Si aan u hubino akoonkaaga, fadlan taabo badhanka hoose oo la wadaag lambarkaaga Telegram-ka (waa inuu ahaado kan akoonkaaga ku diiwaangashan).',
+  shareButton: '📱 La wadaag lambarkayga',
+  walletLimited: '⛔ Isku-day badan baa la sameeyay. Fadlan mar kale isku day saacad kadib.',
+  wrongContact: '❌ Waan ku xaqiijin kari waynay. Hubi Wallet ID-gaaga iyo lambarka Telegram-ka, kadibna qor /start mar kale.',
+  contactNotOwn: '❌ Fadlan la wadaag lambarkaaga adiga u gaarka ah (badhanka hoose).',
+  linked: (name: string) => `✅ Waad ku mahadsan tahay${name ? ', ' + name : ''}! Akoonkaaga waa la xaqiijiyay.\n\nFadlan dooro adeegga aad rabto:`,
+  menuTitle: 'Fadlan dooro adeegga aad rabto:',
+  needLink: 'Marka hore fadlan geli <b>Wallet ID</b>-gaaga si aan kuu aqoonsado. Qor /start.',
+  noOrders: 'Wali macaamil lama helin.',
+  ordersTitle: (kind: string) =>
+    kind === 'deposit' ? '⬇️ <b>Dhigashooyinkaaga ugu dambeeyay</b>' : kind === 'withdraw' ? '⬆️ <b>Bixinaadyadaaga ugu dambeeyay</b>' : '📋 <b>Macaamilladaada ugu dambeeyay</b>',
+  depositHelp:
+    '⬇️ <b>Dhigasho</b>\nKu dhig lacag Wallet-kaaga adigoo ka dooranaya App-ka <b>Dhigasho</b>, dooro habka, oo ka dir lacagta lambarkaaga diiwaangashan. Waxaa lagu daraa marka lacag-bixintaada la xaqiijiyo.\n\nHaddii dhigashadaadu dib u dhacday, qor su’aashaada ama taabo <b>La xiriir Admin</b>.',
+  withdrawHelp:
+    '⬆️ <b>Bixin</b>\nKa bixi lacagta Wallet-kaaga adigoo ka dooranaya App-ka <b>Bixin</b>, dooro habka, geli lambarka iyo lacagta. Lacagtu waxay u socotaa lambarka aad dooratay.\n\nHaddii bixintaadu dib u dhacday, qor su’aashaada ama taabo <b>La xiriir Admin</b>.',
+  faq:
+    '❓ <b>Su’aalaha inta badan la isweydiiyo</b>\n\n• <b>Dhigashadaydu ma muuqato?</b> Waxay soo muuqataa marka lacag-bixintaada la xaqiijiyo. Sug daqiiqado ama qor su’aashaada.\n• <b>Bixintaydu way dib u dhacday?</b> Waxaa laga yaabaa inay sugayso hubin. Sug 5 daqiiqo, kadib la xiriir Admin.\n• <b>Xaddiga bixinta?</b> Waxaad ka eeg kartaa Profile-kaaga App-ka.\n• <b>PIN ama password?</b> Ma weydiino, ha na siin weligaa.',
+  contactAdmin: `🎧 <b>La xiriir Admin</b>
+Taabo badhanka hoose si aad Telegram-ka ugula hadasho Admin-ka toos ah (@${ADMIN_TG}). Halkaas ku sharax cilada, oo isaga ayaa kaa caawin doona.`,
+  balance: (b: { available: string; pending: string; bonus: string }) =>
+    `💰 <b>Haraagayga</b>\nHaraaga la isticmaali karo: <b>$${b.available}</b>\nGunno: $${b.bonus}` +
+    (Number(b.pending) > 0 ? `\nLacagta la sugayo: $${b.pending}` : ''),
+  me: (name: string, wallet: string) => `⚙️ <b>Xogtayda</b>\nMagaca: ${name || '—'}\nWallet ID: <b>${wallet || '—'}</b>`,
+  approvalSent: '⏳ Codsigaaga waxaa loo gudbiyey maamulka.\n\nFadlan sug inta akoonkaaga la fasaxayo. Marka la ansixiyo, waxaad awoodi doontaa inaad lacagta kala baxdo.',
+  approvalAlready: '✅ Akoonkaaga horey ayaa loo fasaxay bixinta. Waad bixin kartaa.',
+  approvalUnknown: '❌ Customer ID-gan lama helin. Fadlan ka fur App-ka Bixinta mar kale oo taabo Telegram.',
+  approvalLimited: '⛔ Waxaad samaysay codsiyo badan muddo gaaban gudaheed.\n\nFadlan sug hal saac kadibna mar kale isku day. Mahadsanid.',
+  approvalNoAdmin: '⚠️ Hadda codsiga si toos ah ugama gaarsiin karo maamulka. Fadlan taabo badhanka hoose oo ka dir Admin-ka.',
+  approvalWaiting: '⏳ Codsigaagii hore maamulka ayaa haya. Fadlan sug jawaabtiisa.',
+  approvalRestricted: '⛔ Akoonkaaga bixintiisa waa la hakiyay. Fadlan la xiriir Admin-ka.',
+  approvedToCustomer: '✅ <b>Akoonkaaga waa la fasaxay!</b>\n\nHadda waxaad lacagta kala bixi kartaa akoonkaaga. Mahadsanid.',
+  rejectedToCustomer: '⛔ <b>Codsigaaga waa la diiday.</b>\n\nMaamulka ayaa diiday codsigaaga. Fadlan la xiriir taageerada macaamiisha si aad faahfaahin dheeraad ah uga hesho. Mahadsanid',
+  decisionNotAdmin: '⛔ Maamule oo la ogol yahay ma ihid.',
+  decisionAlready: (status: string) => `ℹ️ Codsigan horey ayaa loo go'aamiyay (${status === 'approved' ? 'la fasaxay' : 'la diiday'}).`,
+  decisionRestricted: '⛔ Akoonkan bixintiisa waa la hakiyay; ka beddel Agent App-ka.',
+  decisionDone: (status: string, who: string, when: string) =>
+    `\n\n${status === 'approved' ? '✅ <b>CODSIGA WAA LA FASAXAY</b>' : '❌ <b>CODSIGA WAA LA DIIDAY</b>'}\n👨‍💼 Maamulaha: ${who}\n🕒 Waqtiga: ${when}`,
+  groupLinked: '✅ Kooxdan waa la xaqiijiyay. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaa lagu soo diri doonaa; xubnaha kooxdu waxay fasaxi/diidi karaan.',
+  groupAnonymous: '⚠️ Fariintan waxaa loo diray sidii <b>maamule qarsoon</b> (anonymous), sidaas darteed ma garan karo yaad tahay. Fadlan ka damiso <b>Remain anonymous</b> (Group → Administrators → magacaaga), kadibna mar kale qor /linkgroup.',
+  groupNotAllowed: '⛔ Kaliya maamulaha la ogol yahay ayaa kooxda xiri kara.',
+  btnApprove: '✅ Confirm',
+  btnReject: '❌ Reject',
+  adminLinked: '✅ Waa lagu xaqiijiyay maamule. Codsiyada fasaxa bixinta ee macaamiisha halkan ayaad ka heli doontaa.',
+  // The approval request in the group: the customer's name, Customer ID (the wallet ID the customer sees in the app) and number only.
+  adminRequest: (name: string, id: string, phone: string, _username: string) =>
+    `🔔 <b>Codsi Lacag Bixin (Withdrawal)</b>\n\n👤 Macmiil: <b>${name || '—'}</b>\n🪪 Customer ID: <b>${id}</b>\n📱 Number: ${phone ? '+' + phone : '—'}\n\n🟡 <b>PENDING – Weli Sugaya</b>`,
+  unlinked: '✅ Akoonkaaga waa laga saaray bot-kan. Qor /start si aad mar kale ugu xirto.',
+  voiceRefused: '🚫 Codka (voice) iyo faylasha cod ah lama aqbalo. Fadlan qor su’aashaada qoraal ahaan.',
+  otherRefused: '🚫 Bot-kan wuxuu aqbalaa <b>qoraal</b> kaliya. Sawirada (screenshots), codka iyo faylasha kale lama aqbalo. Fadlan qor su’aashaada.',
+  aiLimited: '⏳ Su’aalo badan baad dirtay. Fadlan mar kale isku day saacad kadib, ama taabo <b>La xiriir Admin</b>.',
+  aiFailed: '⚠️ Hadda ma awoodo inaan su’aasha ka jawaabo. Fadlan mar kale isku day daqiiqado kadib, ama taabo <b>La xiriir Admin</b>.',
+  status: { completed: 'Waa dhammaystiray', pending: 'Waa la sugayaa', processing: 'Waa la farsamaynayaa', failed: 'Waa fashilmay', cancelled: 'Waa la joojiyay', expired: 'Waa dhacay' } as Record<string, string>,
+  buttons: {
+    deposit: '⬇️ Dhigasho', withdraw: '⬆️ Bixin', balance: '💰 Haraagayga', orders: '📋 Dalabyadayda', history: '🕘 Taariikhda Macaamilka',
+    faq: '❓ Su’aalaha Inta Badan La Isweydiiyo', admin: '🎧 La xiriir Admin', me: '⚙️ Xogtayda',
+  },
+};
+
+const SYSTEM_PROMPT = `You are "BADAL AI Support Bot", the customer-support assistant of BADAL Exchange, a service where customers deposit and withdraw money with mobile money (EVC Plus, Golis, ZAAD, eDahab) and betting platforms (1XBET, MELBET, WinWin, DBbet, Betwinner, BetJam, BetOnGame, 888STARZ, LuckyPari, Goldpari, Betandyou).
+
+LANGUAGE: Write EVERY answer in Somali (Af-Soomaali) only. Never answer in English, Arabic or any other language -- even when the customer writes to you in English or Arabic: read it, then answer in Somali. Keep names of companies, buttons and error codes as they are written.
+
+WHAT YOU DO: Answer the customer's text questions about deposits, withdrawals, statuses and the app briefly and clearly, and give 1-3 short steps they can take (retry in a few minutes, check the number and amount, check their balance, update the app).
+
+RULES: You only receive text: if the customer says they sent a screenshot, image or voice message, tell them in Somali that this bot works with text only and ask them to write the problem. Never ask for, accept or repeat a PIN, password, card number or one-time code; if the customer writes one, tell them never to send it. You cannot move money, refund, credit, cancel, approve or change anything, and you must never say or promise that you did. Do not guess balances or order results: use only what the customer's orders below say. If the problem needs a person (money missing, a payment not credited after waiting, a wrong number, a dispute) tell them to press "La xiriir Admin" and give the details. Do not discuss other topics: politely say in Somali that you only help with BADAL Exchange. Keep answers short (at most about 8 lines), friendly and plain.`;
+
+// ----------------------------------------------------------------- plumbing
+
+/** Compares secrets without stopping at the first difference. */
+function same(given: string | null, expected: string | undefined): boolean {
+  if (!given || !expected || given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < given.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function token(): string {
+  const t = Deno.env.get('SUPPORT_BOT_TOKEN');
+  if (!t) throw new Error('SUPPORT_BOT_TOKEN not set');
+  return t;
+}
+/** Error text without the bot token or the AI key. */
+function safe(err: unknown): string {
+  let m = (err as Error)?.message ?? String(err);
+  for (const secret of [Deno.env.get('SUPPORT_BOT_TOKEN'), Deno.env.get('ANTHROPIC_API_KEY'), Deno.env.get('SUPPORT_BOT_WEBHOOK_SECRET')]) {
+    if (secret) m = m.replaceAll(secret, '•••');
+  }
+  return m;
+}
+
+async function tg(method: string, body: Record<string, unknown>) {
+  const res = await fetch(`${TG_BASE}/bot${token()}/${method}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || data?.ok === false) throw new Error(`Telegram ${method}: ${data?.description ?? res.status}`);
+  return data?.result;
+}
+
+async function rpc(fn: string, args: Record<string, unknown>) {
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const headers: Record<string, string> = { apikey: key, 'Content-Type': 'application/json' };
+  if (!key.startsWith('sb_')) headers.Authorization = `Bearer ${key}`;
+  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/${fn}`, { method: 'POST', headers, body: JSON.stringify(args) });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error(`${fn}: ${data?.message ?? res.status}`);
+  return data;
+}
+
+const say = (chat: number, text: string, extra: Record<string, unknown> = {}) =>
+  tg('sendMessage', { chat_id: chat, text, parse_mode: 'HTML', disable_web_page_preview: true, ...extra });
+
+/** A button that opens the admin's own Telegram chat. */
+const adminLink = () => ({ inline_keyboard: [[{ text: '💬 La hadal Admin-ka (Telegram)', url: `https://t.me/${ADMIN_TG}` }]] });
+
+const menu = () => ({
+  inline_keyboard: [
+    [{ text: T.buttons.deposit, callback_data: 'deposit' }, { text: T.buttons.withdraw, callback_data: 'withdraw' }],
+    [{ text: T.buttons.balance, callback_data: 'balance' }],
+    [{ text: T.buttons.orders, callback_data: 'orders' }, { text: T.buttons.history, callback_data: 'history' }],
+    [{ text: T.buttons.faq, callback_data: 'faq' }],
+    [{ text: T.buttons.admin, url: `https://t.me/${ADMIN_TG}` }, { text: T.buttons.me, callback_data: 'me' }],
+  ],
+});
+
+const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { timeZone: 'Africa/Mogadishu', hour12: false });
+
+function ordersText(kind: string, orders: any[]): string {
+  if (!orders.length) return T.noOrders;
+  const lines = orders.map((o) =>
+    `${o.direction === 'deposit' ? '⬇️' : '⬆️'} <b>${esc(o.code)}</b>\n${esc(o.method)} · $${esc(o.amount)}\nXaaladda: ${esc(T.status[o.status] ?? o.status)}\nTaariikhda: ${esc(when(o.createdAt))}`);
+  return `${T.ordersTitle(kind)}\n\n${lines.join('\n\n')}`;
+}
+
+/** What the AI may know about the customer: only their latest orders. */
+function orderContext(orders: any[]): string {
+  if (!orders.length) return 'The customer has no orders yet.';
+  return 'The customer\'s latest orders (newest first):\n' + orders.map((o) =>
+    `- ${o.code}: ${o.direction === 'deposit' ? 'deposit' : 'withdrawal'}, ${o.method}, $${o.amount}, status ${o.status}${o.reason ? ` (${String(o.reason).slice(0, 120)})` : ''}, ${when(o.createdAt)}`).join('\n');
+}
+
+// ----------------------------------------------------------------------- AI
+
+async function askAi(question: string, context: string): Promise<string | null> {
+  const key = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!key) return null;
+  const res = await fetch(`${AI_BASE}/v1/messages`, {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 700, system: `${SYSTEM_PROMPT}\n\n${context}`, messages: [{ role: 'user', content: question }] }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`AI ${res.status}: ${data?.error?.message ?? ''}`);
+  const text = String(data?.content?.find((c: any) => c.type === 'text')?.text ?? '').trim();
+  return text || null;
+}
+
+// ----------------------------------------------------------------- handlers
+
+async function showOrders(chat: number, kind: string) {
+  const orders = (await rpc('support_orders', { p_chat: chat, p_kind: kind, p_limit: kind === 'all' ? 5 : 10 })) ?? [];
+  await say(chat, ordersText(kind, orders), { reply_markup: menu() });
+}
+
+async function onCallback(cb: any) {
+  const chat: number = cb.message?.chat?.id;
+  if (!chat) return;
+  const decision = /^ap:([0-9a-f-]{36}):(a|r)$/.exec(String(cb.data ?? ''));
+  if (decision) return onDecision(cb, decision[1], decision[2] === 'a' ? 'approve' : 'reject');
+  await tg('answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {});
+  const s = await rpc('support_session', { p_chat: chat });
+  if (!s.linked) return void (await say(chat, T.needLink));
+  switch (cb.data) {
+    case 'deposit': await say(chat, T.depositHelp); return showOrders(chat, 'deposit');
+    case 'withdraw': await say(chat, T.withdrawHelp); return showOrders(chat, 'withdraw');
+    case 'balance': {
+      const b = await rpc('support_balance', { p_chat: chat });
+      return void (await say(chat, b ? T.balance({ available: esc(b.available), pending: esc(b.pending), bonus: esc(b.bonus) }) : T.needLink, { reply_markup: menu() }));
+    }
+    case 'orders': return showOrders(chat, 'all');
+    case 'history': return showOrders(chat, 'all');
+    case 'faq': return void (await say(chat, T.faq, { reply_markup: menu() }));
+    case 'me': return void (await say(chat, T.me(esc(s.name), esc(s.walletId)), { reply_markup: menu() }));
+    case 'admin': // (menus sent earlier still have this button)
+      return void (await say(chat, T.contactAdmin, { reply_markup: adminLink() }));
+  }
+}
+
+async function onMessage(m: any, from: any) {
+  const chat: number = m.chat?.id;
+  // A group: only /linkgroup, said by the administrator, makes it the place the approval requests go to.
+  if (chat && (m.chat?.type === 'group' || m.chat?.type === 'supergroup')) {
+    if (typeof m.text === 'string' && /^\/linkgroup(@\w+)?$/.test(m.text.trim())) {
+      // Sent as the group itself (an anonymous administrator): Telegram does not say who it is.
+      if (from?.username === 'GroupAnonymousBot' || m.sender_chat?.id === chat) return void (await say(chat, T.groupAnonymous));
+      const current = await rpc('support_admin_chat', {});
+      const isAdmin = String(from?.username ?? '').toLowerCase() === ADMIN_TG.toLowerCase() || (current && Number(current) === Number(from?.id));
+      if (!isAdmin) return void (await say(chat, T.groupNotAllowed));
+      await rpc('support_admin_link', { p_chat: chat });
+      return void (await say(chat, T.groupLinked));
+    }
+    return;
+  }
+  if (!chat || m.chat?.type !== 'private') return; // otherwise private chats only
+
+  // Text only: voice, audio, photos, screenshots, videos, documents and everything else is refused, never downloaded.
+  if (typeof m.text !== 'string' && !m.contact) {
+    const voice = Boolean(m.voice || m.audio || m.video_note || (m.document && /^audio\//.test(String(m.document.mime_type ?? ''))));
+    return void (await say(chat, voice ? T.voiceRefused : T.otherRefused));
+  }
+
+  const text: string = typeof m.text === 'string' ? m.text.trim() : '';
+
+  // The administrator's own Telegram account starts the bot once: that chat then receives the approval requests.
+  if (/^\/start(\s|$)/.test(text) && String(from?.username ?? '').toLowerCase() === ADMIN_TG.toLowerCase()) {
+    await rpc('support_admin_link', { p_chat: chat });
+    return void (await say(chat, T.adminLinked));
+  }
+  // Customer App, Withdraw: https://t.me/<bot>?start=fasax_<Customer ID> asks the administrator to approve the account.
+  const ask = /^\/start\s+fasax_([A-Za-z0-9]{8,10})$/.exec(text);
+  if (ask) return approvalRequest(chat, ask[1], from);
+
+  const s = await rpc('support_session', { p_chat: chat });
+
+  if (text === '/start') {
+    if (s.linked) return void (await say(chat, T.menuTitle, { reply_markup: menu() }));
+    await rpc('support_set_state', { p_chat: chat, p_state: 'awaiting_wallet' });
+    return void (await say(chat, T.welcome));
+  }
+  if (text === '/unlink') {
+    await rpc('support_unlink', { p_chat: chat });
+    return void (await say(chat, T.unlinked, { reply_markup: { remove_keyboard: true } }));
+  }
+  if (text === '/menu' && s.linked) return void (await say(chat, T.menuTitle, { reply_markup: menu() }));
+
+  // ---- not linked: the Wallet ID, then the customer's own contact
+  if (!s.linked) {
+    if (s.state === 'awaiting_contact') {
+      if (m.contact) {
+        // Only the sender's own contact counts.
+        if (m.contact.user_id !== from?.id) return void (await say(chat, T.contactNotOwn));
+        const r = await rpc('support_verify_contact', { p_chat: chat, p_phone: String(m.contact.phone_number ?? '') });
+        if (!r.ok) return void (await say(chat, T.wrongContact, { reply_markup: { remove_keyboard: true } }));
+        await say(chat, '✅', { reply_markup: { remove_keyboard: true } });
+        return void (await say(chat, T.linked(esc(r.name)), { reply_markup: menu() }));
+      }
+      if (text) { // maybe a different Wallet ID: start again
+        if (/^[A-Za-z0-9]{4,20}$/.test(text)) return linkWallet(chat, text);
+        return void (await say(chat, T.askContact, { reply_markup: shareKeyboard() }));
+      }
+      return void (await say(chat, T.askContact, { reply_markup: shareKeyboard() }));
+    }
+    if (text && /^[A-Za-z0-9]{4,20}$/.test(text)) return linkWallet(chat, text);
+    return void (await say(chat, T.welcome));
+  }
+
+  // ---- linked
+  if (!text) return void (await say(chat, T.otherRefused));
+
+  if (!(await rpc('support_ai_allowed', { p_chat: chat }))) return void (await say(chat, T.aiLimited, { reply_markup: menu() }));
+  await tg('sendChatAction', { chat_id: chat, action: 'typing' }).catch(() => {});
+
+  const orders = (await rpc('support_orders', { p_chat: chat, p_kind: 'all', p_limit: 5 })) ?? [];
+  let answer: string | null = null;
+  try {
+    answer = await askAi(text.slice(0, 1500), orderContext(orders));
+  } catch (err) {
+    console.error('support-bot ai', safe(err));
+  }
+  await say(chat, answer ? esc(answer) : T.aiFailed, { reply_markup: menu() });
+}
+
+const approvalButtons = (id: string) => ({
+  inline_keyboard: [[{ text: T.btnApprove, callback_data: `ap:${id}:a` }, { text: T.btnReject, callback_data: `ap:${id}:r` }]],
+});
+
+async function approvalRequest(chat: number, account: string, from: any) {
+  const r = await rpc('support_approval_request', { p_chat: chat, p_account: account });
+  if (r.limited) return void (await say(chat, T.approvalLimited));
+  if (!r.ok) return void (await say(chat, T.approvalUnknown));
+  if (r.allowed) return void (await say(chat, T.approvalAlready));
+  if (r.restricted) return void (await say(chat, T.approvalRestricted, { reply_markup: adminLink() }));
+  // Already with the administrator (and shown to them): nothing is sent twice.
+  if (!r.new && r.sent) return void (await say(chat, T.approvalWaiting));
+  const adminChat = await rpc('support_admin_chat', {});
+  if (adminChat) {
+    try {
+      const sent = await say(Number(adminChat), T.adminRequest(esc(r.name ?? ''), esc(r.accountId), esc(String(r.phone ?? '')), from?.username ? esc(String(from.username)) : ''),
+        { reply_markup: approvalButtons(r.requestId) });
+      await rpc('support_approval_sent', { p_request: r.requestId, p_admin_chat: Number(adminChat), p_message_id: sent?.message_id ?? 0 });
+      return void (await say(chat, T.approvalSent));
+    } catch (err) {
+      console.error('support-bot approval', safe(err));
+    }
+  }
+  await say(chat, T.approvalNoAdmin, { reply_markup: adminLink() });
+}
+
+/** Someone in the linked chat pressed Approve / Reject under a request. */
+async function onDecision(cb: any, requestId: string, decision: 'approve' | 'reject') {
+  const name = cb.from?.username ? `@${cb.from.username}` : [cb.from?.first_name, cb.from?.last_name].filter(Boolean).join(' ') || String(cb.from?.id ?? '');
+  // In a group, Telegram says whether the person who pressed is in the group.
+  const chatId = Number(cb.message?.chat?.id);
+  let verified = false;
+  if (chatId < 0) {
+    try {
+      const member = await tg('getChatMember', { chat_id: chatId, user_id: Number(cb.from?.id) });
+      // Everybody in the team group may decide (the group is private): its creator, administrators and members; not someone who left or was removed.
+      verified = ['creator', 'administrator', 'member'].includes(member?.status) || (member?.status === 'restricted' && member?.is_member === true);
+    } catch (err) {
+      console.error('support-bot member check', safe(err));
+    }
+  }
+  const r = await rpc('support_approval_decide', {
+    p_request: requestId, p_admin_tg: Number(cb.from?.id), p_admin_name: name, p_decision: decision,
+    p_chat: chatId, p_verified: verified,
+  });
+  const alert = (text: string) => tg('answerCallbackQuery', { callback_query_id: cb.id, text, show_alert: true }).catch(() => {});
+  if (!r.ok) {
+    if (r.error === 'not_admin') return void (await alert(T.decisionNotAdmin));
+    if (r.error === 'already') return void (await alert(T.decisionAlready(String(r.status))));
+    if (r.error === 'restricted') return void (await alert(T.decisionRestricted));
+    return void (await alert(T.approvalUnknown));
+  }
+  await tg('answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {});
+  // Somali time (Africa/Mogadishu, GMT+3).
+  const when = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Mogadishu', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .format(new Date(r.decidedAt)).replace(',', '');
+  // The administrator's message: the buttons go, the outcome stays.
+  try {
+    const original = String(cb.message?.text ?? '');
+    await tg('editMessageText', {
+      chat_id: cb.message?.chat?.id, message_id: cb.message?.message_id, parse_mode: 'HTML',
+      text: esc(original) + T.decisionDone(r.status, esc(name), when), reply_markup: { inline_keyboard: [] },
+    });
+  } catch (err) {
+    console.error('support-bot decision edit', safe(err));
+  }
+  // The customer is told. A Telegram failure does not undo the decision.
+  try {
+    await say(Number(r.customerChat), r.status === 'approved' ? T.approvedToCustomer : T.rejectedToCustomer,
+      r.status === 'approved' ? {} : { reply_markup: adminLink() });
+  } catch (err) {
+    console.error('support-bot decision notify', safe(err));
+  }
+}
+
+// ---------------------------------------------------------- scheduled messages
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The worker for the scheduled mass messages (woken every minute by the database): starts the runs that are due,
+ * then sends the waiting messages, about 25 a second (Telegram allows ~30), and waits out Telegram's own
+ * "retry after". The messages are plain text, as the administrator wrote them.
+ */
+// ------------------------------------------------------------------ health: alerts to the owner, webhook check
+
+const SYSTEM_OF: [RegExp, string][] = [
+  [/^sahal/, 'Sahal'], [/^cron/, 'Cron-ka database-ka'], [/^edge/, 'Edge Functions'], [/^withdrawals/, 'Bixinnada'],
+  [/^sms/, 'SMS-ka lacagta'], [/^ledger/, 'Lacagta (wallet/ledger)'], [/^db_/, 'Database-ka'], [/^push/, 'Push-ka'],
+  [/^broadcast/, 'Fariimaha jadwalka'], [/^integration/, 'Cash register-ka (CashdeskBot)'], [/^webhook|^telegram/, 'Telegram'],
+  [/^security/, 'Amniga'], [/^owner|^withdrawal_alerts/, 'Digniinaha'], [/^health_check_error/, 'Hubinta nidaamka'],
+];
+const systemOf = (key: string) => SYSTEM_OF.find(([re]) => re.test(key))?.[1] ?? 'Nidaamka';
+
+function detailLines(detail: Record<string, unknown> | null): string {
+  return Object.entries(detail ?? {}).slice(0, 5)
+    .map(([k, v]) => `   • ${esc(k)}: ${esc(typeof v === 'object' ? JSON.stringify(v) : v).slice(0, 90)}`).join('\n');
+}
+
+/** The owner's alert, in Somali: what, where, why, what was repaired, whether customers or money were touched. */
+export function healthText(a: Record<string, any>): string {
+  const icon = a.severity === 'critical' ? '🚨' : '⚠️';
+  if (a.kind === 'resolved') {
+    return [`✅ <b>LA XALIYAY: ${esc(a.title)}</b>`, `Nidaamka: ${esc(systemOf(a.key))}`,
+      `Hagaajin: ${esc(a.repair ?? 'ma jirin (is-xalay)')}`, `Natiijada: ${esc(a.repairResult ?? 'xaaladdu way dhammaatay')}`].join('\n');
+  }
+  const lines = [
+    `${a.kind === 'repeat' ? '⏰ <b>MAR KALE (weli furan)</b>\n' : ''}${icon} <b>${a.severity === 'critical' ? 'DIGNIIN WEYN' : 'DIGNIIN'}: ${esc(a.title)}</b>`,
+    `Nidaamka: ${esc(systemOf(a.key))}`,
+    `Faahfaahin:\n${detailLines(a.detail) || '   —'}`,
+    `Sababta: ${esc(a.cause ?? 'weli lama garanin')}`,
+    `Hagaajin la isku dayay: ${esc(a.repair ?? 'midna (looma baahna ama ma ammaan ahan)')}`,
+    `Natiijada hagaajinta: ${esc(a.repairResult ?? '—')}`,
+    `Macaamiisha: ${a.customers ? '<b>haa, waa la saameeyay</b>' : 'maya'}`,
+    `Lacagta: ${a.financial ? '<b>HAA: waa la hubinayaa, ha la taaban gacan ahaan</b>' : 'maya'}`,
+    `Horumariye: ${a.developer ? '<b>HAA, loo baahan yahay</b>' : 'maya'}`,
+  ];
+  return lines.join('\n');
+}
+
+/** Registers the webhook again when Telegram has lost it, and tells the health monitor what it found. */
+async function checkWebhook(): Promise<Record<string, unknown>> {
+  const expected = Deno.env.get('SUPPORT_BOT_WEBHOOK_SECRET');
+  const want = `${Deno.env.get('SUPABASE_URL')}/functions/v1/support-bot`;
+  try {
+    await tg('getMe', {});
+  } catch (err) {
+    await rpc('health_report_external', { p_key: 'telegram_support_bot_token', p_ok: false, p_severity: 'critical',
+      p_title: 'Token-ka bot-ka support-ka ma shaqeynayo', p_detail: { error: safe(err).slice(0, 150) },
+      p_cause: 'token-ka waa la beddelay ama bot-ka waa la tirtiray' });
+    return { webhook: 'token problem' };
+  }
+  await rpc('health_report_external', { p_key: 'telegram_support_bot_token', p_ok: true });
+  let info: any;
+  try {
+    info = await tg('getWebhookInfo', {});
+  } catch (err) {
+    return { webhook: `getWebhookInfo failed: ${safe(err)}` };
+  }
+  const lastErr = info?.last_error_date && Date.now() / 1000 - Number(info.last_error_date) < 600;
+  if (info?.url !== want) {
+    let result = 'ok';
+    try {
+      if (!expected) throw new Error('SUPPORT_BOT_WEBHOOK_SECRET not set');
+      await tg('setWebhook', { url: want, secret_token: expected, allowed_updates: ['message', 'callback_query'], drop_pending_updates: false });
+    } catch (err) {
+      result = `failed: ${safe(err).slice(0, 120)}`;
+    }
+    await rpc('health_report_external', { p_key: 'webhook:support-bot', p_ok: false, p_severity: 'critical',
+      p_title: 'Webhook-ka bot-ka support-ka wuu maqnaa ama khalad ayuu ahaa',
+      p_detail: { registered: info?.url ? 'url kale' : 'midna', pending: info?.pending_update_count ?? 0 },
+      p_cause: 'Telegram ma uu haysan webhook-ka saxda ah', p_repair: 'setWebhook (dib loo diiwaangeliyay)', p_repair_result: result });
+    return { webhook: 'repaired', result };
+  }
+  if (lastErr && Number(info.pending_update_count ?? 0) > 20) {
+    await rpc('health_report_external', { p_key: 'webhook:support-bot', p_ok: false, p_severity: 'warning',
+      p_title: 'Telegram wuxuu soo sheegayaa khalad webhook-ka ah', p_detail: { pending: info.pending_update_count, error: String(info.last_error_message ?? '').slice(0, 100) },
+      p_cause: 'function-ku wuu jawaabi waayay' });
+    return { webhook: 'errors' };
+  }
+  await rpc('health_report_external', { p_key: 'webhook:support-bot', p_ok: true });
+  return { webhook: 'ok' };
+}
+
+async function healthWorker(): Promise<Response> {
+  const out: Record<string, unknown> = {};
+  try {
+    Object.assign(out, await checkWebhook());
+  } catch (err) {
+    out.webhookError = safe(err);
+  }
+  // The owner's alerts: one message each, marked as sent only when Telegram took it.
+  const chat = await rpc('support_admin_chat', {});
+  const alerts: any[] = (await rpc('health_alert_claim', {})) ?? [];
+  const done: { id: number; kind: string }[] = [];
+  if (chat) {
+    for (const a of alerts) {
+      try {
+        await say(Number(chat), healthText(a));
+        done.push({ id: a.id, kind: a.kind });
+      } catch (err) {
+        console.error('support-bot health alert', safe(err));
+      }
+    }
+  }
+  if (done.length) await rpc('health_alert_done', { p_done: done });
+  return json({ ok: true, ...out, alerts: alerts.length, sent: done.length, ownerChat: Boolean(chat) });
+}
+
+async function broadcastWorker(): Promise<Response> {
+  await rpc('broadcast_tick', {});
+  const started = Date.now();
+  let sent = 0;
+  let failed = 0;
+  let released = 0;
+  while (Date.now() - started < 45_000) {
+    const batch: { id: number; chatId: number; text: string }[] = (await rpc('broadcast_claim', { p_limit: 25 })) ?? [];
+    if (!batch.length) break;
+    const t0 = Date.now();
+    const results: { id: number; ok: boolean; error?: string }[] = [];
+    const later: number[] = [];
+    let wait = 0;
+    for (const d of batch) {
+      try {
+        await tg('sendMessage', { chat_id: d.chatId, text: d.text, disable_web_page_preview: true });
+        results.push({ id: d.id, ok: true });
+        sent++;
+      } catch (err) {
+        const message = safe(err);
+        const slow = /retry after (\d+)/i.exec(message);
+        if (slow) {
+          wait = Math.max(wait, Number(slow[1]) * 1000);
+          later.push(d.id);
+          released++;
+        } else {
+          results.push({ id: d.id, ok: false, error: /blocked|deactivated|chat not found|kicked/i.test(message) ? 'blocked' : message.slice(0, 120) });
+          failed++;
+        }
+      }
+    }
+    if (results.length) await rpc('broadcast_result', { p_results: results });
+    if (later.length) await rpc('broadcast_release', { p_ids: later });
+    if (wait) await sleep(Math.min(wait, 20_000));
+    const spent = Date.now() - t0;
+    if (spent < 1100) await sleep(1100 - spent);
+  }
+  return json({ ok: true, sent, failed, released });
+}
+
+const shareKeyboard = () => ({
+  keyboard: [[{ text: T.shareButton, request_contact: true }]], resize_keyboard: true, one_time_keyboard: true,
+});
+
+async function linkWallet(chat: number, wallet: string) {
+  const r = await rpc('support_start_link', { p_chat: chat, p_wallet: wallet });
+  // Same answer whether or not the Wallet ID exists: it can not be found out from here.
+  if (!r.ok) return void (await say(chat, T.walletLimited));
+  await say(chat, T.askContact, { reply_markup: shareKeyboard() });
+}
+
+// ------------------------------------------------------------------- server
+
+Deno.serve(async (req) => {
+  const expected = Deno.env.get('SUPPORT_BOT_WEBHOOK_SECRET');
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/\/$/, '');
+
+  // One-time setup: registers the webhook and the menu. From a phone browser:
+  //   https://<project>.supabase.co/functions/v1/support-bot/setup?key=<SUPPORT_BOT_WEBHOOK_SECRET>
+  // (the bot token stays in the secrets; nothing but the webhook secret is typed).
+  if (path.endsWith('/setup')) {
+    const given = req.headers.get('x-telegram-bot-api-secret-token') ?? url.searchParams.get('key');
+    // Says why, so the one-time setup can be fixed (nothing here reveals the secret).
+    if (!expected) return new Response('Forbidden: the secret SUPPORT_BOT_WEBHOOK_SECRET is not set in Supabase', { status: 403 });
+    if (!same(given, expected)) return new Response('Forbidden: the key in the address does not match SUPPORT_BOT_WEBHOOK_SECRET', { status: 403 });
+    try {
+      const hook = `${Deno.env.get('SUPABASE_URL')}/functions/v1/support-bot`;
+      await tg('setWebhook', { url: hook, secret_token: expected, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
+      await tg('setMyCommands', { commands: [{ command: 'start', description: 'Bilow / Menu' }, { command: 'menu', description: 'Menu-ga' }, { command: 'unlink', description: 'Ka saar akoonka' }] });
+      return json({ ok: true, message: 'Webhook was set. Send /start to the bot.' });
+    } catch (err) {
+      console.error('support-bot setup', safe(err));
+      return json({ ok: false, error: safe(err) }, 500);
+    }
+  }
+
+  // The health monitor's route: the owner's alerts and the webhook check; only the database's timer may call it.
+  if (path.endsWith('/health')) {
+    if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
+    const worker = req.headers.get('x-worker-secret');
+    if (!worker || (await rpc('platform_worker_check', { p_secret: worker }).catch(() => false)) !== true) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    try {
+      return await healthWorker();
+    } catch (err) {
+      console.error('support-bot health', safe(err));
+      return json({ ok: false, error: safe(err) }, 500);
+    }
+  }
+  // The scheduled messages' worker: only the database's timer (the platform worker secret) may call it.
+  if (path.endsWith('/broadcast')) {
+    if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
+    const worker = req.headers.get('x-worker-secret');
+    if (!worker || (await rpc('platform_worker_check', { p_secret: worker }).catch(() => false)) !== true) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    try {
+      return await broadcastWorker();
+    } catch (err) {
+      console.error('support-bot broadcast', safe(err));
+      return json({ ok: false, error: safe(err) }, 500);
+    }
+  }
+  if (req.method !== 'POST') return new Response('Forbidden', { status: 403 });
+  if (!same(req.headers.get('x-telegram-bot-api-secret-token'), expected)) return new Response('Forbidden', { status: 403 });
+  try {
+    const update = await req.json();
+    if (update.callback_query) await onCallback(update.callback_query);
+    else if (update.message) await onMessage(update.message, update.message.from);
+  } catch (err) {
+    console.error('support-bot', safe(err));
+  }
+  return json({ ok: true }); // Telegram must always get 200, or it resends the update
+});

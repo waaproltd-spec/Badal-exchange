@@ -1,0 +1,283 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../api/api_exception.dart';
+import '../../models/deposit_board.dart';
+import '../../models/payment_methods.dart';
+import '../../state/session.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/state_views.dart';
+import '../../l10n/tr.dart';
+import '../../l10n/date_format.dart';
+import '../../l10n/language.dart';
+
+/// Unconfirmed Deposits (manage_unconfirmed_deposits): customers who started
+/// a deposit, apart from confirmed payments.
+///
+///  * "Customer has not confirmed the deposit yet." -- the deposit form was
+///    filled in (recorded by the Customer App) but Confirm Deposit was never
+///    pressed: no order exists.
+///  * "Pending Admin Verification." -- Confirm Deposit was pressed: the order
+///    waits for the payment to be verified. Pressing it proves no money came.
+///
+/// Neither is ever credited to a wallet. Each shows how long it has waited;
+/// past 48 hours it is marked overdue and stays listed, as do deposits that
+/// expired unpaid or were rejected. Only what the server stored is shown.
+class UnconfirmedDepositsScreen extends StatefulWidget {
+  const UnconfirmedDepositsScreen({super.key});
+
+  @override
+  State<UnconfirmedDepositsScreen> createState() => _UnconfirmedDepositsScreenState();
+}
+
+enum _Show { all, notConfirmed, pendingVerification, overdue, closed }
+
+class _UnconfirmedDepositsScreenState extends State<UnconfirmedDepositsScreen> {
+  static final _when = AppDateFormat('d MMM yyyy, HH:mm');
+  static final _day = AppDateFormat('d MMM yyyy');
+
+  UnconfirmedDeposits? _data;
+  String? _error;
+  bool _loading = true;
+  _Show _show = _Show.all;
+  late DateTimeRange _range;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _range = DateTimeRange(start: today.subtract(const Duration(days: 6)), end: today);
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = _data == null;
+      _error = null;
+    });
+    try {
+      final data = await context.read<Session>().api.getUnconfirmedDeposits(
+            from: _range.start,
+            to: _range.end.add(const Duration(days: 1)),
+          );
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e is ApiException ? e.message : tr('Could not load unconfirmed deposits.');
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _pickRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: _range,
+    );
+    if (picked == null) return;
+    setState(() => _range = picked);
+    _load();
+  }
+
+  bool _matches(UnconfirmedDeposit d) => switch (_show) {
+        _Show.all => true,
+        _Show.notConfirmed => d.status == 'not_confirmed',
+        _Show.pendingVerification => d.status == 'pending_verification',
+        _Show.overdue => d.overdue,
+        _Show.closed => d.status == 'expired' || d.status == 'cancelled',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Tx('Unconfirmed Deposits')),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: _loading
+            ? const LoadingView()
+            : (_error != null ? ErrorStateView(message: _error!, onRetry: _load) : _content()),
+      ),
+    );
+  }
+
+  Widget _content() {
+    final data = _data!;
+    final shown = data.deposits.where(_matches).toList();
+    return ListView(
+      key: const Key('unconfirmed-deposits'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        Tx(
+          'Customers who started a deposit. Nothing here has been credited: a wallet is credited only '
+          'when the payment itself is verified.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _Count(key: const Key('count-not-confirmed'), label: tr('Not confirmed by customer'),
+              value: data.notConfirmed, color: AppColors.statusUnmatched)),
+          const SizedBox(width: 8),
+          Expanded(child: _Count(key: const Key('count-pending'), label: tr('Pending admin verification'),
+              value: data.pendingVerification, color: AppColors.statusPending)),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _Count(key: const Key('count-overdue'), label: tr('Overdue (over 48 hours)'),
+              value: data.overdue, color: AppColors.statusFailed)),
+          const SizedBox(width: 8),
+          Expanded(child: _Count(key: const Key('count-closed'), label: tr('Expired / rejected (not credited)'),
+              value: data.expired, color: AppColors.statusDuplicate)),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _pickRange,
+              icon: const Icon(Icons.calendar_month_rounded, size: 18),
+              label: Text('${_day.format(_range.start)} - ${_day.format(_range.end)}'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(tooltip: tr('Refresh'), onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+        ]),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 4, children: [
+          for (final (s, label) in [
+            (_Show.all, tr('All')),
+            (_Show.notConfirmed, tr('Not confirmed')),
+            (_Show.pendingVerification, tr('Pending verification')),
+            (_Show.overdue, tr('Overdue')),
+            (_Show.closed, tr('Expired / rejected')),
+          ])
+            ChoiceChip(label: Tx(label), selected: _show == s, onSelected: (_) => setState(() => _show = s)),
+        ]),
+        const SizedBox(height: 8),
+        if (shown.isEmpty)
+          Padding(
+            padding: EdgeInsets.only(top: 40),
+            child: EmptyStateView(
+              icon: Icons.hourglass_empty_rounded,
+              title: tr('Nothing here'),
+              message: tr('No deposits in this period match.'),
+            ),
+          )
+        else
+          ...shown.map(_card),
+      ],
+    );
+  }
+
+  Color _statusColor(UnconfirmedDeposit d) => switch (d.status) {
+        'not_confirmed' => AppColors.statusUnmatched,
+        'pending_verification' => AppColors.statusPending,
+        _ => AppColors.statusDuplicate,
+      };
+
+  Widget _card(UnconfirmedDeposit d) {
+    final color = _statusColor(d);
+    return Card(
+      key: Key('row-${d.id}'),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              MethodBadge(method: d.method, size: 34),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Tx(d.customerPhone, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  Tx(
+                    [d.customerName, methodInfo(d.method).label, if (d.accountId != null) 'ID ${d.accountId}', d.orderCode]
+                        .whereType<String>()
+                        .join(' · '),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                  ),
+                ]),
+              ),
+              Tx(d.amount != null ? '\$${d.amount}' : tr('No amount'),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            ]),
+            const SizedBox(height: 10),
+            Container(
+              key: Key('status-${d.id}'),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(8)),
+              child: Tx(d.statusText, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.timer_outlined, size: 16, color: d.overdue ? AppColors.statusFailed : AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(trp('Waiting {0}', [waitedEnglish(d.waitingSeconds)]),
+                      style: TextStyle(fontWeight: FontWeight.w700, color: d.overdue ? AppColors.statusFailed : AppColors.textPrimary)),
+                ),
+              ]),
+              if (d.overdue)
+                Container(
+                  key: Key('overdue-${d.id}'),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: AppColors.statusFailed, borderRadius: BorderRadius.circular(6)),
+                  child: const Tx('OVERDUE 48h', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+            ]),
+            const SizedBox(height: 4),
+            Text(trp('Started {0}{1}', [_when.format(d.startedAt.toLocal()), d.submittedAt != null ? '  ·  Confirmed by customer ${_when.format(d.submittedAt!.toLocal())}' : '']),
+                style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "45 sec", "12 min", "5 h 20 min", "2 days 3 h".
+String waitedEnglish(int seconds) {
+  if (AppLanguage.isSomali) {
+    if (seconds < 60) return '$seconds ilbiriqsi';
+    if (seconds < 3600) return '${seconds ~/ 60} daqiiqo';
+    if (seconds < 86400) return '${seconds ~/ 3600} saac ${(seconds % 3600) ~/ 60} daqiiqo';
+    return '${seconds ~/ 86400} maalin ${(seconds % 86400) ~/ 3600} saac';
+  }
+  if (seconds < 60) return '$seconds sec';
+  if (seconds < 3600) return '${seconds ~/ 60} min';
+  if (seconds < 86400) return '${seconds ~/ 3600} h ${(seconds % 3600) ~/ 60} min';
+  return '${seconds ~/ 86400} days ${(seconds % 86400) ~/ 3600} h';
+}
+
+class _Count extends StatelessWidget {
+  const _Count({super.key, required this.label, required this.value, required this.color});
+
+  final String label;
+  final int value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('$value', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
+        Tx(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      ]),
+    );
+  }
+}

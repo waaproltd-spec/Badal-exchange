@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/app_content.dart';
+import '../../widgets/network_problem_view.dart';
 import '../../models/order.dart';
 import '../../state/auth_provider.dart';
 import '../../state/orders_provider.dart';
@@ -20,11 +21,14 @@ import '../../widgets/payment_method_sheet.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/transaction_views.dart';
 import '../../widgets/wallet_card.dart';
+import '../bonus/bonus_screen.dart';
+
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../wallet/wallet_transfer_screen.dart';
 import '../withdraw/withdraw_details_screen.dart';
 
-/// Wallet home, kept compact so two recent orders fit on a phone screen:
+/// Wallet home, kept compact so the whole Home (one recent order) fits on a phone screen:
 /// branded header, wallet card, Deposit + Withdraw, then recent orders.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.onViewAllOrders});
@@ -37,8 +41,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const int _recentOrdersCount = 3;
+  static const int _recentOrdersCount = 1;
   List<HomeAd> _ads = const [];
+
 
   @override
   void initState() {
@@ -53,6 +58,16 @@ class _HomeScreenState extends State<HomeScreen> {
         context.read<OrdersProvider>().load(),
         _loadAds(),
       ]);
+
+  Future<void> _openBonus() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BonusScreen()));
+    if (mounted) _refresh();
+  }
+
+  Future<void> _openSendMoney() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletTransferScreen()));
+    if (mounted) _refresh();
+  }
 
   /// Ads are optional decoration: a failure just leaves the section hidden.
   Future<void> _loadAds() async {
@@ -69,7 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Deposit and Withdraw both pick a method in the bottom sheet, then open
   /// that method's form.
   Future<void> _goDeposit() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.deposit,
+        ownPhone: context.read<AuthProvider>().user?.phone);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -80,7 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _goWithdraw() async {
-    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw);
+    final option = await showPaymentMethodSheet(context, PaymentDirection.withdraw,
+        ownPhone: context.read<AuthProvider>().user?.phone);
     if (option == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -111,8 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
             color: AppColors.primary,
             onRefresh: _refresh,
             child: ListView(
-              // Room at the end so the Support button never hides the last order.
-              padding: const EdgeInsets.only(bottom: supportButtonClearance),
+              // The Support pill has its own band under the list, so nothing is ever covered.
+              padding: const EdgeInsets.only(bottom: 8),
               children: [
                 _WalletHeader(
                   topInset: topInset,
@@ -120,6 +137,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   onDeposit: _goDeposit,
                   onWithdraw: _goWithdraw,
                   onNotifications: _openNotifications,
+                  onBonus: _openBonus,
+                  onSend: _openSendMoney,
                 ),
                 if (_ads.isNotEmpty)
                   Padding(
@@ -131,44 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(AppStrings.recentOrders,
-                                  maxLines: 1, style: AppTextStyles.title.copyWith(fontSize: 18)),
-                            ),
-                          ),
-                          if (widget.onViewAllOrders != null)
-                            TextButton(
-                              key: const Key('view-all-orders'),
-                              onPressed: widget.onViewAllOrders,
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                minimumSize: const Size(0, 36),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    AppStrings.viewAll,
-                                    style: AppTextStyles.body.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
                       _RecentOrders(
                         state: ordersState,
                         orders: ordersState.orders.take(_recentOrdersCount).toList(),
@@ -192,6 +173,8 @@ class _WalletHeader extends StatelessWidget {
     required this.onDeposit,
     required this.onWithdraw,
     required this.onNotifications,
+    required this.onBonus,
+    required this.onSend,
   });
 
   final double topInset;
@@ -199,11 +182,13 @@ class _WalletHeader extends StatelessWidget {
   final VoidCallback onDeposit;
   final VoidCallback onWithdraw;
   final VoidCallback onNotifications;
+  final VoidCallback onBonus;
+  final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, topInset + 10, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, topInset + 6, 16, 12),
       decoration: const BoxDecoration(
         gradient: AppColors.headerGradient,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
@@ -230,9 +215,8 @@ class _WalletHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Expanded(
-                    child: Align(alignment: Alignment.centerLeft, child: BaariLogo(markSize: 38, onDark: true)),
-                  ),
+                  // Logo on the left; the company name (small) with the customer's own name under it, in yellow.
+                  Expanded(child: _HeaderTitle(name: context.watch<AuthProvider?>()?.user?.name)),
                   const SizedBox(width: 8),
                   IconButton(
                     tooltip: AppStrings.notifications,
@@ -245,19 +229,25 @@ class _WalletHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              WalletCard(wallet: walletState.wallet, loading: walletState.loading, error: walletState.error),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              WalletCard(
+                wallet: walletState.wallet,
+                loading: walletState.loading,
+                error: walletState.networkProblem ? AppStrings.networkTitle : walletState.error,
+                onBonusTap: onBonus,
+                onSendTap: onSend,
+              ),
+              const SizedBox(height: 10),
+              // Deposit (green, download) and Withdraw (red, upload): one row, the same size, white icon and word, a chevron.
               Row(
                 children: [
                   Expanded(
                     child: _ActionTile(
                       key: const Key('home-deposit'),
                       label: AppStrings.deposit,
-                      icon: Icons.south_west_rounded,
-                      background: AppColors.lightGold,
-                      iconBackground: AppColors.purpleDark,
-                      iconColor: AppColors.lightGold,
+                      icon: Icons.file_download_rounded,
+                      gradient: const [Color(0xFF1FD36B), Color(0xFF0B8A3C)],
+                      shadow: const Color(0xFF0B8A3C),
                       onTap: onDeposit,
                     ),
                   ),
@@ -266,10 +256,9 @@ class _WalletHeader extends StatelessWidget {
                     child: _ActionTile(
                       key: const Key('home-withdraw'),
                       label: AppStrings.withdraw,
-                      icon: Icons.north_east_rounded,
-                      background: AppColors.accentOrange,
-                      iconBackground: AppColors.purpleDark,
-                      iconColor: AppColors.accentOrange,
+                      icon: Icons.file_upload_rounded,
+                      gradient: const [Color(0xFFFF4B5C), Color(0xFFC1121F)],
+                      shadow: const Color(0xFFC1121F),
                       onTap: onWithdraw,
                     ),
                   ),
@@ -283,65 +272,108 @@ class _WalletHeader extends StatelessWidget {
   }
 }
 
+/// Logo, "BADAL EXCHANGE" in a small clean type and "Ku soo dhawoow, <name>" under it (the name in yellow, as the account holds it).
+class _HeaderTitle extends StatelessWidget {
+  const _HeaderTitle({required this.name});
+
+  final String? name;
+
+  @override
+  Widget build(BuildContext context) {
+    final who = (name ?? '').trim();
+    return Row(
+      children: [
+        const BaariLogoMark(size: 40, onDark: true),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'BADAL EXCHANGE',
+                key: const Key('home-company-name'),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.6, height: 1.1),
+              ),
+              const SizedBox(height: 3),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: who.isEmpty ? AppStrings.welcomeHeader : '${AppStrings.welcomeHeader}, '),
+                    if (who.isNotEmpty) TextSpan(text: who, style: const TextStyle(color: Color(0xFFFFC83D), fontWeight: FontWeight.w800)),
+                  ],
+                ),
+                key: const Key('home-welcome'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.9), fontSize: 13.5, height: 1.1),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ActionTile extends StatelessWidget {
   const _ActionTile({
     super.key,
     required this.label,
     required this.icon,
-    required this.background,
-    required this.iconBackground,
+    required this.gradient,
+    required this.shadow,
     required this.onTap,
-    this.iconColor = Colors.white,
   });
 
   final String label;
   final IconData icon;
-  final Color background;
-  final Color iconBackground;
-  final Color iconColor;
+  final List<Color> gradient;
+  final Color shadow;
   final VoidCallback onTap;
+
+  static const double height = 52;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    const ink = Colors.white;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient),
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: SizedBox(
-          height: 52,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 6, 0),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: iconBackground,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 18),
-                ),
-                const SizedBox(width: 10),
-                // Scale down rather than truncate on narrow phones.
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      label,
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: AppColors.purpleDark,
+        boxShadow: [BoxShadow(color: shadow.withOpacity(0.28), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: SizedBox(
+            height: height,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+              child: Row(
+                children: [
+                  Icon(icon, color: ink, size: 26),
+                  const SizedBox(width: 8),
+                  // Scale down rather than truncate on narrow phones.
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        label,
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 17, color: ink),
                       ),
                     ),
                   ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.purpleDark, size: 20),
-              ],
+                  const Icon(Icons.chevron_right_rounded, color: ink, size: 24),
+                ],
+              ),
             ),
           ),
         ),
@@ -363,6 +395,10 @@ class _RecentOrders extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 40),
         child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
+    }
+    // Not loaded because of the internet: say so (never "No transactions yet") and offer a retry.
+    if (orders.isEmpty && state.networkProblem) {
+      return NetworkProblemView(compact: true, onRetry: () => context.read<OrdersProvider>().load());
     }
     if (orders.isEmpty) {
       return _EmptyOrders(message: state.error);
@@ -425,6 +461,10 @@ class _RecentOrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // As the customer sees it (an unpaid deposit reads Failed after 3
+    // minutes); the details sheet gets the server's order.
+    final real = this.order;
+    final order = real.shown;
     final isDeposit = order.isDeposit;
     final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
@@ -434,7 +474,7 @@ class _RecentOrderTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => showTransactionDetails(context, order),
+        onTap: () => showTransactionDetails(context, real),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -462,6 +502,7 @@ class _RecentOrderTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.muted.copyWith(fontSize: 12),
                     ),
+                    if (!order.isFinal) ...[const SizedBox(height: 2), const VerifyingNote(fontSize: 11.5)],
                   ],
                 ),
               ),
@@ -479,7 +520,7 @@ class _RecentOrderTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  StatusBadge(status: order.status, compact: true),
+                  OrderStatusSlot(order: order, compact: true),
                 ],
               ),
             ],

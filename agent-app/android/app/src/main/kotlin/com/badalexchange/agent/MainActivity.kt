@@ -3,7 +3,7 @@ package com.badalexchange.agent
 import android.os.Handler
 import android.os.Looper
 import android.provider.Telephony
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
@@ -22,7 +22,7 @@ import com.badalexchange.agent.payout.PayoutChannel
  *      closed. Each SMS keeps its own DATE, so the backend's
  *      sender+body+minute dedupe recognizes one it already has.
  */
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val eventChannelName = "com.badalexchange.agent/sms_events"
     private val methodChannelName = "com.badalexchange.agent/sms"
 

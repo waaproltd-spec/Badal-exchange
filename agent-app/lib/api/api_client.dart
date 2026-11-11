@@ -27,16 +27,18 @@ class ApiClient {
 
   void Function()? onSessionExpired;
 
-  static Future<void> initialize() async {
+  /// [background]: the headless engine that reads SMS while the app is closed (no deep links there).
+  static Future<void> initialize({bool background = false}) async {
     if (ApiConfig.supabaseAnonKey.isEmpty) {
       debugPrint('SUPABASE_ANON_KEY is not set; build with --dart-define=SUPABASE_ANON_KEY=...');
     }
     await Supabase.initialize(
       url: ApiConfig.supabaseUrl,
       publishableKey: ApiConfig.supabaseAnonKey.isEmpty ? 'missing-anon-key' : ApiConfig.supabaseAnonKey,
-      authOptions: const FlutterAuthClientOptions(
-        localStorage: SecureSessionStorage('badal_agent_supabase_session'),
+      authOptions: FlutterAuthClientOptions(
+        localStorage: const SecureSessionStorage('badal_agent_supabase_session'),
         autoRefreshToken: true,
+        detectSessionInUri: !background,
       ),
     );
   }

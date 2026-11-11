@@ -96,5 +96,23 @@ void main() {
       const body = '[-EVCPLUS-] \$5 ayaad uwareejisay ALI (610000001), Tar: 09/08/26 20:32:27';
       expect(PaymentSmsParsers.parsePayment('192', body), isNull);
     });
+
+    test('Sahal SMS 898: Tix, amount and the payer\'s number', () {
+      const body = '[SAHAL] Tix: 7543914546, Waxaad \$1 ka heshay  YASIIN MAXAMED AADAN (252610346060)\n Tar: , Haraagaagu waa \$225.35';
+      final p = PaymentSmsParsers.parsePayment('898', body)!;
+      expect(p.provider, 'Sahal');
+      expect(p.amount, '1');
+      expect(p.phone, '252610346060');
+      expect(p.transactionRef, '7543914546');
+      final c = PaymentSmsParsers.classify('898', body);
+      expect(c.payment, isNotNull);
+    });
+
+    test('Sahal SMS 898: decimals; another sender or an access code is not a payment', () {
+      const small = '[SAHAL] Tix: 7543914138, Waxaad \$0.30 ka heshay  NUUR CABDULQAADIR AADAN (252615859634)\n Tar: , Haraagaagu waa \$224.35';
+      expect(PaymentSmsParsers.parsePayment('898', small)!.amount, '0.30');
+      expect(PaymentSmsParsers.parsePayment('12345', small), isNull);
+      expect(PaymentSmsParsers.parsePayment('898', '-SAHAL SERVICES- Access code is 150286 DIGNIIN FADLAN QOFNA HALA WADAAGIN NUMBERADAN'), isNull);
+    });
   });
 }

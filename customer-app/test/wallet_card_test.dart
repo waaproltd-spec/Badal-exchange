@@ -123,4 +123,25 @@ void main() {
     expect(find.text('Gunno'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('no Send Money button in the card: tapping the Wallet ID opens Send Money, the copy button still copies', (tester) async {
+    var sends = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: WalletCard(wallet: _wallet(), onSendTap: () => sends++)),
+    ));
+    expect(find.text('Send Money'), findsNothing);
+    expect(find.byKey(const Key('wallet-send-money')), findsNothing);
+    await tester.tap(find.byKey(const Key('wallet-id')));
+    await tester.pump();
+    expect(sends, 1);
+    // the copy button of the Wallet ID is not the same as tapping the tile
+    await tester.tap(find.descendant(of: find.byKey(const Key('wallet-id')), matching: find.byIcon(Icons.copy_rounded)));
+    await tester.pump();
+    expect(sends, 1);
+    // without a handler the tile is plain
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: WalletCard(wallet: _wallet()))));
+    await tester.tap(find.byKey(const Key('wallet-id')));
+    await tester.pump();
+    expect(sends, 1);
+  });
 }

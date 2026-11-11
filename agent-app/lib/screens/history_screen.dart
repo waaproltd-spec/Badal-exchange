@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
@@ -11,6 +10,8 @@ import '../state/session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/console_widgets.dart';
 import '../widgets/state_views.dart';
+import '../l10n/tr.dart';
+import '../l10n/date_format.dart';
 
 /// Complete transaction history: deposits, withdrawals and payment
 /// confirmations (SMS / agent-entered), with search (customer name, phone,
@@ -27,7 +28,7 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
   static const _pageSize = 50;
-  static final _pretty = DateFormat('MMM d');
+  static final _pretty = AppDateFormat('MMM d');
 
   final _search = TextEditingController();
   HistoryFilter _filter = const HistoryFilter();
@@ -98,7 +99,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : 'Failed to load history.';
+        _error = e is ApiException ? e.message : tr('Failed to load history.');
         _loading = false;
         _loadingMore = false;
       });
@@ -126,14 +127,14 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
     final chips = <Widget>[];
     void add(String label, HistoryFilter Function() clear) {
       chips.add(InputChip(
-        label: Text(label),
+        label: Tx(label),
         onDeleted: () => _apply(clear()),
         backgroundColor: AppColors.surface,
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: AppColors.border),
       ));
     }
 
-    if (f.status != null) add('Status: ${f.status}', () => f.copyWith(status: () => null));
+    if (f.status != null) add(trp('Status: {0}', [f.status]), () => f.copyWith(status: () => null));
     if (f.method != null) add(methodInfo(f.method!).label, () => f.copyWith(method: () => null));
     if (f.from != null || f.to != null) {
       final from = f.from != null ? _pretty.format(DateTime.parse(f.from!)) : '…';
@@ -155,7 +156,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
             children: [
               Expanded(
                 child: SearchField(
-                  hint: 'Search customer, phone, account or order',
+                  hint: tr('Search customer, phone, account or order'),
                   controller: _search,
                   onSubmitted: (q) => _apply(_filter.copyWith(query: q)),
                 ),
@@ -168,18 +169,18 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
                   smallSize: 8,
                   child: const Icon(Icons.tune_rounded),
                 ),
-                tooltip: 'Filters',
+                tooltip: tr('Filters'),
               ),
             ],
           ),
           const SizedBox(height: 12),
           ChoiceChipsRow<String>(
-            options: const [
-              ('all', 'All'),
-              ('deposit', 'Deposits'),
-              ('withdraw', 'Withdrawals'),
-              ('order', 'Orders'),
-              ('confirmation', 'Confirmations'),
+            options: [
+              ('all', tr('All')),
+              ('deposit', tr('Deposits')),
+              ('withdraw', tr('Withdrawals')),
+              ('order', tr('Orders')),
+              ('confirmation', tr('Confirmations')),
             ],
             selected: _filter.type,
             onSelected: (t) => _apply(_filter.copyWith(type: t)),
@@ -194,9 +195,9 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
           else if (_error != null && _items.isEmpty)
             ErrorStateView(message: _error!, onRetry: _load)
           else if (_items.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 60),
-              child: EmptyStateView(icon: Icons.history_rounded, title: 'No transactions found'),
+              child: EmptyStateView(icon: Icons.history_rounded, title: tr('No transactions found')),
             )
           else ...[
             for (final item in _items) ...[
@@ -207,7 +208,7 @@ class _HistoryScreenState extends State<HistoryScreen> with LiveRefresh {
               Center(
                 child: TextButton(
                   onPressed: _loadingMore ? null : () => _load(more: true),
-                  child: Text(_loadingMore ? 'Loading…' : 'Load more'),
+                  child: Tx(_loadingMore ? tr('Loading…') : tr('Load more')),
                 ),
               ),
           ],
@@ -226,8 +227,8 @@ class _FilterSheet extends StatefulWidget {
 }
 
 class _FilterSheetState extends State<_FilterSheet> {
-  static final _iso = DateFormat('yyyy-MM-dd');
-  static final _pretty = DateFormat('MMM d, yyyy');
+  static final _iso = AppDateFormat('yyyy-MM-dd');
+  static final _pretty = AppDateFormat('MMM d, yyyy');
 
   late String? _status = widget.initial.status;
   late String? _method = widget.initial.method;
@@ -263,24 +264,24 @@ class _FilterSheetState extends State<_FilterSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Tx('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 16),
           DropdownButtonFormField<String?>(
             value: _status,
-            decoration: const InputDecoration(labelText: 'Status'),
+            decoration: InputDecoration(labelText: tr('Status')),
             items: [
-              const DropdownMenuItem(value: null, child: Text('Any status')),
-              for (final s in statuses) DropdownMenuItem(value: s, child: Text(s[0].toUpperCase() + s.substring(1))),
+              const DropdownMenuItem(value: null, child: Tx('Any status')),
+              for (final s in statuses) DropdownMenuItem(value: s, child: Tx(s[0].toUpperCase() + s.substring(1))),
             ],
             onChanged: (v) => setState(() => _status = v),
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<String?>(
             value: _method,
-            decoration: const InputDecoration(labelText: 'Payment method'),
+            decoration: InputDecoration(labelText: tr('Payment method')),
             items: [
-              const DropdownMenuItem(value: null, child: Text('Any method')),
-              for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Text(m.label)),
+              const DropdownMenuItem(value: null, child: Tx('Any method')),
+              for (final m in paymentMethods) DropdownMenuItem(value: m.id, child: Tx(m.label)),
             ],
             onChanged: (v) => setState(() => _method = v),
           ),
@@ -288,8 +289,8 @@ class _FilterSheetState extends State<_FilterSheet> {
           OutlinedButton.icon(
             onPressed: _pickRange,
             icon: const Icon(Icons.date_range_rounded),
-            label: Text(
-              _range == null ? 'Any date' : '${_pretty.format(_range!.start)} – ${_pretty.format(_range!.end)}',
+            label: Tx(
+              _range == null ? tr('Any date') : '${_pretty.format(_range!.start)} – ${_pretty.format(_range!.end)}',
             ),
           ),
           const SizedBox(height: 20),
@@ -300,7 +301,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   onPressed: () => Navigator.of(context).pop(
                     HistoryFilter(type: widget.initial.type, query: widget.initial.query),
                   ),
-                  child: const Text('Clear'),
+                  child: const Tx('Clear'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -314,7 +315,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                       to: () => _range != null ? _iso.format(_range!.end) : null,
                     ),
                   ),
-                  child: const Text('Apply'),
+                  child: const Tx('Apply'),
                 ),
               ),
             ],

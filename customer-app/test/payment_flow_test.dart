@@ -2,15 +2,18 @@ import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/api_exception.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
+import 'package:badal_exchange_customer/models/bonus.dart';
 import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/payment_method.dart';
 import 'package:badal_exchange_customer/models/player.dart';
 import 'package:badal_exchange_customer/models/quote.dart';
+import 'package:badal_exchange_customer/models/withdrawal_access.dart';
 import 'package:badal_exchange_customer/screens/deposit/deposit_details_screen.dart';
 import 'package:badal_exchange_customer/screens/withdraw/withdraw_confirm_screen.dart';
 import 'package:badal_exchange_customer/screens/withdraw/withdraw_details_screen.dart';
 import 'package:badal_exchange_customer/widgets/payment_method_sheet.dart';
 import 'package:badal_exchange_customer/widgets/primary_button.dart';
+import 'package:badal_exchange_customer/services/deposit_voice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -54,6 +57,19 @@ class FakeCustomerApi extends CustomerApi {
 
   final submitted = <Map<String, Object?>>[];
 
+  /// The deposit form as recorded before Confirm (Unconfirmed Deposits).
+  final drafts = <String>[];
+
+  /// Before the first withdrawal: approved unless a test says otherwise.
+  WithdrawalAccess? access = const WithdrawalAccess(allowed: true, status: 'approved');
+
+  @override
+  Future<WithdrawalAccess?> getWithdrawalAccess() async => access;
+
+  @override
+  Future<void> trackDepositDraft({required String method, String? amount, String? accountId}) async =>
+      drafts.add('$method|$amount|$accountId|before:${submitted.length}');
+
   /// Account IDs the customer used before, per platform.
   final savedAccounts = <String, String>{for (final m in _cashdesk) m: '7841228'};
 
@@ -77,13 +93,25 @@ class FakeCustomerApi extends CustomerApi {
     return PlayerLookup(found: players.containsKey(accountId), accountId: accountId, name: players[accountId]);
   }
 
+  /// Sahal's name for the customer's own number.
+  @override
+  Future<String?> getReceiverName(String method, [String? phone]) async => 'YAASIIN MAXAMED AADAN';
+
+  /// eDahab earns a bonus; the others (EVC Plus, Golis, ZAAD excluded, the
+  /// rest for this test) none.
+  @override
+  Future<BonusPreview?> getBonusPreview(String method, String amount) async =>
+      method == 'edahab' ? const BonusPreview(rate: '1%', amount: '0.02') : null;
+
   @override
   Future<List<PaymentMethodOption>> getPaymentMethods() async =>
       _catalogJson.map(PaymentMethodOption.fromJson).toList();
 
+  int quotes = 0;
+
   @override
   Future<Quote> createQuote({required String direction, required String method, required String amount}) async =>
-      Quote(
+      (quotes++, Quote(
         quoteId: 'q',
         method: method,
         direction: direction,
@@ -92,7 +120,7 @@ class FakeCustomerApi extends CustomerApi {
         fee: '0.00',
         netAmount: amount,
         walletDelta: amount,
-      );
+      )).$2;
 
   Order _order(String direction, String method, String? amount) => Order(
         id: 'o${submitted.length}',
@@ -105,7 +133,7 @@ class FakeCustomerApi extends CustomerApi {
         fee: '0.00',
         netAmount: amount ?? '0.00',
         amountPending: amount == null,
-        createdAt: DateTime.utc(2026, 10, 21),
+        createdAt: DateTime.now(),
       );
 
   @override
@@ -137,6 +165,28 @@ class FakeCustomerApi extends CustomerApi {
       'amount': amount, 'key': idempotencyKey,
     });
     return _order('withdraw', method, amount);
+  }
+
+  /// Followed by the withdrawal screen: the server reports it paid, with Sahal's transfer number.
+  final followed = <String>[];
+
+  @override
+  Future<Order> getOrder(String id) async {
+    followed.add(id);
+    final w = submitted.lastWhere((x) => x['kind'] == 'withdraw');
+    return Order(
+      id: id,
+      orderCode: 'EXTEST1',
+      direction: 'withdraw',
+      method: w['method'] as String,
+      status: 'completed',
+      statusMessage: 'Completed',
+      amount: w['amount'] as String,
+      fee: '0.00',
+      netAmount: w['amount'] as String,
+      transactionRef: 'Sahal 7517291272',
+      createdAt: DateTime.utc(2026, 10, 21),
+    );
   }
 }
 
@@ -266,7 +316,7 @@ void main() {
     await tester.pumpWidget(_app(FakeCustomerApi(), const _SheetHost(PaymentDirection.withdraw)));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Bixin'), findsOneWidget);
+    expect(find.text('Bixinta'), findsOneWidget);
     expect(find.text('Dooro habka bixinta'), findsOneWidget);
   });
 
@@ -299,6 +349,29 @@ void main() {
     expect(api.submitted.single, containsPair('kind', 'withdraw'));
   });
 
+  testWidgets('Withdraw all fills the whole available balance (betting and mobile money), and only the amount', (tester) async {
+    await _phone(tester);
+    AppLanguage.current.value = AppLanguage.english;
+    final api = FakeCustomerApi();
+    for (final id in ['onexbet', 'evc_plus']) {
+      final option = (await api.getPaymentMethods()).firstWhere((o) => o.info.id == id);
+      await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: id, option: option, ownPhone: '252610338686', availableBalance: '12.34')));
+      await tester.pump();
+      expect(find.byKey(const Key('withdraw-all')), findsOneWidget, reason: id);
+      await tester.tap(find.byKey(const Key('withdraw-all')));
+      await tester.pump();
+      expect(find.widgetWithText(TextFormField, '12.34'), findsOneWidget, reason: id);
+      expect(api.submitted, isEmpty, reason: 'filling the amount sends nothing');
+    }
+    // No balance known, or nothing in it: no button.
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'onexbet')));
+    await tester.pump();
+    expect(find.byKey(const Key('withdraw-all')), findsNothing);
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'onexbet', availableBalance: '0.00')));
+    await tester.pump();
+    expect(find.byKey(const Key('withdraw-all')), findsNothing);
+  });
+
   testWidgets('without a registered number, mobile money cannot be submitted', (tester) async {
     await _phone(tester);
     final api = FakeCustomerApi();
@@ -321,14 +394,82 @@ void main() {
     await _phone(tester);
     final api = FakeCustomerApi();
     final option = (await api.getPaymentMethods()).first;
-    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686')));
+    // A Golis number: the sheet offers Golis (its own network) and the platforms.
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252907000001')));
     await tester.tap(find.byKey(const Key('change-method')));
     await tester.pumpAndSettle();
     expect(find.text('Choose a deposit method'), findsOneWidget);
+    expect(find.byKey(const Key('method-evc_plus')), findsNothing);
     await tester.tap(find.byKey(const Key('method-golis')));
     await tester.pumpAndSettle();
     expect(find.text('GOLIS'), findsOneWidget);
-    expect(find.text('+252 610338686'), findsOneWidget, reason: 'the registered number carries over');
+    expect(find.text('907000001'), findsOneWidget, reason: 'the registered number carries over');
+  });
+
+  testWidgets('deposit voice: plays on open, stops on leaving, never confirms', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final option = (await api.getPaymentMethods()).first;
+    final voice = _FakeVoice();
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686', voice: voice)));
+    await tester.pump();
+    expect(voice.played, 1, reason: 'automatic on open');
+    expect(api.submitted, isEmpty, reason: 'the voice never confirms the deposit');
+    expect(voice.stopped, 0);
+    await tester.pumpWidget(const SizedBox());
+    expect(voice.stopped, 1, reason: 'stops when the customer leaves');
+    expect(api.submitted, isEmpty);
+  });
+
+  testWidgets('deposit voice: also plays for a betting platform cash desk (own recording)', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final methods = await api.getPaymentMethods();
+    final platform = methods.firstWhere((m) => m.info.isPlatform);
+    final voice = _FakeVoice();
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: platform, voice: voice)));
+    await tester.pump();
+    expect(voice.played, 1);
+    expect(AudioDepositVoice(platform: true).asset, 'sounds/deposit_instruction_bet.mp3');
+    expect(AudioDepositVoice(platform: false).asset, 'sounds/deposit_instruction.mp3');
+  });
+
+  testWidgets('withdraw voice: mobile money plays on open and stops on leaving; platforms play their own; nothing is submitted', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final voice = _FakeVoice();
+    await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'evc_plus', voice: voice)));
+    await tester.pump();
+    expect(voice.played, 1);
+    expect(api.submitted, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    expect(voice.stopped, 1);
+    final bet = _FakeVoice();
+    await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'onexbet', voice: bet)));
+    await tester.pump();
+    expect(bet.played, 1);
+    expect(AudioDepositVoice.withdraw(platform: true).asset, 'sounds/withdraw_instruction_bet.mp3');
+    expect(AudioDepositVoice.withdraw().asset, 'sounds/withdraw_instruction.mp3');
+  });
+
+  testWidgets('a betting provider the admin adds later: voice and platform form work with no app change', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final fresh = PaymentMethodOption.fromJson({'method': 'newbet9', 'label': 'NewBet9', 'kind': 'platform', 'color': '#123456'});
+    expect(fresh.info.isPlatform, isTrue);
+    final dep = _FakeVoice();
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: fresh, voice: dep)));
+    await tester.pump();
+    expect(dep.played, 1);
+    final wd = _FakeVoice();
+    await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'newbet9', option: fresh, voice: wd)));
+    await tester.pump();
+    expect(wd.played, 1);
+    expect(find.text('NEWBET9'), findsWidgets);
+    expect(api.submitted, isEmpty);
+    // And the recording chosen for any platform is the betting one, for both screens.
+    expect(AudioDepositVoice(platform: fresh.info.isPlatform).asset, AudioDepositVoice.betAsset);
+    expect(AudioDepositVoice.withdraw(platform: fresh.info.isPlatform).asset, AudioDepositVoice.withdrawBetAsset);
   });
 
   testWidgets('deposit in Somali on a small phone fits', (tester) async {
@@ -362,10 +503,13 @@ void main() {
         expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
         expect(fields, findsNWidgets(2));
       } else {
-        // No phone field: the registered number is shown, not editable.
+        // The registered number beside the amount: shown locked, not a field.
         expect(find.text('$label Phone Number'.toUpperCase()), findsNothing);
         expect(fields, findsOneWidget);
-        expect(find.text('+252 610338686'), findsOneWidget);
+        expect(find.text('610338686'), findsOneWidget);
+        expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
+        expect(tester.getRect(find.byKey(const Key('withdraw-own-number'))).right,
+            lessThan(tester.getRect(fields.first).left), reason: 'side by side');
       }
       // Validation before anything is sent.
       await tester.tap(find.text('Continue'));
@@ -392,6 +536,15 @@ void main() {
       expect(find.text('Fee'), findsOneWidget);
       expect(find.text('Total Deducted'), findsOneWidget);
       expect(find.text('\$2.50'), findsNWidgets(3)); // amount, total deducted, you receive
+      // Golis, ZAAD and EVC Plus: the receiver's name from Sahal.
+      expect(find.byKey(const Key('receiver-name')),
+          const {'golis', 'telesom', 'evc_plus'}.contains(id) ? findsOneWidget : findsNothing);
+      // The bonus it will earn, only where the backend says there is one.
+      expect(find.byKey(const Key('withdraw-bonus')), id == 'edahab' ? findsOneWidget : findsNothing);
+      if (id == 'edahab') {
+        expect(find.text('Bonus (1%)'), findsOneWidget);
+        expect(find.text('+\$0.02'), findsOneWidget);
+      }
       await tester.tap(find.text('Confirm'));
       await tester.tap(find.text('Confirm'), warnIfMissed: false); // a double tap submits once
       await tester.pumpAndSettle();
@@ -403,6 +556,11 @@ void main() {
       expect(api.submitted.single, containsPair('amount', '2.50'));
       expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
       expect(find.text('USD Withdrawn'), findsOneWidget);
+      // It followed the withdrawal until paid: confirmed. The transfer number
+      // is for agents only.
+      expect(api.followed, isNotEmpty);
+      expect(find.text('Withdrawal Confirmed'), findsOneWidget);
+      expect(find.text('7517291272'), findsNothing);
     });
 
     testWidgets('deposit $label: Complete Deposit form -> one deposit', (tester) async {
@@ -428,9 +586,13 @@ void main() {
         expect(find.text('$label Account ID'.toUpperCase()), findsOneWidget);
         await tester.enterText(find.byType(TextFormField).first, identifier);
       } else {
-        // No phone field: the registered number is shown, not editable.
+        // The registered number beside the amount: shown locked, not a field.
         expect(find.byType(TextFormField), findsOneWidget);
-        expect(find.text('+252 610338686'), findsOneWidget);
+        expect(find.text('610338686'), findsOneWidget);
+        expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
+        expect(tester.getRect(find.byKey(const Key('own-number'))).right,
+            lessThan(tester.getRect(find.byKey(const Key('deposit-amount'))).left), reason: 'side by side');
+        expect(find.byKey(const Key('deposit-limits')), findsOneWidget);
       }
       if (usesCode) {
         // Cash desk: payment code, no amount (the platform's payout decides it).
@@ -455,7 +617,11 @@ void main() {
       await tester.ensureVisible(confirm);
       await tester.tap(confirm);
       await tester.tap(confirm, warnIfMissed: false); // a double tap submits once
-      await tester.pumpAndSettle();
+      // The waiting screen has a running clock, so it never "settles": pump until it is up.
+      await tester.pump();
+      for (var i = 0; i < 40 && find.byKey(const Key('deposit-verifying')).evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
       expect(api.submitted, hasLength(1));
       expect(api.submitted.single, containsPair('kind', 'deposit'));
@@ -463,8 +629,15 @@ void main() {
       expect(api.submitted.single, containsPair(isPlatform ? 'account' : 'phone', usesCode ? '7841228' : identifier));
       expect(api.submitted.single, containsPair('amount', usesCode ? null : '5'));
       expect(api.submitted.single, containsPair('code', usesCode ? 'ABC123' : null));
-      expect(find.byKey(const Key('result-status')), findsOneWidget); // the result screen
-      expect(find.text('USD Deposited'), findsOneWidget);
+      // The form was recorded (not confirmed yet) before the request; only
+      // what the customer typed: the server takes the phone.
+      expect(api.drafts, isNotEmpty);
+      expect(api.drafts.last, endsWith('before:0'));
+      expect(api.drafts.last, startsWith(usesCode ? '$id|null|7841228' : (isPlatform ? '$id|5|$identifier' : '$id|5|null')));
+      // Not paid yet: the verifying screen (not a result), the amount and the three steps.
+      expect(find.byKey(const Key('deposit-verifying')), findsOneWidget);
+      expect(find.text('Verifying...'), findsOneWidget);
+      expect(find.byKey(const Key('result-status')), findsNothing);
     });
   }
 
@@ -484,7 +657,10 @@ void main() {
     await tester.pump();
     await tester.ensureVisible(confirm);
     await tester.tap(confirm);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    for (var i = 0; i < 40 && find.byKey(const Key('deposit-verifying')).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100)); // the waiting screen's clock never settles
+    }
     expect(api.submitted.single, containsPair('account', '7841228'));
     expect(api.submitted.single, containsPair('code', 'ABC123'));
   });
@@ -594,6 +770,23 @@ void main() {
       });
     }
 
+    testWidgets('an amount with cents: the code carries them after a star, never a "." (the dialer drops it)', (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option('evc_plus', '*789*090353102*{amount}#'), ownPhone: '252610338686')));
+      await tester.enterText(find.byKey(const Key('deposit-amount')), '57.52');
+      await tester.pump();
+      expect(find.text('*789*090353102*57*52#'), findsOneWidget);
+      expect(find.textContaining('57.52#'), findsNothing);
+    });
+
+    testWidgets('switched off: EVC Plus send-money code carries the cents the same way', (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option('evc_plus', null), ownPhone: '252610338686')));
+      await tester.enterText(find.byKey(const Key('deposit-amount')), '12.5');
+      await tester.pump();
+      expect(find.text('*712*610338686*12*50#'), findsOneWidget);
+    });
+
     testWidgets('switched off: EVC Plus keeps the *712* transfer to the deposit number', (tester) async {
       await _phone(tester);
       await tester.pumpWidget(_app(FakeCustomerApi(), DepositDetailsScreen(option: option('evc_plus', null), ownPhone: '252610338686')));
@@ -604,4 +797,92 @@ void main() {
     });
   });
 
+
+  testWidgets('first withdrawal not approved: Withdraw opens WhatsApp and says why; nothing is submitted', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi()
+      ..access = const WithdrawalAccess(
+        allowed: false,
+        status: 'pending',
+        whatsapp: '+252 61 234 5678',
+        accountId: 'BE592850',
+        phone: '252610338686',
+      );
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'evc_plus', ownPhone: '252610338686')));
+    await tester.pumpAndSettle();
+    // The form looks as usual until Withdraw is tapped.
+    expect(find.byKey(const Key('withdraw-verify')), findsNothing);
+    await tester.enterText(find.byType(TextFormField).last, '50');
+    await tester.tap(find.byKey(const Key('withdraw-continue')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('withdraw-verify')), findsOneWidget);
+    expect(find.byKey(const Key('approval-title')), findsOneWidget);
+    expect(find.byKey(const Key('contact-admin-whatsapp')), findsOneWidget);
+    expect(find.byKey(const Key('contact-admin-telegram')), findsOneWidget);
+    expect(find.text('+252 61 234 5678'), findsNothing, reason: 'the number is not shown');
+    expect(api.submitted, isEmpty, reason: 'no withdrawal is made');
+    expect(api.quotes, 0, reason: 'not even a quote');
+    await tester.tapAt(const Offset(200, 10)); // the barrier closes it
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('withdraw-verify')), findsNothing);
+  });
+
+  for (final (balance, shows) in [('0.00', false), ('0', false), ('25.00', true)]) {
+    testWidgets('approval popup with an available balance of \$$balance: ${shows ? 'shown' : 'not shown, a balance message instead'}', (tester) async {
+      await _phone(tester);
+      final api = FakeCustomerApi()
+        ..access = const WithdrawalAccess(
+          allowed: false, status: 'pending', whatsapp: '+252 61 234 5678', accountId: 'BE592850', phone: '252610338686');
+      await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'evc_plus', ownPhone: '252610338686', availableBalance: balance)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).last, '1');
+      await tester.tap(find.byKey(const Key('withdraw-continue')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('withdraw-verify')), shows ? findsOneWidget : findsNothing);
+      expect(find.byKey(const Key('contact-admin-whatsapp')), shows ? findsOneWidget : findsNothing);
+      if (!shows) {
+        expect(find.text(AppStrings.insufficientBalance), findsOneWidget);
+        expect(api.submitted, isEmpty);
+        expect(api.quotes, 0);
+      }
+    });
+  }
+
+  test('the WhatsApp message: name, Customer ID (the wallet ID) and number only; no platform, account ID or amount; nothing secret', () {
+    const access = WithdrawalAccess(allowed: false, status: 'pending', whatsapp: '+252 61 234 5678',
+        accountId: 'BE592850', phone: '252611234567', name: 'Ahmed');
+    final link = access.whatsappLink()!;
+    expect(link.host, 'wa.me');
+    expect(link.path, '/252612345678');
+    final text = link.queryParameters['text']!;
+    expect(text, '🔔 Codsi Lacag Bixin (Withdrawal)\n\n👤 Macmiil: Ahmed\n🪪 Customer ID: BE592850\n📱 Number: +252611234567\n\n🟡 PENDING – Weli Sugaya');
+    for (final gone in ['Platform', 'Account ID', 'Amount', 'Wallet ID', 'BX']) {
+      expect(text, isNot(contains(gone)));
+    }
+    for (final secret in ['pin', 'password', 'otp']) {
+      expect(text.toLowerCase(), isNot(contains(secret)));
+    }
+    expect(const WithdrawalAccess(allowed: false, status: 'pending').whatsappLink(), isNull, reason: 'no number set');
+    expect(const WithdrawalAccess(allowed: false, status: 'pending', whatsapp: '+252 61 234 5678').prefilled(), contains('Macmiil: -'));
+  });
+
+  testWidgets('approved: the withdrawal form as before, no verification card', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    await tester.pumpWidget(_app(api, const WithdrawDetailsScreen(method: 'evc_plus', ownPhone: '252610338686')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('withdraw-verify')), findsNothing);
+    expect(tester.widget<PrimaryButton>(find.byKey(const Key('withdraw-continue'))).onPressed, isNotNull);
+  });
+}
+
+class _FakeVoice implements DepositVoice {
+  int played = 0;
+  int stopped = 0;
+  @override
+  Future<void> play() async => played++;
+  @override
+  Future<void> stop() async => stopped++;
+  @override
+  Future<void> dispose() async {}
 }

@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import '../l10n/tr.dart';
 
 /// Payment methods, mirroring backend/src/lib/methods.ts.
 ///
@@ -40,13 +44,47 @@ List<PaymentMethodInfo> paymentMethods = const [
   PaymentMethodInfo('888starz', '888STARZ', MethodKind.platform, Color(0xFF7C3AED), '888'),
 ];
 
+/// Logos the server holds for platforms (uploaded in Betting Platforms, or a
+/// replacement of a built-in one), by method id. A new platform's logo reaches
+/// every screen from here, with no new app release.
+final Map<String, Uint8List> _catalogLogos = {};
+
+/// Rises when the server's logos change, so the badges redraw.
+final ValueNotifier<int> methodLogosVersion = ValueNotifier<int>(0);
+
+Uint8List? _decodeCatalogLogo(Object? v) {
+  if (v is! String || v.isEmpty) return null;
+  try {
+    return base64Decode(v.replaceAll(RegExp(r'\s'), ''));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Forgets the server's logos (for tests).
+@visibleForTesting
+void clearCatalogLogos() {
+  if (_catalogLogos.isEmpty) return;
+  _catalogLogos.clear();
+  methodLogosVersion.value++;
+}
+
+/// The logo the server holds for [method], or null.
+Uint8List? catalogLogo(String method) => _catalogLogos[method];
+
+String _logoSignature(Map<String, Uint8List> logos) =>
+    (logos.keys.toList()..sort()).map((k) => '$k:${logos[k]!.length}:${logos[k]!.fold<int>(0, (a, b) => (a * 31 + b) & 0x7fffffff)}').join('|');
+
 /// Replaces [paymentMethods] with the backend catalog. Returns false (and
 /// keeps the current list) if the response can't be used.
 bool applyPaymentMethodCatalog(List<dynamic> json) {
   try {
+    final logos = <String, Uint8List>{};
     final list = json.map((e) {
       final m = e as Map<String, dynamic>;
       final hex = (m['color'] as String? ?? '#6B7280').replaceFirst('#', '');
+      final logo = _decodeCatalogLogo(m['logo']);
+      if (logo != null) logos[m['method'] as String] = logo;
       return PaymentMethodInfo(
         m['method'] as String,
         m['label'] as String,
@@ -57,6 +95,11 @@ bool applyPaymentMethodCatalog(List<dynamic> json) {
     }).toList();
     if (list.isEmpty) return false;
     paymentMethods = list;
+    final changed = _logoSignature(logos) != _logoSignature(_catalogLogos);
+    _catalogLogos
+      ..clear()
+      ..addAll(logos);
+    if (changed) methodLogosVersion.value++;
     return true;
   } catch (_) {
     return false;
@@ -82,21 +125,12 @@ class MethodBadge extends StatelessWidget {
   const MethodBadge({super.key, required this.method, this.size = 40});
 
   @override
-  Widget build(BuildContext context) {
-    if (_logos.contains(method)) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(size * 0.26),
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(size * 0.26),
-          child: Image.asset('assets/methods/$method.png', fit: BoxFit.cover, filterQuality: FilterQuality.medium),
-        ),
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+        valueListenable: methodLogosVersion,
+        builder: (context, _, __) => _build(context),
       );
-    }
+
+  Widget _initials() {
     final info = methodInfo(method);
     return Container(
       width: size,
@@ -106,11 +140,37 @@ class MethodBadge extends StatelessWidget {
         color: info.color.withOpacity(0.14),
         borderRadius: BorderRadius.circular(size * 0.3),
       ),
-      child: Text(
+      child: Tx(
         info.initials,
         style: TextStyle(color: info.color, fontWeight: FontWeight.w800, fontSize: size * 0.3),
       ),
     );
+  }
+
+  Widget _tile(Widget image) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.26),
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
+        ),
+        child: ClipRRect(borderRadius: BorderRadius.circular(size * 0.26), child: image),
+      );
+
+  /// The server's logo, else the one bundled in the app, else the initials. A logo
+  /// that can not be drawn falls back to the next one.
+  Widget _build(BuildContext context) {
+    final fromServer = catalogLogo(method);
+    final bundled = _logos.contains(method)
+        ? Image.asset('assets/methods/$method.png', fit: BoxFit.cover, filterQuality: FilterQuality.medium)
+        : null;
+    if (fromServer != null) {
+      return _tile(Image.memory(fromServer,
+          key: Key('badge-logo-$method'), fit: BoxFit.cover, filterQuality: FilterQuality.medium,
+          errorBuilder: (_, __, ___) => bundled ?? _initials()));
+    }
+    if (bundled != null) return _tile(bundled);
+    return _initials();
   }
 }
 
@@ -123,22 +183,36 @@ class MethodLogo extends StatelessWidget {
   const MethodLogo({super.key, required this.method, this.width = 96});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+        valueListenable: methodLogosVersion,
+        builder: (context, _, __) => _build(),
+      );
+
+  Widget _build() {
     final height = width / 2.4;
-    if (!_logos.contains(method)) {
+    final fromServer = catalogLogo(method);
+    if (fromServer == null && !_logos.contains(method)) {
       return SizedBox(width: width, height: height, child: Center(child: MethodBadge(method: method, size: height)));
     }
+    final bundled = _logos.contains(method)
+        ? Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium)
+        : null;
     return Container(
       key: Key('wide-logo-$method'),
       width: width,
       height: height,
       decoration: BoxDecoration(
+        color: fromServer != null ? Colors.white : null,
         borderRadius: BorderRadius.circular(10),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Image.asset('assets/methods/wide/$method.png', fit: BoxFit.contain, filterQuality: FilterQuality.medium),
+        child: fromServer != null
+            ? Image.memory(fromServer,
+                key: Key('wide-server-logo-$method'), fit: BoxFit.contain, filterQuality: FilterQuality.medium,
+                errorBuilder: (_, __, ___) => bundled ?? SizedBox(width: width, height: height, child: Center(child: MethodBadge(method: method, size: height))))
+            : bundled,
       ),
     );
   }

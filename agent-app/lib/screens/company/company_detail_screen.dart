@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/console_widgets.dart';
 import '../../widgets/state_views.dart';
 import 'company_widgets.dart';
+import '../../l10n/tr.dart';
 
 /// One company: its cash register balance and where it came from, the
 /// recent balance reads, what was received and sent in the chosen period,
@@ -23,7 +24,7 @@ class CompanyDetailScreen extends StatefulWidget {
 }
 
 class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
-  static const _periods = [(1, 'Today'), (7, '7 days'), (30, '30 days')];
+  static List<(int, String)> get _periods => [(1, tr('Today')), (7, tr('7 days')), (30, tr('30 days'))];
   int _days = 1;
   String? _status; // null = all
   CompanyDetail? _detail;
@@ -49,7 +50,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
           .getCompanyDetail(widget.company.method, from: _from, status: _status);
       if (mounted) setState(() => _detail = d);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Could not load this company.');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : tr('Could not load this company.'));
     }
   }
 
@@ -59,7 +60,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     final c = d?.company ?? widget.company;
     final warning = companyWarning(c);
     return Scaffold(
-      appBar: AppBar(title: Text(c.label)),
+      appBar: AppBar(title: Tx(c.label)),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -82,8 +83,8 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     children: [
                       Expanded(
                         child: _Figure(
-                          label: 'Balance',
-                          hint: 'Bought by customers',
+                          label: tr('Balance'),
+                          hint: tr('Bought by customers'),
                           value: companyAmount(c),
                           valueKey: const Key('detail-balance'),
                         ),
@@ -92,8 +93,8 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _Figure(
-                            label: 'Limit',
-                            hint: 'Still available to sell',
+                            label: tr('Limit'),
+                            hint: tr('Still available to sell'),
                             value: companyLimit(c),
                             valueKey: const Key('detail-limit'),
                           ),
@@ -102,7 +103,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(companySource(c), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+                  Tx(companySource(c), style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
                   if (warning != null) ...[
                     const SizedBox(height: 10),
                     Text(warning,
@@ -111,18 +112,18 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   ],
                   const Divider(height: 24),
                   if (c.liveBalance != null)
-                    InfoRow('Live check',
-                        'Balance \$${c.liveBalance} · Limit ${c.liveLimit == null ? 'not reported' : '\$${c.liveLimit}'}'),
+                    InfoRow(tr('Live check'),
+                        trp('Balance \${0} · Limit {1}', [c.liveBalance, c.liveLimit == null ? 'not reported' : '\$${c.liveLimit}'])),
                   if (c.liveBalance != null)
                     InfoRow(
-                      'Since the check',
+                      tr('Since the check'),
                       c.changesSinceCheck == 0
-                          ? 'No changes'
+                          ? tr('No changes')
                           : '${c.changesSinceCheck} · sold \$${c.salesSinceCheck} · paid out \$${c.payoutsSinceCheck}',
                     ),
-                  InfoRow('Last successful check', c.lastSuccessAt == null ? 'Never' : formatDateTime(c.lastSuccessAt!)),
-                  InfoRow('Open withdrawals', '${c.openWithdrawals} · \$${c.openWithdrawalAmount}'),
-                  if (c.connected) InfoRow('Low-balance level', '\$${c.lowThreshold}'),
+                  InfoRow(tr('Last successful check'), c.lastSuccessAt == null ? tr('Never') : formatDateTime(c.lastSuccessAt!)),
+                  InfoRow(tr('Open withdrawals'), '${c.openWithdrawals} · \$${c.openWithdrawalAmount}'),
+                  if (c.connected) InfoRow(tr('Low-balance level'), '\$${c.lowThreshold}'),
                 ],
               ),
             ),
@@ -146,31 +147,31 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   icon: Icons.south_rounded,
                   color: AppColors.statusCompleted,
                   value: '\$${d.company.period.received}',
-                  label: 'Received · ${d.company.period.receivedCount} deposits',
+                  label: trp('Received · {0} deposits', [d.company.period.receivedCount]),
                 ),
                 StatCard(
                   icon: Icons.north_rounded,
                   color: AppColors.statusProcessing,
                   value: '\$${d.company.period.sent}',
-                  label: 'Sent · ${d.company.period.sentCount} withdrawals',
+                  label: trp('Sent · {0} withdrawals', [d.company.period.sentCount]),
                 ),
                 StatCard(
                   icon: Icons.hourglass_top_rounded,
                   color: AppColors.statusPending,
                   value: '${d.company.period.open}',
-                  label: 'Pending',
+                  label: tr('Pending'),
                 ),
                 StatCard(
                   icon: Icons.close_rounded,
                   color: AppColors.statusFailed,
                   value: '${d.company.period.failed}',
-                  label: 'Failed',
+                  label: tr('Failed'),
                 ),
               ]),
               const SizedBox(height: 8),
-              const SectionHeader(title: 'Transactions'),
+              SectionHeader(title: tr('Transactions')),
               ChoiceChipsRow<String?>(
-                options: const [(null, 'All'), ('open', 'Pending'), ('completed', 'Completed'), ('failed', 'Failed')],
+                options: [(null, tr('All')), ('open', tr('Pending')), ('completed', tr('Completed')), ('failed', tr('Failed'))],
                 selected: _status,
                 onSelected: (v) {
                   setState(() => _status = v);
@@ -179,8 +180,8 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
               ),
               const SizedBox(height: 8),
               if (d.orders.isEmpty)
-                const ConsoleCard(
-                  child: Text('No transactions in this period.', style: TextStyle(color: AppColors.textSecondary)),
+                ConsoleCard(
+                  child: Tx('No transactions in this period.', style: TextStyle(color: AppColors.textSecondary)),
                 )
               else
                 for (final o in d.orders) ...[
@@ -188,19 +189,19 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   const SizedBox(height: 8),
                 ],
               if (c.connected) ...[
-                const SectionHeader(title: 'Register history'),
+                SectionHeader(title: tr('Register history')),
                 if (d.movements.isEmpty)
-                  const ConsoleCard(
-                    child: Text('No sales or payouts recorded yet.', style: TextStyle(color: AppColors.textSecondary)),
+                  ConsoleCard(
+                    child: Tx('No sales or payouts recorded yet.', style: TextStyle(color: AppColors.textSecondary)),
                   )
                 else
                   ConsoleCard(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     child: Column(children: [for (final m in d.movements) _MovementRow(movement: m)]),
                   ),
-                const SectionHeader(title: 'Balance checks'),
+                SectionHeader(title: tr('Balance checks')),
                 if (d.checks.isEmpty)
-                  const ConsoleCard(child: Text('Not read yet.', style: TextStyle(color: AppColors.textSecondary)))
+                  ConsoleCard(child: Tx('Not read yet.', style: TextStyle(color: AppColors.textSecondary)))
                 else
                   ConsoleCard(
                     child: Column(
@@ -210,7 +211,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                               formatDateTime(b.checkedAt),
                               b.ok
                                   ? '\$${b.balance} · Limit ${b.limit == null ? 'not reported' : '\$${b.limit}'}'
-                                  : 'Failed: ${b.error ?? ''}'),
+                                  : trp('Failed: {0}', [b.error ?? ''])),
                       ],
                     ),
                   ),
@@ -236,15 +237,15 @@ class _Figure extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w700)),
+        Tx(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w700)),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(value,
               key: valueKey,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         ),
-        Text(hint, style: const TextStyle(color: AppColors.textFaint, fontSize: 11.5)),
+        Tx(hint, style: TextStyle(color: AppColors.textFaint, fontSize: 11.5)),
       ],
     );
   }
@@ -261,8 +262,8 @@ class _MovementRow extends StatelessWidget {
     final color = m.isSale ? AppColors.statusProcessing : AppColors.statusCompleted;
     final what = '${m.isSale ? 'Sale' : 'Payout'} ${m.orderCode ?? (m.manual ? '(manual)' : '')}';
     final after = !m.sinceCheck
-        ? 'In the live check'
-        : 'Balance \$${m.balanceAfter}${m.limitAfter == null ? '' : ' · Limit \$${m.limitAfter}'}';
+        ? tr('In the live check')
+        : trp('Balance \${0}{1}', [m.balanceAfter, m.limitAfter == null ? '' : ' · Limit \$${m.limitAfter}']);
     return Padding(
       key: Key('movement-${m.orderCode ?? m.at.toIso8601String()}'),
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -275,14 +276,14 @@ class _MovementRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(what, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Tx(what, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                 Text('${formatDateTime(m.at)} · $after',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Text(
+          Tx(
             // A sale raises Balance (and lowers Limit); a payout the opposite.
             '${m.isSale ? '+' : '-'}\$${m.amount}',
             style: TextStyle(fontWeight: FontWeight.w800, color: color),
@@ -318,19 +319,19 @@ class _OrderTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('${deposit ? 'Deposit' : 'Withdrawal'} · ${o.orderCode}',
-                    style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                Text(
+                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                Tx(
                   [if (o.customerName != null) o.customerName!, if (o.accountId != null) 'ID ${o.accountId}'].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                 ),
-                Text(formatDateTime(o.createdAt), style: const TextStyle(color: AppColors.textFaint, fontSize: 12)),
+                Tx(formatDateTime(o.createdAt), style: TextStyle(color: AppColors.textFaint, fontSize: 12)),
                 if (o.waitingTopUp)
-                  const Text('Waiting for a cash register top-up',
+                  const Tx('Waiting for a cash register top-up',
                       style: TextStyle(color: AppColors.statusFailed, fontSize: 12, fontWeight: FontWeight.w700))
                 else if (o.status == 'failed' && o.note != null)
-                  Text(o.note!,
+                  Tx(o.note!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: AppColors.statusFailed, fontSize: 12)),
@@ -341,8 +342,8 @@ class _OrderTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(o.amount == null ? 'Amount pending' : '${deposit ? '+' : '-'}\$${o.amount}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              Tx(o.amount == null ? tr('Amount pending') : '${deposit ? '+' : '-'}\$${o.amount}',
+                  style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               const SizedBox(height: 6),
               StatusPill(o.status),
             ],

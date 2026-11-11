@@ -20,6 +20,12 @@ class AppColors {
   static const Color accentOrange = Color(0xFFF59E51);
   static const Color cream = Color(0xFFFFF4E6);
 
+  // The floating bottom bar: a deep purple body and a bright violet highlight with a neon glow.
+  static const Color navDeep = Color(0xFF2B0A42);
+  static const Color navMid = Color(0xFF4B1672);
+  static const Color navBright = Color(0xFFB54CFF);
+  static const Color navBrightDeep = Color(0xFF7E2FDB);
+
   // Roles
   static bool get _dark => AppThemeMode.isDark;
 
@@ -83,7 +89,7 @@ class AppColors {
 
   // Status (semantic, independent of the brand palette)
   static const Color statusPending = Color(0xFFF59E0B);
-  static const Color statusProcessing = Color(0xFF3B82F6);
+  static const Color statusProcessing = Color(0xFFF59E0B);
   static const Color statusCompleted = Color(0xFF16A34A);
   static const Color statusFailed = Color(0xFFDC2626);
   static const Color statusCancelled = Color(0xFF9CA3AF);

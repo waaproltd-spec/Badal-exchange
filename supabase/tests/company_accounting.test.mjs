@@ -223,7 +223,7 @@ test('the history shows each movement with the Balance and Limit it led to', { s
 });
 
 test('low is judged on the Limit: what the register can still sell', { skip }, async () => {
-  await liveRead(5000, 20); // a large Balance, but little left to sell
+  await liveRead(5000, 2); // a large Balance, but under $5 left to sell
   const c = await starz();
   assert.equal(c.status, 'low');
   await liveRead(10, 500);
