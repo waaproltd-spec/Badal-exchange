@@ -81,6 +81,12 @@ before(async () => {
   await db.query(`UPDATE withdrawal_alert_chat SET chat_id = NULL, chat_name = NULL, linked_at = NULL, update_offset = 0,
                     summary_day = (now() AT TIME ZONE 'Africa/Mogadishu')::date`);
   await db.query(`DELETE FROM withdrawal_alerts`);
+  // The daily report and the deposit / failure notices of the group (migrations/*_group_daily_report.sql) are tested in group_report*.test.mjs:
+  // here yesterday's report counts as sent (whatever the time of day) and only what happens from now on is announced.
+  await db.query(`INSERT INTO daily_reports (day, data, sent_at) VALUES ((now() AT TIME ZONE 'Africa/Mogadishu')::date - 1, '{}', now())
+                    ON CONFLICT (day) DO UPDATE SET sent_at = COALESCE(daily_reports.sent_at, now())`);
+  await db.query(`UPDATE daily_reports SET sent_at = COALESCE(sent_at, now())`);
+  await db.query(`UPDATE app_settings SET value = now()::text WHERE key = 'group_report_since'`);
   // Orders the other suites left unresolved for a long time are not this file's business:
   // they count as already said, so only the orders made here are looked at.
   await db.query(`INSERT INTO stuck_order_alerts (order_id, alerts, last_alert_at)
