@@ -35,17 +35,60 @@ Uint8List? _adImage(Object? v) {
 }
 
 class AppNotification {
-  const AppNotification({required this.id, required this.title, required this.body, required this.createdAt});
+  const AppNotification({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.createdAt,
+    this.kind = 'broadcast',
+    this.status,
+    this.amount,
+    this.method,
+    this.reference,
+    this.transactionRef,
+    this.balanceAfter,
+    this.counterpartName,
+    this.counterpartWalletId,
+  });
 
   final String id;
   final String title;
   final String body;
   final DateTime createdAt;
 
+  /// broadcast | deposit | withdraw | transfer_sent | transfer_received (an older server sends none: a broadcast).
+  final String kind;
+
+  /// completed | failed | pending, for a money movement.
+  final String? status;
+  final String? amount;
+  final String? method;
+
+  /// The order code or the transfer reference, and the provider's transaction reference when there is one.
+  final String? reference;
+  final String? transactionRef;
+  final String? balanceAfter;
+  final String? counterpartName;
+  final String? counterpartWalletId;
+
+  bool get isMoney => kind != 'broadcast';
+
+  /// The reference the customer copies: the provider's own when it has one, else the order / transfer reference.
+  String? get copyRef => (transactionRef ?? '').trim().isNotEmpty ? transactionRef!.trim() : reference;
+
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
         id: json['id'] as String,
         title: json['title'] as String? ?? '',
         body: json['body'] as String? ?? '',
         createdAt: DateTime.parse(json['createdAt'] as String),
+        kind: json['kind'] as String? ?? 'broadcast',
+        status: json['status'] as String?,
+        amount: json['amount'] as String?,
+        method: json['method'] as String?,
+        reference: json['reference'] as String?,
+        transactionRef: json['transactionRef'] as String?,
+        balanceAfter: json['balanceAfter'] as String?,
+        counterpartName: json['counterpartName'] as String?,
+        counterpartWalletId: json['counterpartWalletId'] as String?,
       );
 }

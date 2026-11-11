@@ -240,8 +240,12 @@ class CustomerApi {
     return data.map((e) => HomeAd.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<List<AppNotification>> getNotifications() async {
-    final data = await _client.rpc('customer_notifications') as List<dynamic>;
+  /// A page of notifications, newest first: [before] is the createdAt of the last one already shown (null: the first page).
+  Future<List<AppNotification>> getNotifications({DateTime? before, int limit = 30}) async {
+    final data = await _client.rpc('customer_notifications', {
+      'p_limit': limit,
+      if (before != null) 'p_before': before.toUtc().toIso8601String(),
+    }) as List<dynamic>;
     return data.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
   }
 

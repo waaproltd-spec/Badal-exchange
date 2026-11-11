@@ -250,6 +250,20 @@ class AppStrings {
   static String get mobileMoney => _t('Mobile money', 'Lacagta moobilka');
   static String get bettingPlatforms => _t('Betting platforms', 'Goobaha sharadka');
   static String get sendPaymentTo => _t('Send your payment to', 'Lacagta u dir');
+  static String get notifStatusOk => _t('Successful', 'Guulaystay');
+  static String get notifStatusFailed => _t('Failed', 'Fashilmay');
+  static String get notifStatusPending => _t('Pending', 'Sugaya');
+  static String get notifTitleSent => _t('Money sent', 'Lacag ayaad dirtay');
+  static String get notifTitleReceived => _t('Money received', 'Lacag ayaa laguu soo diray');
+  static String get notifTitleWithdraw => _t('Withdrawal successful', 'Lacag-bixinta way guulaysatay');
+  static String get notifTitleDeposit => _t('Deposit successful', 'Dhigashadu way guulaysatay');
+  static String get notifAmount => _t('Amount', 'Lacagta');
+  static String get notifBalance => _t('Balance', 'Haraagaaga');
+  static String get notifProvider => _t('Provider', 'Shirkadda');
+  static String get notifRecipient => _t('Recipient', 'Qofka la siiyay');
+  static String get notifSender => _t('Sender', 'Qofka soo diray');
+  static String get notifWalletId => _t('Wallet ID', 'Aqoonsiga Boorsada');
+  static String get notifLoadingMore => _t('Loading older notifications…', 'Ogeysiisyada hore ayaa soo socda…');
   static String get notifications => _t('Notifications', 'Ogeysiisyo');
   static String get noNotifications => _t('No notifications yet', 'Weli ogeysiis ma jiro');
   static const String evcPlus = 'EVC Plus';
@@ -513,6 +527,21 @@ class AppStrings {
   static String bonusOnOrder(String amount, String direction, String method) => direction == 'deposit'
       ? _t('On \$$amount deposit • $method', 'Dhigasho \$$amount • $method')
       : _t('On \$$amount withdrawal • $method', 'Lacag-bixin \$$amount • $method');
+  /// "Lacag-bixin: $2.00" / "On $2.00 withdrawal": the order a bonus was earned on (the platform has its own chip).
+  static String bonusOrderLine(String amount, String direction) => direction == 'deposit'
+      ? _t('On \$$amount deposit', 'Dhigasho: \$$amount')
+      : _t('On \$$amount withdrawal', 'Lacag-bixin: \$$amount');
+  static String get bonusTotalTitle => _t('Total Bonus', 'Gunnadaada Guud');
+  static String get bonusHistoryTitle => _t('Bonus History', 'Taariikhda Gunnada');
+  static String get bonusFilterEarned => _t('Bonus earned', 'Gunnada la helay');
+  static String get bonusFilterMoved => _t('Bonus transferred', 'Gunnada la wareejiyay');
+  static String get bonusReversedTitle => _t('Bonus reversed', 'Gunno la celiyay');
+  static String get bonusConfirmTitle => _t('Confirm the transfer', 'Xaqiiji wareejinta');
+  static String bonusConfirmBody(String amount) => _t(
+      'Move \$$amount from the Bonus Wallet to your main wallet? This cannot be undone.',
+      'Ma u wareejinaysaa \$$amount Boorsada Gunnada una boorsadaada weyn? Dib looma celin karo.');
+  static String get bonusTransferFailedTitle => _t('Transfer failed', 'Wareejinta way fashilantay');
+  static String get bonusTransferDoneTitle => _t('Transfer done', 'Wareejinta waa guulaysatay');
   static String get bonusOff => _t('The bonus is off for your account.', 'Gunnadu way ka xiran tahay akoonkaaga.');
   static String get totalEarned => _t('Total earned', 'Wadarta la helay');
   static String get moveBonus => _t('Transfer Bonus to Main Wallet', 'U wareeji Gunnada Boorsada Weyn');

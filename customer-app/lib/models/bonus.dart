@@ -63,6 +63,9 @@ class BonusEntry {
 
   bool get earned => kind == 'earned';
 
+  /// A bonus taken back (shown red); nothing sends it today, a future order reversal would.
+  bool get reversed => kind == 'reversed';
+
   factory BonusEntry.fromJson(Map<String, dynamic> json) => BonusEntry(
         kind: json['kind'] as String,
         amount: json['amount'] as String,
