@@ -39,8 +39,11 @@ const clip = (s: unknown, n: number) => {
   return t.length > n ? t.slice(0, n - 1) + '…' : t;
 };
 
+/** A secret as pasted: without a stray space, line break or quotes around it (the usual cause of "401 Bad credentials"). */
+const secretEnv = (name: string) => (Deno.env.get(name) ?? '').trim().replace(/^["']+|["']+$/g, '').trim();
+
 function token(): string {
-  const t = Deno.env.get('DEVBOT_TELEGRAM_TOKEN');
+  const t = secretEnv('DEVBOT_TELEGRAM_TOKEN');
   if (!t) throw new Error('DEVBOT_TELEGRAM_TOKEN not set');
   return t;
 }
@@ -102,7 +105,7 @@ const audit = (actor: number | null, action: string, target: string | null = nul
 // ------------------------------------------------------------------ GitHub (a token that can only run workflows and read)
 
 async function gh(path: string, init: RequestInit = {}) {
-  const t = Deno.env.get('DEVBOT_GITHUB_TOKEN');
+  const t = secretEnv('DEVBOT_GITHUB_TOKEN');
   if (!t) throw new Error('DEVBOT_GITHUB_TOKEN not set');
   const res = await fetch(`${GH_BASE}/repos/${REPO}${path}`, {
     ...init,
@@ -134,7 +137,7 @@ export const ciGreen = (c: Ci) => c.state === 'done' && c.backend === 'success' 
 // ------------------------------------------------------------------ the AI engine (Claude)
 
 async function ai(system: string, user: string, maxTokens = 900): Promise<string> {
-  const key = Deno.env.get('ANTHROPIC_API_KEY');
+  const key = secretEnv('ANTHROPIC_API_KEY');
   if (!key) throw new Error('ANTHROPIC_API_KEY not set');
   const res = await fetch(`${AI_BASE}/v1/messages`, {
     method: 'POST',
@@ -253,8 +256,8 @@ async function onText(chat: number, from: any, text: string, auth: any) {
 
     case '/status': {
       const [s, list] = await Promise.all([rpc('dev_system_summary'), rpc('dev_task_list', { p_limit: 5, p_open_only: false })]);
-      const lines = [`<b>Status</b>`, `⚙️ running ${s.running} · 🕒 queued ${s.queued}`,
-        s.open.length ? `🩺 ${s.open.length} problem(s): ${s.open.slice(0, 3).map((i: any) => esc(clip(i.title, 40))).join('; ')}` : '🩺 system healthy',
+      const lines = [`<b>Xaaladda</b>`, `⚙️ socda ${s.running} · 🕒 sugaya ${s.queued}`,
+        s.open.length ? `🩺 ${s.open.length} dhibaato: ${s.open.slice(0, 3).map((i: any) => esc(clip(i.title, 40))).join('; ')}` : '🩺 nidaamku waa caafimaad qabaa',
         '', ...(list as any[]).map(taskLine)];
       return void (await say(chat, lines.join('\n')));
     }
@@ -267,7 +270,7 @@ async function onText(chat: number, from: any, text: string, auth: any) {
       if (/^\d{1,9}$/.test(arg)) {
         const t = await rpc('dev_task_get', { p_ref: arg });
         if (!t) return void (await say(chat, '—'));
-        return void (await say(chat, [taskLine(t), `Risk: ${t.risk} · ${shortAt(t.created_at)}`, t.branch ? `Branch: <code>${esc(t.branch)}</code>` : '', t.summary ? `\n${esc(clip(t.summary, 1200))}` : '',
+        return void (await say(chat, [taskLine(t), `Khatarta: ${t.risk} · ${shortAt(t.created_at)}`, t.branch ? `Branch: <code>${esc(t.branch)}</code>` : '', t.summary ? `\n${esc(clip(t.summary, 1200))}` : '',
           '\n' + (t.events as any[]).slice(0, 6).map((e) => `• ${shortAt(e.at)} ${esc(clip(e.message, 100))}`).join('\n')].filter(Boolean).join('\n')));
       }
       return void (await createFromRequest(chat, from, arg, lang, null));
@@ -284,37 +287,37 @@ async function onText(chat: number, from: any, text: string, auth: any) {
       try {
         const sha = (await gh(`/commits/${encodeURIComponent(BASE_BRANCH())}`))?.sha;
         const c = sha ? await ciOf(sha) : { state: 'none' as const };
-        ci = c.state === 'none' ? 'no test run yet' : `Backend ${c.backend ?? '—'}, Customer ${c.customer ?? '—'}, Agent ${c.agent ?? '—'}`;
+        ci = c.state === 'none' ? 'weli tijaabo ma jirto' : `Backend ${c.backend ?? '—'}, Customer ${c.customer ?? '—'}, Agent ${c.agent ?? '—'}`;
       } catch (err) {
-        ci = `GitHub: ${safe(err).slice(0, 80)}`;
+        ci = /401|403/.test(safe(err)) ? 'GitHub: token-ka (DEVBOT_GITHUB_TOKEN) waa khalad ama wuu dhacay: samee mid cusub' : `GitHub: ${safe(err).slice(0, 80)}`;
       }
       return void (await say(chat, [`<b>BADAL EXCHANGE</b> <code>${esc(REPO)}</code> (base <code>${esc(BASE_BRANCH())}</code>)`,
-        '📱 customer-app (Flutter)', '🧑‍💼 agent-app (Flutter): Dashboard, wallets, Sahal, bots', '🗄 supabase: migrations (Postgres), functions (Edge)',
-        '💳 payments: EVC Plus, eDahab, Sahal feed + SMS 898, CashdeskBot', '🤖 bots: support, cashier, alerts, developer', `🧪 CI: ${esc(ci)}`].join('\n')));
+        '📱 customer-app (Flutter): app-ka macaamiisha', '🧑‍💼 agent-app (Flutter): Dashboard, wallet-yada, Sahal, bot-yada', '🗄 supabase: migrations (Postgres) iyo functions (Edge)',
+        '💳 lacag-bixinta: EVC Plus, eDahab, Sahal feed + SMS 898, CashdeskBot', '🤖 bot-yada: support, cashier, digniino, developer', `🧪 Tijaabooyinka: ${esc(ci)}`].join('\n')));
     }
     case '/health': {
       const s = await rpc('dev_system_summary');
-      const lines = ['<b>Health</b>', s.lastScan ? `last scan ${shortAt(s.lastScan.at)} · ${s.lastScan.checks} checks` : 'no scan yet',
-        `DB: ${s.database.connections}/${s.database.max} connections · ${esc(s.database.size)}`,
-        ...(s.open.length ? (s.open as any[]).slice(0, 8).map((i) => `${i.severity === 'critical' ? '🚨' : '⚠️'} ${esc(clip(i.title, 80))}${i.financial ? ' 💰' : ''}${i.developer ? ' 🧑‍💻' : ''}`) : ['✅ no open problems']),
-        '', 'ℹ️ Production runs on Supabase (managed): CPU/RAM/disk/PM2/Caddy are Supabase\'s; the monitor watches everything above that.'];
+      const lines = ['<b>Caafimaadka nidaamka</b>', s.lastScan ? `hubintii ugu dambeysay ${shortAt(s.lastScan.at)} · ${s.lastScan.checks} hubin` : 'weli hubin ma jirto',
+        `Database: ${s.database.connections}/${s.database.max} isku-xidhno · ${esc(s.database.size)}`,
+        ...(s.open.length ? (s.open as any[]).slice(0, 8).map((i) => `${i.severity === 'critical' ? '🚨' : '⚠️'} ${esc(clip(i.title, 80))}${i.financial ? ' 💰' : ''}${i.developer ? ' 🧑‍💻' : ''}`) : ['✅ dhibaato furan ma jirto']),
+        '', 'ℹ️ Production-ku wuxuu ku shaqeeyaa Supabase (la maamulo): CPU/RAM/disk iyo server-ka waa kuwa Supabase; hubiyaha nidaamku wuxuu ilaaliyaa wax kasta oo ka sarreeya.'];
       return void (await say(chat, lines.join('\n')));
     }
     case '/logs': {
       const l = await rpc('dev_logs', { p_limit: 12 });
-      const out = ['<b>Logs</b>', ...(l.events as any[]).map((e) => `${shortAt(e.at)} #${e.task} ${esc(e.kind)}: ${esc(clip(e.message, 90))}`), '', '<b>Audit</b>',
-        ...(l.audit as any[]).map((a) => `${shortAt(a.at)} ${a.ok ? '✓' : '✗'} ${esc(a.action)} ${esc(a.target)}`), '', '<b>Incidents</b>',
+      const out = ['<b>Diiwaanno</b>', ...(l.events as any[]).map((e) => `${shortAt(e.at)} #${e.task} ${esc(e.kind)}: ${esc(clip(e.message, 90))}`), '', '<b>Hubinta (audit)</b>',
+        ...(l.audit as any[]).map((a) => `${shortAt(a.at)} ${a.ok ? '✓' : '✗'} ${esc(a.action)} ${esc(a.target)}`), '', '<b>Dhibaatooyin</b>',
         ...(l.incidents as any[]).map((i) => `${shortAt(i.last_seen)} ${i.status} ${esc(i.key)}`)];
       return void (await say(chat, out.join('\n')));
     }
     case '/tests': {
       const runs = await gh(`/actions/workflows/supabase-test.yml/runs?per_page=4`);
-      const lines = ['<b>Tests</b>'];
+      const lines = ['<b>Tijaabooyin</b>'];
       for (const r of (runs?.workflow_runs ?? []) as any[]) {
         const c = await ciOf(r.head_sha).catch(() => ({ state: 'none' } as Ci));
         lines.push(`${r.status === 'completed' ? (c.backend === 'success' && c.customer === 'success' ? '✅' : '❌') : '⏳'} <code>${esc(String(r.head_sha).slice(0, 7))}</code> ${esc(clip(r.head_branch, 30))} · Backend ${c.backend ?? '—'} · Customer ${c.customer ?? '—'} · Agent ${c.agent ?? '—'}`);
       }
-      lines.push('', 'Agent App: 2 known failing e2e tests (payments_e2e) are the accepted baseline.');
+      lines.push('', 'Agent App: 2 tijaabo oo e2e ah (payments_e2e) oo hore u fashilma waa baseline la aqbalay.');
       return void (await say(chat, lines.join('\n')));
     }
     case '/memory': {
@@ -389,15 +392,15 @@ async function deployPrepare(chat: number, from: any, auth: any, lang: Lang) {
   if (auth.role !== 'owner') return void (await say(chat, lang === 'so' ? '⛔ Owner-ka oo keliya ayaa deploy-gareyn kara.' : '⛔ Only the owner can deploy.'));
   const ref = DEPLOY_REF();
   const sha = (await gh(`/commits/${encodeURIComponent(ref)}`))?.sha as string | undefined;
-  if (!sha) return void (await say(chat, '⚠️ GitHub: no commit.'));
+  if (!sha) return void (await say(chat, '⚠️ GitHub: commit lama helin.'));
   const ci = await ciOf(sha);
   const health = await rpc('dev_system_summary');
   const critical = (health.open as any[]).filter((i) => i.severity === 'critical');
   const lines = [`🚀 <b>Deploy</b> <code>${esc(ref)}</code> @ <code>${sha.slice(0, 7)}</code>`,
-    `Tests: Backend ${ci.backend ?? '—'} · Customer ${ci.customer ?? '—'} · Agent ${ci.agent ?? '—'}${ci.url ? ` (<a href="${esc(ci.url)}">run</a>)` : ''}`,
-    critical.length ? `🚨 ${critical.length} critical problem(s) are open now: ${esc(critical.map((i) => clip(i.title, 40)).join('; '))}` : '🩺 no critical problem open'];
+    `Tijaabooyin: Backend ${ci.backend ?? '—'} · Customer ${ci.customer ?? '—'} · Agent ${ci.agent ?? '—'}${ci.url ? ` (<a href="${esc(ci.url)}">run</a>)` : ''}`,
+    critical.length ? `🚨 ${critical.length} dhibaato culus ayaa hadda furan: ${esc(critical.map((i) => clip(i.title, 40)).join('; '))}` : '🩺 dhibaato culus oo furan ma jirto'];
   if (!ciGreen(ci)) {
-    lines.push('', ci.state === 'running' ? '⏳ Tests are still running: not ready.' : '⛔ Backend and Customer tests must both be green for this commit: not ready.');
+    lines.push('', ci.state === 'running' ? '⏳ Tijaabooyinka weli way socdaan: ma diyaar ahan.' : '⛔ Tijaabooyinka Backend iyo Customer labadaba waa inay cagaaran yihiin commit-kan: ma diyaar ahan.');
     return void (await say(chat, lines.join('\n')));
   }
   const id = await rpc('dev_pending_create', { p_kind: 'deploy', p_actor: from.id, p_payload: { sha, ref } });
@@ -414,17 +417,17 @@ async function onCallback(q: any) {
   const [kindCode, id, choice] = String(q.data ?? '').split(':');
   const editText = (text: string) => tg('editMessageText', { chat_id: chat, message_id: q.message.message_id, text: clip(text, 3900), parse_mode: 'HTML' }).catch(() => null);
   if (!id || !['tk', 'dp', 'dg', 'dn'].includes(kindCode)) return;
-  if (choice === 'no') { await ack('✖'); return void (await editText('✖ Cancelled')); }
+  if (choice === 'no') { await ack('✖'); return void (await editText('✖ La joojiyay')); }
   if (choice !== 'ok') return;
 
   const taken = await rpc('dev_pending_take', { p_id: id, p_actor: from.id });
-  if (taken.refused) { await ack(taken.refused === 'not_owner' ? '⛔ Owner only' : 'Already handled or expired'); return; }
+  if (taken.refused) { await ack(taken.refused === 'not_owner' ? '⛔ Owner keliya' : 'Hore ayaa loo maamulay ama wuu dhacay'); return; }
   const payload = taken.payload as any;
 
   if (taken.kind === 'task') {
     const r = await rpc('dev_task_set', { p_id: payload.taskId, p_status: 'queued', p_fields: {} });
     await ack('✅');
-    await editText(`✅ #${payload.number} approved: queued.`);
+    await editText(`✅ #${payload.number} waa la oggolaaday: way sugaysaa.`);
     if (!r?.refused) await startNext();
     return;
   }
@@ -437,7 +440,7 @@ async function onCallback(q: any) {
       await rpc('dev_pending_take', { p_id: track, p_actor: from.id });
       await audit(from.id, 'backup_started', payload.sha, true, { ref: payload.ref });
       await ack('✅');
-      return void (await editText('💾 Backup + restore test started. I will ask you again when it passed.'));
+      return void (await editText('💾 Backup + tijaabada soo celinta waa la bilaabay. Waan ku weydiinayaa mar kale marka ay guulaysato.'));
     }
     return void (await finishDeploy(chat, from.id, payload, ack, editText, true));
   }
@@ -449,13 +452,13 @@ async function finishDeploy(chat: number, actor: number, payload: any, ack: (t: 
   const head = (await gh(`/commits/${encodeURIComponent(payload.ref)}`))?.sha as string;
   if (head !== payload.sha) {
     await ack('⚠️');
-    return void (await editText(`⚠️ <code>${esc(payload.ref)}</code> moved (${esc(String(payload.sha).slice(0, 7))} → ${esc(String(head).slice(0, 7))}): run /deploy again.`));
+    return void (await editText(`⚠️ <code>${esc(payload.ref)}</code> wuu is beddelay (${esc(String(payload.sha).slice(0, 7))} → ${esc(String(head).slice(0, 7))}): mar kale samee /deploy.`));
   }
   await dispatchWorkflow('supabase-deploy.yml', payload.ref, { mode: 'deploy' });
   await audit(actor, withoutBackup ? 'deploy_without_backup' : 'deploy', payload.sha, true, { ref: payload.ref });
   await rpc('dev_memory_add', { p_kind: 'deploy', p_title: `Deploy ${String(payload.sha).slice(0, 7)}`, p_body: `Deployed ${payload.ref} @ ${payload.sha} at ${new Date().toISOString()}${withoutBackup ? ' WITHOUT a fresh backup (owner approved)' : ' after a verified backup'}.`, p_pinned: false, p_task: null });
   await ack('✅');
-  await editText(`🚀 Deployment started for <code>${esc(String(payload.sha).slice(0, 7))}</code>. Check /health in a few minutes.`);
+  await editText(`🚀 Deployment-ka waa la bilaabay <code>${esc(String(payload.sha).slice(0, 7))}</code>. Dhowr daqiiqo kadib eeg /health.`);
 }
 
 // ------------------------------------------------------------------ the webhook
@@ -504,14 +507,14 @@ async function onReport(r: Report) {
     if (set?.refused) return json({ ok: false, error: 'task is not running' }, 409);
     await rpc('dev_task_event', { p_id: t.id, p_kind: 'done', p_message: `PR ${r.prUrl ?? ''}`, p_detail: { files: files.length } });
     await rpc('dev_memory_add', { p_kind: 'feature', p_title: clip(`#${t.number} ${t.title}`, 190), p_body: `${clip(r.summary ?? '', 1500)}\nPR: ${r.prUrl ?? ''}\nFiles: ${files.slice(0, 15).join(', ')}`, p_pinned: false, p_task: t.id });
-    await say(chat, [`✅ <b>Task #${t.number}: PR is ready</b>`, esc(t.title), r.prUrl ? `<a href="${esc(r.prUrl)}">${esc(r.prUrl)}</a>` : '', `Risk: <b>${risk}</b> · ${files.length} file(s)`,
-      r.tests ? `Agent checks: ${esc(clip(r.tests, 300))}` : '', r.summary ? `\n${esc(clip(r.summary, 1200))}` : '',
-      '\n⏳ The full test run (Backend, Customer, Agent) is running on the PR: I will tell you the result. Nothing is merged or deployed: you review and approve.'].filter(Boolean).join('\n'));
+    await say(chat, [`✅ <b>Shaqo #${t.number}: PR waa diyaar</b>`, esc(t.title), r.prUrl ? `<a href="${esc(r.prUrl)}">${esc(r.prUrl)}</a>` : '', `Khatarta: <b>${risk}</b> · ${files.length} fayl`,
+      r.tests ? `Hubinta wakiilka: ${esc(clip(r.tests, 300))}` : '', r.summary ? `\n${esc(clip(r.summary, 1200))}` : '',
+      '\n⏳ Tijaabooyinka oo dhan (Backend, Customer, Agent) waxay ka socdaan PR-ka: waan ku ogeysiinayaa natiijada. Waxba lama `merge` gareynin ama lama deploy-gareynin: adiga ayaa eega oo oggolaata.'].filter(Boolean).join('\n'));
   } else {
     await rpc('dev_task_set', { p_id: t.id, p_status: 'failed', p_fields: { summary: clip(r.summary ?? r.message ?? 'failed', 1500) } });
     await rpc('dev_task_event', { p_id: t.id, p_kind: r.event, p_message: msg || r.event });
     await rpc('dev_memory_add', { p_kind: 'note', p_title: clip(`#${t.number} did not finish: ${t.title}`, 190), p_body: clip(r.summary ?? r.message ?? '', 1500), p_pinned: false, p_task: t.id });
-    await say(chat, `${r.event === 'noop' ? 'ℹ️' : '❌'} <b>Task #${t.number}</b> ${r.event === 'noop' ? 'made no change' : 'failed'}\n${esc(clip(r.summary ?? r.message ?? '', 1200))}`);
+    await say(chat, `${r.event === 'noop' ? 'ℹ️' : '❌'} <b>Task #${t.number}</b> ${r.event === 'noop' ? 'wax isbeddel ah ma sameyn' : 'wuu fashilmay'}\n${esc(clip(r.summary ?? r.message ?? '', 1200))}`);
   }
   await startNext();
   return json({ ok: true });
@@ -522,7 +525,7 @@ async function onReport(r: Report) {
 async function tick() {
   const out: Record<string, unknown> = {};
   const stale = (await rpc('dev_task_expire_stale')) as any[];
-  for (const s of stale) await say(s.chat_id, `⏱ <b>Task #${s.number}</b> stopped: no news from the agent for 90 minutes.\n${esc(s.title)}`).catch(() => null);
+  for (const s of stale) await say(s.chat_id, `⏱ <b>Shaqo #${s.number}</b> waa la joojiyay: wakiilka 90 daqiiqo wax war ah ma bixin.\n${esc(s.title)}`).catch(() => null);
   out.stale = stale.length;
   await startNext();
 
@@ -536,7 +539,7 @@ async function tick() {
       const c = await ciOf(pr.head.sha);
       if (c.state !== 'done') continue;
       await rpc('dev_task_set', { p_id: t.id, p_status: 'review', p_fields: { ciReported: true } });
-      await say(t.chat_id, `${ciGreen(c) ? '✅' : '❌'} <b>Task #${t.number}</b> tests: Backend ${c.backend ?? '—'} · Customer ${c.customer ?? '—'} · Agent ${c.agent ?? '—'}${c.url ? ` (<a href="${esc(c.url)}">run</a>)` : ''}\n${ciGreen(c) ? 'Review the PR and merge it if you are happy; then /deploy.' : 'The PR is not ready: I can fix it if you tell me what to do (/task N).'}`);
+      await say(t.chat_id, `${ciGreen(c) ? '✅' : '❌'} <b>Shaqo #${t.number}</b> tijaabooyin: Backend ${c.backend ?? '—'} · Customer ${c.customer ?? '—'} · Agent ${c.agent ?? '—'}${c.url ? ` (<a href="${esc(c.url)}">run</a>)` : ''}\n${ciGreen(c) ? 'Eeg PR-ka oo `merge` garee haddii aad ku qanacdo; kadibna /deploy.' : 'PR-ku ma diyaar ahan: waan hagaajin karaa haddii aad ii sheegto waxa la sameeyo (/task N).'}`);
     } catch (err) {
       console.error('dev-bot ci', safe(err));
     }
@@ -551,12 +554,12 @@ async function tick() {
       await rpc('dev_pending_mark', { p_id: b.id, p_patch: { done: true, result: run.conclusion } });
       if (run.conclusion === 'success') {
         const id = await rpc('dev_pending_create', { p_kind: 'deploy_go', p_actor: b.actor, p_payload: { sha: b.payload.sha, ref: b.payload.ref } });
-        await say(b.payload.chat, `💾 ✅ Backup and restore test passed (<a href="${esc(run.html_url)}">run</a>).\nDeploy <code>${esc(String(b.payload.sha).slice(0, 7))}</code> now?`,
-          { reply_markup: { inline_keyboard: [[{ text: '🚀 Deploy now', callback_data: `dp:${id}:ok` }, { text: '✖ No', callback_data: `dp:${id}:no` }]] } });
+        await say(b.payload.chat, `💾 ✅ Backup iyo tijaabada soo celinta waa guuleysteen (<a href="${esc(run.html_url)}">run</a>).\nDeploy-garee <code>${esc(String(b.payload.sha).slice(0, 7))}</code> hadda?`,
+          { reply_markup: { inline_keyboard: [[{ text: '🚀 Deploy hadda', callback_data: `dp:${id}:ok` }, { text: '✖ Maya', callback_data: `dp:${id}:no` }]] } });
       } else {
         const id = await rpc('dev_pending_create', { p_kind: 'deploy_nobackup', p_actor: b.actor, p_payload: { sha: b.payload.sha, ref: b.payload.ref } });
-        await say(b.payload.chat, `💾 ❌ The backup did not pass (${esc(run.conclusion)}, <a href="${esc(run.html_url)}">run</a>). I will NOT deploy on my own.\nIf you accept the risk you can deploy without a fresh backup:`,
-          { reply_markup: { inline_keyboard: [[{ text: '⚠️ Deploy without backup', callback_data: `dn:${id}:ok` }, { text: '✖ No', callback_data: `dn:${id}:no` }]] } });
+        await say(b.payload.chat, `💾 ❌ Backup-ku ma gudbin (${esc(run.conclusion)}, <a href="${esc(run.html_url)}">run</a>). Anigu ma deploy-gareynayo. Haddii aad khatarta aqbashid, waad deploy-gareyn kartaa backup cusub la'aan:`,
+          { reply_markup: { inline_keyboard: [[{ text: '⚠️ Deploy backup la\'aan', callback_data: `dn:${id}:ok` }, { text: '✖ Maya', callback_data: `dn:${id}:no` }]] } });
       }
     } catch (err) {
       console.error('dev-bot backup', safe(err));
@@ -577,9 +580,9 @@ Deno.serve(async (req) => {
     try {
       await tg('setWebhook', { url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/dev-bot`, secret_token: secret, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
       await tg('setMyCommands', { commands: [
-        { command: 'start', description: 'Bilow / Start' }, { command: 'status', description: 'Xaaladda shaqada / Task status' }, { command: 'projects', description: 'Mashruucyada / Projects' },
-        { command: 'tasks', description: 'Shaqooyinka / Tasks' }, { command: 'health', description: 'Caafimaadka / Health' }, { command: 'logs', description: 'Diiwaanno / Logs' },
-        { command: 'tests', description: 'Tijaabooyin / Tests' }, { command: 'deploy', description: 'Deployment' }, { command: 'help', description: 'Caawimaad / Help' }] });
+        { command: 'start', description: 'Bilow' }, { command: 'status', description: 'Xaaladda shaqada' }, { command: 'projects', description: 'Mashruucyada' },
+        { command: 'tasks', description: 'Shaqooyinka' }, { command: 'health', description: 'Caafimaadka nidaamka' }, { command: 'logs', description: 'Diiwaanno' },
+        { command: 'tests', description: 'Tijaabooyin' }, { command: 'deploy', description: 'Diyaari deployment' }, { command: 'help', description: 'Caawimaad' }] });
       return json({ ok: true, message: 'Webhook was set. Send /start to the bot.' });
     } catch (err) {
       return json({ ok: false, error: safe(err) }, 500);

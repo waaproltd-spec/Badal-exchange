@@ -60,7 +60,7 @@ jobs:
       - name: Tell the owner the agent started
         run: |
           source .github/scripts/devbot-report.sh
-          devbot_report progress "agent started (run ${{ github.run_id }})"
+          devbot_report progress "wakiilka koodka wuu bilaabay (run ${{ github.run_id }})"
 
       - uses: actions/setup-node@v4
         with:
@@ -137,18 +137,18 @@ jobs:
           files=$(git diff --cached --name-only)
           if [ -z "$files" ]; then
             msg=$(head -c 1500 .devbot/summary.md 2>/dev/null || echo "The agent made no change.")
-            devbot_report noop "no change" "$(jq -nc --arg s "$msg" '{summary:$s}')"
+            devbot_report noop "isbeddel ma jiro" "$(jq -nc --arg s "$msg" '{summary:$s}')"
             echo "pr_done=noop" >> "$GITHUB_OUTPUT"; exit 0
           fi
           n=$(printf '%s\n' "$files" | wc -l)
           lines=$(git diff --cached --numstat | awk '{a+=$1+$2} END {print a+0}')
           if [ "$n" -gt 120 ] || [ "$lines" -gt 10000 ]; then
-            devbot_report failed "too large: $n files, $lines lines; ask for smaller stages" "$(jq -nc --arg s "The change is too large to review safely ($n files, $lines lines). Split the request into stages." '{summary:$s}')"
+            devbot_report failed "aad u weyn: $n fayl, $lines sadar; weydiiso marxalado yar" "$(jq -nc --arg s "Isbeddelku aad buu u weyn yahay si loo eego ammaan ahaan ($n fayl, $lines sadar). Codsiga u qaybi marxalado." '{summary:$s}')"
             echo "pr_done=failed" >> "$GITHUB_OUTPUT"; exit 0
           fi
           # A secret in the diff stops everything.
           if git diff --cached -U0 | grep -E '^\+' | grep -E 'sk-ant-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|[0-9]{8,10}:[A-Za-z0-9_-]{35}|eyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{30,}\.' >/dev/null; then
-            devbot_report failed "a secret-looking value was in the change: nothing was pushed" "$(jq -nc '{summary:"The change contained something that looks like a secret. Nothing was pushed."}')"
+            devbot_report failed "isbeddelka waxaa ku jiray wax u eg sir: waxba lama riixin" "$(jq -nc '{summary:"Isbeddelku wuxuu lahaa wax u eg sir (token/furaha). Waxba lama riixin."}')"
             echo "pr_done=failed" >> "$GITHUB_OUTPUT"; exit 0
           fi
           risk="$RISK"
@@ -164,11 +164,11 @@ jobs:
           gh workflow run supabase-test.yml --ref "$BRANCH" || true
           tests=$(grep -i '^Tests:' .devbot/summary.md | head -1 | cut -c1-300)
           fl=$(printf '%s\n' "$files" | head -60 | jq -R . | jq -sc .)
-          devbot_report done "pull request opened" "$(jq -nc --arg b "$BRANCH" --arg u "$url" --argjson p "${prn:-0}" --arg s "$summary" --arg r "$risk" --arg t "$tests" --argjson f "$fl" '{branch:$b, prUrl:$u, prNumber:$p, summary:$s, risk:$r, tests:$t, files:$f}')"
+          devbot_report done "pull request waa la furay" "$(jq -nc --arg b "$BRANCH" --arg u "$url" --argjson p "${prn:-0}" --arg s "$summary" --arg r "$risk" --arg t "$tests" --argjson f "$fl" '{branch:$b, prUrl:$u, prNumber:$p, summary:$s, risk:$r, tests:$t, files:$f}')"
           echo "pr_done=done" >> "$GITHUB_OUTPUT"
 
       - name: Report a failed run
         if: ${{ failure() || cancelled() || steps.agent.outcome == 'failure' || (steps.agent.outcome == 'success' && steps.pr.outputs.pr_done == '') }}
         run: |
           source .github/scripts/devbot-report.sh
-          devbot_report failed "the agent run did not finish" "$(jq -nc --arg s "The agent run failed or was cancelled: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" '{summary:$s}')"
+          devbot_report failed "wakiilku ma dhammaystirin" "$(jq -nc --arg s "Wakiilku wuu fashilmay ama waa la joojiyay: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" '{summary:$s}')"

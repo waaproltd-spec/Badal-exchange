@@ -38,6 +38,8 @@ use it. The first manager who sends `/start` (while there is no owner) becomes t
 
 ## Commands
 
+Everything the bot says is in Somali (it also answers in English when a message is clearly English).
+
 `/start` `/help` `/status` `/projects` `/tasks` `/task N` (details) `/task <request>` (start a task without the AI planner)
 `/cancel N` `/health` `/logs` `/tests` `/deploy` `/memory [word]` `/authorize ID` `/revoke ID`, and ordinary messages.
 

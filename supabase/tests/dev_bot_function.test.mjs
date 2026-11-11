@@ -192,6 +192,16 @@ test('sensitive work (money) waits for the owner: no agent until the button is p
   assert.equal(dispatches('dev-agent.yml').length, 0, 'a second press does nothing');
 });
 
+test('the system speaks Somali: /status, /health, /projects, /logs, /tests', async () => {
+  for (const [cmd, word] of [['/status', 'Xaaladda'], ['/health', 'Caafimaadka nidaamka'], ['/projects', 'Tijaabooyinka'], ['/logs', 'Diiwaanno'], ['/tests', 'Tijaabooyin']]) {
+    reset();
+    await update(OWNER, cmd);
+    const out = tgCalls.filter((c) => c.method === 'sendMessage').map((c) => String(c.body.text)).join('\n');
+    assert.ok(out.includes(word), `${cmd} answers in Somali ("${word}")`);
+    assert.ok(!/(Health<|<b>Status|no open problems|connections)/.test(out), `${cmd} has no English labels`);
+  }
+});
+
 test('a question is answered from memory; no task is made', async () => {
   reset();
   const before = (await db.query(`SELECT count(*)::int AS n FROM public.dev_tasks`)).rows[0].n;
@@ -225,7 +235,7 @@ test("the agent's report must be signed; a signed 'done' makes the task reviewab
   assert.equal((await report(pr)).status, 409, 'a result can be reported once');
   assert.equal((await report({ taskId: second.id, event: 'failed', message: 'x', summary: 'it did not work' })).status, 200);
   assert.equal((await task(second.number)).status, 'failed');
-  assert.equal(sent('failed').length, 1);
+  assert.equal(sent('fashilmay').length, 1);
 });
 
 test('the tick tells the owner the PR\'s test result once', async () => {
@@ -236,10 +246,10 @@ test('the tick tells the owner the PR\'s test result once', async () => {
   gh.jobs = [{ name: 'Backend tests (Auth, RPC, RLS, Realtime)', conclusion: 'success' }, { name: 'Customer App against Supabase', conclusion: 'success' }, { name: 'Agent App against Supabase', conclusion: 'failure' }];
   const tick = () => fetch(`http://127.0.0.1:${PORTS.bot}/dev-bot/tick`, { method: 'POST', headers: { 'x-worker-secret': secret } });
   assert.equal((await tick()).status, 200);
-  assert.equal(sent('tests: Backend success').length, 1);
+  assert.equal(sent('tijaabooyin: Backend success').length, 1);
   reset();
   await tick();
-  assert.equal(sent('tests: Backend').length, 0, 'told once');
+  assert.equal(sent('tijaabooyin: Backend').length, 0, 'told once');
 });
 
 test('/deploy: not ready until Backend and Customer are green; then a backup first, a second approval after it, owner only, the commit that was checked', async () => {
@@ -251,7 +261,7 @@ test('/deploy: not ready until Backend and Customer are green; then a backup fir
   gh.jobs = [{ name: 'Backend tests (Auth, RPC, RLS, Realtime)', conclusion: 'failure' }, { name: 'Customer App against Supabase', conclusion: 'success' }];
   reset();
   await update(OWNER, '/deploy');
-  assert.equal(sent('not ready').length, 1);
+  assert.equal(sent('ma diyaar ahan').length, 1);
   assert.equal(lastButtons(), undefined, 'no button while a test is red');
   // green
   gh.jobs = [{ name: 'Backend tests (Auth, RPC, RLS, Realtime)', conclusion: 'success' }, { name: 'Customer App against Supabase', conclusion: 'success' }, { name: 'Agent App against Supabase', conclusion: 'failure' }];
@@ -276,7 +286,7 @@ test('/deploy: not ready until Backend and Customer are green; then a backup fir
   gh.backupRun = { id: 7, status: 'completed', conclusion: 'success', created_at: new Date(Date.now() + 5000).toISOString(), html_url: 'https://github.com/x/actions/runs/7' };
   reset();
   await tick();
-  assert.equal(sent('Backup and restore test passed').length, 1);
+  assert.equal(sent('Backup iyo tijaabada soo celinta waa guuleysteen').length, 1);
   const [final] = lastButtons();
   // the branch moved meanwhile: the checked commit is not deployed
   const checked = gh.sha;
@@ -316,7 +326,7 @@ test('a failed backup never deploys by itself: the owner may accept the risk exp
   gh.backupRun = { id: 8, status: 'completed', conclusion: 'failure', created_at: new Date(Date.now() + 5000).toISOString(), html_url: 'https://github.com/x/actions/runs/8' };
   reset();
   await fetch(`http://127.0.0.1:${PORTS.bot}/dev-bot/tick`, { method: 'POST', headers: { 'x-worker-secret': secret } });
-  assert.equal(sent('did not pass').length, 1);
+  assert.equal(sent('ma gudbin').length, 1);
   assert.equal(dispatches('supabase-deploy.yml').length, 0, 'not deployed on its own');
   const [risk] = lastButtons();
   assert.match(risk, /^dn:/);
