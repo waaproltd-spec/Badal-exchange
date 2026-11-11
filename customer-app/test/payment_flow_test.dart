@@ -13,6 +13,7 @@ import 'package:badal_exchange_customer/screens/withdraw/withdraw_confirm_screen
 import 'package:badal_exchange_customer/screens/withdraw/withdraw_details_screen.dart';
 import 'package:badal_exchange_customer/widgets/payment_method_sheet.dart';
 import 'package:badal_exchange_customer/widgets/primary_button.dart';
+import 'package:badal_exchange_customer/services/deposit_voice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -403,6 +404,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('GOLIS'), findsOneWidget);
     expect(find.text('907000001'), findsOneWidget, reason: 'the registered number carries over');
+  });
+
+  testWidgets('deposit voice: plays on open, stops on leaving, never confirms', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final option = (await api.getPaymentMethods()).first;
+    final voice = _FakeVoice();
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: option, ownPhone: '252610338686', voice: voice)));
+    await tester.pump();
+    expect(voice.played, 1, reason: 'automatic on open');
+    expect(api.submitted, isEmpty, reason: 'the voice never confirms the deposit');
+    expect(voice.stopped, 0);
+    await tester.pumpWidget(const SizedBox());
+    expect(voice.stopped, 1, reason: 'stops when the customer leaves');
+    expect(api.submitted, isEmpty);
+  });
+
+  testWidgets('deposit voice: not played for a betting platform cash desk', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final methods = await api.getPaymentMethods();
+    final platform = methods.firstWhere((m) => m.info.isPlatform);
+    final voice = _FakeVoice();
+    await tester.pumpWidget(_app(api, DepositDetailsScreen(option: platform, voice: voice)));
+    await tester.pump();
+    expect(voice.played, 0);
   });
 
   testWidgets('deposit in Somali on a small phone fits', (tester) async {
@@ -807,4 +834,15 @@ void main() {
     expect(find.byKey(const Key('withdraw-verify')), findsNothing);
     expect(tester.widget<PrimaryButton>(find.byKey(const Key('withdraw-continue'))).onPressed, isNotNull);
   });
+}
+
+class _FakeVoice implements DepositVoice {
+  int played = 0;
+  int stopped = 0;
+  @override
+  Future<void> play() async => played++;
+  @override
+  Future<void> stop() async => stopped++;
+  @override
+  Future<void> dispose() async {}
 }

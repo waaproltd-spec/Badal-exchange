@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../api/customer_api.dart';
 import '../../l10n/strings.dart';
 import '../../models/payment_method.dart';
+import '../../services/deposit_voice.dart';
 import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/payment_errors.dart';
@@ -31,7 +32,10 @@ const kDepositMax = '4000.00';
 /// there is no phone field. Confirm creates the deposit order; the backend
 /// credits it once the payment from that number is verified.
 class DepositDetailsScreen extends StatefulWidget {
-  const DepositDetailsScreen({super.key, required this.option, this.ownPhone});
+  const DepositDetailsScreen({super.key, required this.option, this.ownPhone, this.voice});
+
+  /// The Somali voice instruction (replaceable in tests).
+  final DepositVoice? voice;
 
   /// The chosen method, with the numbers customers send payments to.
   final PaymentMethodOption option;
@@ -67,6 +71,7 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
   String? _tracked;
   Future<void>? _tracking;
   late final CustomerApi _api;
+  DepositVoice? _voice;
 
   /// Another number an admin lets this customer use (loaded once), and the
   /// 9 digits chosen: the registered number unless the customer changes it.
@@ -96,6 +101,11 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     _amountController.addListener(_track);
     _accountController.addListener(_track);
     if (_cashDesk) _fillSavedAccount();
+    // Mobile money only (EVC Plus, eDahab, Zaad, Golis): the voice speaks on open; the customer still taps Confirm.
+    if (!_info.isPlatform) {
+      _voice = widget.voice ?? AudioDepositVoice();
+      _voice!.play();
+    }
   }
 
   Future<void> _loadNumbers() async {
@@ -128,6 +138,8 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
 
   @override
   void dispose() {
+    _voice?.stop();
+    _voice?.dispose();
     _accountController.dispose();
     _amountController.dispose();
     _codeController.dispose();
