@@ -118,21 +118,19 @@ void main() {
   });
 
   for (final MapEntry(key: name, value: size) in _phones.entries) {
-    testWidgets('$name: two recent orders show above the bottom bar, nothing overflows', (tester) async {
+    testWidgets('$name: the recent order shows above the bottom bar, nothing overflows', (tester) async {
       await _phone(tester, size);
       await tester.pumpWidget(_app());
       await tester.pumpAndSettle();
 
       final navTop = tester.getRect(find.byKey(const Key('floating-nav'))).top;
-      for (final id in ['o1', 'o2']) {
+      for (final id in ['o1']) {
         final tile = tester.getRect(find.byKey(Key('recent-order-$id')));
         expect(tile.bottom <= navTop, isTrue, reason: 'order $id ends at ${tile.bottom}, bar starts at $navTop');
       }
       // Each order shows its service, amount, date and status.
       expect(find.text('Withdraw · 1XBET'), findsOneWidget);
       expect(find.text('-\$1.50'), findsOneWidget);
-      expect(find.text('Deposit · 1XBET'), findsOneWidget);
-      expect(find.text('+\$5.00'), findsOneWidget);
       expect(find.byKey(const Key('view-all-orders')), findsOneWidget);
 
       // Deposit and Withdraw are the same size, side by side.
@@ -155,7 +153,7 @@ void main() {
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     final navTop = tester.getRect(find.byKey(const Key('floating-nav'))).top;
-    expect(tester.getRect(find.byKey(const Key('recent-order-o2'))).bottom <= navTop, isTrue);
+    expect(tester.getRect(find.byKey(const Key('recent-order-o1'))).bottom <= navTop, isTrue);
   });
 
   testWidgets('View all opens the Orders tab', (tester) async {

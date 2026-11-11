@@ -210,7 +210,7 @@ void main() {
         // Scrolled to the end, the last order ends above the button.
         await tester.drag(find.byType(Scrollable).first, const Offset(0, -2000));
         await tester.pumpAndSettle();
-        final last = tester.getRect(find.byKey(const Key('recent-order-o3')));
+        final last = tester.getRect(find.byKey(const Key('recent-order-o1')));
         expect(last.bottom, lessThanOrEqualTo(button.top));
         await tester.tap(find.byKey(const Key('support-button')));
         await tester.pumpAndSettle();

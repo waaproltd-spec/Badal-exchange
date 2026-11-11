@@ -292,7 +292,7 @@ class _OrderTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(22),
       onTap: () => showTransactionDetails(context, real),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(22),
@@ -300,20 +300,31 @@ class _OrderTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            MethodIcon(method: order.method, size: 48),
+            MethodIcon(method: order.method, size: 46),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '$typeLabel · $methodLabel',
-                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 15.5),
+                  // One line each (shrinking just enough), so every order is compact and more fit on the screen.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '$typeLabel · $methodLabel',
+                      maxLines: 1,
+                      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 15.5),
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    Formatters.dateTime(order.createdAt),
-                    style: AppTextStyles.muted.copyWith(fontSize: 12.5),
+                  const SizedBox(height: 3),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      Formatters.dateTime(order.createdAt),
+                      maxLines: 1,
+                      style: AppTextStyles.muted.copyWith(fontSize: 12.5),
+                    ),
                   ),
                   if (ref.isNotEmpty) ...[
                     const SizedBox(height: 2),
@@ -326,7 +337,7 @@ class _OrderTile extends StatelessWidget {
             const SizedBox(width: 8),
             // The amount and the status take at most 40% of the card, so the provider name and the date keep their room on 320 px phones.
             ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: (MediaQuery.of(context).size.width * 0.4).clamp(110.0, 170.0)),
+              constraints: BoxConstraints(maxWidth: (MediaQuery.of(context).size.width * 0.36).clamp(104.0, 160.0)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [

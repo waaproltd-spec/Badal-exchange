@@ -28,7 +28,7 @@ import '../notifications/notifications_screen.dart';
 import '../wallet/wallet_transfer_screen.dart';
 import '../withdraw/withdraw_details_screen.dart';
 
-/// Wallet home, kept compact so two recent orders fit on a phone screen:
+/// Wallet home, kept compact so the whole Home (one recent order) fits on a phone screen:
 /// branded header, wallet card, Deposit + Withdraw, then recent orders.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.onViewAllOrders});
@@ -41,7 +41,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const int _recentOrdersCount = 3;
+  static const int _recentOrdersCount = 1;
   List<HomeAd> _ads = const [];
 
 
