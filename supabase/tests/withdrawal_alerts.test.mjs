@@ -146,7 +146,7 @@ test('a new withdrawal is announced once with code, number and exact amount; nev
   assert.equal(msgs.length, 1, 'announced once');
   const text = msgs[0].body.text;
   assert.match(text, /Lacag-bixin ayaa sugaysa/);
-  for (const label of ['Magaca macmiilka', 'Lambarka telefoonka', 'Lambarka macaamilka', 'Lacagta', 'Shirkadda lacagta', 'Xaaladda macaamilka', 'Waqtiga']) {
+  for (const label of ['Magaca macmiilka', 'Customer ID: <code>BE', 'Lambarka telefoonka', 'Lambarka macaamilka', 'Lacagta', 'Shirkadda lacagta', 'Xaaladda macaamilka', 'Waqtiga']) {
     assert.ok(text.includes(label), `${label} is in the message`);
   }
   assert.match(text, /\$7\.50/);
@@ -350,7 +350,7 @@ test('a failed or refused deposit / withdrawal is told once with customer, phone
   assert.equal(msgs.length, 1, 'told once');
   const text = msgs[0].body.text;
   assert.ok(!/pin|password|parol|token|secret/i.test(text), 'no secret in the message');
-  assert.ok(!/(blocked|failed|withdrawal|deposit|customer|amount|provider|error)\b/i.test(text.replace(/<code>[^<]*<\/code>/g, '')), 'no English words outside code');
+  assert.ok(!/(blocked|failed|withdrawal|deposit|customer|amount|provider|error)\b/i.test(text.replace(/<code>[^<]*<\/code>/g, '').replace(/Customer ID/g, '')), 'no English words outside code ("Customer ID" is the one agreed field name)');
   for (const part of ['Lacag-bixin — La xannibay', 'Magaca macmiilka', 'Lambarka telefoonka', `252${number}`, 'Lambarka macaamilka', 'dalab lama sameynin', 'Lacagta: $12.50', 'Shirkadda lacagta: EVC Plus', 'Xaaladda macaamilka', 'Waqtiga', 'Sababta saxda ah ee khaladka', 'Haraaga Sahal kuma filna', 'WITHDRAWAL_PROVIDER_BALANCE']) {
     assert.ok(text.includes(part), `${part} is in the message`);
   }
