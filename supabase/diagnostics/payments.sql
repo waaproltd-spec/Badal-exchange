@@ -92,7 +92,7 @@ SELECT 'merchant transfers matched to two orders: ' || count(*) FROM (
   GROUP BY 1 HAVING count(*) > 1) x;
 
 \echo '== 11. Alerts: is the Telegram withdrawal chat linked, and Sahal alert state =='
-SELECT chat_id IS NOT NULL AS linked, checked_at, left(last_error, 120) AS last_error,
+SELECT chat_id IS NOT NULL AS linked, chat_id < 0 AS is_group, left(chat_name, 60) AS chat_name, to_char(linked_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS linked_somalia, checked_at, left(last_error, 120) AS last_error,
        to_jsonb(c) ->> 'sahal_alert_key' AS sahal_alert FROM public.withdrawal_alert_chat c;
 
 \echo '== 12. Open deposits and the payment SMS of the window, one by one (numbers: last 4 digits) =='
@@ -392,3 +392,11 @@ SELECT to_char(at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI:SS') AS scan_s
 SELECT severity, key, left(title, 60) AS title, occurrences, repairs, needs_developer, alert_count,
        to_char(alerted_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS alerted_somalia
 FROM private.health_incidents WHERE status = 'open' ORDER BY severity, key;
+
+\echo
+\echo '== 33. Group daily report: saved reports and what is waiting to be sent =='
+SELECT day, to_char(closed_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS closed_somalia, send_attempts, parts_sent,
+       to_char(sent_at AT TIME ZONE 'Africa/Mogadishu', 'MM-DD HH24:MI') AS sent_somalia, left(last_error, 80) AS last_error
+FROM public.daily_reports ORDER BY day DESC LIMIT 7;
+SELECT kind, count(*) AS notices, max(at) AS newest FROM public.group_notified GROUP BY 1 ORDER BY 1;
+SELECT key, left(value, 30) AS value FROM public.app_settings WHERE key IN ('daily_report_hour', 'group_report_since', 'sahal_low_balance_usd');

@@ -62,3 +62,21 @@ source before it is kept (`.github/workflows/backup.yml`).
 * Read-only report from the repository: Actions > "Deploy Supabase" > mode `diagnose` (sections 5-32: feed,
   cron, edge calls, stuck orders, integrity, database health, security posture, health monitor).
 * Supabase dashboard: Edge Functions logs, Database > Backups.
+
+
+## The BADAL AGENT group: daily report and live notices
+
+The Telegram chat linked to the BADAL AGENT bot (the one that already receives the withdrawal alerts) is the monitoring centre.
+
+- **The day** runs 00:00 -> 23:59:59 Africa/Mogadishu (it was 21:00). At 00:00 the day that ended is *closed* into `public.daily_reports`
+  (a saved, final snapshot, kept for good; `pg_cron` job `baari-daily-report` at 21:00 UTC, and the group worker closes a missed day by itself).
+  In the morning (08:00, setting `daily_report_hour`) the worker sends the closed report once. Nothing in orders, wallets, ledger or commission is changed by closing.
+- **The report** has: deposits, withdrawals, payouts (paid to customers), transactions, pending, failed, agent earnings, the top 5 customers (masked phone),
+  the agents, and an errors section (failed orders with code / amount / provider / time / reason, refused attempts, system incidents, insufficient balance, stuck orders).
+  Deposits = deposit orders completed in the day; withdrawals = withdrawal orders completed in the day; payouts = what the customers received (net of fee).
+- **`/report`** in the linked chat shows today so far; `/report 2026-11-10` shows a saved day.
+- **Live notices** (once each, remembered in `public.group_notified`): a credited deposit, a failed deposit or platform payout, the Sahal balance below
+  `sahal_low_balance_usd` ($50 until set). The withdrawal, payment-incident, security, stuck-order and health alerts were already sent there.
+- **Telegram failures:** 429 (it says how long to wait) and 5xx are retried; a report that could not be sent is claimed again after 2 minutes and resumes after the
+  parts that already went (10 attempts at most; the last error is kept in `daily_reports.last_error` and the run is reported as a bot error).
+- Check: the diagnostics report (section 33).

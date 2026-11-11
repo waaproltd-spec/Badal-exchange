@@ -41,21 +41,36 @@ async function rpc(fn: string, args: Record<string, unknown> = {}) {
   return data;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Telegram call with retry for temporary failures: 429 (it says how long to wait, at most 5 s here) and 5xx are retried
+ *  twice; a network error is retried once, and only for calls that cannot send a message twice. */
 function telegram(token: string) {
   return async (method: string, body: Record<string, unknown>) => {
     const base = (Deno.env.get('TELEGRAM_API_BASE') || 'https://api.telegram.org').replace(/\/$/, '');
-    const res = await fetch(`${base}/bot${token}/${method}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
-    });
-    const data = await res.json().catch(() => ({}));
-    // An edit with the same text is not a failure.
-    if (!data.ok && !/message is not modified/i.test(data.description ?? '')) {
+    for (let attempt = 0; ; attempt++) {
+      let res: Response;
+      let data: any = {};
+      try {
+        res = await fetch(`${base}/bot${token}/${method}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15_000),
+        });
+        data = await res.json().catch(() => ({}));
+      } catch (err) {
+        if (attempt < 1 && (method === 'getUpdates' || method === 'editMessageText')) { await sleep(800); continue; }
+        throw err;
+      }
+      if (data.ok) return data.result;
+      // An edit with the same text is not a failure.
+      if (/message is not modified/i.test(data.description ?? '')) return data.result;
+      const wait = Number(data.parameters?.retry_after ?? 0);
+      if (res.status === 429 && wait > 0 && wait <= 5 && attempt < 2) { await sleep(wait * 1000 + 300); continue; }
+      if (res.status >= 500 && attempt < 2) { await sleep(700 * (attempt + 1)); continue; }
       throw new Error(`Telegram ${method}: ${data.description ?? res.status}`);
     }
-    return data.result;
   };
 }
 
@@ -156,6 +171,74 @@ function orderText(o: Order) {
   return lines.join('\n');
 }
 
+
+/** HH:mm in Mogadishu. */
+const hm = (iso: unknown) => {
+  const d = new Date(String(iso ?? ''));
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('en-GB', { timeZone: 'Africa/Mogadishu', hour: '2-digit', minute: '2-digit', hour12: false });
+};
+const dmy = (day: string) => `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
+const usd = (v: unknown) => `$${esc(v ?? '0.00')}`;
+const DIR: Record<string, string> = { deposit: 'dhigasho', withdraw: 'lacag-bixin' };
+
+/** The daily report as Telegram messages (HTML, each under 3800 characters). Only figures from the database. */
+function reportParts(day: string, d: any, saved = true): string[] {
+  const live = d.live === true || !saved;
+  const head =
+    `📊 <b>WARBIXINTA MAALINTA — ${esc(dmy(day))}</b>\n` +
+    `🕛 00:00 → 23:59:59 (waqtiga Soomaaliya)${live ? '\n⏳ <i>Maalintu wali ma dhammaan: tirooyinkan waa ilaa hadda.</i>' : ''}\n\n` +
+    `💰 Dhigashooyin: <b>${d.deposits?.count ?? 0}</b> — ${usd(d.deposits?.total)}\n` +
+    `💸 Bixinno: <b>${d.withdrawals?.count ?? 0}</b> — ${usd(d.withdrawals?.total)}\n` +
+    `✅ Lacagta la siiyay macaamiisha (payouts): ${usd(d.payouts?.total)}\n` +
+    `🔁 Macaamilada dhammaaday: <b>${d.transactions ?? 0}</b>\n` +
+    `🟡 Sugaya: <b>${d.pending?.count ?? 0}</b> — ${usd(d.pending?.total)}\n` +
+    `❌ Fashilmay: <b>${d.failed?.count ?? 0}</b> — ${usd(d.failed?.total)}` +
+    (d.otherClosed ? ` (+ ${d.otherClosed} la joojiyay/dhacay)` : '') + `\n` +
+    `🏆 Dakhliga wakiilada (commission): ${usd(d.earnings?.total)} (${d.earnings?.count ?? 0} macaamil)`;
+
+  const top = (d.topCustomers ?? []) as any[];
+  const people =
+    `👑 <b>Top 5 macaamiil</b> (tirada lacagta)\n` +
+    (top.length === 0 ? 'Macaamil dhammaystiray ma jiro.' : top.map((c, i) =>
+      `${i + 1}. ${esc(c.name)} <code>${esc(c.phone ?? '—')}</code>\n    Dhigasho ${usd(c.deposits)} · Bixin ${usd(c.withdrawals)} · Wadar <b>${usd(c.volume)}</b> · ${c.count} macaamil`).join('\n')) +
+    `\n\n🧑‍💼 <b>Wakiilada</b> (dakhli)\n` +
+    ((d.agents ?? []).length === 0 ? 'Commission lama diiwaangelin.' : (d.agents as any[]).map((a, i) =>
+      `${i + 1}. ${esc(a.name)}: ${usd(a.earned)} · ${a.orders} macaamil · ${usd(a.volume)}`).join('\n'));
+
+  const e = d.errors ?? {};
+  const lines: string[] = [];
+  for (const o of (e.failedOrders ?? []) as any[]) {
+    lines.push(`• <code>${esc(o.code)}</code> ${esc(DIR[o.direction] ?? o.direction)} ${esc(METHOD[o.method] ?? o.method)} ${usd(o.amount)} ${esc(hm(o.at))} — ${esc(o.reason ?? 'sabab lama helin')}`);
+  }
+  for (const i of (e.incidents?.list ?? []) as any[]) {
+    lines.push(`• ${i.kind === 'blocked' ? '🚫' : '❌'} ${esc(DIR[i.direction] ?? i.direction)} ${esc(i.code ?? 'dalab la'+"'"+'la')} ${esc(METHOD[i.method] ?? i.method ?? '—')} ${i.amount ? usd(i.amount) : ''} ${esc(hm(i.at))} — ${esc(i.reason ?? '—')}`);
+  }
+  for (const h of (e.health ?? []) as any[]) {
+    lines.push(`• ${h.severity === 'critical' ? '🚨' : '⚠️'} ${esc(h.title)} (${h.status === 'open' ? 'weli furan' : 'la xaliyay'}) ${esc(hm(h.at))}`);
+  }
+  for (const o of (e.stuck?.list ?? []) as any[]) {
+    lines.push(`• ⏳ <code>${esc(o.code)}</code> ${esc(DIR[o.direction] ?? o.direction)} ${esc(METHOD[o.method] ?? o.method)} ${usd(o.amount)} ${esc(STATE_SO[o.status] ?? o.status)} ${esc(o.hours)} saac`);
+  }
+  if ((e.stuck?.count ?? 0) > (e.stuck?.list ?? []).length) lines.push(`… iyo ${(e.stuck.count) - (e.stuck.list ?? []).length} kale oo weli sugaya`);
+  const counts =
+    `Dalabyo fashilmay: ${d.failed?.count ?? 0} · isku-day la diiday/fashilmay: ${e.incidents?.count ?? 0} · ` +
+    `lacag la'aan (haraaga shirkadda): ${e.insufficientBalance ?? 0} · weli lama xalliyin: ${e.stuck?.count ?? 0}`;
+  const errors = `🚨 <b>Khaladaad iyo dhibaatooyin</b>\n${counts}` + (lines.length ? `\n${lines.join('\n')}` : '\n✅ Khalad muhiim ah ma jiro.');
+
+  const out: string[] = [];
+  let cur = '';
+  for (const block of [head, people, errors]) {
+    for (const piece of block.length <= 3800 ? [block] : block.split(/\n(?=• )/).reduce<string[]>((acc, l) => {
+      if (acc.length && acc[acc.length - 1].length + l.length < 3800) acc[acc.length - 1] += '\n' + l; else acc.push(l);
+      return acc;
+    }, [])) {
+      if (cur && cur.length + piece.length + 2 > 3800) { out.push(cur); cur = piece; } else cur = cur ? `${cur}\n\n${piece}` : piece;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
 async function run() {
   const token = Deno.env.get('TELEGRAM_N8N_BOT_TOKEN');
   if (!token) return { skipped: 'TELEGRAM_N8N_BOT_TOKEN not set' };
@@ -168,7 +251,23 @@ async function run() {
   for (const u of updates ?? []) {
     offset = Math.max(offset, Number(u.update_id) + 1);
     const msg = u.message;
-    if (!msg?.chat?.id || !/^\/start\b/.test(String(msg.text ?? ''))) continue;
+    if (!msg?.chat?.id) continue;
+    const text = String(msg.text ?? '').trim();
+    // /report [YYYY-MM-DD]: only in the linked chat; a saved report, or today so far.
+    const rep = text.match(/^\/report(?:@\w+)?(?:\s+(\d{4}-\d{2}-\d{2}))?$/);
+    if (rep) {
+      if (state?.chatId == null || Number(state.chatId) !== Number(msg.chat.id)) continue; // not the agent's chat: no answer
+      const r = await rpc('daily_report_get', { p_day: rep[1] ?? null });
+      if (!r) {
+        await tg('sendMessage', { chat_id: msg.chat.id, text: 'Taariikhdaas warbixin ma jirto.' });
+      } else {
+        for (const part of reportParts(String(r.day), r.data, r.saved === true)) {
+          await tg('sendMessage', { chat_id: msg.chat.id, text: part, parse_mode: 'HTML', disable_web_page_preview: true });
+        }
+      }
+      continue;
+    }
+    if (!/^\/start\b/.test(text)) continue;
     const name = [msg.chat.title, msg.chat.username && `@${msg.chat.username}`, msg.chat.first_name].filter(Boolean).join(' ');
     const ok = await rpc('withdrawal_alerts_link', { p_chat_id: msg.chat.id, p_chat_name: name || String(msg.chat.id) });
     if (!ok) continue; // not the agent's chat: no answer
@@ -261,13 +360,58 @@ async function run() {
     await rpc('stuck_orders_sent', { p_ids: stuck.map((o) => o.orderId) });
     sent++;
   }
-  const s = todo.summary;
-  if (s) {
-    await tg('sendMessage', { chat_id: chat, parse_mode: 'HTML',
-      text: `📊 <b>Lacag-bixinada ${esc(s.day)}</b>\nWaqtiga: ${when(new Date().toISOString())}\nLa bixiyay: ${s.paidCount} ($${esc(s.paidTotal)})\n` +
-        `Fashilmay/la joojiyay: ${s.failedCount}\nWeli sugaya: ${s.waitingCount} ($${esc(s.waitingTotal)})` });
-    await rpc('withdrawal_alerts_sent', { p_kind: 'summary', p_id: null, p_day: s.day });
-    sent++;
+  // The daily report (closed at 00:00 Mogadishu, sent in the morning) and the real-time notices of the group
+  // (migrations/*_group_daily_report.sql). Only said: nothing here sends money or changes an order.
+  const g = await rpc('group_report_todo');
+  if (g?.chatId) {
+    if (g.report) {
+      const day = String(g.report.day);
+      const parts = reportParts(day, g.report.data);
+      try {
+        for (let i = Number(g.report.partsSent ?? 0); i < parts.length; i++) {
+          await tg('sendMessage', { chat_id: g.chatId, text: parts[i], parse_mode: 'HTML', disable_web_page_preview: true });
+          await rpc('daily_report_sent', { p_day: day, p_parts: i + 1, p_done: i + 1 === parts.length });
+          sent++;
+        }
+      } catch (err) {
+        await rpc('daily_report_sent', { p_day: day, p_parts: 0, p_done: false, p_error: (err as Error).message }).catch(() => {});
+        throw err;
+      }
+    }
+    for (const d of (g.deposits ?? []) as any[]) {
+      await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML',
+        text: `💰 <b>Dhigasho guuleystay</b>
+Macmiilka: ${esc(d.customer)} <code>${esc(d.phone ?? '—')}</code>
+Lacagta: <b>${usd(d.amount)}</b>
+` +
+          `Shirkadda: ${esc(METHOD[d.method] ?? d.method)}
+Lambarka: <code>${esc(d.code)}</code>${d.reference ? `
+Tixraaca: <code>${esc(d.reference)}</code>` : ''}
+Waqtiga: ${esc(when(d.at))}` });
+      await rpc('group_notified_mark', { p_kind: 'deposit', p_keys: [d.key] });
+      sent++;
+    }
+    for (const f of (g.failed ?? []) as any[]) {
+      await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML',
+        text: `❌ <b>${f.direction === 'deposit' ? 'Dhigasho' : 'Lacag-bixin'} fashilmay</b>
+Macmiilka: ${esc(f.customer)} <code>${esc(f.phone ?? '—')}</code>
+Lacagta: ${usd(f.amount)}
+` +
+          `Shirkadda: ${esc(METHOD[f.method] ?? f.method)}
+Lambarka: <code>${esc(f.code)}</code>
+Waqtiga: ${esc(when(f.at))}
+Sababta: ${esc(f.reason ?? 'sabab lama helin')}` });
+      await rpc('group_notified_mark', { p_kind: 'failed', p_keys: [f.key] });
+      sent++;
+    }
+    if (g.sahalLow) {
+      await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML',
+        text: `⚠️ <b>Haraaga Sahal waa hooseeyaa</b>
+Haraaga: ${usd(g.sahalLow.balance)} · ugu yaraan loo baahan yahay: ${usd(g.sahalLow.min)}
+Lacag-bixinada waa la hakin karaa ilaa la kordhiyo haraaga.` });
+      await rpc('group_notified_mark', { p_kind: 'sahal_low', p_keys: [g.sahalLow.key] });
+      sent++;
+    }
   }
   return { linked: true, sent };
 }
