@@ -137,3 +137,16 @@ rows read) by the health scan's "failed cron jobs" check.
 Not done, with the reason: `company_balance_record` change-only *inserts* were done as above, but the feed status
 heartbeat is kept at 30 s and `sahal_payout_settings.balance_seen_at` is untouched (it gates payouts); slowing the 10 s
 feed (E1) stays rejected; no new indexes (tables under 1,300 rows); PNG/WAV assets are only 950 KB in total.
+
+### Measured result of the APK change (build 145 → 146, same code except the build flag and the removed dependencies)
+
+| APK | Before | After | Change |
+|---|---|---|---|
+| Customer App | 55,763,703 B (53.2 MiB) | 36,643,937 B (34.9 MiB) | −34 % |
+| Agent App | 59,626,260 B (56.9 MiB) | 39,064,549 B (37.3 MiB) | −34.5 % |
+
+Tests on commit eee7fc0 (CI run 43023387511): Backend (Auth, RPC, RLS, Realtime) passed, including the new
+`performance.test.mjs` (5 tests); Customer App passed (347 tests; local run 347 passed, analyzer unchanged at 52 existing
+infos); the *Agent App against Supabase* step fails as on every earlier run of this branch (not caused by this change; local
+Agent App run: all tests passed, analyzer unchanged). Database before/after numbers come from re-running
+`performance.sql` one day after deployment (cumulative counters are compared by delta).
