@@ -29,10 +29,10 @@ DECLARE
   s public.payment_source_state;
 BEGIN
   PERFORM private.require_service();
+  -- First run: the current source is the starting point, nothing to announce. Two runs at once must not collide on the one row.
+  INSERT INTO public.payment_source_state (source) VALUES (v_now) ON CONFLICT (id) DO NOTHING;
   SELECT * INTO s FROM public.payment_source_state FOR UPDATE;
-  IF s.id IS NULL THEN
-    INSERT INTO public.payment_source_state (source) VALUES (v_now); -- first run: the current source is the starting point, nothing to announce
-  ELSIF v_now = s.source THEN
+  IF v_now = s.source THEN
     IF s.pending IS NOT NULL THEN
       UPDATE public.payment_source_state SET pending = NULL, pending_since = NULL; -- it came back by itself: a flicker
     END IF;
