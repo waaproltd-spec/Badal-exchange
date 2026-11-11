@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/api_exception.dart';
@@ -142,7 +141,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-/// One notification: icon by kind, the title, a status badge, the details of the money movement, the transaction ID with a copy icon, the date.
+/// One notification: icon by kind, the title, a status badge, the details of the money movement and the date (no transaction ID, no copy).
 class NotificationCard extends StatelessWidget {
   const NotificationCard({super.key, required this.n});
 
@@ -232,7 +231,6 @@ class NotificationCard extends StatelessWidget {
         (AppStrings.notifAmount, _val('$sign${Formatters.money(n.amount!)}', color: amountColor, bold: true, size: 17)),
       if ((n.balanceAfter ?? '').isNotEmpty) (AppStrings.notifBalance, _val(Formatters.money(n.balanceAfter!), color: const Color(0xFFFFC83D), bold: true)),
     ];
-    final ref = n.copyRef;
     return [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -249,33 +247,6 @@ class NotificationCard extends StatelessWidget {
             ),
         ]),
       ),
-      if (ref != null && ref.isNotEmpty) ...[
-        const SizedBox(height: 10),
-        // The transaction ID, in its own section, with a copy icon.
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
-          decoration: BoxDecoration(color: _purple.withOpacity(0.18), borderRadius: BorderRadius.circular(16), border: Border.all(color: _purple.withOpacity(0.4))),
-          child: Row(children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(AppStrings.transactionId, style: AppTextStyles.muted.copyWith(fontSize: 11.5)),
-                Text(ref, key: Key('notification-ref-${n.id}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 15)),
-              ]),
-            ),
-            IconButton(
-              key: Key('notification-copy-${n.id}'),
-              tooltip: AppStrings.transactionId,
-              icon: const Icon(Icons.copy_rounded, size: 22),
-              color: Colors.white,
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                await Clipboard.setData(ClipboardData(text: ref));
-                messenger.showSnackBar(SnackBar(content: Text(AppStrings.copied(ref)), duration: const Duration(seconds: 2)));
-              },
-            ),
-          ]),
-        ),
-      ],
     ];
   }
 

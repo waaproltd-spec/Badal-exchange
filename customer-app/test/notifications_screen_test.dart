@@ -5,7 +5,6 @@ import 'package:badal_exchange_customer/models/app_content.dart';
 import 'package:badal_exchange_customer/screens/notifications/notifications_screen.dart';
 import 'package:badal_exchange_customer/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -52,27 +51,14 @@ void main() {
     expect(find.text('BE773710'), findsOneWidget);
     expect(find.text('-\$1.00'), findsOneWidget);
     expect(find.text('\$0.00'), findsOneWidget, reason: 'the remaining balance');
-    expect(find.text('TRFC1A2776A'), findsOneWidget);
     expect(find.text('Lacag-bixinta way guulaysatay'), findsOneWidget);
     expect(find.text('EVC Plus'), findsNWidgets(2));
-    expect(find.text('EXJTFGGR'), findsOneWidget, reason: 'no provider reference: the order code');
     expect(find.text('Dhigashadu way guulaysatay'), findsOneWidget);
-    expect(find.text('TXN-998'), findsOneWidget, reason: 'the provider\'s own reference first');
     expect(find.text('+\$25.00'), findsOneWidget);
     expect(find.text('Guulaystay'), findsNWidgets(3));
     Color colorOf(String t) => tester.widget<Text>(find.text(t)).style!.color!;
     expect(colorOf('-\$10.00').red > colorOf('-\$10.00').green, isTrue, reason: 'a withdrawal amount is red');
     expect(colorOf('+\$25.00').green > colorOf('+\$25.00').red, isTrue, reason: 'a deposit is green');
-  });
-
-  testWidgets('Sahal\'s own reference is not shown: the order code is', (tester) async {
-    tester.view.physicalSize = const Size(400, 1200);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(_app(_Api([_n(1, 'withdraw', extra: {..._withdraw, 'transactionRef': 'Sahal 7559059001'})])));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Sahal'), findsNothing);
-    expect(find.text('EXJTFGGR'), findsOneWidget);
   });
 
   testWidgets('failed is red and pending is orange; a broadcast keeps its title and text', (tester) async {
@@ -94,22 +80,17 @@ void main() {
     expect(find.byKey(const Key('notification-status')), findsNWidgets(2), reason: 'a broadcast has no status badge');
   });
 
-  testWidgets('the copy icon copies the transaction ID', (tester) async {
-    tester.view.physicalSize = const Size(400, 1200);
+  testWidgets('no transaction ID and no copy icon on any notification', (tester) async {
+    tester.view.physicalSize = const Size(400, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final copied = <String>[];
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') copied.add((call.arguments as Map)['text'] as String);
-      return null;
-    });
-    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
-    await tester.pumpWidget(_app(_Api([_n(1, 'deposit', extra: _deposit)])));
+    await tester.pumpWidget(_app(_Api([_n(1, 'transfer_sent', extra: _sent), _n(2, 'withdraw', extra: _withdraw), _n(3, 'deposit', extra: _deposit)])));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('notification-copy-n1')));
-    await tester.pump();
-    expect(copied, ['TXN-998']);
-    expect(find.text('TXN-998 waa la koobiyeeyay'), findsOneWidget);
+    expect(find.byIcon(Icons.copy_rounded), findsNothing);
+    expect(find.text('Aqoonsiga Dhaqdhaqaaqa'), findsNothing);
+    for (final ref in ['TRFC1A2776A', 'EXJTFGGR', 'EXDEP001', 'TXN-998']) {
+      expect(find.text(ref), findsNothing, reason: ref);
+    }
   });
 
   testWidgets('older notifications load when the end is reached: each once, newest first; nothing is read again needlessly', (tester) async {
