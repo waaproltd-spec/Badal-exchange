@@ -199,6 +199,27 @@ test('Payment Backup: a confirmed change of the payment source is said once in t
   await db.query(`DELETE FROM public.payment_source_state`); // leave the shared database as found: later suites start from the first-run state
 });
 
+test('Money seen, not confirmed: a payment SMS unmatched for 10 minutes is said once in the linked chat', async () => {
+  const before = (await db.query(`SELECT value FROM public.app_settings WHERE key = 'unconfirmed_notice_since'`)).rows[0]?.value;
+  await db.query(`INSERT INTO public.app_settings (key, value) VALUES ('unconfirmed_notice_since', (now() - interval '1 day')::text)
+                  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
+  const { rows: [sms] } = await db.query(`INSERT INTO public.sms_logs (sender, body, received_at, match_status, parsed_provider, parsed_phone, parsed_amount)
+    VALUES ('perf', 'GRU1 ' || gen_random_uuid(), now() - interval '20 minutes', 'unmatched', 'EVC Plus', '252615009999', 33.25) RETURNING id`);
+  try {
+    tg.calls.length = 0;
+    assert.equal((await run()).status, 200);
+    const said = about(/Lacag timid, weli lama xaqiijin/).filter((c) => c.body.chat_id === CHAT && /33\.25/.test(c.body.text));
+    assert.equal(said.length, 1);
+    assert.match(said[0].body.text, /252615009999/);
+    tg.calls.length = 0;
+    assert.equal((await run()).status, 200);
+    assert.equal(about(/Lacag timid, weli lama xaqiijin/).filter((c) => /33\.25/.test(c.body.text)).length, 0, 'not said again');
+  } finally {
+    await db.query(`UPDATE public.sms_logs SET match_status = 'ignored' WHERE id = $1`, [sms.id]);
+    if (before) await db.query(`UPDATE public.app_settings SET value = $1 WHERE key = 'unconfirmed_notice_since'`, [before]);
+  }
+});
+
 test('/movehere in a group by the owner of the linked private chat moves the alerts there; a stranger gets no answer', async () => {
   const OWNER = CHAT;            // the linked chat is the owner's private chat: its id is the owner's id
   const GROUP = -(1_000_000_000_000 + (CHAT % 1_000_000));

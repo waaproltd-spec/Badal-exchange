@@ -87,6 +87,7 @@ before(async () => {
                     ON CONFLICT (day) DO UPDATE SET sent_at = COALESCE(daily_reports.sent_at, now())`);
   await db.query(`UPDATE daily_reports SET sent_at = COALESCE(sent_at, now())`);
   await db.query(`UPDATE app_settings SET value = now()::text WHERE key = 'group_report_since'`);
+  await db.query(`UPDATE app_settings SET value = (now() + interval '1 day')::text WHERE key = 'unconfirmed_notice_since'`); // other suites' unmatched SMS are not what these tests count
   // Orders the other suites left unresolved for a long time are not this file's business:
   // they count as already said, so only the orders made here are looked at.
   await db.query(`INSERT INTO stuck_order_alerts (order_id, alerts, last_alert_at)

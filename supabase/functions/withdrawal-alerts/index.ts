@@ -252,6 +252,13 @@ function sourceText(e: { from: string; to: string; at: string }): string {
   return `🔴 <b>Sahal iyo SMS backup labadaba ma shaqeynayaan</b>\nDhigashooyinka lama xaqiijin karo ilaa mid soo laabto. Hubi in telefoonka Agent uu furan yahay oo uu akhriyayo SMS (Agent App), ama Sahal dib ugu gal.\n${t}`;
 }
 
+/** Money that arrived and is still not matched to a deposit. Numbers and phones only; nothing is changed. */
+function unconfirmedText(items: any[]): string {
+  const lines = items.map((u) =>
+    `• ${u.source === 'sahal' ? 'Sahal' : esc(u.provider ?? 'SMS')} <b>${usd(u.amount)}</b> · <code>${esc(u.phone ?? '—')}</code> · ${esc(u.minutes)} daqiiqo kahor`);
+  return `⏳ <b>Lacag timid, weli lama xaqiijin</b>\n${lines.join('\n')}\nHubi in macaamiilku dhigasho furay (lacagta iyo lambarka isku mid), ama ka eeg SMS Transactions ee Agent App. Wax lama beddelin.`;
+}
+
 /** The /status answer: the open incidents, the Sahal feed, what waits. Numbers and titles only. */
 function statusText(st: any): string {
   const icon = (sev: string) => (sev === 'critical' ? '🔴' : sev === 'warning' ? '🟠' : '🔵');
@@ -468,6 +475,17 @@ Lacag-bixinada waa la hakin karaa ilaa la kordhiyo haraaga.` });
       }
     } catch (err) {
       console.error('payment_source notice', (err as Error).message.slice(0, 300));
+    }
+    // Money seen but not confirmed after 10 minutes (a payment SMS or a Sahal transfer matching no deposit): said once each. Only said.
+    try {
+      const un = ((await rpc('deposit_unconfirmed_todo')) ?? []) as any[];
+      if (un.length > 0) {
+        await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML', text: unconfirmedText(un) });
+        await rpc('group_notified_mark', { p_kind: 'unconfirmed', p_keys: un.map((u) => String(u.key)) });
+        sent++;
+      }
+    } catch (err) {
+      console.error('unconfirmed notice', (err as Error).message.slice(0, 300));
     }
   }
   return { linked: true, sent };

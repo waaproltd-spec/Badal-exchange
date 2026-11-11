@@ -65,7 +65,7 @@ WAL (the notices are a few rows a day). Every new query gets an `EXPLAIN` check 
 1. **Control foundation (partly done: `/status`, deployed 11 Nov):** `control_admins`, `control_settings` (per category on/off), `/status`, `/bots`, `/mute`,
    audit. Rollback: drop the three objects; BADAL AGENT keeps working as today.
 2. **Payment Backup notice** ("Sahal down – SMS backup active", "Sahal back") – **built, awaiting Deploy**: `payment_source_todo()` confirms a change of `private.payment_source()` after 2 minutes, stores it once, BADAL AGENT announces it; no money logic touched.
-3. **Deposit not confirmed after N minutes** notice.
+3. **Money seen, not confirmed** notice – **built, awaiting Deploy**: a payment SMS or incoming Sahal transfer still unmatched after 10 minutes is told once (not the SIM-check refusals, which have their own incident; only payments after switch-on).
 4. **Backup result to the group** (workflow step, token from existing secret).
 5. **System Health additions** (Supabase usage check) and Health notices in the group with the existing incident keys.
 6. **Fraud rules v1** (alert only) – needs your list of rules to approve, see §6.
