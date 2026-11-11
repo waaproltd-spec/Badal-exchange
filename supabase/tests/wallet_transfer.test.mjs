@@ -282,3 +282,54 @@ test('money is conserved: five transfers at once from one wallet can not spend m
     else await db.query(`DELETE FROM public.app_settings WHERE key = 'withdrawal_verification'`);
   }
 });
+
+test('security: a transfer call does not tell whether a Wallet ID exists unless the PIN is right', () =>
+  inTx(async (t) => {
+    const a = await t.customer('Axmed Sender', 1000);
+    const b = await t.customer('Bilan Receiver', 0);
+    await t.call(a.id, `public.customer_set_wallet_pin('4827', $1)`, [PASSWORD]);
+    const go = (to, pin) => t.call(a.id, `public.customer_wallet_transfer($1, '1', $2, $3)`, [to, pin, key()]);
+    // a wrong PIN answers the same for an existing and for a missing Wallet ID
+    assert.deepEqual(await go(b.code, '1357'), { ok: false, code: 'WRONG_PIN', attemptsLeft: 4 });
+    assert.deepEqual(await go('BE000000', '1357'), { ok: false, code: 'WRONG_PIN', attemptsLeft: 3 });
+    // only with the right PIN is a missing Wallet ID reported
+    await expectError(t, a.id, `public.customer_wallet_transfer('BE000000', '1', '4827', $1)`, [key()], /lama helin/);
+  }));
+
+test('security: every further PIN lock doubles the wait; the right PIN resets it', () =>
+  inTx(async (t) => {
+    const a = await t.customer('Axmed Sender', 1000);
+    const b = await t.customer('Bilan Receiver', 0);
+    await t.call(a.id, `public.customer_set_wallet_pin('4827', $1)`, [PASSWORD]);
+    const lockFor = async () => {
+      let r;
+      for (let i = 0; i < 5; i++) r = await t.call(a.id, `public.customer_wallet_transfer($1, '1', '1357', $2)`, [b.code, key()]);
+      assert.equal(r.code, 'PIN_LOCKED');
+      return (new Date(r.lockedUntil).getTime() - Date.now()) / 60_000;
+    };
+    const first = await lockFor();
+    assert.ok(first > 14 && first < 16, `first lock ${first} min`);
+    await t.query(`UPDATE public.wallet_pins SET locked_until = now() - interval '1 second' WHERE customer_id = $1`, [a.id]);
+    const second = await lockFor();
+    assert.ok(second > 29 && second < 31, `second lock ${second} min`);
+    await t.query(`UPDATE public.wallet_pins SET locked_until = now() - interval '1 second' WHERE customer_id = $1`, [a.id]);
+    const third = await lockFor();
+    assert.ok(third > 59 && third < 61, `third lock ${third} min`);
+    // the right PIN after the wait: sent, and the doubling starts again
+    await t.query(`UPDATE public.wallet_pins SET locked_until = now() - interval '1 second' WHERE customer_id = $1`, [a.id]);
+    assert.equal((await t.call(a.id, `public.customer_wallet_transfer($1, '1', '4827', $2)`, [b.code, key()])).ok, true);
+    assert.equal(Number((await t.query(`SELECT lock_count FROM public.wallet_pins WHERE customer_id = $1`, [a.id])).rows[0].lock_count), 0);
+    const again = await lockFor();
+    assert.ok(again > 14 && again < 16, `after a success the first lock is short again: ${again} min`);
+  }));
+
+test('security: 40 Wallet ID lookups an hour at most (the minute limit alone allowed 14,000 a day)', () =>
+  inTx(async (t) => {
+    const a = await t.customer('Axmed Sender', 0);
+    // 40 lookups spread over the last hour (none in the last minute)
+    await t.query(`INSERT INTO public.wallet_transfer_events (customer_id, kind, at) SELECT $1, 'lookup', now() - interval '5 minutes' - (g || ' seconds')::interval FROM generate_series(1, 40) g`, [a.id]);
+    await expectError(t, a.id, `public.customer_transfer_lookup('BE000000')`, [], /Isku-day badan/);
+    // an hour later they no longer count
+    await t.query(`UPDATE public.wallet_transfer_events SET at = at - interval '2 hours' WHERE customer_id = $1`, [a.id]);
+    assert.deepEqual(await t.call(a.id, `public.customer_transfer_lookup('BE000000')`), { found: false });
+  }));
