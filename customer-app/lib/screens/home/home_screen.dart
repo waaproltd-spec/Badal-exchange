@@ -128,8 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
             color: AppColors.primary,
             onRefresh: _refresh,
             child: ListView(
-              // Room at the end so the Support button never hides the last order.
-              padding: const EdgeInsets.only(bottom: supportButtonClearance),
+              // The Support pill has its own band under the list, so nothing is ever covered.
+              padding: const EdgeInsets.only(bottom: 8),
               children: [
                 _WalletHeader(
                   topInset: topInset,
@@ -277,7 +277,7 @@ class _WalletHeader extends StatelessWidget {
                 onSendTap: onSend,
               ),
               const SizedBox(height: 10),
-              // Deposit (light purple, download) and Withdraw (orange / gold, upload): one row, the same size, only the word.
+              // Deposit (green, download) and Withdraw (red, upload): one row, the same size, white icon and word, a chevron.
               Row(
                 children: [
                   Expanded(
@@ -285,8 +285,8 @@ class _WalletHeader extends StatelessWidget {
                       key: const Key('home-deposit'),
                       label: AppStrings.deposit,
                       icon: Icons.file_download_rounded,
-                      gradient: const [Color(0xFFEBDDFF), Color(0xFFC9A8F5)],
-                      shadow: const Color(0xFF9B6DDB),
+                      gradient: const [Color(0xFF1FD36B), Color(0xFF0B8A3C)],
+                      shadow: const Color(0xFF0B8A3C),
                       onTap: onDeposit,
                     ),
                   ),
@@ -296,8 +296,8 @@ class _WalletHeader extends StatelessWidget {
                       key: const Key('home-withdraw'),
                       label: AppStrings.withdraw,
                       icon: Icons.file_upload_rounded,
-                      gradient: const [Color(0xFFFFC565), Color(0xFFF08A24)],
-                      shadow: const Color(0xFFE8892B),
+                      gradient: const [Color(0xFFFF4B5C), Color(0xFFC1121F)],
+                      shadow: const Color(0xFFC1121F),
                       onTap: onWithdraw,
                     ),
                   ),
@@ -327,11 +327,11 @@ class _ActionTile extends StatelessWidget {
   final Color shadow;
   final VoidCallback onTap;
 
-  static const double height = 48;
+  static const double height = 52;
 
   @override
   Widget build(BuildContext context) {
-    const ink = AppColors.purpleDark;
+    const ink = Colors.white;
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient),
@@ -359,7 +359,7 @@ class _ActionTile extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         label,
-                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 16, color: ink),
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 17, color: ink),
                       ),
                     ),
                   ),

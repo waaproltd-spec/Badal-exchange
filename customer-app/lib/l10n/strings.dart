@@ -523,7 +523,7 @@ class AppStrings {
   static String get couldNotLoadBonus => _t('Could not load the bonus', 'Gunnada lama soo rarin');
 
   // ---- TIPS
-  static String get tips => _t('TIPS', 'TIPS');
+  static String get tips => _t('TIPS', 'Talooyin');
   static String get tipsSubtitle => _t('Betting tips and odds codes', 'Talooyin iyo koodhadh ciyaareed');
   static String get tipsAll => _t('All', 'Dhammaan');
   static String get tipsFree => _t('Free', 'Bilaash');

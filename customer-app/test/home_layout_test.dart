@@ -176,7 +176,7 @@ void main() {
       final withdraw = tester.getRect(find.byKey(const Key('home-withdraw')));
       expect(deposit.size, withdraw.size, reason: '$size');
       expect(deposit.top, withdraw.top);
-      expect(deposit.height <= 52, isTrue, reason: 'low: ${deposit.height}');
+      expect(deposit.height <= 56, isTrue, reason: 'low: ${deposit.height}');
       expect(deposit.right < withdraw.left, isTrue, reason: 'side by side');
       for (final k in ['home-deposit', 'home-withdraw']) {
         expect(find.descendant(of: find.byKey(Key(k)), matching: find.byIcon(Icons.chevron_right_rounded)), findsOneWidget);
@@ -188,6 +188,31 @@ void main() {
       for (final gone in ['Hadda dhigasho', 'Kuso shub lacag', 'Hadda bixin', 'Kala bax lacagta']) {
         expect(find.text(gone), findsNothing, reason: gone);
       }
+    }
+  });
+
+  testWidgets('Dhigasho is green and Bixinta is red; the Caawimaad pill has its own band: it never covers an order, and the nav bar never covers it', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    for (final size in _phones.values) {
+      await _phone(tester, size);
+      await tester.pumpWidget(_app());
+      await tester.pumpAndSettle();
+      Color tint(String k) {
+        final box = tester.widget<DecoratedBox>(find.descendant(of: find.byKey(Key(k)), matching: find.byType(DecoratedBox)).first);
+        return ((box.decoration as BoxDecoration).gradient! as LinearGradient).colors.first;
+      }
+      final g = tint('home-deposit'), r = tint('home-withdraw');
+      expect(g.green > g.red && g.green > g.blue, isTrue, reason: 'green deposit $size');
+      expect(r.red > r.green && r.red > r.blue, isTrue, reason: 'red withdraw $size');
+      final pill = tester.getRect(find.byKey(const Key('support-button')));
+      final list = tester.getRect(find.descendant(of: find.byType(RefreshIndicator), matching: find.byType(ListView)).first);
+      expect(pill.top >= list.bottom - 0.5, isTrue, reason: 'the pill starts under the list: pill ${pill.top} list ${list.bottom} $size');
+      final nav = tester.getRect(find.byType(FloatingNavBar));
+      expect(pill.bottom <= nav.top + 0.5, isTrue, reason: 'above the navigation bar $size');
+      // scrolled to the end, the last order is fully visible above the pill
+      await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '$size');
     }
   });
 

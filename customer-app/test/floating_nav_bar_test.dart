@@ -54,7 +54,7 @@ void main() {
   testWidgets('the four tabs in Somali, each clickable', (tester) async {
     final taps = <int>[];
     await _pump(tester, onSelected: taps.add);
-    for (final l in ['Hoyga', 'Dalabaadka', 'TIPS', 'Xogtayda']) {
+    for (final l in ['Hoyga', 'Dalabaadka', 'Talooyin', 'Xogtayda']) {
       expect(find.text(l), findsOneWidget, reason: l);
     }
     for (var i = 0; i < 4; i++) {
@@ -124,8 +124,8 @@ void main() {
     testWidgets('$name: every label on one line, nothing overflows',
         (tester) async {
       await _pump(tester, width: width, scale: scale, selected: 1);
-      final one = tester.getSize(find.text('TIPS')).height;
-      for (final l in ['Hoyga', 'Dalabaadka', 'TIPS', 'Xogtayda']) {
+      final one = tester.getSize(find.text('Talooyin')).height;
+      for (final l in ['Hoyga', 'Dalabaadka', 'Talooyin', 'Xogtayda']) {
         expect(tester.getSize(find.text(l)).height, closeTo(one, 0.5),
             reason: '$l is on one line');
       }

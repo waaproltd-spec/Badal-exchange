@@ -25,7 +25,27 @@ void main() {
     await tester.pumpWidget(_strip([_ad('1', image: _png)]));
     await tester.pump();
     expect(find.byKey(const Key('home-ad-image-1')), findsOneWidget);
+    expect(find.text('Ad 1'), findsNothing, reason: 'nothing is drawn over a picture: it carries its own text; the title is its accessibility label');
+    expect(tester.widget<Image>(find.byKey(const Key('home-ad-image-1'))).fit, BoxFit.contain, reason: 'never cropped');
+  });
+
+  testWidgets('several ads slide by themselves and show dots; one ad shows none', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: HomeAdsStrip(ads: [_ad('1'), _ad('2'), _ad('3')], slideEvery: const Duration(seconds: 1)))));
+    await tester.pump();
+    expect(find.byKey(const Key('home-ad-dots')), findsOneWidget);
     expect(find.text('Ad 1'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.text('Ad 2'), findsOneWidget, reason: 'the next ad came by itself');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.text('Ad 3'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.text('Ad 1'), findsOneWidget, reason: 'and round again');
+    await tester.pumpWidget(_strip([_ad('1')]));
+    await tester.pump();
+    expect(find.byKey(const Key('home-ad-dots')), findsNothing);
   });
 
   testWidgets('an ad without a picture still shows its text (the image is optional)', (tester) async {
