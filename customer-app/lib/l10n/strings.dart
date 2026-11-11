@@ -195,6 +195,15 @@ class AppStrings {
   static String get ownWalletId => _t('That is your own Wallet ID', 'Kani waa Wallet ID-gaaga');
   static String get transferFree => _t('100% free · fee \$0.00', 'Bilaash 100% · khidmad \$0.00');
   static String get sendButton => _t('Send', 'Dir');
+  static String get sendMoneyAction => _t('Send Money', 'Dir Lacag');
+  /// Somali first with the English in brackets (the look of the Send Money screen); English alone in English.
+  static String bi(String so, String en) => AppLanguage.isSomali ? '$so ($en)' : en;
+  static String get sendMoneyTitle => _t('Send Money', 'Dir Lacag');
+  static String get sendMoneySub => _t('Send to another BADAL wallet', 'Send Money');
+  static String get balanceBi => bi('Haraagaaga', 'Balance');
+  static String get walletIdBi => bi('Aqoonsiga Boorsada qofka', 'Wallet ID');
+  static String get transfersBi => _t('Transfer History', 'Dirisyada (Taariikhda Dirista)');
+  static String get verifiedRecipient => _t('Verified recipient', 'Qofka waa la xaqiijiyay');
   static String get confirmTransfer => _t('Confirm transfer', 'Xaqiiji dirista');
   static String get confirmAndSend => _t('Confirm & Send', 'Xaqiiji oo Dir');
   static String get enterWalletPin => _t('Enter your 4-digit Wallet PIN', 'Geli Wallet PIN-kaaga (4 lambar)');

@@ -13,12 +13,16 @@ class PrimaryButton extends StatelessWidget {
     this.loading = false,
     this.trailingIcon,
     this.gradient,
+    this.leadingIcon,
   });
 
   /// Optional purple gradient fill instead of the solid color.
   final Gradient? gradient;
 
   final String label;
+
+  /// Optional icon before the label (e.g. a paper plane).
+  final IconData? leadingIcon;
 
   /// Optional icon after the label (e.g. an arrow).
   final IconData? trailingIcon;
@@ -64,14 +68,14 @@ class PrimaryButton extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : trailingIcon == null
+              : (trailingIcon == null && leadingIcon == null)
                   ? Text(label, style: AppTextStyles.button)
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (leadingIcon != null) ...[Icon(leadingIcon, size: 24), const SizedBox(width: 12)],
                         Flexible(child: Text(label, style: AppTextStyles.button, overflow: TextOverflow.ellipsis)),
-                        const SizedBox(width: 10),
-                        Icon(trailingIcon, size: 22),
+                        if (trailingIcon != null) ...[const SizedBox(width: 10), Icon(trailingIcon, size: 22)],
                       ],
                     ),
         ),

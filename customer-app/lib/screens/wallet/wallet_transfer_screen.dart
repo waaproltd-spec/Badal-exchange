@@ -161,7 +161,7 @@ class _WalletTransferScreenState extends State<WalletTransferScreen> {
       _key = const Uuid().v4();
     });
     context.read<WalletProvider?>()?.load(silent: true); // the balance, at once
-    messenger.showSnackBar(SnackBar(content: Text(AppStrings.transferSent)));
+    messenger.showSnackBar(SnackBar(content: Text(AppStrings.transferSent), behavior: SnackBarBehavior.floating, margin: const EdgeInsets.fromLTRB(20, 0, 20, 96)));
     _loadHistory();
   }
 
@@ -170,110 +170,304 @@ class _WalletTransferScreenState extends State<WalletTransferScreen> {
     final wallet = context.watch<WalletProvider>().wallet;
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(title: Text(AppStrings.sendMoney, style: AppTextStyles.appBarTitle)),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(gradient: AppColors.cardGradient, borderRadius: BorderRadius.circular(20)),
-            child: Row(children: [
-              Icon(Icons.account_balance_wallet_rounded, color: Colors.white.withOpacity(0.85)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(AppStrings.availableBalance, style: AppTextStyles.muted.copyWith(color: Colors.white.withOpacity(0.85))),
-              ),
-              Text(Formatters.money(wallet?.availableBalance ?? '0.00'),
-                  key: const Key('transfer-balance'),
-                  style: AppTextStyles.fieldValue.copyWith(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-            ]),
-          ),
-          const SizedBox(height: 18),
-          Text(AppStrings.recipientWalletId, style: AppTextStyles.muted),
-          const SizedBox(height: 6),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(
-              child: TextField(
-                key: const Key('transfer-wallet-id'),
-                controller: _walletController,
-                textCapitalization: TextCapitalization.characters,
-                autocorrect: false,
-                maxLength: 8,
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]'))],
-                decoration: InputDecoration(hintText: 'BE592850', counterText: '', errorText: _recipientError),
-                onSubmitted: (_) => _verify(),
-              ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              height: 52,
-              child: FilledButton(
-                key: const Key('transfer-verify'),
-                onPressed: _walletIdValid && !_verifying ? _verify : null,
-                child: _verifying
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(AppStrings.verifyRecipient),
-              ),
-            ),
-          ]),
-          if (_recipient != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              key: const Key('transfer-recipient'),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.success.withOpacity(0.5)),
-              ),
-              child: Row(children: [
-                const Icon(Icons.verified_rounded, color: AppColors.success),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(_recipient!.name ?? '', key: const Key('transfer-recipient-name'), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-                    Text(_recipient!.walletId ?? '', style: AppTextStyles.muted),
+      body: SafeArea(
+        child: Column(children: [
+          const _Header(),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              children: [
+                _BalanceCard(amount: Formatters.money(wallet?.availableBalance ?? '0.00')),
+                const SizedBox(height: 22),
+                _SectionTitle(icon: Icons.groups_rounded, text: AppStrings.bi(AppStrings.recipientWalletId, 'Wallet ID')),
+                const SizedBox(height: 10),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                    child: TextField(
+                      key: const Key('transfer-wallet-id'),
+                      controller: _walletController,
+                      textCapitalization: TextCapitalization.characters,
+                      autocorrect: false,
+                      maxLength: 8,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Colors.white),
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]'))],
+                      decoration: InputDecoration(
+                        hintText: 'BE592850',
+                        counterText: '',
+                        errorText: _recipientError,
+                        prefixIcon: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFB57BFF)),
+                        suffixIcon: _walletController.text.isEmpty
+                            ? null
+                            : IconButton(
+                                key: const Key('transfer-clear'),
+                                icon: const Icon(Icons.cancel_rounded, color: Colors.white54),
+                                onPressed: () => _walletController.clear(),
+                              ),
+                        filled: true,
+                        fillColor: const Color(0xFF2A0F3F),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF9B3DFF), width: 1.6)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFFC77DFF), width: 2.2)),
+                        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: AppColors.error, width: 1.6)),
+                        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: AppColors.error, width: 2)),
+                      ),
+                      onSubmitted: (_) => _verify(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    height: 62,
+                    child: FilledButton.icon(
+                      key: const Key('transfer-verify'),
+                      onPressed: _walletIdValid && !_verifying ? _verify : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF8E24D8),
+                        disabledBackgroundColor: const Color(0xFF8E24D8).withOpacity(0.35),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                      ),
+                      icon: _verifying
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.search_rounded),
+                      label: Text(AppStrings.verifyRecipient, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ]),
+                if (_recipient != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    key: const Key('transfer-recipient'),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.success.withOpacity(0.55)),
+                    ),
+                    child: Row(children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppColors.success.withOpacity(0.2),
+                        child: Text(_initial(_recipient!.name), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            const Icon(Icons.verified_rounded, color: AppColors.success, size: 16),
+                            const SizedBox(width: 4),
+                            Flexible(child: Text(AppStrings.verifiedRecipient, style: AppTextStyles.muted.copyWith(color: AppColors.success, fontSize: 12))),
+                          ]),
+                          const SizedBox(height: 2),
+                          Text(_recipient!.name ?? '', key: const Key('transfer-recipient-name'), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 17)),
+                          Text(_recipient!.walletId ?? '', style: AppTextStyles.muted),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    key: const Key('transfer-amount'),
+                    controller: _amountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d{0,7}(\.\d{0,2})?'))],
+                    decoration: InputDecoration(
+                      labelText: AppStrings.amount,
+                      prefixText: '\$ ',
+                      filled: true,
+                      fillColor: const Color(0xFF2A0F3F),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF9B3DFF), width: 1.6)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFFC77DFF), width: 2.2)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(AppStrings.transferFree, key: const Key('transfer-free'), style: AppTextStyles.muted)),
                   ]),
-                ),
-              ]),
+                  if (_amountValid && !_amountWithinBalance)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(AppStrings.notEnoughBalance, key: const Key('transfer-too-much'), style: const TextStyle(color: AppColors.error)),
+                    ),
+                ],
+                if (_done != null) ...[
+                  const SizedBox(height: 16),
+                  _DonePanel(transfer: _done!),
+                ],
+                const SizedBox(height: 22),
+                Divider(color: Colors.white.withOpacity(0.12), height: 1),
+                const SizedBox(height: 18),
+                _SectionTitle(icon: Icons.history_rounded, text: AppStrings.transfersBi),
+                const SizedBox(height: 12),
+                if (_history.isEmpty)
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(AppStrings.noTransfers, key: const Key('transfer-none'), style: AppTextStyles.muted))
+                else
+                  for (final t in _history) _TransferTile(key: Key('transfer-${t.id}'), transfer: t),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              key: const Key('transfer-amount'),
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d{0,7}(\.\d{0,2})?'))],
-              decoration: InputDecoration(labelText: AppStrings.amount, prefixText: '\$ '),
+          ),
+          // The big button stays at the bottom: grey until the recipient is verified and the amount is valid.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 14),
+            child: PrimaryButton(
+              key: const Key('transfer-send'),
+              label: AppStrings.sendMoneyAction,
+              leadingIcon: Icons.send_rounded,
+              trailingIcon: Icons.chevron_right_rounded,
+              gradient: const LinearGradient(colors: [Color(0xFF7B2CBF), Color(0xFFB04DFF)]),
+              onPressed: _recipient != null && _canSend ? _send : null,
             ),
-            const SizedBox(height: 6),
-            Row(children: [
-              const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
-              const SizedBox(width: 6),
-              Expanded(child: Text(AppStrings.transferFree, key: const Key('transfer-free'), style: AppTextStyles.muted)),
-            ]),
-            if (_amountValid && !_amountWithinBalance)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(AppStrings.notEnoughBalance, key: const Key('transfer-too-much'), style: const TextStyle(color: AppColors.error)),
-              ),
-            const SizedBox(height: 16),
-            PrimaryButton(key: const Key('transfer-send'), label: AppStrings.sendButton, onPressed: _canSend ? _send : null),
-          ],
-          if (_done != null) ...[
-            const SizedBox(height: 16),
-            _DonePanel(transfer: _done!),
-          ],
-          const SizedBox(height: 26),
-          Text(AppStrings.recentTransfers, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          if (_history.isEmpty)
-            Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(AppStrings.noTransfers, key: const Key('transfer-none'), style: AppTextStyles.muted))
-          else
-            for (final t in _history) _TransferTile(key: Key('transfer-${t.id}'), transfer: t),
-        ],
+          ),
+        ]),
       ),
     );
   }
+
+  static String _initial(String? name) {
+    final n = (name ?? '').trim();
+    return n.isEmpty ? '?' : n.substring(0, 1).toUpperCase();
+  }
+}
+
+/// Back arrow, "Dir Lacag" with "Send Money" under it, and a paper plane on a dashed path.
+class _Header extends StatelessWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 20, 4),
+        child: Row(children: [
+          IconButton(icon: const Icon(Icons.arrow_back_rounded, size: 30), color: Colors.white, onPressed: () => Navigator.of(context).maybePop()),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(AppStrings.sendMoneyTitle, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
+              if (AppLanguage.isSomali) Text(AppStrings.sendMoneySub, style: AppTextStyles.muted.copyWith(fontSize: 17)),
+            ]),
+          ),
+          SizedBox(
+            width: 120,
+            height: 64,
+            child: CustomPaint(painter: _PlanePainter()),
+          ),
+        ]),
+      );
+}
+
+class _PlanePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dash = Paint()
+      ..color = const Color(0xFFB57BFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    final path = Path()
+      ..moveTo(0, size.height * 0.75)
+      ..cubicTo(size.width * 0.15, size.height * 0.15, size.width * 0.3, size.height * 0.95, size.width * 0.55, size.height * 0.5);
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        canvas.drawPath(m.extractPath(d, d + 4), dash);
+        d += 9;
+      }
+    }
+    final plane = Path()
+      ..moveTo(size.width, size.height * 0.05)
+      ..lineTo(size.width * 0.5, size.height * 0.42)
+      ..lineTo(size.width * 0.66, size.height * 0.55)
+      ..lineTo(size.width * 0.72, size.height * 0.86)
+      ..lineTo(size.width * 0.8, size.height * 0.6)
+      ..close();
+    canvas.drawPath(plane, Paint()..shader = const LinearGradient(colors: [Color(0xFFD9A8FF), Color(0xFF8E24D8)]).createShader(Offset.zero & size));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// The balance: a large number on a purple gradient with a soft wave.
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.amount});
+  final String amount;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF5B1E8F), Color(0xFF8A2DD0)]),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: const Color(0xFFB57BFF), width: 1.4),
+          boxShadow: [BoxShadow(color: const Color(0xFF8E24D8).withOpacity(0.35), blurRadius: 22, offset: const Offset(0, 10))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: CustomPaint(
+            painter: _WavePainter(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              child: Row(children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(16)),
+                  child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 30),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(AppStrings.bi(AppLanguage.isSomali ? 'Haraagaaga' : 'Balance', 'Balance').replaceFirst(' (', '\n('),
+                      style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700, height: 1.2)),
+                ),
+                Container(width: 1, height: 44, color: Colors.white.withOpacity(0.3)),
+                const SizedBox(width: 14),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(amount,
+                        key: const Key('transfer-balance'),
+                        style: const TextStyle(color: Color(0xFFFFC83D), fontSize: 40, fontWeight: FontWeight.w900)),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      );
+}
+
+class _WavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Path()
+      ..moveTo(0, size.height * 0.85)
+      ..cubicTo(size.width * 0.25, size.height * 0.55, size.width * 0.5, size.height * 1.05, size.width, size.height * 0.7)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(p, Paint()..color = Colors.white.withOpacity(0.07));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: const Color(0xFF8E24D8).withOpacity(0.35), borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: Colors.white, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800))),
+      ]);
 }
 
 class _DonePanel extends StatelessWidget {
@@ -284,7 +478,7 @@ class _DonePanel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         key: const Key('transfer-done'),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: AppColors.success.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(color: AppColors.success.withOpacity(0.12), borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.success.withOpacity(0.5))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             const Icon(Icons.check_circle_rounded, color: AppColors.success),
@@ -299,31 +493,51 @@ class _DonePanel extends StatelessWidget {
       );
 }
 
+/// One transfer: the direction, the other person's name, their Wallet ID and the transfer ID, the date and the amount (red out, green in).
 class _TransferTile extends StatelessWidget {
   const _TransferTile({super.key, required this.transfer});
   final WalletTransfer transfer;
+
+  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   @override
   Widget build(BuildContext context) {
     final sent = transfer.sent;
     final d = transfer.createdAt;
     String two(int v) => v.toString().padLeft(2, '0');
+    final color = sent ? const Color(0xFFFF4D5E) : AppColors.success;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(14)),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF241035),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
       child: Row(children: [
-        Icon(sent ? Icons.north_east_rounded : Icons.south_west_rounded, color: sent ? AppColors.error : AppColors.success),
-        const SizedBox(width: 10),
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(color: color.withOpacity(0.22), borderRadius: BorderRadius.circular(16)),
+          child: Icon(sent ? Icons.north_east_rounded : Icons.south_west_rounded, color: sent ? const Color(0xFFFF6B78) : color, size: 28),
+        ),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(sent ? AppStrings.sentTo(transfer.counterpartName) : AppStrings.receivedFrom(transfer.counterpartName),
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
-            Text('${transfer.counterpartWalletId} · ${transfer.reference} · ${two(d.day)}/${two(d.month)} ${two(d.hour)}:${two(d.minute)}', style: AppTextStyles.muted.copyWith(fontSize: 12)),
+                style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('${transfer.counterpartWalletId} • ${transfer.reference}', style: AppTextStyles.muted.copyWith(fontSize: 14)),
+            Text('${d.day} ${_months[d.month - 1]} ${d.year} • ${two(d.hour)}:${two(d.minute)}', style: AppTextStyles.muted.copyWith(fontSize: 14)),
           ]),
         ),
-        Text('${sent ? '-' : '+'}${Formatters.money(transfer.amount)}',
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, color: sent ? AppColors.error : AppColors.success)),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(color: sent ? const Color(0xFFD32F4A) : AppColors.success.withOpacity(0.85), borderRadius: BorderRadius.circular(20)),
+          child: Text('${sent ? '-' : '+'}${Formatters.money(transfer.amount)}',
+              style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
+        ),
       ]),
     );
   }

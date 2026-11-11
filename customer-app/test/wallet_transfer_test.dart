@@ -155,7 +155,7 @@ void main() {
     expect(find.text(AppStrings.ownWalletId), findsOneWidget);
     await _verify(tester, 'BE999999');
     expect(find.text('Isku-day badan'), findsOneWidget);
-    expect(find.byKey(const Key('transfer-send')), findsNothing);
+    expect(tester.widget<PrimaryButton>(find.byKey(const Key('transfer-send'))).onPressed, isNull, reason: 'the big button stays grey until a recipient is verified');
     // editing the ID forgets a verified name
     await _verify(tester, 'BE111111');
     expect(find.byKey(const Key('transfer-recipient')), findsOneWidget);
@@ -234,6 +234,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.sends, hasLength(3));
     expect(api.sends[2]['key'], isNot(api.sends[0]['key']));
+  });
+
+  testWidgets('the redesigned screen fits 320 / 360 / 411 px phones in Somali and English with history, a verified name and a large balance', (tester) async {
+    for (final size in const [Size(320, 568), Size(360, 640), Size(411, 891)]) {
+      for (final lang in [AppLanguage.somali, AppLanguage.english]) {
+        AppLanguage.current.value = lang;
+        final api = _FakeApi()
+          ..balance = '12345.67'
+          ..history.addAll([
+            for (var i = 0; i < 3; i++)
+              WalletTransfer(
+                  id: 'h$i', reference: 'TRF9E2AE04$i', direction: i == 1 ? 'received' : 'sent', amount: '0.50', fee: '0.00',
+                  counterpartName: 'Yaasiin maxamed adan ibraahim', counterpartWalletId: 'BE77371$i', balanceAfter: '1.00', createdAt: DateTime(2026, 11, 11, 15, 18)),
+          ]);
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(const SizedBox()); // a fresh tree: the scroll position of the last size is forgotten
+        await tester.pumpWidget(_app(api));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'first paint $size $lang');
+        if (size.height < 600) { // a 568-px phone: the screen scrolls (checked: nothing overflows while scrolling to the bottom)
+          await tester.drag(find.byType(ListView), const Offset(0, -600));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: 'scrolled $size $lang');
+          continue;
+        }
+        expect(find.byKey(const Key('transfer-balance')), findsOneWidget);
+        expect(find.byKey(const Key('transfer-wallet-id')), findsOneWidget, reason: 'field $size $lang');
+        await _verify(tester, 'BE592850');
+        await tester.scrollUntilVisible(find.byKey(const Key('transfer-amount')), 100, scrollable: find.byType(Scrollable).first);
+        await tester.enterText(find.byKey(const Key('transfer-amount')), '5');
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: '$size $lang');
+        expect(find.byKey(const Key('transfer-send')), findsOneWidget); // pinned at the bottom
+      }
+    }
+    AppLanguage.current.value = AppLanguage.somali;
   });
 
   testWidgets('first time: the Wallet PIN is created (4 digits twice, with the password) before the first transfer', (tester) async {
