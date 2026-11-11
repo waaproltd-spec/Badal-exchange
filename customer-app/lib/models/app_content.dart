@@ -74,7 +74,11 @@ class AppNotification {
   bool get isMoney => kind != 'broadcast';
 
   /// The reference the customer copies: the provider's own when it has one, else the order / transfer reference.
-  String? get copyRef => (transactionRef ?? '').trim().isNotEmpty ? transactionRef!.trim() : reference;
+  /// Sahal's own payout reference ("Sahal 7559059001") is not shown to the customer: the order code is shown instead.
+  String? get copyRef {
+    final t = (transactionRef ?? '').trim();
+    return t.isNotEmpty && !RegExp(r'^sahal', caseSensitive: false).hasMatch(t) ? t : reference;
+  }
 
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
         id: json['id'] as String,

@@ -332,7 +332,9 @@ class _OrderTile extends StatelessWidget {
     final isDeposit = order.isDeposit;
     final methodLabel = order.methodLabel;
     final typeLabel = isDeposit ? AppStrings.deposit : AppStrings.withdraw;
-    final ref = (order.transactionRef ?? '').trim();
+    // Sahal's own payout reference ("Sahal 7559059001") is not shown to the customer.
+    final rawRef = (order.transactionRef ?? '').trim();
+    final ref = RegExp(r'^sahal', caseSensitive: false).hasMatch(rawRef) ? '' : rawRef;
 
     return InkWell(
       borderRadius: BorderRadius.circular(22),

@@ -65,6 +65,16 @@ void main() {
     expect(colorOf('+\$25.00').green > colorOf('+\$25.00').red, isTrue, reason: 'a deposit is green');
   });
 
+  testWidgets('Sahal\'s own reference is not shown: the order code is', (tester) async {
+    tester.view.physicalSize = const Size(400, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app(_Api([_n(1, 'withdraw', extra: {..._withdraw, 'transactionRef': 'Sahal 7559059001'})])));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sahal'), findsNothing);
+    expect(find.text('EXJTFGGR'), findsOneWidget);
+  });
+
   testWidgets('failed is red and pending is orange; a broadcast keeps its title and text', (tester) async {
     tester.view.physicalSize = const Size(400, 1600);
     tester.view.devicePixelRatio = 1;
