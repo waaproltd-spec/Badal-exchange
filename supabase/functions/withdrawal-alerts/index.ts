@@ -267,6 +267,17 @@ async function run() {
       }
       continue;
     }
+    // /movehere said in a group by the person whose private chat receives the alerts: the alerts and the report move to the group.
+    if (/^\/movehere(?:@\w+)?$/.test(text)) {
+      if (msg.chat.type !== 'group' && msg.chat.type !== 'supergroup') continue;
+      const moved = msg.from?.id != null && (await rpc('withdrawal_alerts_move', {
+        p_from: msg.from.id, p_chat_id: msg.chat.id, p_chat_name: msg.chat.title || String(msg.chat.id) }));
+      if (moved) {
+        await tg('sendMessage', { chat_id: msg.chat.id,
+          text: '✅ Digniinaha lacag-bixinta, dhigashooyinka, khaladaadka iyo warbixinta maalinlaha ah (subaxdii 08:00) hadda halkan ayay ka imaanayaan. Qor /report si aad u aragto maanta ilaa hadda.' });
+      }
+      continue;
+    }
     if (!/^\/start\b/.test(text)) continue;
     const name = [msg.chat.title, msg.chat.username && `@${msg.chat.username}`, msg.chat.first_name].filter(Boolean).join(' ');
     const ok = await rpc('withdrawal_alerts_link', { p_chat_id: msg.chat.id, p_chat_name: name || String(msg.chat.id) });

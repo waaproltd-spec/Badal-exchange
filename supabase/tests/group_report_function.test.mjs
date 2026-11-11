@@ -165,3 +165,21 @@ test('/report answers in the linked chat (today so far, or a saved day) and not 
   assert.ok(mine.some((c) => /ilaa hadda/.test(c.body.text)), 'today is marked as not finished');
   assert.equal(sent().filter((c) => c.body.chat_id === CHAT + 1).length, 0);
 });
+
+test('/movehere in a group by the owner of the linked private chat moves the alerts there; a stranger gets no answer', async () => {
+  const OWNER = CHAT;            // the linked chat is the owner's private chat: its id is the owner's id
+  const GROUP = -(1_000_000_000_000 + (CHAT % 1_000_000));
+  await db.query(`UPDATE public.withdrawal_alert_chat SET chat_id = $1, linked_at = now()`, [OWNER]);
+  tg.calls.length = 0;
+  tg.updates.push(
+    { update_id: updateId++, message: { message_id: 1, text: '/movehere@SomeBot', from: { id: OWNER + 99 }, chat: { id: GROUP, type: 'supergroup', title: 'TEAM BADAL' } } },
+    { update_id: updateId++, message: { message_id: 2, text: '/movehere', from: { id: OWNER }, chat: { id: OWNER, type: 'private' } } });
+  assert.equal((await run()).status, 200);
+  assert.equal((await db.query(`SELECT chat_id FROM public.withdrawal_alert_chat`)).rows[0].chat_id, String(OWNER), 'a stranger in the group, and the owner in a private chat, move nothing');
+  assert.equal(sent().filter((c) => c.body.chat_id === GROUP).length, 0);
+  tg.updates.push({ update_id: updateId++, message: { message_id: 3, text: '/movehere@SomeBot', from: { id: OWNER }, chat: { id: GROUP, type: 'supergroup', title: 'TEAM BADAL' } } });
+  assert.equal((await run()).status, 200);
+  assert.equal((await db.query(`SELECT chat_id, chat_name FROM public.withdrawal_alert_chat`)).rows[0].chat_id, String(GROUP));
+  assert.equal(sent().filter((c) => c.body.chat_id === GROUP && /hadda halkan ayay ka imaanayaan/.test(c.body.text)).length, 1);
+  await db.query(`UPDATE public.withdrawal_alert_chat SET chat_id = $1, linked_at = now() - interval '2 days'`, [CHAT]);
+});

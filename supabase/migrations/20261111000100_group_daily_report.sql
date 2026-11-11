@@ -251,10 +251,26 @@ BEGIN
   RETURN jsonb_build_object('day', v_day, 'data', private.report_build(v_day), 'saved', false);
 END $$;
 
+-- Worker: /movehere said in a GROUP by the person whose private chat receives the alerts moves the alerts (and the
+-- report) to that group. Only that person (a private chat's id is the person's own id) and only to a group.
+CREATE OR REPLACE FUNCTION public.withdrawal_alerts_move(p_from bigint, p_chat_id bigint, p_chat_name text)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  PERFORM private.require_service();
+  UPDATE public.withdrawal_alert_chat SET chat_id = p_chat_id, chat_name = left(p_chat_name, 100), linked_at = now()
+   WHERE id AND chat_id = p_from AND p_from > 0 AND p_chat_id < 0;
+  IF FOUND THEN
+    PERFORM private.audit(NULL, NULL, 'withdrawal_alerts.move', 'withdrawal_alert_chat', p_chat_id::text, NULL,
+      jsonb_build_object('chatName', left(p_chat_name, 100)));
+    RETURN true;
+  END IF;
+  RETURN false;
+END $$;
+
 REVOKE ALL ON FUNCTION public.group_report_todo(), public.daily_report_sent(date, int, boolean, text),
-  public.group_notified_mark(text, text[]), public.daily_report_get(date) FROM PUBLIC, anon, authenticated;
+  public.group_notified_mark(text, text[]), public.daily_report_get(date), public.withdrawal_alerts_move(bigint, bigint, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.group_report_todo(), public.daily_report_sent(date, int, boolean, text),
-  public.group_notified_mark(text, text[]), public.daily_report_get(date) TO service_role;
+  public.group_notified_mark(text, text[]), public.daily_report_get(date), public.withdrawal_alerts_move(bigint, bigint, text) TO service_role;
 
 -- 5. The old 21:00 withdrawals-only summary is replaced by the daily report (the function is the previous one without that part).
 CREATE OR REPLACE FUNCTION public.withdrawal_alerts_todo()

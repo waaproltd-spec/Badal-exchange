@@ -241,3 +241,18 @@ test('a saved report is readable by day (for /report), today so far is live, a f
     assert.equal(saved.saved, true);
     assert.equal(await t.call(`public.daily_report_get((now() AT TIME ZONE 'Africa/Mogadishu')::date + 2)`), null);
   }));
+
+test('/movehere: the person whose private chat gets the alerts can move them to a group; nobody else, and never to a private chat', () =>
+  inTx(async (t) => {
+    await t.query(`UPDATE public.withdrawal_alert_chat SET chat_id = 123456789, linked_at = now() - interval '3 days'`);
+    assert.equal(await t.call(`public.withdrawal_alerts_move(555, -1009999, 'Team')`), false);            // a stranger
+    assert.equal(await t.call(`public.withdrawal_alerts_move(123456789, 777, 'Private')`), false);        // not to a private chat
+    assert.equal((await t.query(`SELECT chat_id FROM public.withdrawal_alert_chat`)).rows[0].chat_id, '123456789');
+    assert.equal(await t.call(`public.withdrawal_alerts_move(123456789, -1009999, 'Team Badal')`), true);
+    const row = (await t.query(`SELECT chat_id, chat_name, linked_at FROM public.withdrawal_alert_chat`)).rows[0];
+    assert.equal(row.chat_id, '-1009999');
+    assert.equal(row.chat_name, 'Team Badal');
+    assert.ok(Date.now() - new Date(row.linked_at).getTime() < 60_000, 'the old history is not announced again');
+    assert.equal(await t.call(`public.withdrawal_alerts_move(123456789, -1008888, 'Other')`), false);    // the old owner chat no longer matches
+    assert.equal((await t.query(`SELECT count(*)::int AS n FROM public.audit_logs WHERE action = 'withdrawal_alerts.move' AND created_at > now() - interval '1 minute'`)).rows[0].n, 1);
+  }));
