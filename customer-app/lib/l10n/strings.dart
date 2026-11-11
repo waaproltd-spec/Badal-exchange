@@ -144,6 +144,7 @@ class AppStrings {
   static String get accountCreated =>
       _t('Account created. Welcome to Badal Exchange!', 'Akoonka waa la sameeyay. Ku soo dhawoow Badal Exchange!');
   static String get or => _t('OR', 'AMA');
+  static String get welcomeHeader => _t('Welcome', 'Ku soo dhawoow');
   static String get welcomeBack => _t('Welcome back', 'Ku soo dhawoow mar kale');
   static String get loginSubtitle => _t('Log in to your Badal Exchange wallet', 'Gal boorsadaada Badal Exchange');
   static String get enterPassword => _t('Enter your password', 'Geli erayga sirta');

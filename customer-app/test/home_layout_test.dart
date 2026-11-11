@@ -2,6 +2,7 @@ import 'package:badal_exchange_customer/api/api_client.dart';
 import 'package:badal_exchange_customer/api/customer_api.dart';
 import 'package:badal_exchange_customer/l10n/strings.dart';
 import 'package:badal_exchange_customer/models/app_content.dart';
+import 'package:badal_exchange_customer/models/auth_user.dart';
 import 'package:badal_exchange_customer/models/order.dart';
 import 'package:badal_exchange_customer/models/tip.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
@@ -214,6 +215,41 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: '$size');
     }
+  });
+
+  testWidgets('the header: small company name, "Ku soo dhawoow, <the account\'s name>" in yellow under it, no overlap with the balance card, on every phone size', (tester) async {
+    for (final lang in [AppLanguage.somali, AppLanguage.english]) {
+      AppLanguage.current.value = lang;
+      for (final name in ['Yaasiin Maxamed', 'Abdirahman Mohamed Abdullahi Ahmed Warsame Hussein']) {
+        for (final size in _phones.values) {
+          await _phone(tester, size);
+          await tester.pumpWidget(const SizedBox()); // a fresh tree for each account
+          await tester.pumpWidget(MultiProvider(
+            providers: [
+              Provider<CustomerApi>.value(value: _FakeApi()),
+              ChangeNotifierProvider(create: (_) => AuthProvider(apiClient: ApiClient(), customerApi: _FakeApi())..debugSignIn(AuthUser(phone: '252615000111', name: name))),
+              ChangeNotifierProvider(create: (_) => WalletProvider(customerApi: _FakeApi())),
+              ChangeNotifierProvider(create: (_) => OrdersProvider(customerApi: _FakeApi())),
+            ],
+            child: MaterialApp(theme: AppTheme.current, home: const RootShell()),
+          ));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: '$size $lang $name');
+          final company = tester.widget<Text>(find.byKey(const Key('home-company-name')));
+          expect(company.style!.fontSize! <= 16, isTrue, reason: 'small');
+          final welcome = tester.widget<Text>(find.byKey(const Key('home-welcome')));
+          final spans = (welcome.textSpan! as TextSpan).children!.cast<TextSpan>();
+          expect(spans.first.text, startsWith(lang == AppLanguage.somali ? 'Ku soo dhawoow' : 'Welcome'));
+          expect(spans.last.text, name, reason: 'the name of the signed-in account, not a fixed one');
+          expect(spans.last.style!.color, const Color(0xFFFFC83D), reason: 'yellow');
+          final bell = tester.getRect(find.byTooltip(AppStrings.notifications));
+          final title = tester.getRect(find.byKey(const Key('home-welcome')));
+          expect(title.right <= bell.left, isTrue, reason: 'no overlap with the bell $size');
+          expect(title.bottom < tester.getRect(find.byType(WalletCard)).top, isTrue, reason: 'above the balance card $size');
+        }
+      }
+    }
+    AppLanguage.current.value = AppLanguage.somali;
   });
 
   testWidgets('the eye hides and shows the wallet balance and the bonus balance together, and is remembered while the app is open', (tester) async {

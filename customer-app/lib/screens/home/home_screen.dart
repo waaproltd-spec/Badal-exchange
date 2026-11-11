@@ -253,9 +253,8 @@ class _WalletHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Expanded(
-                    child: Align(alignment: Alignment.centerLeft, child: BaariLogo(markSize: 38, onDark: true)),
-                  ),
+                  // Logo on the left; the company name (small) with the customer's own name under it, in yellow.
+                  Expanded(child: _HeaderTitle(name: context.watch<AuthProvider?>()?.user?.name)),
                   const SizedBox(width: 8),
                   IconButton(
                     tooltip: AppStrings.notifications,
@@ -307,6 +306,53 @@ class _WalletHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Logo, "BADAL EXCHANGE" in a small clean type and "Ku soo dhawoow, <name>" under it (the name in yellow, as the account holds it).
+class _HeaderTitle extends StatelessWidget {
+  const _HeaderTitle({required this.name});
+
+  final String? name;
+
+  @override
+  Widget build(BuildContext context) {
+    final who = (name ?? '').trim();
+    return Row(
+      children: [
+        const BaariLogoMark(size: 40, onDark: true),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'BADAL EXCHANGE',
+                key: const Key('home-company-name'),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.6, height: 1.1),
+              ),
+              const SizedBox(height: 3),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: who.isEmpty ? AppStrings.welcomeHeader : '${AppStrings.welcomeHeader}, '),
+                    if (who.isNotEmpty) TextSpan(text: who, style: const TextStyle(color: Color(0xFFFFC83D), fontWeight: FontWeight.w800)),
+                  ],
+                ),
+                key: const Key('home-welcome'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.9), fontSize: 13.5, height: 1.1),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
