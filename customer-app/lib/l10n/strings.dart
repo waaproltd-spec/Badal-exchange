@@ -187,6 +187,39 @@ class AppStrings {
   // Home
   static String get home => _t('Home', 'Hoyga');
   static String get availableBalance => _t('Available Balance', 'Haraaga la isticmaali karo');
+  // --- Wallet to wallet transfer (Wallet -> Send Money) ---
+  static String get sendMoney => _t('Send Money', 'Send Money');
+  static String get recipientWalletId => _t('Recipient Wallet ID', 'Aqoonsiga Boorsada qofka');
+  static String get verifyRecipient => _t('Verify', 'Hubi');
+  static String get recipientNotFound => _t('Wallet ID not found', 'Wallet ID-gan lama helin');
+  static String get ownWalletId => _t('That is your own Wallet ID', 'Kani waa Wallet ID-gaaga');
+  static String get transferFree => _t('100% free · fee \$0.00', 'Bilaash 100% · khidmad \$0.00');
+  static String get sendButton => _t('Send', 'Dir');
+  static String get confirmTransfer => _t('Confirm transfer', 'Xaqiiji dirista');
+  static String get confirmAndSend => _t('Confirm & Send', 'Xaqiiji oo Dir');
+  static String get enterWalletPin => _t('Enter your 4-digit Wallet PIN', 'Geli Wallet PIN-kaaga (4 lambar)');
+  static String get createWalletPin => _t('Create your Wallet PIN', 'Samee Wallet PIN-kaaga');
+  static String get walletPinHelp => _t(
+      'A 4-digit PIN protects every transfer. Choose one nobody can guess, then confirm it with your password.',
+      'PIN 4 lambar ah ayaa ilaaliya dirista kasta. Dooro mid aan la qiyaasi karin, kadibna ku xaqiiji erayga sirta.');
+  static String get walletPinField => _t('Wallet PIN (4 digits)', 'Wallet PIN (4 lambar)');
+  static String get walletPinAgain => _t('Repeat the PIN', 'Ku celi PIN-ka');
+  static String get savePin => _t('Save PIN', 'Kaydi PIN-ka');
+  static String get pinsDoNotMatch => _t('The two PINs are not the same', 'Labada PIN isma mid aha');
+  static String get wrongPassword => _t('Wrong password', 'Erayga sirta waa khalad');
+  static String wrongWalletPin(int left) => _t('Wrong PIN. $left tries left.', 'PIN khalad ah. Waxaa hadhay $left isku-day.');
+  static String get walletPinLocked => _t('Too many wrong PINs: sending is locked for 15 minutes.', 'PIN khalad ah marar badan: dirista waa la xidhay 15 daqiiqo.');
+  static String get notEnoughBalance => _t('Your balance is not enough', 'Haraagaagu kuma filna');
+  static String get transferSent => _t('Money sent', 'Lacagta waa la diray');
+  static String get recentTransfers => _t('Transfers', 'Dirisyada');
+  static String get noTransfers => _t('No transfers yet', 'Weli dirid ma jirto');
+  static String sentTo(String name) => _t('Sent to $name', 'Waxaad u dirtay $name');
+  static String receivedFrom(String name) => _t('Received from $name', 'Waxaa ka helay $name');
+  static String get reference => _t('Reference', 'Tixraac');
+  static String get newBalance => _t('New balance', 'Haraaga cusub');
+  static String get couldNotSend => _t('Could not send. Try again.', 'Lama dirin. Mar kale isku day.');
+  static String get showBalance => _t('Show balances', 'Muuji haraaga');
+  static String get hideBalance => _t('Hide balances', 'Qari haraaga');
   static String get deposit => _t('Deposit', 'Dhigasho');
   static String get withdraw => _t('Withdraw', 'Bixinta');
   static String get bonus => _t('Bonus', 'Gunno');

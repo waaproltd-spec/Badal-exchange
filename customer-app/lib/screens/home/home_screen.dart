@@ -25,6 +25,7 @@ import '../bonus/bonus_screen.dart';
 
 import '../deposit/deposit_details_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../wallet/wallet_transfer_screen.dart';
 import '../withdraw/withdraw_details_screen.dart';
 
 /// Wallet home, kept compact so two recent orders fit on a phone screen:
@@ -60,6 +61,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openBonus() async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BonusScreen()));
+    if (mounted) _refresh();
+  }
+
+  Future<void> _openSendMoney() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletTransferScreen()));
     if (mounted) _refresh();
   }
 
@@ -132,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onWithdraw: _goWithdraw,
                   onNotifications: _openNotifications,
                   onBonus: _openBonus,
+                  onSend: _openSendMoney,
                 ),
                 if (_ads.isNotEmpty)
                   Padding(
@@ -205,6 +212,7 @@ class _WalletHeader extends StatelessWidget {
     required this.onWithdraw,
     required this.onNotifications,
     required this.onBonus,
+    required this.onSend,
   });
 
   final double topInset;
@@ -213,11 +221,12 @@ class _WalletHeader extends StatelessWidget {
   final VoidCallback onWithdraw;
   final VoidCallback onNotifications;
   final VoidCallback onBonus;
+  final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, topInset + 10, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, topInset + 6, 16, 12),
       decoration: const BoxDecoration(
         gradient: AppColors.headerGradient,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
@@ -259,24 +268,25 @@ class _WalletHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               WalletCard(
                 wallet: walletState.wallet,
                 loading: walletState.loading,
                 error: walletState.networkProblem ? AppStrings.networkTitle : walletState.error,
                 onBonusTap: onBonus,
+                onSendTap: onSend,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              // Deposit (light purple, download) and Withdraw (orange / gold, upload): one row, the same size, only the word.
               Row(
                 children: [
                   Expanded(
                     child: _ActionTile(
                       key: const Key('home-deposit'),
                       label: AppStrings.deposit,
-                      icon: Icons.south_west_rounded,
-                      background: AppColors.lightGold,
-                      iconBackground: AppColors.purpleDark,
-                      iconColor: AppColors.lightGold,
+                      icon: Icons.file_download_rounded,
+                      gradient: const [Color(0xFFEBDDFF), Color(0xFFC9A8F5)],
+                      shadow: const Color(0xFF9B6DDB),
                       onTap: onDeposit,
                     ),
                   ),
@@ -285,10 +295,9 @@ class _WalletHeader extends StatelessWidget {
                     child: _ActionTile(
                       key: const Key('home-withdraw'),
                       label: AppStrings.withdraw,
-                      icon: Icons.north_east_rounded,
-                      background: AppColors.accentOrange,
-                      iconBackground: AppColors.purpleDark,
-                      iconColor: AppColors.accentOrange,
+                      icon: Icons.file_upload_rounded,
+                      gradient: const [Color(0xFFFFC565), Color(0xFFF08A24)],
+                      shadow: const Color(0xFFE8892B),
                       onTap: onWithdraw,
                     ),
                   ),
@@ -307,60 +316,56 @@ class _ActionTile extends StatelessWidget {
     super.key,
     required this.label,
     required this.icon,
-    required this.background,
-    required this.iconBackground,
+    required this.gradient,
+    required this.shadow,
     required this.onTap,
-    this.iconColor = Colors.white,
   });
 
   final String label;
   final IconData icon;
-  final Color background;
-  final Color iconBackground;
-  final Color iconColor;
+  final List<Color> gradient;
+  final Color shadow;
   final VoidCallback onTap;
+
+  static const double height = 48;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    const ink = AppColors.purpleDark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient),
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: SizedBox(
-          height: 52,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 6, 0),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: iconBackground,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 18),
-                ),
-                const SizedBox(width: 10),
-                // Scale down rather than truncate on narrow phones.
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      label,
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: AppColors.purpleDark,
+        boxShadow: [BoxShadow(color: shadow.withOpacity(0.28), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: SizedBox(
+            height: height,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+              child: Row(
+                children: [
+                  Icon(icon, color: ink, size: 26),
+                  const SizedBox(width: 8),
+                  // Scale down rather than truncate on narrow phones.
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        label,
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 16, color: ink),
                       ),
                     ),
                   ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.purpleDark, size: 20),
-              ],
+                  const Icon(Icons.chevron_right_rounded, color: ink, size: 24),
+                ],
+              ),
             ),
           ),
         ),

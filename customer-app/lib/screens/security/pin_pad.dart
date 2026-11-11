@@ -13,6 +13,7 @@ class PinPad extends StatelessWidget {
     this.leading,
     this.error,
     this.enabled = true,
+    this.length = AppLock.pinLength,
   });
 
   /// How many digits are typed so far.
@@ -25,6 +26,9 @@ class PinPad extends StatelessWidget {
   final String? error;
   final bool enabled;
 
+  /// How many digits the PIN has (the app lock is 6, the Wallet PIN 4).
+  final int length;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -34,7 +38,7 @@ class PinPad extends StatelessWidget {
           key: const Key('pin-dots'),
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            for (var i = 0; i < AppLock.pinLength; i++)
+            for (var i = 0; i < length; i++)
               AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
                 margin: const EdgeInsets.symmetric(horizontal: 8),

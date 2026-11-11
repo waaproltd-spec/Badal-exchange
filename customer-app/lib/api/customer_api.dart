@@ -12,6 +12,7 @@ import '../models/player.dart';
 import '../models/quote.dart';
 import '../models/tip.dart';
 import '../models/wallet.dart';
+import '../models/wallet_transfer.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 import '../l10n/strings.dart';
@@ -111,6 +112,43 @@ class CustomerApi {
   Future<Wallet> getWallet() async {
     final data = await _client.rpc('customer_wallet') as Map<String, dynamic>;
     return Wallet.fromJson(data);
+  }
+
+  // ---------------------------------------------------------------------
+  // Wallet to wallet transfers (Wallet -> Send Money): free, in the existing wallet
+  // ---------------------------------------------------------------------
+
+  Future<WalletPinStatus> getWalletPinStatus() async =>
+      WalletPinStatus.fromJson(await _client.rpc('customer_wallet_pin_status') as Map<String, dynamic>);
+
+  /// Sets (or changes) the 4-digit Wallet PIN, confirmed with the account password. False: the password was wrong.
+  Future<bool> setWalletPin({required String pin, required String password}) async {
+    final data = await _client.rpc('customer_set_wallet_pin', {'p_pin': pin, 'p_password': password}) as Map<String, dynamic>;
+    return data['ok'] as bool? ?? false;
+  }
+
+  /// Whose Wallet ID is this? Only the name comes back.
+  Future<TransferRecipient> lookupTransferRecipient(String walletId) async =>
+      TransferRecipient.fromJson(await _client.rpc('customer_transfer_lookup', {'p_wallet_id': walletId}) as Map<String, dynamic>);
+
+  /// Sends [amount] to [toWallet]. The same [idempotencyKey] never sends twice. A wrong or locked PIN is an answer, not an exception.
+  Future<TransferOutcome> sendWalletTransfer({
+    required String toWallet,
+    required String amount,
+    required String pin,
+    required String idempotencyKey,
+  }) async =>
+      TransferOutcome.fromJson(await _client.rpc('customer_wallet_transfer', {
+        'p_to_wallet': toWallet,
+        'p_amount': amount,
+        'p_pin': pin,
+        'p_idempotency_key': idempotencyKey,
+      }) as Map<String, dynamic>);
+
+  /// My transfers, sent and received, newest first.
+  Future<List<WalletTransfer>> getWalletTransfers() async {
+    final data = await _client.rpc('customer_wallet_transfers') as List<dynamic>;
+    return data.map((e) => WalletTransfer.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Always call this before showing a confirmation screen -- the app

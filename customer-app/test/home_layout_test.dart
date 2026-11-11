@@ -7,6 +7,7 @@ import 'package:badal_exchange_customer/models/tip.dart';
 import 'package:badal_exchange_customer/models/wallet.dart';
 import 'package:badal_exchange_customer/screens/root/root_shell.dart';
 import 'package:badal_exchange_customer/widgets/floating_nav_bar.dart';
+import 'package:badal_exchange_customer/widgets/wallet_card.dart';
 import 'package:badal_exchange_customer/state/auth_provider.dart';
 import 'package:badal_exchange_customer/state/orders_provider.dart';
 import 'package:badal_exchange_customer/state/wallet_provider.dart';
@@ -163,5 +164,58 @@ void main() {
     await tester.tap(find.byKey(const Key('view-all-orders')));
     await tester.pumpAndSettle();
     expect(tester.widget<FloatingNavBar>(find.byType(FloatingNavBar)).selectedIndex, 1);
+  });
+
+  testWidgets('Deposit and Withdraw: only the word, a download / upload icon and an arrow, the same size, side by side, low', (tester) async {
+    AppLanguage.current.value = AppLanguage.somali;
+    for (final size in _phones.values) {
+      await _phone(tester, size);
+      await tester.pumpWidget(_app());
+      await tester.pumpAndSettle();
+      final deposit = tester.getRect(find.byKey(const Key('home-deposit')));
+      final withdraw = tester.getRect(find.byKey(const Key('home-withdraw')));
+      expect(deposit.size, withdraw.size, reason: '$size');
+      expect(deposit.top, withdraw.top);
+      expect(deposit.height <= 52, isTrue, reason: 'low: ${deposit.height}');
+      expect(deposit.right < withdraw.left, isTrue, reason: 'side by side');
+      for (final k in ['home-deposit', 'home-withdraw']) {
+        expect(find.descendant(of: find.byKey(Key(k)), matching: find.byIcon(Icons.chevron_right_rounded)), findsOneWidget);
+      }
+      expect(find.descendant(of: find.byKey(const Key('home-deposit')), matching: find.byIcon(Icons.file_download_rounded)), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('home-withdraw')), matching: find.byIcon(Icons.file_upload_rounded)), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('home-deposit')), matching: find.text('Dhigasho')), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('home-withdraw')), matching: find.text('Bixinta')), findsOneWidget);
+      for (final gone in ['Hadda dhigasho', 'Kuso shub lacag', 'Hadda bixin', 'Kala bax lacagta']) {
+        expect(find.text(gone), findsNothing, reason: gone);
+      }
+    }
+  });
+
+  testWidgets('the eye hides and shows the wallet balance and the bonus balance together, and is remembered while the app is open', (tester) async {
+    addTearDown(() => BalancePrivacy.hidden.value = false);
+    BalancePrivacy.hidden.value = false;
+    await _phone(tester, const Size(360, 780));
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('balance-eye')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '\$2.73');
+    expect(find.text('\$0.00'), findsOneWidget, reason: 'the bonus');
+    await tester.tap(find.byKey(const Key('balance-eye')));
+    await tester.pump();
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '••••••');
+    expect(find.text('••••••'), findsNWidgets(2), reason: 'the wallet balance and the bonus balance, with one eye');
+    expect(find.text('\$2.73'), findsNothing);
+    expect(find.byIcon(Icons.visibility_off_rounded), findsOneWidget);
+    // the Wallet ID and promo code are not amounts: still shown
+    expect(find.text('BE295683'), findsOneWidget);
+    // remembered while the app stays open: the screen is built again, still hidden
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '••••••');
+    await tester.tap(find.byKey(const Key('balance-eye')));
+    await tester.pump();
+    expect(tester.widget<Text>(find.byKey(const Key('available-balance'))).data, '\$2.73');
+    expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);
   });
 }

@@ -36,6 +36,15 @@ const MESSAGES: Record<string, { title: string; body: string }> = {
     title: 'Withdrawal-kaagu wuu guulaystay',
     body: 'Lacagtaada si guul leh ayaa loo bixiyey.',
   },
+  // Wallet to wallet transfers: no amount or name on the lock screen (the Notifications list in the app has them).
+  transfer_sent: {
+    title: 'Lacag ayaad dirtay',
+    body: 'Dirista lacagta waa guulaysatay. Fur app-ka si aad u aragto.',
+  },
+  transfer_received: {
+    title: 'Lacag ayaa laguu soo diray',
+    body: 'Lacag ayaa Wallet-kaaga lagu soo shubay. Fur app-ka si aad u aragto.',
+  },
 };
 
 interface ServiceAccount {
@@ -49,6 +58,7 @@ interface Job {
   id: string;
   kind: string;
   orderId?: string;
+  transferId?: string;
   tokens?: string[];
   // broadcasts
   notificationId?: string;
@@ -262,7 +272,7 @@ Deno.serve(async (req) => {
         continue;
       }
       const results = await Promise.all(tokens.map((token) =>
-        send(sa, auth, { token, ...text, data: { type: job.kind, orderId: job.orderId ?? '' } })));
+        send(sa, auth, { token, ...text, data: { type: job.kind, orderId: job.orderId ?? '', ...(job.transferId ? { transferId: job.transferId } : {}) } })));
       const sent = results.filter(([r]) => r === 'sent').length;
       const invalid = tokens.filter((_, i) => results[i][0] === 'invalid_token');
       const retry = sent === 0 && results.some(([r]) => r === 'retry');
