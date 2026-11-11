@@ -116,9 +116,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                 all: _countFor(ordersState, _Filter.all),
                 deposits: _countFor(ordersState, _Filter.deposits),
                 withdrawals: _countFor(ordersState, _Filter.withdrawals),
+                selected: _filter,
                 onPick: (f) => setState(() => _filter = f),
               ),
-              _FilterBar(value: _filter, onChanged: (f) => setState(() => _filter = f)),
               Expanded(child: _buildBody(ordersState)),
             ],
           ),
@@ -184,8 +184,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
 
 /// Dhammaan / Dhigashooyin (green) / Bixinno (red): counted by the database; tapping one opens that tab.
 class _SummaryCards extends StatelessWidget {
-  const _SummaryCards({required this.all, required this.deposits, required this.withdrawals, required this.onPick});
+  const _SummaryCards({required this.all, required this.deposits, required this.withdrawals, required this.selected, required this.onPick});
 
+  final _Filter selected;
   final int all;
   final int deposits;
   final int withdrawals;
@@ -199,29 +200,30 @@ class _SummaryCards extends StatelessWidget {
         Expanded(child: _SummaryCard(
           key: const Key('orders-count-all'),
           label: AppStrings.allHistory, value: all, icon: Icons.layers_rounded,
-          color: const Color(0xFF9B5DE5), onTap: () => onPick(_Filter.all))),
+          color: const Color(0xFF9B5DE5), selected: selected == _Filter.all, onTap: () => onPick(_Filter.all))),
         const SizedBox(width: 10),
         Expanded(child: _SummaryCard(
           key: const Key('orders-count-deposits'),
           label: AppStrings.depositsTab, value: deposits, icon: Icons.arrow_downward_rounded,
-          color: AppColors.statusCompleted, onTap: () => onPick(_Filter.deposits))),
+          color: AppColors.statusCompleted, selected: selected == _Filter.deposits, onTap: () => onPick(_Filter.deposits))),
         const SizedBox(width: 10),
         Expanded(child: _SummaryCard(
           key: const Key('orders-count-withdrawals'),
           label: AppStrings.withdrawalsTab, value: withdrawals, icon: Icons.arrow_upward_rounded,
-          color: AppColors.statusFailed, onTap: () => onPick(_Filter.withdrawals))),
+          color: AppColors.statusFailed, selected: selected == _Filter.withdrawals, onTap: () => onPick(_Filter.withdrawals))),
       ]),
     );
   }
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({super.key, required this.label, required this.value, required this.icon, required this.color, required this.onTap});
+  const _SummaryCard({super.key, required this.label, required this.value, required this.icon, required this.color, required this.selected, required this.onTap});
 
   final String label;
   final int value;
   final IconData icon;
   final Color color;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
@@ -235,9 +237,9 @@ class _SummaryCard extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.fromLTRB(compact ? 7 : 10, 12, compact ? 5 : 10, 12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.14),
+            color: color.withOpacity(selected ? 0.28 : 0.14),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: color.withOpacity(0.7), width: 1.4),
+            border: Border.all(color: selected ? color : color.withOpacity(0.5), width: selected ? 2.2 : 1.4),
           ),
           child: Row(children: [
             Container(
@@ -265,56 +267,6 @@ class _SummaryCard extends StatelessWidget {
         ),
       );
     });
-  }
-}
-
-/// Dhammaan / Dhigashooyin / Bixinno: three equal tabs.
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({required this.value, required this.onChanged});
-
-  final _Filter value;
-  final ValueChanged<_Filter> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = {
-      _Filter.all: AppStrings.allHistory,
-      _Filter.deposits: AppStrings.depositsTab,
-      _Filter.withdrawals: AppStrings.withdrawalsTab,
-    };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Row(
-        children: [
-          for (final f in _Filter.values) ...[
-            Expanded(
-              child: GestureDetector(
-                key: Key('filter-${f.name}'),
-                onTap: () => onChanged(f),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: value == f ? const LinearGradient(colors: [Color(0xFF7B2CBF), Color(0xFF9D4EDD)]) : null,
-                    color: value == f ? null : AppColors.surface,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: value == f ? const Color(0xFFC77DFF) : AppColors.cardBorder, width: 1.3),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(labels[f]!,
-                        maxLines: 1,
-                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 14.5, color: value == f ? Colors.white : AppColors.textMuted)),
-                  ),
-                ),
-              ),
-            ),
-            if (f != _Filter.withdrawals) const SizedBox(width: 8),
-          ],
-        ],
-      ),
-    );
   }
 }
 

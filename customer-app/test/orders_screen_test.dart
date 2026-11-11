@@ -103,17 +103,17 @@ void main() {
     final api = _Api();
     await tester.pumpWidget(_app(api));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filter-deposits')));
+    await tester.tap(find.byKey(const Key('orders-count-deposits')));
     await tester.pumpAndSettle();
     for (final t in tester.widgetList<Text>(find.textContaining(' · EVC'))) {
       expect(t.data, startsWith(AppStrings.deposit), reason: 'only deposits on the Dhigashooyin tab');
     }
-    await tester.tap(find.byKey(const Key('filter-withdrawals')));
+    await tester.tap(find.byKey(const Key('orders-count-withdrawals')));
     await tester.pumpAndSettle();
     for (final t in tester.widgetList<Text>(find.textContaining(' · EVC'))) {
       expect(t.data, startsWith(AppStrings.withdraw));
     }
-    await tester.tap(find.byKey(const Key('filter-all')));
+    await tester.tap(find.byKey(const Key('orders-count-all')));
     await tester.pumpAndSettle();
     expect(find.text('ID: TRX-0042'), findsOneWidget, reason: 'the transaction id where there is one');
   });

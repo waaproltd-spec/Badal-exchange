@@ -90,12 +90,12 @@ void main() {
     expect(find.text('Deposit · EVC Plus'), findsNWidgets(2));
     expect(find.text('Withdraw · 1XBET'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('filter-deposits')));
+    await tester.tap(find.byKey(const Key('orders-count-deposits')));
     await tester.pumpAndSettle();
     expect(find.text('Deposit · EVC Plus'), findsNWidgets(2));
     expect(find.text('Withdraw · 1XBET'), findsNothing);
 
-    await tester.tap(find.byKey(const Key('filter-withdrawals')));
+    await tester.tap(find.byKey(const Key('orders-count-withdrawals')));
     await tester.pumpAndSettle();
     expect(find.text('Deposit · EVC Plus'), findsNothing);
     expect(find.text('Withdraw · 1XBET'), findsOneWidget);
