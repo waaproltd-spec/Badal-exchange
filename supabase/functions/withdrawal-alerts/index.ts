@@ -240,6 +240,20 @@ function reportParts(day: string, d: any, saved = true): string[] {
   return out;
 }
 
+/** The /status answer: the open incidents, the Sahal feed, what waits. Numbers and titles only. */
+function statusText(st: any): string {
+  const icon = (sev: string) => (sev === 'critical' ? '🔴' : sev === 'warning' ? '🟠' : '🔵');
+  const lines = ['<b>📊 Xaaladda BADAL EXCHANGE</b>'];
+  lines.push(Number(st.openIncidents) === 0 ? '✅ Cilado furan ma jiraan' : `⚠️ Cilado furan: <b>${esc(st.openIncidents)}</b>`);
+  for (const i of st.incidents ?? []) lines.push(`${icon(i.severity)} ${esc(i.title)}`);
+  if (st.feed) lines.push(`Sahal/feed: <b>${esc(st.feed.state)}</b>`);
+  lines.push(`Lacag-bixinno sugaya: <b>${esc(st.withdrawalsOpen)}</b>`);
+  lines.push(`Dhigashooyin sugaya: <b>${esc(st.depositsOpen)}</b>`);
+  lines.push(`SMS aan la xaqiijin (24 saac): <b>${esc(st.unmatchedSms24h)}</b>`);
+  if (st.lastScan?.at) lines.push(`Hubinta ugu dambeysay: ${esc(String(st.lastScan.at).slice(0, 16).replace('T', ' '))} UTC`);
+  return lines.join('\n');
+}
+
 async function run() {
   const token = Deno.env.get('TELEGRAM_N8N_BOT_TOKEN');
   if (!token) return { skipped: 'TELEGRAM_N8N_BOT_TOKEN not set' };
@@ -266,6 +280,13 @@ async function run() {
           await tg('sendMessage', { chat_id: msg.chat.id, text: part, parse_mode: 'HTML', disable_web_page_preview: true });
         }
       }
+      continue;
+    }
+    // /status: a read-only overview of the platform, only in the linked chat (TEAM BADAL CONTROL). It changes nothing.
+    if (/^\/status(?:@\w+)?$/.test(text)) {
+      if (state?.chatId == null || Number(state.chatId) !== Number(msg.chat.id)) continue; // not the agent's chat: no answer
+      const st = await rpc('control_status');
+      if (st) await tg('sendMessage', { chat_id: msg.chat.id, text: statusText(st), parse_mode: 'HTML', disable_web_page_preview: true });
       continue;
     }
     // /movehere said in a group by the person whose private chat receives the alerts: the alerts and the report move to the group.

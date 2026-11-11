@@ -171,6 +171,20 @@ test('/report answers in the linked chat (today so far, or a saved day) and not 
   assert.equal(sent().filter((c) => c.body.chat_id === CHAT + 1).length, 0);
 });
 
+test('/status is a read-only overview in the linked chat and gets no answer in any other chat', async () => {
+  tg.calls.length = 0;
+  const before = Number((await db.query(`SELECT count(*) FROM public.wallets`)).rows[0].count);
+  tg.updates.push(
+    { update_id: updateId++, message: { message_id: 1, text: '/status', chat: { id: CHAT, type: 'group' } } },
+    { update_id: updateId++, message: { message_id: 2, text: '/status@SomeBot', chat: { id: CHAT + 1, type: 'private' } } });
+  assert.equal((await run()).status, 200);
+  const mine = about(/Xaaladda BADAL EXCHANGE/).filter((c) => c.body.chat_id === CHAT);
+  assert.equal(mine.length, 1);
+  assert.match(mine[0].body.text, /Lacag-bixinno sugaya/);
+  assert.equal(about(/Xaaladda BADAL EXCHANGE/).filter((c) => c.body.chat_id === CHAT + 1).length, 0);
+  assert.equal(Number((await db.query(`SELECT count(*) FROM public.wallets`)).rows[0].count), before);
+});
+
 test('/movehere in a group by the owner of the linked private chat moves the alerts there; a stranger gets no answer', async () => {
   const OWNER = CHAT;            // the linked chat is the owner's private chat: its id is the owner's id
   const GROUP = -(1_000_000_000_000 + (CHAT % 1_000_000));
