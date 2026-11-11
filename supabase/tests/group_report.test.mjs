@@ -192,18 +192,25 @@ test('real-time notices: a credited deposit, a failed deposit, the Sahal balance
     const dep = await order(t, { amount: 25, when: now, code: 'GRNEW1' });
     await order(t, { amount: 99, when: old, code: 'GROLD1' });                       // older than the link: not announced
     const bad = await order(t, { status: 'failed', amount: 8, when: now, code: 'GRBAD1', reason: 'no funds' });
-    const first = await t.call(`public.group_report_todo()`);
-    const mine = (list) => list.map((d) => d.code).filter((c) => c.startsWith('GR'));      // the shared database may hold other suites' orders
-    assert.deepEqual(mine(first.deposits), ['GRNEW1']);
-    assert.deepEqual(mine(first.failed), ['GRBAD1']);
-    assert.ok(!JSON.stringify(first).match(/password|pin/i));
-    assert.match(first.deposits[0].phone, /••••/);
-    await t.query(`SELECT public.group_notified_mark('deposit', $1)`, [[dep]]);
+    // The notices come 15 at a time, oldest first, and the shared database may hold other suites' orders: take them all, marking each batch.
+    const all = { deposit: [], failed: [] };
+    for (let i = 0; i < 40; i++) {
+      const todo = await t.call(`public.group_report_todo()`);
+      if (todo.deposits.length === 0 && todo.failed.length === 0) break;
+      for (const d of todo.deposits) { all.deposit.push(d); assert.match(d.phone, /••••/); }
+      for (const f of todo.failed) all.failed.push(f);
+      await t.query(`SELECT public.group_notified_mark('deposit', $1)`, [todo.deposits.map((d) => d.key)]);
+      await t.query(`SELECT public.group_notified_mark('failed', $1)`, [todo.failed.map((d) => d.key)]);
+    }
+    const mine = (list) => list.map((d) => d.code).filter((c) => c.startsWith('GR'));       // GROLD1 (before the link) is never announced
+    assert.ok(!JSON.stringify([...all.deposit, ...all.failed].filter((d) => d.code.startsWith('GR'))).match(/password|pin/i));
+    assert.deepEqual(mine(all.deposit), ['GRNEW1']);
+    assert.deepEqual(mine(all.failed), ['GRBAD1']);
+    await t.query(`SELECT public.group_notified_mark('deposit', $1)`, [[dep]]);              // marking twice is harmless
     await t.query(`SELECT public.group_notified_mark('failed', $1)`, [[bad]]);
-    await t.query(`SELECT public.group_notified_mark('deposit', $1)`, [[dep]]);      // marking twice is harmless
     const second = await t.call(`public.group_report_todo()`);
-    assert.deepEqual(mine(second.deposits), []);
-    assert.deepEqual(mine(second.failed), []);
+    assert.deepEqual(second.deposits, []);
+    assert.deepEqual(second.failed, []);
   }));
 
 test('the old 21:00 withdrawals summary is gone; the withdrawal alert state is otherwise unchanged', () =>
