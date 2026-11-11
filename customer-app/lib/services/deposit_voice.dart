@@ -21,7 +21,8 @@ class AudioDepositVoice implements DepositVoice {
   AudioDepositVoice({required bool platform}) : asset = platform ? betAsset : mobileAsset;
   /// The recording of the withdrawal form (mobile money only).
   static const withdrawAsset = 'sounds/withdraw_instruction.mp3';
-  AudioDepositVoice.withdraw() : asset = withdrawAsset;
+  static const withdrawBetAsset = 'sounds/withdraw_instruction_bet.mp3';
+  AudioDepositVoice.withdraw({bool platform = false}) : asset = platform ? withdrawBetAsset : withdrawAsset;
   final String asset;
   static const volume = 1.0;
 

@@ -91,12 +91,10 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     super.initState();
     _checkAccess();
     _loadLimits();
-    if (!_info.isPlatform) {
-      _loadNumbers();
-      // Mobile money (EVC Plus, Golis, eDahab, Zaad): the voice speaks on open; the customer still taps Continue.
-      _voice = widget.voice ?? AudioDepositVoice.withdraw();
-      _voice!.play();
-    }
+    if (!_info.isPlatform) _loadNumbers();
+    // The voice speaks on open (mobile money and betting platforms have their own recording); the customer still taps Continue.
+    _voice = widget.voice ?? AudioDepositVoice.withdraw(platform: _info.isPlatform);
+    _voice!.play();
   }
 
   Future<void> _loadNumbers() async {

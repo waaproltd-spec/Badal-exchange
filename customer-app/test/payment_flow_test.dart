@@ -434,7 +434,7 @@ void main() {
     expect(AudioDepositVoice(platform: false).asset, 'sounds/deposit_instruction.mp3');
   });
 
-  testWidgets('withdraw voice: mobile money plays on open and stops on leaving; platforms stay silent; nothing is submitted', (tester) async {
+  testWidgets('withdraw voice: mobile money plays on open and stops on leaving; platforms play their own; nothing is submitted', (tester) async {
     await _phone(tester);
     final api = FakeCustomerApi();
     final voice = _FakeVoice();
@@ -447,7 +447,8 @@ void main() {
     final bet = _FakeVoice();
     await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'onexbet', voice: bet)));
     await tester.pump();
-    expect(bet.played, 0);
+    expect(bet.played, 1);
+    expect(AudioDepositVoice.withdraw(platform: true).asset, 'sounds/withdraw_instruction_bet.mp3');
     expect(AudioDepositVoice.withdraw().asset, 'sounds/withdraw_instruction.mp3');
   });
 
