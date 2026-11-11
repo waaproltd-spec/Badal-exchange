@@ -10,8 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-  http: ^1.2.1
   flutter_secure_storage: ^9.2.2
   # Customer verification: the phone's fingerprint check, and the hash of the PIN.
   local_auth: ^2.3.0

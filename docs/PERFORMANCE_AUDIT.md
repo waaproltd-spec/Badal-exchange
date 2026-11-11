@@ -56,7 +56,9 @@ every minute (gated, 82 HTTP calls), housekeeping daily (0 runs). No failures in
 2. The 10-second feed job and the 30-second alert job are logged by pg_cron (5 writes per run) and call the Edge
    Function every time, even when nothing is waiting (`withdrawal_alerts_kick` and `broadcast_kick` have no
    "is there work" check; the push and platform kicks do).
-3. The housekeeping job did not run (cause not yet known: the job is active, user `postgres`, schedule `11 3 * * *`).
+3. ~~The housekeeping job did not run~~ **Correction (second measurement, 2026-11-11 12:33 UTC):** it did run, once, at 03:11 UTC
+   that day (4.5 s, one 245k-row delete; history now 70k rows). My first reading was taken at 00:38 UTC, before its first
+   scheduled moment. What remains is that one big delete is slow and the table keeps 3 days.
 4. `platform_eligible()` is evaluated for every order row each minute before any status filter.
 5. `cashdesk_balances` is an insert-only history written on every refresh.
 
@@ -105,3 +107,33 @@ setting, which needs your decision in the Agent App (Settings): whether the chec
   `temp_bytes` (74 GB at this measurement) and the invocation count on the dashboard.
 - Every migration is shown to you as SQL first; deployment only after your explicit "Deploy" and green CI,
   with the backup and restore test unchanged.
+
+
+---
+
+## 7. Phase 2 – what was changed (migration `20261111000500_performance_optimizations.sql`)
+
+Second baseline (production, 2026-11-11 12:33 UTC, `performance` run 43021388745): `health_tick` 8,408 calls × 1.54 s;
+`platform_kick_if_work` 30,411 × 174 ms; `resweep_unmatched_sms` 50,191 calls, **543 MB WAL**, 66,389 blocks dirtied;
+`company_balance_record` 60,636 calls, **427 MB WAL**, 124,914 blocks dirtied; feed `set_state` 121,018 calls 113 MB;
+cron run history 317,850 runs logged (5 writes each, ~310 MB WAL); `withdrawal_alerts_kick` 48,298 and
+`broadcast_kick` ~4,900/3 days of empty Edge calls; `cron.job_run_details` scanned in full 9,488 times (2.2 billion
+rows read) by the health scan's "failed cron jobs" check.
+
+| Change | Mechanism | Not touched |
+|---|---|---|
+| Housekeeping every 6 h, keeps 1 day, deletes in batches of 20,000 | `private.housekeeping()` | any customer or financial data |
+| Drop `dev_audit_recent` (duplicate of the primary key) and `idx_cashdesk_balances_requested_by` (0 scans) | `DROP INDEX` | constraints, data |
+| `sms_logs`, `merchant_transactions`: an UPDATE that changes nothing is skipped | PostgreSQL's `suppress_redundant_updates_trigger()` (BEFORE UPDATE) | matching logic: every real change goes through |
+| Feed session/cookies saved at most every 5 min when unchanged; feed status heartbeat 30 s (readers use 2–3 min limits); alert-chat poll time 5 min | `private.skip_heartbeat_update()` | state, message, result code, rows seen: written at once |
+| Company balance: 3rd identical read only moves the newest row's time | `company_balance_record` | first/last row of a steady period kept; a change, error or person's read = new row; freshness checks read max(checked_at) |
+| Broadcast worker woken only when a schedule is due or a message waits | `broadcast_kick` | |
+| BADAL AGENT worker: every 30 s while a withdrawal is open or touched in the last 30 min, once a minute when idle | `withdrawal_alerts_kick` | the function still reads Telegram commands, sends reports and notices |
+| Platform kick filters `status='pending'`, `auto_claimed_at IS NULL`, last day first | `platform_kick_if_work` | same eligibility rule (`platform_eligible`) |
+| Health scan every 2 minutes | cron schedule | every check and alert |
+| Customer App account check 20 s → 60 s (also checked when the app returns to the foreground, as before) | `auth_provider.dart` | a blocked account is still refused by every call at once |
+| APK: `--target-platform android-arm,android-arm64` (no x86 build), unused `cupertino_icons` and `http` removed | `build-apks.yml`, pubspecs | R8 shrinking is already on by default in `flutter build apk --release` |
+
+Not done, with the reason: `company_balance_record` change-only *inserts* were done as above, but the feed status
+heartbeat is kept at 30 s and `sahal_payout_settings.balance_seen_at` is untouched (it gates payouts); slowing the 10 s
+feed (E1) stays rejected; no new indexes (tables under 1,300 rows); PNG/WAV assets are only 950 KB in total.

@@ -8,7 +8,7 @@ firewall; what we watch and repair is everything above that.
 
 ## What watches the platform (24/7, nothing to start)
 
-`private.health_scan()` runs **every minute** from pg_cron (`baari-health`). It checks:
+`private.health_scan()` runs **every 2 minutes** from pg_cron (`baari-health`; every minute until 11 Nov 2026). It checks:
 
 | Incident key | Watches | Level | Safe repair it makes | Never |
 | --- | --- | --- | --- | --- |

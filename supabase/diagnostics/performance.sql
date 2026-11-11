@@ -188,8 +188,8 @@ SELECT count(*) AS scans, round(avg(ms)) AS avg_ms, percentile_disc(0.5) WITHIN 
 
 \echo
 \echo '== 28. cashdesk_balances: rows per method per day (insert-only history) =='
-SELECT date_trunc('day', created_at)::date AS day, count(*) AS rows FROM public.cashdesk_balances GROUP BY 1 ORDER BY 1 DESC LIMIT 6;
-SELECT method, count(*) AS rows, max(created_at) AS newest FROM public.cashdesk_balances GROUP BY 1 ORDER BY 2 DESC LIMIT 12;
+SELECT date_trunc('day', checked_at)::date AS day, count(*) AS rows FROM public.cashdesk_balances GROUP BY 1 ORDER BY 1 DESC LIMIT 6;
+SELECT method, count(*) AS rows, max(checked_at) AS newest FROM public.cashdesk_balances GROUP BY 1 ORDER BY 2 DESC LIMIT 12;
 
 \echo
 \echo '== 29. Which Telegram chat receives the BADAL AGENT alerts (group or private; no ids) =='

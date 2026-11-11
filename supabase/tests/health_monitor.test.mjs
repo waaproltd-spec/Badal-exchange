@@ -285,9 +285,9 @@ test('the /health route: only the platform secret wakes it; the owner gets each 
   }
 });
 
-test('housekeeping prunes only the scheduler history and never throws; the foreign key has its index', async () => {
+test('housekeeping prunes only the scheduler history and never throws; the unused index on cashdesk_balances is gone', async () => {
   const r = await db.query(`SELECT private.housekeeping() AS r`);
   assert.equal(typeof r.rows[0].r.cronRowsDeleted, 'number');
   const idx = await db.query(`SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_cashdesk_balances_requested_by'`);
-  assert.equal(idx.rowCount, 1);
+  assert.equal(idx.rowCount, 0); // dropped by 20261111000500: 0 scans, written to every 5 minutes
 });

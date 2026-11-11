@@ -158,8 +158,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// How often a signed-in phone asks the server whether the account is still open (a block is also seen
-  /// at once by any call the app makes, and when the wallet changes live).
-  static const _accountCheckEvery = Duration(seconds: 20);
+  /// at once by any call the app makes, when the wallet changes live, and the moment the app comes back to the
+  /// foreground: root_shell checks then). Once a minute instead of every 20 seconds: a third of the calls.
+  static const _accountCheckEvery = Duration(seconds: 60);
   Timer? _accountCheck;
 
   void _startAccountCheck() {
