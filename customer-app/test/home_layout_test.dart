@@ -131,7 +131,8 @@ void main() {
       // Each order shows its service, amount, date and status.
       expect(find.text('Withdraw · 1XBET'), findsOneWidget);
       expect(find.text('-\$1.50'), findsOneWidget);
-      expect(find.byKey(const Key('view-all-orders')), findsOneWidget);
+      expect(find.byKey(const Key('view-all-orders')), findsNothing, reason: 'the Recent Orders heading and View all are removed');
+      expect(find.text('Recent Orders'), findsNothing);
 
       // Deposit and Withdraw are the same size, side by side.
       final deposit = tester.getRect(find.byKey(const Key('home-deposit')));
@@ -154,15 +155,6 @@ void main() {
     await tester.pumpAndSettle();
     final navTop = tester.getRect(find.byKey(const Key('floating-nav'))).top;
     expect(tester.getRect(find.byKey(const Key('recent-order-o1'))).bottom <= navTop, isTrue);
-  });
-
-  testWidgets('View all opens the Orders tab', (tester) async {
-    await _phone(tester, const Size(360, 780));
-    await tester.pumpWidget(_app());
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('view-all-orders')));
-    await tester.pumpAndSettle();
-    expect(tester.widget<FloatingNavBar>(find.byType(FloatingNavBar)).selectedIndex, 1);
   });
 
   testWidgets('Deposit and Withdraw: only the word, a download / upload icon and an arrow, the same size, side by side, low', (tester) async {
