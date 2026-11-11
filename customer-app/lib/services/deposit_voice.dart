@@ -3,8 +3,8 @@ import 'dart:io' show Platform;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
-/// The Somali voice instruction of the Complete Deposit screen (mobile money:
-/// EVC Plus, eDahab, Zaad, Golis). It plays once when the screen opens and is
+/// The Somali voice instruction of the Complete Deposit screen (mobile money and
+/// betting platforms, each with its own recording). It plays once when the screen opens and is
 /// stopped when the customer leaves. It only speaks: it never confirms or
 /// changes a deposit.
 abstract class DepositVoice {
@@ -14,7 +14,12 @@ abstract class DepositVoice {
 }
 
 class AudioDepositVoice implements DepositVoice {
-  static const asset = 'sounds/deposit_instruction.mp3';
+  /// Mobile money (EVC Plus, eDahab, Zaad, Golis) and betting platforms each have their own recording.
+  static const mobileAsset = 'sounds/deposit_instruction.mp3';
+  static const betAsset = 'sounds/deposit_instruction_bet.mp3';
+
+  AudioDepositVoice({required bool platform}) : asset = platform ? betAsset : mobileAsset;
+  final String asset;
   static const volume = 1.0;
 
   AudioPlayer? _audio;

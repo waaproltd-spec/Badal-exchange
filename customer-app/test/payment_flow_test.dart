@@ -421,7 +421,7 @@ void main() {
     expect(api.submitted, isEmpty);
   });
 
-  testWidgets('deposit voice: not played for a betting platform cash desk', (tester) async {
+  testWidgets('deposit voice: also plays for a betting platform cash desk (own recording)', (tester) async {
     await _phone(tester);
     final api = FakeCustomerApi();
     final methods = await api.getPaymentMethods();
@@ -429,7 +429,9 @@ void main() {
     final voice = _FakeVoice();
     await tester.pumpWidget(_app(api, DepositDetailsScreen(option: platform, voice: voice)));
     await tester.pump();
-    expect(voice.played, 0);
+    expect(voice.played, 1);
+    expect(AudioDepositVoice(platform: true).asset, 'sounds/deposit_instruction_bet.mp3');
+    expect(AudioDepositVoice(platform: false).asset, 'sounds/deposit_instruction.mp3');
   });
 
   testWidgets('deposit in Somali on a small phone fits', (tester) async {

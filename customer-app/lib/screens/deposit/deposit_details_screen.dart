@@ -101,11 +101,9 @@ class _DepositDetailsScreenState extends State<DepositDetailsScreen> {
     _amountController.addListener(_track);
     _accountController.addListener(_track);
     if (_cashDesk) _fillSavedAccount();
-    // Mobile money only (EVC Plus, eDahab, Zaad, Golis): the voice speaks on open; the customer still taps Confirm.
-    if (!_info.isPlatform) {
-      _voice = widget.voice ?? AudioDepositVoice();
-      _voice!.play();
-    }
+    // The voice speaks on open (mobile money and betting platforms have their own recording); the customer still taps Confirm.
+    _voice = widget.voice ?? AudioDepositVoice(platform: _info.isPlatform);
+    _voice!.play();
   }
 
   Future<void> _loadNumbers() async {
