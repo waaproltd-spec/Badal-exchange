@@ -34,14 +34,14 @@ BEGIN
   SELECT * INTO s FROM public.payment_source_state FOR UPDATE;
   IF v_now = s.source THEN
     IF s.pending IS NOT NULL THEN
-      UPDATE public.payment_source_state SET pending = NULL, pending_since = NULL; -- it came back by itself: a flicker
+      UPDATE public.payment_source_state SET pending = NULL, pending_since = NULL WHERE id; -- it came back by itself: a flicker
     END IF;
   ELSIF s.pending IS DISTINCT FROM v_now THEN
-    UPDATE public.payment_source_state SET pending = v_now, pending_since = now();
+    UPDATE public.payment_source_state SET pending = v_now, pending_since = now() WHERE id;
   ELSIF s.pending_since <= now() - interval '2 minutes' THEN
     INSERT INTO public.payment_source_events (from_src, to_src) VALUES (s.source, v_now);
     DELETE FROM public.payment_source_events WHERE at < now() - interval '7 days';
-    UPDATE public.payment_source_state SET source = v_now, pending = NULL, pending_since = NULL, since = now();
+    UPDATE public.payment_source_state SET source = v_now, pending = NULL, pending_since = NULL, since = now() WHERE id;
   END IF;
   RETURN COALESCE((SELECT jsonb_agg(jsonb_build_object('id', e.id, 'from', e.from_src, 'to', e.to_src, 'at', e.at) ORDER BY e.id)
                      FROM public.payment_source_events e
