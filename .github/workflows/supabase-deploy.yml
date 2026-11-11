@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'deploy, or diagnose (a read-only payments report; deploys nothing)'
+        description: 'deploy, or diagnose (a read-only payments report) or performance (a read-only performance report); the last two deploy nothing'
         required: false
         default: 'deploy'
       hours:
@@ -41,8 +41,18 @@ jobs:
           if ! [[ "$HOURS" =~ ^[0-9]{1,4}$ ]]; then echo "hours must be a number"; exit 1; fi
           psql "$SUPABASE_DATABASE_URL" -P pager=off -v hours="$HOURS" -f supabase/diagnostics/payments.sql
 
+  performance:
+    if: github.event.inputs.mode == 'performance'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Performance report (read-only)
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: psql "$SUPABASE_DATABASE_URL" -P pager=off -f supabase/diagnostics/performance.sql
+
   deploy:
-    if: github.event.inputs.mode != 'diagnose'
+    if: github.event.inputs.mode != 'diagnose' && github.event.inputs.mode != 'performance'
     runs-on: ubuntu-latest
     env:
       SUPABASE_PROJECT_REF: onbezsojnpsrtuxzwsjr
