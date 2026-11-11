@@ -241,7 +241,7 @@ class _TipList extends StatelessWidget {
     } else if (tips == null) {
       body = _Message(icon: Icons.cloud_off_rounded, text: error!, retry: onRefresh);
     } else if (tips!.isEmpty) {
-      body = _Message(icon: Icons.tips_and_updates_outlined, text: AppStrings.tipsEmpty);
+      body = _Message(icon: Icons.sports_soccer_outlined, text: AppStrings.tipsEmpty);
     } else {
       body = ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),

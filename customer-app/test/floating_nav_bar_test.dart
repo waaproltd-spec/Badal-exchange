@@ -15,8 +15,8 @@ List<NavTab> _tabs() => [
           selectedIcon: Icons.receipt_long_rounded,
           label: AppStrings.orders),
       NavTab(
-          icon: Icons.tips_and_updates_outlined,
-          selectedIcon: Icons.tips_and_updates_rounded,
+          icon: Icons.sports_soccer_outlined,
+          selectedIcon: Icons.sports_soccer_rounded,
           label: AppStrings.tips),
       NavTab(
           icon: Icons.person_outline_rounded,
@@ -54,7 +54,7 @@ void main() {
   testWidgets('the four tabs in Somali, each clickable', (tester) async {
     final taps = <int>[];
     await _pump(tester, onSelected: taps.add);
-    for (final l in ['Hoyga', 'Dalabaadka', 'Talooyin', 'Xogtayda']) {
+    for (final l in ['Hoyga', 'Dalabaadka', 'Football', 'Xogtayda']) {
       expect(find.text(l), findsOneWidget, reason: l);
     }
     for (var i = 0; i < 4; i++) {
@@ -124,8 +124,8 @@ void main() {
     testWidgets('$name: every label on one line, nothing overflows',
         (tester) async {
       await _pump(tester, width: width, scale: scale, selected: 1);
-      final one = tester.getSize(find.text('Talooyin')).height;
-      for (final l in ['Hoyga', 'Dalabaadka', 'Talooyin', 'Xogtayda']) {
+      final one = tester.getSize(find.text('Football')).height;
+      for (final l in ['Hoyga', 'Dalabaadka', 'Football', 'Xogtayda']) {
         expect(tester.getSize(find.text(l)).height, closeTo(one, 0.5),
             reason: '$l is on one line');
       }
@@ -136,7 +136,7 @@ void main() {
   testWidgets('English too', (tester) async {
     AppLanguage.current.value = AppLanguage.english;
     await _pump(tester);
-    for (final l in ['Home', 'Orders', 'TIPS', 'Profile']) {
+    for (final l in ['Home', 'Orders', 'Football', 'Profile']) {
       expect(find.text(l), findsOneWidget, reason: l);
     }
   });

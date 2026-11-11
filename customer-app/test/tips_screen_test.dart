@@ -205,7 +205,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_app(_FakeApi()));
     await tester.pumpAndSettle();
-    expect(find.text('Talooyin'), findsOneWidget);
+    expect(find.text('Football'), findsOneWidget);
     expect(find.text('Dhammaan'), findsOneWidget);
     expect(find.text('Kubadda Cagta • 3 kooxood'), findsOneWidget);
     expect(find.text('Koobiyee Koodhka'), findsOneWidget);

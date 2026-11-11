@@ -147,7 +147,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
         tabs: [
           NavTab(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: AppStrings.home),
           NavTab(icon: Icons.receipt_long_outlined, selectedIcon: Icons.receipt_long_rounded, label: AppStrings.orders),
-          NavTab(icon: Icons.tips_and_updates_outlined, selectedIcon: Icons.tips_and_updates_rounded, label: AppStrings.tips),
+          NavTab(icon: Icons.sports_soccer_outlined, selectedIcon: Icons.sports_soccer_rounded, label: AppStrings.tips),
           NavTab(icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: AppStrings.profile),
         ],
       ),
