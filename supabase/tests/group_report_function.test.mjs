@@ -195,6 +195,8 @@ test('Payment Backup: a confirmed change of the payment source is said once in t
   tg.calls.length = 0;
   assert.equal((await run()).status, 200);
   assert.equal(about(/SMS backup ayaa shaqeynaya/).length, 0, 'not said again');
+  await db.query(`DELETE FROM public.payment_source_events`);
+  await db.query(`DELETE FROM public.payment_source_state`); // leave the shared database as found: later suites start from the first-run state
 });
 
 test('/movehere in a group by the owner of the linked private chat moves the alerts there; a stranger gets no answer', async () => {

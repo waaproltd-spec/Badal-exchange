@@ -459,10 +459,15 @@ Lacag-bixinada waa la hakin karaa ilaa la kordhiyo haraaga.` });
       sent++;
     }
     // Payment Backup: which source confirms payments now (Sahal, the Agent phone's SMS, or none). Only said.
-    for (const e of ((await rpc('payment_source_todo')) ?? []) as any[]) {
-      await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML', text: sourceText(e) });
-      await rpc('group_notified_mark', { p_kind: 'source', p_keys: [String(e.id)] });
-      sent++;
+    // A failure here must never hold back the payment alerts above or below it: it is logged and tried again next run.
+    try {
+      for (const e of ((await rpc('payment_source_todo')) ?? []) as any[]) {
+        await tg('sendMessage', { chat_id: g.chatId, parse_mode: 'HTML', text: sourceText(e) });
+        await rpc('group_notified_mark', { p_kind: 'source', p_keys: [String(e.id)] });
+        sent++;
+      }
+    } catch (err) {
+      console.error('payment_source notice', (err as Error).message.slice(0, 300));
     }
   }
   return { linked: true, sent };

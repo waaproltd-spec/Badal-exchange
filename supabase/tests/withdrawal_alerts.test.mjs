@@ -125,7 +125,7 @@ test('nothing is sent before a chat is linked; the first /start links, another c
   start(CHAT, 'badal_owner');
   start(OTHER, 'stranger');
   r = await run();
-  assert.equal(r.status, 200);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.match(sent('sendMessage', CHAT)[0].body.text, /waa shaqeynayaan/);
   assert.equal(sent('sendMessage', OTHER).length, 0, 'a stranger gets no answer');
   assert.equal(sent('sendMessage').length, 1, 'the earlier withdrawal is not announced');
