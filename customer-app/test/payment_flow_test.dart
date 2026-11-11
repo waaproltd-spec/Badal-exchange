@@ -434,6 +434,23 @@ void main() {
     expect(AudioDepositVoice(platform: false).asset, 'sounds/deposit_instruction.mp3');
   });
 
+  testWidgets('withdraw voice: mobile money plays on open and stops on leaving; platforms stay silent; nothing is submitted', (tester) async {
+    await _phone(tester);
+    final api = FakeCustomerApi();
+    final voice = _FakeVoice();
+    await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'evc_plus', voice: voice)));
+    await tester.pump();
+    expect(voice.played, 1);
+    expect(api.submitted, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    expect(voice.stopped, 1);
+    final bet = _FakeVoice();
+    await tester.pumpWidget(_app(api, WithdrawDetailsScreen(method: 'onexbet', voice: bet)));
+    await tester.pump();
+    expect(bet.played, 0);
+    expect(AudioDepositVoice.withdraw().asset, 'sounds/withdraw_instruction.mp3');
+  });
+
   testWidgets('deposit in Somali on a small phone fits', (tester) async {
     await _phone(tester, size: const Size(320, 568));
     AppLanguage.current.value = AppLanguage.somali;

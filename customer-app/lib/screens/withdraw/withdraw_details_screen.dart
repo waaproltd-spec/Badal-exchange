@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../services/deposit_voice.dart';
 import '../../widgets/withdrawal_approval_sheet.dart';
 
 import '../../api/api_exception.dart';
@@ -27,7 +28,10 @@ import 'withdraw_confirm_screen.dart';
 /// out to the customer's registered login number (the backend enforces
 /// it), so there is no phone field.
 class WithdrawDetailsScreen extends StatefulWidget {
-  const WithdrawDetailsScreen({super.key, required this.method, this.ownPhone, this.option, this.availableBalance});
+  const WithdrawDetailsScreen({super.key, required this.method, this.ownPhone, this.option, this.availableBalance, this.voice});
+
+  /// The Somali voice instruction (replaceable in tests).
+  final DepositVoice? voice;
 
   /// Payment method id (see payment_method.dart).
   final String method;
@@ -46,6 +50,7 @@ class WithdrawDetailsScreen extends StatefulWidget {
 }
 
 class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
+  DepositVoice? _voice;
   final _formKey = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
   final _amountController = TextEditingController();
@@ -86,7 +91,12 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
     super.initState();
     _checkAccess();
     _loadLimits();
-    if (!_info.isPlatform) _loadNumbers();
+    if (!_info.isPlatform) {
+      _loadNumbers();
+      // Mobile money (EVC Plus, Golis, eDahab, Zaad): the voice speaks on open; the customer still taps Continue.
+      _voice = widget.voice ?? AudioDepositVoice.withdraw();
+      _voice!.play();
+    }
   }
 
   Future<void> _loadNumbers() async {
@@ -145,6 +155,8 @@ class _WithdrawDetailsScreenState extends State<WithdrawDetailsScreen> {
 
   @override
   void dispose() {
+    _voice?.stop();
+    _voice?.dispose();
     _phoneController.dispose();
     _identifierController.dispose();
     _amountController.dispose();
