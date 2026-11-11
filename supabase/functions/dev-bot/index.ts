@@ -20,12 +20,12 @@
 //   DEVBOT_TELEGRAM_TOKEN, DEVBOT_WEBHOOK_SECRET, DEVBOT_REPORT_SECRET, ANTHROPIC_API_KEY,
 //   DEVBOT_GITHUB_TOKEN   a fine-grained token for this one repository: Actions (read and write), Contents (read),
 //                         Pull requests (read), Metadata (read). It can not push code or merge.
-//   [DEVBOT_REPO=owner/name, DEVBOT_BASE_BRANCH, DEVBOT_DEPLOY_REF, DEVBOT_AI_MODEL=claude-sonnet-5-5]
+//   [DEVBOT_REPO=owner/name, DEVBOT_BASE_BRANCH, DEVBOT_DEPLOY_REF, DEVBOT_AI_MODEL=claude-haiku-5-5]
 //   [DEVBOT_TELEGRAM_API_BASE, DEVBOT_GITHUB_API_BASE, DEVBOT_AI_API_BASE]   (tests)
 const TG_BASE = (Deno.env.get('DEVBOT_TELEGRAM_API_BASE') || 'https://api.telegram.org').replace(/\/$/, '');
 const GH_BASE = (Deno.env.get('DEVBOT_GITHUB_API_BASE') || 'https://api.github.com').replace(/\/$/, '');
 const AI_BASE = (Deno.env.get('DEVBOT_AI_API_BASE') || 'https://api.anthropic.com').replace(/\/$/, '');
-const MODEL = Deno.env.get('DEVBOT_AI_MODEL') || 'claude-sonnet-5-5';
+const MODEL = Deno.env.get('DEVBOT_AI_MODEL') || 'claude-haiku-5-5';
 const REPO = Deno.env.get('DEVBOT_REPO') || 'waaproltd-spec/Badal-exchange';
 const BASE_BRANCH = () => Deno.env.get('DEVBOT_BASE_BRANCH') || 'main';
 const DEPLOY_REF = () => Deno.env.get('DEVBOT_DEPLOY_REF') || BASE_BRANCH();

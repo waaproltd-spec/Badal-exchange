@@ -111,13 +111,18 @@ jobs:
         continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AGENT_MODEL: ${{ vars.DEVBOT_AGENT_MODEL || 'claude-haiku-5-5' }}
         run: |
           claude -p "$(cat .devbot/prompt.md)" \
+            --model "$AGENT_MODEL" \
             --permission-mode acceptEdits \
             --max-turns 80 \
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(flutter analyze:*),Bash(flutter test:*),Bash(flutter pub get:*),Bash(dart format:*),Bash(node --check:*),Bash(cd:*)" \
             --disallowedTools "WebFetch,WebSearch,Bash(curl:*),Bash(wget:*),Bash(git push:*),Bash(git remote:*),Bash(gh:*),Bash(ssh:*),Bash(rm -rf:*)" \
-            --output-format json > .devbot/agent-out.json
+            --output-format json > .devbot/agent-out.json || {
+              echo "agent failed: $(jq -r '.result // .error // empty' .devbot/agent-out.json 2>/dev/null | head -c 300)"
+              exit 1
+            }
           echo "agent finished"
 
       - name: Guard, commit, push and open the pull request
