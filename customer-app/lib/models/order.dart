@@ -135,3 +135,18 @@ class Order {
     );
   }
 }
+
+/// The numbers on the summary cards of Dalabaadka, as the database counts them: [total] = [deposits] + [withdrawals].
+class OrderCounts {
+  const OrderCounts({required this.total, required this.deposits, required this.withdrawals});
+
+  final int total;
+  final int deposits;
+  final int withdrawals;
+
+  factory OrderCounts.fromJson(Map<String, dynamic> json) {
+    final d = (json['deposits'] as num?)?.toInt() ?? 0;
+    final w = (json['withdrawals'] as num?)?.toInt() ?? 0;
+    return OrderCounts(total: d + w, deposits: d, withdrawals: w); // never a total that does not add up
+  }
+}

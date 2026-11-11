@@ -254,6 +254,16 @@ class CustomerApi {
     return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// The totals of the Dalabaadka cards, counted by the database with the same rule as the list.
+  Future<OrderCounts> getOrderCounts() async =>
+      OrderCounts.fromJson(await _client.rpc('customer_order_counts') as Map<String, dynamic>);
+
+  /// One more page of the list, newest first: [direction] is 'deposit', 'withdraw' or null (all).
+  Future<List<Order>> getOrdersPage({String? direction, int offset = 0, int limit = 30}) async {
+    final data = await _client.rpc('customer_orders', {'p_limit': limit, 'p_offset': offset, 'p_direction': direction}) as List<dynamic>;
+    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   /// This device's push notification token, for the signed-in customer.
   Future<void> registerPushToken(String token) =>
       _client.rpc('customer_register_push_token', {'p_token': token, 'p_platform': 'android'});

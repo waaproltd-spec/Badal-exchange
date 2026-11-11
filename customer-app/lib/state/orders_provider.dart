@@ -31,6 +31,14 @@ class OrdersProvider extends ChangeNotifier {
   List<Order> _orders = const [];
   List<Order> get orders => _orders;
 
+  /// The totals counted by the database (null until read, or when they could not be).
+  OrderCounts? _counts;
+  OrderCounts? get counts => _counts;
+
+  /// Goes up with every successful load: screens that read further pages read their first page again.
+  int _version = 0;
+  int get version => _version;
+
   bool _loading = false;
   bool get loading => _loading;
 
@@ -59,6 +67,12 @@ class OrdersProvider extends ChangeNotifier {
     }
     try {
       _orders = await customerApi.getOrders();
+      _version++;
+      try {
+        _counts = await customerApi.getOrderCounts();
+      } catch (_) {
+        // The cards then count what the list holds; the list itself is not affected.
+      }
       // A deposit or withdrawal the server now reports completed: cha-ching.
       SuccessSound.instance.observe(_orders);
       _error = null;

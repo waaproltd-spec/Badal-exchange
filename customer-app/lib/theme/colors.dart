@@ -89,7 +89,7 @@ class AppColors {
 
   // Status (semantic, independent of the brand palette)
   static const Color statusPending = Color(0xFFF59E0B);
-  static const Color statusProcessing = Color(0xFF3B82F6);
+  static const Color statusProcessing = Color(0xFFF59E0B);
   static const Color statusCompleted = Color(0xFF16A34A);
   static const Color statusFailed = Color(0xFFDC2626);
   static const Color statusCancelled = Color(0xFF9CA3AF);
