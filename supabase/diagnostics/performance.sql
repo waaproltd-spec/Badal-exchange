@@ -128,13 +128,12 @@ SELECT schemaname, tablename FROM pg_publication_tables WHERE pubname = 'supabas
 SELECT 'realtime schema size: ' || pg_size_pretty(sum(pg_total_relation_size(c.oid))::bigint) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'realtime' AND c.relkind = 'r';
 
 \echo
-\echo '== 18. Log-like and queue tables: rows, oldest, size (growth without a limit) =='
-SELECT 'sms_logs' AS t, count(*) AS rows, min(created_at)::date AS oldest, pg_size_pretty(pg_total_relation_size('public.sms_logs')) AS size FROM public.sms_logs
-UNION ALL SELECT 'merchant_transactions', count(*), min(created_at)::date, pg_size_pretty(pg_total_relation_size('public.merchant_transactions')) FROM public.merchant_transactions
-UNION ALL SELECT 'ledger_entries', count(*), min(created_at)::date, pg_size_pretty(pg_total_relation_size('public.ledger_entries')) FROM public.ledger_entries
-UNION ALL SELECT 'orders', count(*), min(created_at)::date, pg_size_pretty(pg_total_relation_size('public.orders')) FROM public.orders
-UNION ALL SELECT 'health_scans', count(*), min(at)::date, pg_size_pretty(pg_total_relation_size('private.health_scans')) FROM private.health_scans
-UNION ALL SELECT 'merchant_feed_events', count(*), min(at)::date, pg_size_pretty(pg_total_relation_size('private.merchant_feed_events')) FROM private.merchant_feed_events;
+\echo '== 18. Log-like and queue tables: rows and size (growth without a limit) =='
+SELECT relname AS table_name, n_live_tup AS rows, pg_size_pretty(pg_total_relation_size(relid)) AS size
+FROM pg_stat_user_tables
+WHERE relname IN ('sms_logs', 'merchant_transactions', 'ledger_entries', 'orders', 'audit_logs', 'cashdesk_balances', 'sahal_balances',
+                  'health_scans', 'health_incidents', 'merchant_feed_events', 'push_notifications', 'broadcast_deliveries', 'notifications', 'dev_audit')
+ORDER BY pg_total_relation_size(relid) DESC;
 
 \echo
 \echo '== 19. Autovacuum / bloat: tables with dead rows over 10% =='
@@ -153,3 +152,41 @@ SELECT bucket_id, count(*) AS objects, pg_size_pretty(COALESCE(sum((metadata ->>
 \echo
 \echo '== 22. Which tables the functions called by the cron jobs write to (the health scan, the broadcasts, the housekeeping) =='
 SELECT jobname, left(regexp_replace(command, '\s+', ' ', 'g'), 120) AS command FROM cron.job ORDER BY jobname;
+
+\echo
+\echo '== 23. Statements that write TEMPORARY FILES (the 74 GB of temp bytes) =='
+SELECT calls, temp_blks_written, temp_blks_read, round(mean_exec_time::numeric, 1) AS mean_ms, rows,
+       left(regexp_replace(query, '\s+', ' ', 'g'), 150) AS query
+FROM extensions.pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) AND temp_blks_written > 0
+ORDER BY temp_blks_written DESC LIMIT 12;
+
+\echo
+\echo '== 24. Statements that write the most WAL (bytes) =='
+SELECT calls, pg_size_pretty(wal_bytes) AS wal, wal_records, round(mean_exec_time::numeric, 1) AS mean_ms,
+       left(regexp_replace(query, '\s+', ' ', 'g'), 150) AS query
+FROM extensions.pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+ORDER BY wal_bytes DESC LIMIT 12;
+
+\echo
+\echo '== 25. The housekeeping job: definition, runs, and its incident =='
+SELECT jobid, jobname, schedule, active, database, username FROM cron.job WHERE jobname = 'baari-housekeeping';
+SELECT count(*) AS runs, max(start_time) AS last_run, max(status) AS status, max(left(return_message, 200)) AS message
+FROM cron.job_run_details WHERE jobid = (SELECT jobid FROM cron.job WHERE jobname = 'baari-housekeeping');
+SELECT key, status, left(title, 80) AS title, occurrences, last_seen FROM private.health_incidents WHERE key LIKE 'housekeeping%';
+SELECT 'cron.job_run_details oldest row: ' || min(start_time)::text || ', newest ' || max(start_time)::text FROM cron.job_run_details;
+SELECT 'rows older than 3 days (what housekeeping should delete): ' || count(*) FROM cron.job_run_details WHERE end_time < now() - interval '3 days';
+
+\echo
+\echo '== 26. Unmatched SMS being re-checked every minute (the 24 hour window) =='
+SELECT match_status, count(*) AS rows, count(*) FILTER (WHERE received_at > now() - interval '24 hours') AS last_24h FROM public.sms_logs GROUP BY 1 ORDER BY 2 DESC;
+SELECT left(match_failure_reason, 70) AS reason, count(*) FROM public.sms_logs WHERE match_status = 'unmatched' AND received_at > now() - interval '24 hours' GROUP BY 1 ORDER BY 2 DESC LIMIT 6;
+
+\echo
+\echo '== 27. Health scan cost: time per scan (ms) over the stored scans =='
+SELECT count(*) AS scans, round(avg(ms)) AS avg_ms, percentile_disc(0.5) WITHIN GROUP (ORDER BY ms) AS p50_ms,
+       percentile_disc(0.95) WITHIN GROUP (ORDER BY ms) AS p95_ms, max(ms) AS max_ms FROM private.health_scans;
+
+\echo
+\echo '== 28. cashdesk_balances: rows per method per day (insert-only history) =='
+SELECT date_trunc('day', created_at)::date AS day, count(*) AS rows FROM public.cashdesk_balances GROUP BY 1 ORDER BY 1 DESC LIMIT 6;
+SELECT method, count(*) AS rows, max(created_at) AS newest FROM public.cashdesk_balances GROUP BY 1 ORDER BY 2 DESC LIMIT 12;
