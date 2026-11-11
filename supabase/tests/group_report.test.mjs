@@ -193,16 +193,17 @@ test('real-time notices: a credited deposit, a failed deposit, the Sahal balance
     await order(t, { amount: 99, when: old, code: 'GROLD1' });                       // older than the link: not announced
     const bad = await order(t, { status: 'failed', amount: 8, when: now, code: 'GRBAD1', reason: 'no funds' });
     const first = await t.call(`public.group_report_todo()`);
-    assert.deepEqual(first.deposits.map((d) => d.code), ['GRNEW1']);
-    assert.deepEqual(first.failed.map((d) => d.code), ['GRBAD1']);
+    const mine = (list) => list.map((d) => d.code).filter((c) => c.startsWith('GR'));      // the shared database may hold other suites' orders
+    assert.deepEqual(mine(first.deposits), ['GRNEW1']);
+    assert.deepEqual(mine(first.failed), ['GRBAD1']);
     assert.ok(!JSON.stringify(first).match(/password|pin/i));
     assert.match(first.deposits[0].phone, /••••/);
     await t.query(`SELECT public.group_notified_mark('deposit', $1)`, [[dep]]);
     await t.query(`SELECT public.group_notified_mark('failed', $1)`, [[bad]]);
     await t.query(`SELECT public.group_notified_mark('deposit', $1)`, [[dep]]);      // marking twice is harmless
     const second = await t.call(`public.group_report_todo()`);
-    assert.deepEqual(second.deposits, []);
-    assert.deepEqual(second.failed, []);
+    assert.deepEqual(mine(second.deposits), []);
+    assert.deepEqual(mine(second.failed), []);
   }));
 
 test('the old 21:00 withdrawals summary is gone; the withdrawal alert state is otherwise unchanged', () =>

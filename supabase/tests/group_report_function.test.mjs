@@ -50,6 +50,7 @@ const rest = http.createServer(async (req, res) => {
 
 let child;
 let saved;
+let savedSettings;
 let customer;
 const seeded = [];
 const run = async () => {
@@ -73,6 +74,7 @@ async function order(dir, status, code, minutesAgo, cents, reason = null) {
 
 before(async () => {
   saved = (await db.query(`SELECT chat_id, linked_at, update_offset, summary_day FROM public.withdrawal_alert_chat`)).rows[0];
+  savedSettings = (await db.query(`SELECT key, value FROM public.app_settings WHERE key IN ('daily_report_hour', 'group_report_since')`)).rows;
   customer = (await db.query(`SELECT id FROM public.users WHERE phone = '252610000003'`)).rows[0].id;
   await listen(telegram, PORTS.tg);
   await listen(rest, PORTS.rest);
@@ -96,6 +98,7 @@ after(async () => {
   await db.query(`DELETE FROM public.orders WHERE id = ANY($1)`, [seeded]).catch(() => {});
   await db.query(`UPDATE public.withdrawal_alert_chat SET chat_id = $1, linked_at = $2, update_offset = $3, summary_day = $4`,
     [saved.chat_id, saved.linked_at, saved.update_offset, saved.summary_day]);
+  for (const s of savedSettings) await db.query(`UPDATE public.app_settings SET value = $2 WHERE key = $1`, [s.key, s.value]);   // the other suites see the settings as they were
   await db.query(`DELETE FROM public.daily_reports`);
   await db.query(`DELETE FROM public.group_notified`);
   await db.end();
